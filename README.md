@@ -9,6 +9,7 @@ A simple / extendable / light-weight (~26 kB minified) mv* (MVVM) framework base
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python
 * [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/JS, PHP and Python
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP and Python
+* [Asynchronous](https://github.com/foo123/https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
 
 
 ###Contents
