@@ -374,10 +374,13 @@
             return false;
         },
         
-        walk3 = function( p, obj, aux1, aux2, aux3, C ) {
+        walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
             var o = obj, a1 = [aux1], a2 = [aux2], a3 = [aux3], 
                 k, to
             ;
+            all3 = false !== all3;
+            if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
+            else { a1 = null; a2 = null; a3 = null; }
             while ( p.length ) 
             {
                 k = p.shift( );
@@ -389,9 +392,12 @@
                         o = o[ k ];
                         // nested sub-composite class
                         if ( o instanceof C ) return [C, o, p, 0, null, null, null];
-                        a1 = getNext( a1, k );
-                        a2 = getNext( a2, k );
-                        a3 = getNext( a3, k );
+                        if ( all3 )
+                        {
+                            a1 = getNext( a1, k );
+                            a2 = getNext( a2, k );
+                            a3 = getNext( a3, k );
+                        }
                     }
                     else
                     {
@@ -601,10 +607,10 @@
     };
     // aliases
     PublishSubscribe.publish = PublishSubscribe.trigger;
-    PublishSubscribe.subscribe = PublishSubscribe.on;
+    /*PublishSubscribe.subscribe = PublishSubscribe.on;
     PublishSubscribe.unsubscribe = PublishSubscribe.off;
     PublishSubscribe.subscribeTo = PublishSubscribe.onTo;
-    PublishSubscribe.unsubscribeFrom = PublishSubscribe.offFrom;
+    PublishSubscribe.unsubscribeFrom = PublishSubscribe.offFrom;*/
     
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -1584,114 +1590,120 @@
         
         // delete, without re-arranging (array) indexes
         ,del: function( key, pub, extra ) {
-            var model = this, path, p, 
-                o, val, data
-            ;
-            if ( null == key ) return model;
+            var model = this, r, o, k, data, val;
+            
+            if ( !key ) return model;
             key = parseKey( key );
-            if ( model._atomic && startsWith( key, model.$atom ) ) return model;
+            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
             
-            path = key.split('.');
-            if ( !path ) return model;
-            o = model.$data;
+            r = walk3( 
+                key.split('.'), 
+                model.$data, 
+                model.$types, 
+                model.$validators, 
+                model.$setters, 
+                Model, false 
+            );
+            o = r[ 1 ]; k = r[ 2 ];
             
-            while ( path.length ) 
+            if ( Model === r[ 0 ] && k.length ) 
             {
-                p = path.shift();
-                // nested sub-composite model
-                if ( o[ p ] && o[ p ] instanceof Model && path.length > 0 )
+                // nested sub-model
+                k = k.join('.');
+                val = o.get( k );
+                o.del( k ); 
+                if ( pub )
                 {
-                    var mkey = path.join('.');
-                    val = o[ p ].get( mkey );
-                    o[ p ].del( mkey ); 
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('remove', data);
-                    }
-                    
-                    if ( model.$atom && key === model.$atom ) model._atomic = true;
-                    
-                    return model;
+                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                    if ( extra ) data = extend({}, extra, data); 
+                    model.publish('remove', data);
                 }
-                else if ( isType( o, T_OBJ | T_ARRAY ) && hasProp(o, p) && path.length > 0 ) 
-                    o = o[ p ];
-                else if ( path.length > 0 )
-                    // do not remove intermediate keys/values
-                    return model;
-            }
-            val = o[ p ];
-            delete o[ p ]; // not re-arrange indexes
-            
-            if ( pub )
-            {
-                data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                if ( extra ) data = extend({}, extra, data); 
-                model.publish('remove', data);
-            }
-            
-            if ( model.$atom && key === model.$atom ) model._atomic = true;
                 
+                if ( model.$atom && key === model.$atom ) model._atomic = true;
+                
+                return model;
+            }
+            else if ( r[ 3 ].length )
+            {
+                // cannot remove intermediate values
+                return model;
+            }
+            else
+            {
+                val = o[ k ];
+                delete o[ k ]; // not re-arrange indexes
+                
+                if ( pub )
+                {
+                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                    if ( extra ) data = extend({}, extra, data); 
+                    model.publish('remove', data);
+                }
+                
+                if ( model.$atom && key === model.$atom ) model._atomic = true;
+            }
             return model;
         }
         
         // remove, re-arranging (array) indexes
         ,rem: function( key, pub, extra ) {
-            var model = this, path, 
-                p, o, val, data, T
-            ;
-            if ( null == key ) return model;
+            var model = this, r, o, k, data, val;
+            
+            if ( !key ) return model;
             key = parseKey( key );
-            if ( model._atomic && startsWith( key, model.$atom ) ) return model;
+            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
             
-            path = key.split('.');
-            if ( !path ) return model;
-            o = model.$data;
+            r = walk3( 
+                key.split('.'), 
+                model.$data, 
+                model.$types, 
+                model.$validators, 
+                model.$setters, 
+                Model, false 
+            );
+            o = r[ 1 ]; k = r[ 2 ];
             
-            while ( path.length ) 
+            if ( Model === r[ 0 ] && k.length ) 
             {
-                p = path.shift();
-                T = get_type( o );
-                // nested sub-composite model
-                if ( o[ p ] && o[ p ] instanceof Model && path.length > 0 )
+                // nested sub-model
+                k = k.join('.');
+                val = o.get( k );
+                o.rem( k ); 
+                if ( pub )
                 {
-                    var mkey = path.join('.');
-                    val = o[ p ].get( mkey );
-                    o[ p ].rem( mkey ); 
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('remove', data);
-                    }
-                    
-                    if ( model.$atom && key === model.$atom ) model._atomic = true;
-                    
-                    return model;
+                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                    if ( extra ) data = extend({}, extra, data); 
+                    model.publish('remove', data);
                 }
-                else if ( (T&( T_OBJ | T_ARRAY )) && hasProp(o, p) && path.length > 0 ) 
-                    o = o[ p ];
-                else if ( path.length > 0 )
-                    // do not remove intermediate keys/values
-                    return model;
-            }
-            if ( undef !== o[ p ] )
-            {
-                o[ p ] = undef;
-                val = o[ p ];
-                if ( T_OBJ == T ) delete o[ p ];
-                else if ( T_ARRAY == T  && isArrayIndex( p ) ) o.splice( +p, 1 );
-            }
-            if ( pub )
-            {
-                data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                if ( extra ) data = extend({}, extra, data); 
-                model.publish('remove', data);
-            }
-            
-            if ( model.$atom && key === model.$atom ) model._atomic = true;
                 
+                if ( model.$atom && key === model.$atom ) model._atomic = true;
+                
+                return model;
+            }
+            else if ( r[ 3 ].length )
+            {
+                // cannot remove intermediate values
+                return model;
+            }
+            else
+            {
+                if ( undef !== o[ k ] )
+                {
+                    val = o[ k ];
+                    o[ k ] = undef;
+                    var T = get_type( o );
+                    if ( T_OBJ == T ) delete o[ p ];
+                    else if ( T_ARRAY == T  && isArrayIndex( k ) ) o.splice( +p, 1 );
+                }
+                if ( pub )
+                {
+                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                    if ( extra ) data = extend({}, extra, data); 
+                    model.publish('remove', data);
+                }
+                
+                if ( model.$atom && key === model.$atom ) model._atomic = true;
+            }
             return model;
         }
         
