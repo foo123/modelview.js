@@ -4,6 +4,9 @@ modelview.js
 A simple / extendable / light-weight (~26 kB minified) mv* (MVVM) framework based on jQuery
 
 
+**Version 0.22**
+
+
 **see also:**  
 
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python

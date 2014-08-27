@@ -257,27 +257,45 @@
         
         NOW = function( ) { return new Date( ).getTime( ); },
         
-        walkadd = function( v, p, obj ) {
+        WILDCARD = '*',
+        
+        walkadd = function( v, p, obj, MODELVIEW_COLLECTION_EACH ) {
             var o = obj, k;
             while ( p.length )
             {
                 k = p.shift( );
                 if ( !(k in o) ) o[ k ] = { value: null, next: {} };
-                if ( p.length ) o = o[ k ].next;
-                else o[ k ].value = v;
+                o = o[ k ];
+                if ( p.length ) 
+                {
+                    o = o.next;
+                }
+                else 
+                {
+                    if ( MODELVIEW_COLLECTION_EACH )
+                    {
+                        if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = { value: null, next: {} };
+                        o.next[ WILDCARD ].value = v;
+                    }
+                    else
+                    {
+                        o.value = v;
+                    }
+                }
             }
             return obj;
         },
         
         getNext = function( a, k ) {
             if ( !a ) return null;
-            var b = [ ], i, l = a.length;
+            var b = [ ], i, ai, l = a.length;
             for (i=0; i<l; i++)
             {
-                if ( a[i] )
+                ai = a[ i ];
+                if ( ai )
                 {
-                    if ( a[i][k] ) b.push( a[i][k].next );
-                    if ( a[i]['*'] ) b.push( a[i]['*'].next );
+                    if ( ai[ k ] ) b.push( ai[ k ].next );
+                    if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].next );
                 }
             }
             return b.length ? b : null;
@@ -285,17 +303,18 @@
         
         getValue = function( a, k ) {
             if ( !a ) return null;
-            var i, l = a.length;
+            var i, ai, l = a.length;
             if ( k )
             {
                 for (i=0; i<l; i++)
                 {
-                    if ( a[i] )
+                    ai = a[ i ];
+                    if ( ai )
                     {
-                        if ( a[i][k] && isType(a[i][k].value, T_FUNC) )
-                            return a[i][k].value;
-                        if ( a[i]['*'] && isType(a[i]['*'].value, T_FUNC) )
-                            return a[i]['*'].value;
+                        if ( ai[ k ] && isType(ai[ k ].value, T_FUNC) )
+                            return ai[ k ].value;
+                        if ( ai[ WILDCARD ] && isType(ai[ WILDCARD ].value, T_FUNC) )
+                            return ai[ WILDCARD ].value;
                     }
                 }
             }
@@ -303,8 +322,8 @@
             {
                 for (i=0; i<l; i++)
                 {
-                    if ( a[i] && isType(a[i].value, T_FUNC) )
-                        return a[i].value;
+                    ai = a[ i ];
+                    if ( ai && isType(ai.value, T_FUNC) )  return ai.value;
                 }
             }
             return null;
@@ -375,12 +394,12 @@
         },
         
         walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
-            var o = obj, a1 = [aux1], a2 = [aux2], a3 = [aux3], 
+            var o = obj, a1 = null, a2 = null, a3 = null, 
                 k, to
             ;
             all3 = false !== all3;
             if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-            else { a1 = null; a2 = null; a3 = null; }
+            //else { a1 = null; a2 = null; a3 = null; }
             while ( p.length ) 
             {
                 k = p.shift( );
@@ -410,7 +429,7 @@
                     // nested sub-composite class
                     if ( o[ k ] instanceof C )
                         return [C, o[k], p, 0, null, null, null];
-                    else if ((k in o) || (to === T_OBJ && "length" === k)) 
+                    else if ((k in o) /*|| (to === T_OBJ && "length" === k)*/) 
                         return [true, o, k, p, a1, a2, a3];
                     return [false, o, k, p, a1, a2, a3];
                 }
@@ -1127,13 +1146,12 @@
                 {
                     // each wrapper
                     type = type( ).bind( model );
-                    type.MODELVIEW_COLLECTION_EACH = MODELVIEW_COLLECTION_EACH;
                 }
                 else
                 {
                     type = type.bind( model );
                 }
-                walkadd( type, key.split('.'), model.$types );
+                walkadd( type, key.split('.'), model.$types, MODELVIEW_COLLECTION_EACH );
             }
             else if ( ( T_OBJ | T_ARRAY ) & t )
             {
@@ -1168,13 +1186,12 @@
                 {
                     // each wrapper
                     validator = validator( ).bind( model );
-                    validator.MODELVIEW_COLLECTION_EACH = MODELVIEW_COLLECTION_EACH;
                 }
                 else
                 {
                     validator = validator.bind( model );
                 }
-                walkadd( validator, key.split('.'), model.$validators );
+                walkadd( validator, key.split('.'), model.$validators, MODELVIEW_COLLECTION_EACH );
             }
             else if ( ( T_OBJ | T_ARRAY ) & t )
             {
@@ -1504,9 +1521,9 @@
                 Model 
             );
             o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( getNext( r[4], k ), '*' );
-            validator = getValue( getNext( r[5], k ), '*' );
-            setter = getValue( getNext( r[6], k ), '*' );
+            type = getValue( getNext( r[4], k ), WILDCARD );
+            validator = getValue( getNext( r[5], k ), WILDCARD );
+            setter = getValue( getNext( r[6], k ), WILDCARD );
             
             if ( Model === r[ 0 ]  ) 
             {
