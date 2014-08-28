@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.22
+*   @version: 0.23
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -69,7 +69,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.22
+*   @version: 0.23
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -96,11 +96,42 @@
     //
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    var AP = Array.prototype, OP = Object.prototype, FP = Function.prototype,
+    var bindF = function( f, scope ) { return f.bind(scope); },
+        proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
+        Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
+        Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
-        hasProp = FP.call.bind(OP.hasOwnProperty), toStr = FP.call.bind(OP.toString), slice = FP.call.bind(AP.slice),
-        keys = Object.keys, rnd = Math.random,
+        hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
+        
+        //typeOff = function( v ){ return typeof(v); },
+        
+        INF = Infinity, rnd = Math.random, parse_float = parseFloat, parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
+        
+        fromJSON = JSON.parse, toJSON = JSON.stringify,
+        
+        // jQuery methods
+        Event = $.Event, extend = $.extend
+    ;
     
+    // use native methods and abbreviation aliases if available
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
+    SP.tr = SP.trim; SP.sW = SP.startsWith;
+    
+    var
+        WILDCARD = "*", NAMESPACE = "modelview",
+        PROPS = {
+            options : 1, 
+            html : 2, 
+            text : 3,
+            class : 4,
+            value : 5,
+            checked : 6,
+            disabled : 7
+        },
+        
         // types
         T_NUM = 2,
         T_NAN = 3,
@@ -116,34 +147,26 @@
         T_UNDEF = 512,
         T_UNKNOWN = 1024,
         
-        PROPS = {
-            options : 1, 
-            html : 2, 
-            text : 3,
-            class : 4,
-            value : 5,
-            checked : 6,
-            disabled : 7
-        },
-        
         get_type = function( v ) {
-            var type_of = typeof(v), to_string = toStr(v);
+            var type_of, to_string;
             
-            if (undef === v || "undefined" === type_of)  return T_UNDEF;
-            
-            else if ("number" === type_of || v instanceof Number)  return isNaN(v) ? T_NAN : T_NUM;
-            
-            else if (null === v)  return T_NULL;
+            if (null === v)  return T_NULL;
             
             else if (true === v || false === v)  return T_BOOL;
             
-            else if ("string" === type_of || v instanceof String) return (1 === v.length) ? T_CHAR : T_STR;
+            type_of = typeof(v); to_string = toStr(v);
             
-            else if ("[object Array]" === to_string || v instanceof Array)  return T_ARRAY;
+            if (undef === v || "undefined" === type_of)  return T_UNDEF;
             
-            else if ("[object RegExp]" === to_string || v instanceof RegExp)  return T_REGEX;
+            else if (v instanceof Num || "number" === type_of)  return is_nan(v) ? T_NAN : T_NUM;
             
-            else if (("function" === type_of && "[object Function]" === to_string) || v instanceof Function)  return T_FUNC;
+            else if (v instanceof Str || "string" === type_of) return (1 === v.length) ? T_CHAR : T_STR;
+            
+            else if (v instanceof Arr || "[object Array]" === to_string)  return T_ARRAY;
+            
+            else if (v instanceof Regex || "[object RegExp]" === to_string)  return T_REGEX;
+            
+            else if (v instanceof Func || ("function" === type_of && "[object Function]" === to_string))  return T_FUNC;
             
             else if ("[object Object]" === to_string)  return T_OBJ;
             
@@ -151,8 +174,21 @@
             return T_UNKNOWN;
         },
         
-        Create = Object.create,
-        
+        is_type = function( v, type ) { return !!( type & get_type( v ) ); },
+
+        // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
+        is_numeric = function( n ) { return !is_nan( parse_float( n ) ) && is_finite( n ); },
+    
+        is_array_index = function( n ) {
+            if ( is_numeric( n ) ) // is numeric
+            {
+                n = +n;  // make number if not already
+                if ( (0 === n % 1) && n >= 0 ) // and is positive integer
+                    return true;
+            }
+            return false
+        },
+    
         Mixin = function(/* var args here.. */) { 
             var args = slice( arguments ), argslen, 
                 o1, o2, v, p, i, T ;
@@ -185,147 +221,81 @@
             return o1; 
         },
 
-        isType = function( v, type ) { 
-            return !!( type & get_type( v ) );
-        },
-
-        // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
-        isNumeric = function( n ) { 
-            return !isNaN( parseFloat( n ) ) && isFinite( n );
-        },
-    
-        isArrayIndex = function( n ) {
-            if ( isNumeric( n ) ) // is numeric
-            {
-                n = +n;  // make number if not already
-                if ( (0 === n % 1) && n >= 0 ) // and is positive integer
-                    return true;
-            }
-            return false
-        },
-    
-        hasAtt = function( $el, att ) { 
-            return ( undef !== $el.attr( att ) ); 
-        },
+        newFunc = function( args, code ){ return new Func(args, code); },
+        
+        hasAtt = function( $el, att ) { return ( undef !== $el.attr( att ) ); },
     
         hasNamespace = function( evt, namespace ) { 
-            return !!evt.namespace && new RegExp( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
-        },
-        
-        startsWith = function( str, prefix ) {  
-            return ( prefix === str.substr(0, prefix.length) ); 
-        },
-        
-        trim = function( str ) {  
-            return str.replace(/^\s+/, '').replace(/\s+$/, ''); 
+            return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
         removePrefix = function( prefix, key ) {
             // strict mode (after prefix, a key follows)
-            return key.replace( new RegExp( '^' + prefix + '([\\.|\\[])' ), '$1' );
+            return key.replace( new Regex( '^' + prefix + '([\\.|\\[])' ), '$1' );
         },
     
-        addBracket = function( k ) {
-            return "[" + k + "]";
-        },
+        addBracket = function( k ) { return "[" + k + "]"; },
         
         // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
         parseKey = function( key, bracketed ) {
             if ( null == key ) return undef;
             
-            key = '' + key;
-            
             if ( bracketed )
-                return key
+                return Str(key)
                         .replace( /\.+$/, '' )                       // strip trailing dots
                         .replace( /^\./, '' )                     // strip a leading dot
                         .split( '.' ).map( addBracket ).join( '' )  // convert properties to bracketed props
                 ;
             
-            return key
+            return Str(key)
                     .replace( /\[([^\]]*)\]/g, '.$1' )         // convert indexes to properties
                     .replace( /^\./, '' )                       // strip a leading dot
                     .replace( /\.+$/, '' )                       // strip trailing dots
             ;
         },
 
-        fromJSON = JSON.parse,
-        
-        toJSON = JSON.stringify,
-        
-        extend = $.extend,
-        
-        extendObj = function( obj, key, val ) {
-            if ( '' == key )
+        getNext = function( a, k ) {
+            if ( !a ) return null;
+            var b = [ ], i, ai, l = a.length;
+            for (i=0; i<l; i++)
             {
-                return obj = val;
-            }
-            key = parseKey( key );
-            if ( !key )  return obj;
-            var path = key.split('.'), p, o = obj, pnext;
-            
-            if ( !path )  return obj;
-            
-            while ( path && path.length ) 
-            {
-                p = path.shift();
-                if ( isType( o, T_OBJ | T_ARRAY ) && hasProp(o, p) && path.length > 0 ) 
+                ai = a[ i ];
+                if ( ai )
                 {
-                    pnext = path[ 0 ];
-                    if ( !isType( o[ p ], T_OBJ | T_ARRAY ) )
-                    {
-                        // removes previous "scalar" value
-                        if ( isArrayIndex( pnext ) ) // add as array
-                        {
-                            o[ p ] = [];
-                        }
-                        else // add as object
-                        {
-                            o[ p ] = {};
-                        }
-                    }
-                } 
-                else if ( path.length > 0 ) // construct
-                {
-                    pnext = path[ 0 ];
-                    if ( !isType( o, T_OBJ | T_ARRAY ) )
-                    {
-                        if ( isArrayIndex( p ) ) // add as array
-                        {
-                            o = [ ];
-                        }
-                        else // add as object
-                        {
-                            o = { };
-                        }
-                    }
-                    if ( isArrayIndex( pnext ) ) // add as array
-                    {
-                        o[ p ] = [ ];
-                    }
-                    else// add as object
-                    {
-                        o[ p ] = { };
-                    }
-                }
-                
-                if ( isType( val, T_OBJ | T_ARRAY ) && hasProp(val, p) )
-                {
-                    val = val[ p ];
-                }
-                if ( path.length > 0 )
-                {
-                    o = o[ p ];
+                    if ( ai[ k ] ) b.push( ai[ k ].next );
+                    if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].next );
                 }
             }
-            o[ p ] = val;
-            
-            return obj;
+            return b.length ? b : null;
         },
         
-        NOW = function( ) { return new Date( ).getTime( ); },
-        
-        WILDCARD = '*',
+        getValue = function( a, k ) {
+            if ( !a ) return null;
+            var i, ai, l = a.length;
+            if ( k )
+            {
+                for (i=0; i<l; i++)
+                {
+                    ai = a[ i ];
+                    if ( ai )
+                    {
+                        if ( ai[ k ] && is_type(ai[ k ].value, T_FUNC) )
+                            return ai[ k ].value;
+                        if ( ai[ WILDCARD ] && is_type(ai[ WILDCARD ].value, T_FUNC) )
+                            return ai[ WILDCARD ].value;
+                    }
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i++)
+                {
+                    ai = a[ i ];
+                    if ( ai && is_type(ai.value, T_FUNC) )  return ai.value;
+                }
+            }
+            return null;
+        },
         
         walkadd = function( v, p, obj, MODELVIEW_COLLECTION_EACH ) {
             var o = obj, k;
@@ -352,49 +322,6 @@
                 }
             }
             return obj;
-        },
-        
-        getNext = function( a, k ) {
-            if ( !a ) return null;
-            var b = [ ], i, ai, l = a.length;
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if ( ai )
-                {
-                    if ( ai[ k ] ) b.push( ai[ k ].next );
-                    if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].next );
-                }
-            }
-            return b.length ? b : null;
-        },
-        
-        getValue = function( a, k ) {
-            if ( !a ) return null;
-            var i, ai, l = a.length;
-            if ( k )
-            {
-                for (i=0; i<l; i++)
-                {
-                    ai = a[ i ];
-                    if ( ai )
-                    {
-                        if ( ai[ k ] && isType(ai[ k ].value, T_FUNC) )
-                            return ai[ k ].value;
-                        if ( ai[ WILDCARD ] && isType(ai[ WILDCARD ].value, T_FUNC) )
-                            return ai[ WILDCARD ].value;
-                    }
-                }
-            }
-            else
-            {
-                for (i=0; i<l; i++)
-                {
-                    ai = a[ i ];
-                    if ( ai && isType(ai.value, T_FUNC) )  return ai.value;
-                }
-            }
-            return null;
         },
         
         walkcheck = function( p, obj, aux, C ) {
@@ -454,7 +381,7 @@
                 {
                     if ( (a = getValue( a, k )) ) return [false, a];
                     else if ( (to&( T_OBJ | T_ARRAY )) && (k in o) ) return [true, o[k]];
-                    else if ( T_OBJ === to && 'length' == k ) return [true, keys(o).length];
+                    else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
                     return false;
                 }
             }
@@ -467,7 +394,7 @@
             ;
             all3 = false !== all3;
             if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-            //else { a1 = null; a2 = null; a3 = null; }
+            
             while ( p.length ) 
             {
                 k = p.shift( );
@@ -503,65 +430,157 @@
                 }
             }
             return [false, o, k, p, null, null, null];
+        },
+        
+        NOW = function( ) { return new Date( ).getTime( ); },
+        
+        // UUID counter for Modelviews
+        _uuidCnt = 0,
+            
+        // get a Universal Unique Identifier (UUID)
+        uuid =  function( namespace ) {
+            return [ namespace||'UUID', ++_uuidCnt, NOW( ) ].join( '_' );
+        },
+        
+        // namespaced events, play nice with possible others
+        NSEvent = function( evt, namespace ) { 
+            var nsevent = [ ( evt || "" ), NAMESPACE ]; 
+            if ( namespace ) nsevent = nsevent.concat( namespace );
+            return nsevent.join( '.' )
         }
     ;
+    
+    //
+    // PublishSubscribe (Interface)
+    var PublishSubscribe = {
+    
+        $PB: null
+        ,namespace: null
+        
+        ,initPubSub: function( ) {
+            var self = this;
+            // use a jQuery object as simple PubSub
+            self.$PB = $( {} );
+            return self;
+        }
+        
+        ,disposePubSub: function( ) {
+            var self = this;
+            // unbind all namespaced events on this pubsub
+            self.$PB.off( NSEvent('') ); 
+            self.$PB = null;
+            return self;
+        }
+        
+        ,trigger: function( message, data, namespace ) {
+            var self = this;
+            if ( self.namespace )
+                namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
+            
+            self.$PB.trigger( NSEvent(message, namespace), data );
+            return self;
+        }
+        
+        ,on: function( message, callback, namespace ) {
+            var self = this;
+            if ( is_type( callback, T_FUNC ) )
+            {
+                if ( self.namespace )
+                    namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
+            
+                self.$PB.on( NSEvent(message, namespace), callback );
+            }
+            return self;
+        }
+        
+        ,onTo: function( pubSub, message, callback, namespace ) {
+            var self = this;
+            if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+            pubSub.on( message, callback, namespace );
+            return self;
+        }
+        
+        ,off: function( message, callback, namespace ) {
+            var self = this;
+            if ( self.namespace )
+                namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
+            
+            if ( is_type( callback, T_FUNC ) ) 
+                self.$PB.off( NSEvent(message, namespace), callback );
+            else 
+                self.$PB.off( NSEvent(message, namespace) );
+            return self;
+        }
+        
+        ,offFrom: function( pubSub, message, callback, namespace ) {
+            var self = this;
+            if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+            pubSub.off( message, callback, namespace );
+            return self;
+        }
+    };
+    // aliases
+    PublishSubscribe.publish = PublishSubscribe.trigger;
+    /*PublishSubscribe.subscribe = PublishSubscribe.on;
+    PublishSubscribe.unsubscribe = PublishSubscribe.off;
+    PublishSubscribe.subscribeTo = PublishSubscribe.onTo;
+    PublishSubscribe.unsubscribeFrom = PublishSubscribe.offFrom;*/
     
     //
     // Cache with max duration and max size conditions
     var Cache = function( cacheSize, refreshInterval ) {
         var self = this, argslen = arguments.length;
         self.$store = { };
-        self.$size = Infinity;
-        self.$interval = Infinity;
-        
+        self.$size = INF;
+        self.$interval = INF;
         if ( argslen > 0 && cacheSize > 0 ) self.$size = cacheSize;
         if ( argslen > 1 && refreshInterval > 0 ) self.$interval = refreshInterval;
     };
-    Cache.prototype = {
+    Cache[proto] = {
         
-        constructor: Cache,
+        constructor: Cache
         
-        $store: null,
-        $size: null,
-        $interval: null,
+        ,$store: null
+        ,$size: null
+        ,$interval: null
         
-        dispose: function( ) {
+        ,dispose: function( ) {
             var self = this;
             self.$store = null;
             self.$size = null;
             self.$interval = null;
             return self;
-        },
+        }
 
-        reset: function( ) {
+        ,reset: function( ) {
             this.$store = { };
             return this;
-        },
+        }
         
-        size: function( size ) {
+        ,size: function( size ) {
             if ( arguments.length )
             {
                 if ( size > 0 ) this.$size = size;
                 return this;
             }
             return this.$size;
-        },
+        }
         
-        interval: function( interval ) {
+        ,interval: function( interval ) {
             if ( arguments.length )
             {
                 if ( interval > 0 ) this.$interval = interval;
                 return this;
             }
             return this.$interval;
-        },
+        }
         
-        has: function( key ) {
+        ,has: function( key ) {
             var self = this, sk = key ? self.$store[ key ] : null;
             return !!(sk && ( NOW( ) - sk.time ) <= self.$interval);
-        },
+        }
         
-        get: function( key ) {
+        ,get: function( key ) {
             if ( key )
             {
                 var self = this, sk = self.$store[ key ];
@@ -579,13 +598,13 @@
                 }
             }
             return undef;
-        },
+        }
         
-        set: function( key, val ) {
+        ,set: function( key, val ) {
             var self = this, store, size, storekeys;
             if ( key )
             {
-                store = self.$store; size = self.$size; storekeys = keys( store );
+                store = self.$store; size = self.$size; storekeys = Keys( store );
                 // assuming js hash-keys maintain order in which they were added
                 // then this same order is also chronological
                 // and can remove top-k elements which should be the k-outdated also
@@ -593,111 +612,17 @@
                 store[ key ] = { data: val, time: NOW( ) };
             }
             return self;
-        },
+        }
         
-        del: function( key ) {
+        ,del: function( key ) {
             if ( key && this.$store[ key ] ) delete this.$store[ key ];
             return this;
-        },
+        }
     
-        toString: function( ) {
+        ,toString: function( ) {
             return '[ModelView.Cache]';
         }
     };
-    
-    // UUID counter for Modelviews
-    var _uuidCnt = 0, NAMESPACE = "modelview",
-        
-        // get a Universal Unique Identifier (UUID)
-        uuid =  function( namespace ) {
-            return [ namespace||'UUID', ++_uuidCnt, new Date( ).getTime( ) ].join( '_' );
-        },
-        
-        Event = $.Event,
-        
-        // namespaced events, play nice with possible others
-        NSEvent = function( evt, namespace ) { 
-            var nsevent = [
-                
-                ( evt || "" ),
-                
-                NAMESPACE
-            ]; 
-            
-            if ( namespace ) nsevent = nsevent.concat( namespace );
-            
-            return nsevent.join( '.' )
-        }
-    ;
-        
-    //
-    // PublishSubscribe (Interface)
-    var PublishSubscribe = {
-    
-        $PB: null
-        ,namespace: null
-        
-        ,initPubSub: function( ) {
-            // use a jQuery object as simple PubSub
-            this.$PB = $( {} );
-            return this;
-        }
-        
-        ,disposePubSub: function( ) {
-            // unbind all namespaced events on this pubsub
-            this.$PB.off( NSEvent('') ); 
-            this.$PB = null;
-            return this;
-        }
-        
-        ,trigger: function( message, data, namespace ) {
-            if ( this.namespace )
-                namespace = namespace ? [this.namespace].concat(namespace) : [this.namespace];
-            
-            this.$PB.trigger( NSEvent(message, namespace), data );
-            return this;
-        }
-        
-        ,on: function( message, callback, namespace ) {
-            if ( isType( callback, T_FUNC ) )
-            {
-                if ( this.namespace )
-                    namespace = namespace ? [this.namespace].concat(namespace) : [this.namespace];
-            
-                this.$PB.on( NSEvent(message, namespace), callback );
-            }
-            return this;
-        }
-        
-        ,onTo: function( pubSub, message, callback, namespace ) {
-            if ( isType( callback, T_FUNC ) ) callback = callback.bind( this );
-            pubSub.on( message, callback, namespace );
-            return this;
-        }
-        
-        ,off: function( message, callback, namespace ) {
-            if ( this.namespace )
-                namespace = namespace ? [this.namespace].concat(namespace) : [this.namespace];
-            
-            if ( isType( callback, T_FUNC ) ) 
-                this.$PB.off( NSEvent(message, namespace), callback );
-            else 
-                this.$PB.off( NSEvent(message, namespace) );
-            return this;
-        }
-        
-        ,offFrom: function( pubSub, message, callback, namespace ) {
-            if ( isType( callback, T_FUNC ) ) callback = callback.bind( this );
-            pubSub.off( message, callback, namespace );
-            return this;
-        }
-    };
-    // aliases
-    PublishSubscribe.publish = PublishSubscribe.trigger;
-    /*PublishSubscribe.subscribe = PublishSubscribe.on;
-    PublishSubscribe.unsubscribe = PublishSubscribe.off;
-    PublishSubscribe.subscribeTo = PublishSubscribe.onTo;
-    PublishSubscribe.unsubscribeFrom = PublishSubscribe.offFrom;*/
     
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -717,7 +642,6 @@
     // what             -> action  (default "update value")
     // who, why, how    -> additional conditions/parameters
     
-    // TODO: make composite models/views more generic/simple/flexible/intuitive
     // TODO: implement more simpler/flexible/generic/faster mapping between model data and view dom elements and attributes (eg. micro templating)
     
         
@@ -729,16 +653,16 @@
             
             T.BEFORE = function( T2 ) {
                 return TC(function( v ) { 
-                    var args = slice( arguments );
-                    args[ 0 ] = T.apply( this, args );
-                    return T2.apply( this, args );
+                    var self = this, args = slice( arguments );
+                    args[ 0 ] = T.apply( self, args );
+                    return T2.apply( self, args );
                 }); 
             };
             T.AFTER = function( T2 ) {
                 return TC(function( v ) { 
-                    var args = slice( arguments );
-                    args[ 0 ] = T2.apply( this, args );
-                    return T.apply( this, args );
+                    var self = this, args = slice( arguments );
+                    args[ 0 ] = T2.apply( self, args );
+                    return T.apply( self, args );
                 }); 
             };
             
@@ -756,23 +680,23 @@
             
             V.AND = function( V2 ) { 
                 return VC(function( v ) { 
-                    var args = slice( arguments );
-                    return !!(V.apply(this, args) && V2.apply(this, args));
+                    var self = this, args = slice( arguments );
+                    return !!(V.apply(self, args) && V2.apply(self, args));
                 }); 
             };
             
             V.OR = function( V2 ) { 
                 return VC(function( v ) { 
-                    var args = slice( arguments );
-                    return !!(V.apply(this, args) || V2.apply(this, args));
+                    var self = this, args = slice( arguments );
+                    return !!(V.apply(self, args) || V2.apply(self, args));
                 }); 
             };
 
             V.XOR = function( V2 ) { 
                 return VC(function( v ) { 
-                    var args = slice( arguments ),
-                        r1 = V.apply(this, args)
-                        r2 = V2.apply(this, args)
+                    var self = this, args = slice( arguments ),
+                        r1 = V.apply(self, args)
+                        r2 = V2.apply(self, args)
                     ;
                     return !!((r1 && !r2) || (r2 && !r1));
                 }); 
@@ -783,10 +707,10 @@
         
         Type = {
             
-            TypeCaster: TC,
+            TypeCaster: TC
             
             // default type casters
-            Cast: {
+            ,Cast: {
                 // collection for each item type caster
                 EACH: function( eachItemTypeCaster ) {
                     var each = function( ) {
@@ -797,11 +721,11 @@
                 },
                 
                 // type caster for each specific field of an object
-                FIELD: function( fieldsTypesMap ) {
+                FIELDS: function( fieldsTypesMap ) {
                     var notbinded = true;
                     fieldsTypesMap = extend( {}, fieldsTypesMap || {} );
                     return TC(function( v ) { 
-                        var p, t, a, l, i;
+                        var self = this, p, t, a, l, i;
                         if ( notbinded )
                         {
                             for ( p in fieldsTypesMap )
@@ -809,12 +733,12 @@
                                 t = fieldsTypesMap[ p ];
                                 if ( t.MODELVIEW_COLLECTION_EACH )
                                 {
-                                    fieldsTypesMap[ p ] = t( ).bind( this );
+                                    fieldsTypesMap[ p ] = bindF( t( ), self );
                                     fieldsTypesMap[ p ].MODELVIEW_COLLECTION_EACH = true;
                                 }
                                 else
                                 {
-                                    fieldsTypesMap[ p ] = t.bind( this );
+                                    fieldsTypesMap[ p ] = bindF( t, self );
                                 }
                             }
                             notbinded = false;
@@ -823,7 +747,7 @@
                         {
                             t = fieldsTypesMap[ p ];
                             a = v[ p ];
-                            if ( t.MODELVIEW_COLLECTION_EACH && isType(a, T_ARRAY) )
+                            if ( t.MODELVIEW_COLLECTION_EACH && is_type(a, T_ARRAY) )
                             {
                                l = a.length;
                                for (i=0; i<l; i++) a[ i ] = t( a[ i ] );
@@ -841,7 +765,7 @@
                 DEFAULT: function( defaultValue ) {  
                     return TC(function( v ) { 
                         var T = get_type( v );
-                        if ( (T_UNDEF & T) || ((T_STR & T) && !trim(v).length)  ) v = defaultValue;
+                        if ( (T_UNDEF & T) || ((T_STR & T) && !v.tr().length)  ) v = defaultValue;
                         return v;
                     }); 
                 },
@@ -858,46 +782,46 @@
                     }); 
                 },
                 INTEGER: TC(function( v ) { 
-                    return parseInt( v, 10 ); 
+                    return parse_int( v, 10 ); 
                 }),
                 FLOAT: TC(function( v ) { 
-                    return parseFloat( v, 10 ); 
+                    return parse_float( v, 10 ); 
                 }),
                 TRIMMED: TC(function( v ) { 
-                    return trim( String(v) );
+                    return Str(v).tr();
                 }),
                 LCASE: TC(function( v ) { 
-                    return String(v).toLowerCase( );
+                    return Str(v).toLowerCase( );
                 }),
                 UCASE: TC(function( v ) { 
-                    return String(v).toUpperCase( );
+                    return Str(v).toUpperCase( );
                 }),
                 STRING: TC(function( v ) { 
-                    return String(v); 
+                    return Str(v); 
                 })
-            },
+            }
             
-            add: function( type, handler ) {
-                if ( isType( type, T_STR ) && isType( handler, T_FUNC ) ) Type.Cast[ type ] = TC( handler );
+            ,add: function( type, handler ) {
+                if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) Type.Cast[ type ] = TC( handler );
                 return Type;
-            },
+            }
             
-            del: function( type ) {
-                if ( isType( type, T_STR ) && Type.Cast[ type ] ) delete Type.Cast[ type ];
+            ,del: function( type ) {
+                if ( is_type( type, T_STR ) && Type.Cast[ type ] ) delete Type.Cast[ type ];
                 return Type;
-            },
+            }
         
-            toString: function( ) {
+            ,toString: function( ) {
                 return '[ModelView.Type]';
             }
         },
         
         Validation = {
             
-            Validator: VC,
+            Validator: VC
             
             // default validators
-            Validate: {
+            ,Validate: {
                 // collection for each item validator
                 EACH: function( eachItemValidator ) {
                     var each = function( ) {
@@ -908,11 +832,11 @@
                 },
                 
                 // validator for each specific field of an object
-                FIELD: function( fieldsValidatorsMap ) {
+                FIELDS: function( fieldsValidatorsMap ) {
                     var notbinded = true;
                     fieldsValidatorsMap = extend( {}, fieldsValidatorsMap || {} );
                     return VC(function( v ) { 
-                        var p, t, a, l, i;
+                        var self = this, p, t, a, l, i;
                         if ( notbinded )
                         {
                             for ( p in fieldsValidatorsMap )
@@ -920,12 +844,12 @@
                                 t = fieldsValidatorsMap[ p ];
                                 if ( t.MODELVIEW_COLLECTION_EACH )
                                 {
-                                    fieldsValidatorsMap[ p ] = t( ).bind( this );
+                                    fieldsValidatorsMap[ p ] = bindF( t( ), self );
                                     fieldsValidatorsMap[ p ].MODELVIEW_COLLECTION_EACH = true;
                                 }
                                 else
                                 {
-                                    fieldsValidatorsMap[ p ] = t.bind( this );
+                                    fieldsValidatorsMap[ p ] = bindF( t, self );
                                 }
                             }
                             notbinded = false;
@@ -934,7 +858,7 @@
                         {
                             t = fieldsValidatorsMap[ p ];
                             a = v[ p ];
-                            if ( t.MODELVIEW_COLLECTION_EACH && isType(a, T_ARRAY) )
+                            if ( t.MODELVIEW_COLLECTION_EACH && is_type(a, T_ARRAY) )
                             {
                                l = a.length;
                                for (i=0; i<l; i++) if ( !t( a[ i ] ) )  return false;
@@ -949,10 +873,10 @@
                 },
 
                 NUMERIC: VC(function( v ) { 
-                    return isNumeric( v ); 
+                    return is_numeric( v ); 
                 }),
                 NOT_EMPTY: VC(function( v ) { 
-                    return !!( v && (0 < trim( String(v) ).length) ); 
+                    return !!( v && (0 < Str(v).tr().length) ); 
                 }),
                 EQUAL: function( val, strict ) { 
                     if ( false !== strict )
@@ -986,22 +910,22 @@
                     model_field = 'this.get("' + model_field +'", true)';
                     if ( false !== strict )
                     {
-                        return VC(new Function("v", "return ( "+model_field+" === v );")); 
+                        return VC(newFunc("v", "return ( "+model_field+" === v );")); 
                     }
                     else
                     {
-                        return VC(new Function("v", "return ( "+model_field+" == v );")); 
+                        return VC(newFunc("v", "return ( "+model_field+" == v );")); 
                     }
                 },
                 NOT_EQUALTO: function( model_field, strict ) { 
                     model_field = 'this.get("' + model_field +'", true)';
                     if ( false !== strict )
                     {
-                        return VC(new Function("v", "return ( "+model_field+" !== v );")); 
+                        return VC(newFunc("v", "return ( "+model_field+" !== v );")); 
                     }
                     else
                     {
-                        return VC(new Function("v", "return ( "+model_field+" != v );")); 
+                        return VC(newFunc("v", "return ( "+model_field+" != v );")); 
                     }
                 },
                 MATCH: function( regex_pattern ) { 
@@ -1043,6 +967,7 @@
                     }
                 },
                 BETWEEN: function( m, M, strict ) {  
+                    if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
                     // swap
                     if ( m > M ) { var tmp = M; M = m; m = tmp; }
                     if ( false !== strict )
@@ -1059,6 +984,7 @@
                     }
                 },
                 NOT_BETWEEN: function( m, M, strict ) {  
+                    if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
                     // swap
                     if ( m > M ) { var tmp = M; M = m; m = tmp; }
                     if ( false !== strict )
@@ -1076,33 +1002,84 @@
                 },
                 IN: function( /* vals,.. */ ) { 
                     var vals = slice( arguments ); 
-                    if ( isType(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
+                    if ( is_type(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
                     return VC(function( v ) { 
                         return ( -1 < vals.indexOf( v ) ); 
                     }); 
                 },
                 NOT_IN: function( /* vals,.. */ ) { 
                     var vals = slice( arguments ); 
-                    if ( isType(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
+                    if ( is_type(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
                     return VC(function( v ) { 
                         return ( 0 > vals.indexOf( v ) ); 
                     }); 
                 }
-            },
+            }
             
-            add: function( type, handler ) {
-                if ( isType( type, T_STR ) && isType( handler, T_FUNC ) ) Validation.Validate[ type ] = VC( handler );
+            ,add: function( type, handler ) {
+                if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) Validation.Validate[ type ] = VC( handler );
                 return Validation;
-            },
+            }
             
-            del: function( type ) {
-                if ( isType( type, T_STR ) && Validation.Validate[ type ] ) delete Validation.Validate[ type ];
+            ,del: function( type ) {
+                if ( is_type( type, T_STR ) && Validation.Validate[ type ] ) delete Validation.Validate[ type ];
                 return Validation;
-            },
+            }
         
-            toString: function( ) {
+            ,toString: function( ) {
                 return '[ModelView.Validation]';
             }
+        },
+        
+        addModelTypeValidator = function( model, key, typeOrValidator, modelTypesValidators ) {
+            var k, t,
+                MODELVIEW_COLLECTION_EACH = false
+            ;
+            if ( null == key ) return;
+            key = parseKey( key ); t = get_type( typeOrValidator );
+            if ( T_FUNC & t )
+            {
+                MODELVIEW_COLLECTION_EACH = typeOrValidator.MODELVIEW_COLLECTION_EACH;
+                // bind the type caster handler to 'this model'
+                if ( MODELVIEW_COLLECTION_EACH )
+                {
+                    // each wrapper
+                    typeOrValidator = bindF( typeOrValidator( ), model );
+                }
+                else
+                {
+                    typeOrValidator = bindF( typeOrValidator, model );
+                }
+                walkadd( typeOrValidator, key.split('.'), modelTypesValidators, MODELVIEW_COLLECTION_EACH );
+            }
+            else if ( ( T_OBJ | T_ARRAY ) & t )
+            {
+                // nested keys given, recurse
+                for ( k in typeOrValidator ) addModelTypeValidator( model, key + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+            }
+        },
+        
+        addModelGetterSetter = function( model, key, getterOrSetter, modelGettersSetters ) {
+            var k, t;
+            if ( null == key ) return;
+            key = parseKey( key ); t = get_type( getterOrSetter );
+            if ( T_FUNC & t )
+            {
+                // bind the getter handler to 'this model'
+                walkadd( bindF( getterOrSetter, model ), key.split('.'), modelGettersSetters );
+            }
+            else if ( ( T_OBJ | T_ARRAY ) & t )
+            {
+                // nested keys given, recurse
+                for ( k in getterOrSetter ) addModelGetterSetter( model, key + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+            }
+        },
+        
+        getSelectors = function( bind, autobind ) {
+            return [
+                bind ? '[' + bind + ']' : null,
+                autobind ? 'input[name^="' + autobind + '["],textarea[name^="' + autobind + '["],select[name^="' + autobind + '["]' : null
+            ];
         }
     ;
     
@@ -1137,7 +1114,7 @@
             .init( )
         ;
     };
-    Model.prototype = Mixin( Create( Object.prototype ), PublishSubscribe, {
+    Model[proto] = Mixin( Create( Obj[proto] ), PublishSubscribe, {
         
         // allow chaining, return this;
         constructor: Model
@@ -1200,140 +1177,38 @@
             return model.$data;
         }
         
-        ,type: function( key, type ) {
-            var model = this, k, t,
-                MODELVIEW_COLLECTION_EACH = false
-            ;
-            if ( null == key ) return model;
-            key = parseKey( key ); t = get_type( type );
-            if ( T_FUNC & t )
-            {
-                MODELVIEW_COLLECTION_EACH = type.MODELVIEW_COLLECTION_EACH;
-                // bind the type caster handler to 'this model'
-                if ( MODELVIEW_COLLECTION_EACH )
-                {
-                    // each wrapper
-                    type = type( ).bind( model );
-                }
-                else
-                {
-                    type = type.bind( model );
-                }
-                walkadd( type, key.split('.'), model.$types, MODELVIEW_COLLECTION_EACH );
-            }
-            else if ( ( T_OBJ | T_ARRAY ) & t )
-            {
-                for ( k in type )
-                    // nested keys given, recurse
-                    model.type( key + '.' + k, type[ k ] );
-            }
-            return model;
-        }
-        
         ,types: function( types ) {
-            var model = this;
-            if ( types && isType(types, T_OBJ) )
+            var model = this, k;
+            if ( types && is_type(types, T_OBJ) )
             {
-                for (var k in types)
-                    model.type( k, types[ k ] );
-            }
-            return model;
-        }
-        
-        ,validator: function( key, validator ) {
-            var model = this, k, t,
-                MODELVIEW_COLLECTION_EACH = false
-            ;
-            if ( null == key ) return model;
-            key = parseKey( key ); t = get_type( validator );
-            if ( T_FUNC & t )
-            {
-                MODELVIEW_COLLECTION_EACH = validator.MODELVIEW_COLLECTION_EACH;
-                // bind the validator handler to 'this model'
-                if ( MODELVIEW_COLLECTION_EACH )
-                {
-                    // each wrapper
-                    validator = validator( ).bind( model );
-                }
-                else
-                {
-                    validator = validator.bind( model );
-                }
-                walkadd( validator, key.split('.'), model.$validators, MODELVIEW_COLLECTION_EACH );
-            }
-            else if ( ( T_OBJ | T_ARRAY ) & t )
-            {
-                for ( k in validator )
-                    // nested keys given, recurse
-                    model.validator( key + '.' + k, validator[ k ] );
+                for (k in types) addModelTypeValidator( model, k, types[ k ], model.$types );
             }
             return model;
         }
         
         ,validators: function( validators ) {
-            var model = this;
-            if ( validators && isType(validators, T_OBJ) )
+            var model = this, k;
+            if ( validators && is_type(validators, T_OBJ) )
             {
-                for (var k in validators)
-                    model.validator( k, validators[ k ] );
-            }
-            return model;
-        }
-        
-        ,getter: function( key, getter ) {
-            var model = this, k, t;
-            if ( null == key ) return model;
-            key = parseKey( key );
-            t = get_type( getter );
-            if ( T_FUNC & t )
-            {
-                // bind the getter handler to 'this model'
-                walkadd( getter.bind( model ), key.split('.'), model.$getters );
-            }
-            else if ( ( T_OBJ | T_ARRAY ) & t )
-            {
-                for ( k in getter )
-                    // nested keys given, recurse
-                    model.getter( key + '.' + k, getter[ k ] );
+                for (k in validators) addModelTypeValidator( model, k, validators[ k ], model.$validators );
             }
             return model;
         }
         
         ,getters: function( getters ) {
-            var model = this;
-            if ( getters && isType(getters, T_OBJ) )
+            var model = this, k;
+            if ( getters && is_type(getters, T_OBJ) )
             {
-                for (var k in getters)
-                    model.getter( k, getters[ k ] );
-            }
-            return model;
-        }
-        
-        ,setter: function( key, setter ) {
-            var model = this, k, t;
-            if ( null == key ) return model;
-            key = parseKey( key );
-            t = get_type( setter );
-            if ( T_FUNC & t )
-            {
-                // bind the setter handler to 'this model'
-                walkadd( setter.bind( model ), key.split('.'), model.$setters );
-            }
-            else if ( ( T_OBJ | T_ARRAY ) & t )
-            {
-                for ( k in setter )
-                    // nested keys given, recurse
-                    model.setter( key + '.' + k, setter[ k ] );
+                for (k in getters) addModelGetterSetter( model, k, getters[ k ], model.$getters );
             }
             return model;
         }
         
         ,setters: function( setters ) {
-            var model = this;
-            if ( setters && isType(setters, T_OBJ) )
+            var model = this, k;
+            if ( setters && is_type(setters, T_OBJ) )
             {
-                for (var k in setters)
-                    model.setter( k, setters[ k ] );
+                for (k in setters) addModelGetterSetter( model, k, setters[ k ], model.$setters );
             }
             return model;
         }
@@ -1342,17 +1217,12 @@
         ,serialize: function( data ) {
             var model = this, key, type, dat;
             
-            while ( data && data instanceof Model )
-            {
-                data = data.data( );
-            }
+            while ( data instanceof Model ) { data = data.data( ); }
             
             type = get_type( data );
             
-            if ( T_OBJ & type )
-                data = extend( {}, data );
-            else if ( T_ARRAY & type )
-                data = data.slice( );
+            if ( T_OBJ & type )  data = extend( {}, data );
+            else if ( T_ARRAY & type ) data = data.slice( );
             
             if ( ( T_ARRAY | T_OBJ ) & type )
             {
@@ -1360,7 +1230,7 @@
                 {
                     type = get_type( data[ key ] );
                     
-                    if ( data[ key ] && data[ key ] instanceof Model )
+                    if ( data[ key ] instanceof Model )
                     {
                         data[ key ] = model.serialize( extend( {}, data[ key ].data( ) ) );
                     }
@@ -1429,7 +1299,7 @@
             if ( !arguments.length ) return 0;
             var o = key ? this.get( key ) : val, T = get_type( o );
             
-            if ( T_OBJ === T ) return keys( o ).length;
+            if ( T_OBJ === T ) return Keys( o ).length;
             else if ( T_ARRAY === T ) return o.length;
             else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
             return 0;
@@ -1471,7 +1341,7 @@
             ;
             if ( !key ) return model;
             key = parseKey( key );
-            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
+            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
             
             r = walk3( 
                 key.split('.'), 
@@ -1573,12 +1443,11 @@
         // append value (for arrays like structures)
         ,append: function ( key, val, pub, extra ) {
             var model = this, r, o, k,
-                type, validator, setter,
-                data, prevval
+                type, validator, setter,  data
             ;
             if ( !key ) return model;
             key = parseKey( key );
-            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
+            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
             
             r = walk3( 
                 key.split('.'), 
@@ -1599,24 +1468,20 @@
                 if ( k.length ) 
                 {
                     k = k.join('.');
-                    prevval = o.get( k );
-                    if ( prevval !== val ) o.set( k, val ); 
-                    else  pub = false;
+                    o.append( k, val ); 
                 }
                 else 
                 {
-                    prevval = o.data( );
-                    if ( prevval !== val ) o.data( val );
-                    else  pub = false;
+                    o.data( val );
                 }
                 if ( pub )
                 {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val, valuePrev: prevval};
+                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
                     if ( extra ) data = extend({}, extra, data); 
                     model.publish('change', data);
                 }
             }
-            else if ( !setter && ((false === r[0] && r[3].length) || !isType( o[k], T_ARRAY )) )
+            else if ( !setter && (false === r[0] && r[3].length) )
             {
                 // cannot add intermediate values or not array
                 return model;
@@ -1657,8 +1522,16 @@
                     return model;
                 }
                 
-                // append node here
-                o[ k ].push( val );
+                if ( T_ARRAY === get_type( o[ k ] ) )
+                {
+                    // append node here
+                    o[ k ].push( val );
+                }
+                else
+                {
+                    // not array-like, do a set operation, in case
+                    o[ k ] = val;
+                }
             
                 if ( pub )
                 {
@@ -1679,7 +1552,7 @@
             
             if ( !key ) return model;
             key = parseKey( key );
-            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
+            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
             
             r = walk3( 
                 key.split('.'), 
@@ -1736,7 +1609,7 @@
             
             if ( !key ) return model;
             key = parseKey( key );
-            if ( !key || (model._atomic && startsWith( key, model.$atom )) ) return model;
+            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
             
             r = walk3( 
                 key.split('.'), 
@@ -1772,14 +1645,11 @@
             }
             else
             {
-                if ( undef !== o[ k ] )
-                {
-                    val = o[ k ];
-                    o[ k ] = undef;
-                    var T = get_type( o );
-                    if ( T_OBJ == T ) delete o[ p ];
-                    else if ( T_ARRAY == T  && isArrayIndex( k ) ) o.splice( +p, 1 );
-                }
+                val = o[ k ];
+                o[ k ] = undef;
+                var T = get_type( o );
+                if ( T_OBJ == T ) delete o[ p ];
+                else if ( T_ARRAY == T  && is_array_index( k ) ) o.splice( +p, 1 );
                 if ( pub )
                 {
                     data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
@@ -1794,7 +1664,7 @@
         
         // shortcut to trigger "model:change" per given key
         ,notify: function( key, evt ) {
-            if ( undef !== key )
+            if ( key )
                 this.publish(evt || 'change', {target: this, bracketkey: parseKey(key, 1), key: parseKey( key ), value: null});
             return this;
         }
@@ -1843,8 +1713,8 @@
     };
     // STATIC
     View._CACHE_SIZE = 600;
-    View._REFRESH_INTERVAL = Infinity; // refresh cache interval
-    View.prototype = Mixin( Create( Object.prototype ), PublishSubscribe, {
+    View._REFRESH_INTERVAL = INF; // refresh cache interval
+    View[proto] = Mixin( Create( Obj[proto] ), PublishSubscribe, {
         
         // allow chaining, return this;
         constructor: View
@@ -1918,7 +1788,7 @@
             var view = this;
             if ( arguments.length )
             {
-                if ( isType( renderer, T_FUNC ) ) view.$template = renderer;
+                if ( is_type( renderer, T_FUNC ) ) view.$template = renderer;
                 return view;
             }
             return view.$template;
@@ -1929,7 +1799,7 @@
                 evt = name ? ('on_' + name.split(':').join('_')) : null;
             if ( evt && undef !== handler )
             {
-                view[ evt ] = isType( handler, T_FUNC ) ? handler : null;
+                view[ evt ] = is_type( handler, T_FUNC ) ? handler : null;
                 return view;
             }
             return evt ? view[ evt ] : undef;
@@ -1939,7 +1809,7 @@
             var view = this;
             if ( arguments.length > 1 )
             {
-                view['do_'+name] = isType( handler, T_FUNC ) ? handler : null;
+                view['do_'+name] = is_type( handler, T_FUNC ) ? handler : null;
                 return view;
             }
             return name ? (view['do_'+name] || undef) : undef;
@@ -2090,7 +1960,7 @@
         ,eventaction: function( evt, bind ) {
             if ( evt && bind && bind[evt] )
             {
-                if ( isType(bind[evt], T_STR) ) return {event: evt, action: bind[evt]};
+                if ( is_type(bind[evt], T_STR) ) return {event: evt, action: bind[evt]};
                 return extend( {event: evt}, bind[evt] );
             }
             return null;
@@ -2103,8 +1973,8 @@
         
         ,unbind: function( events, dom ) {
             var view = this, model = view.$model,
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' + model.id + '["],textarea[name^="' + model.id + '["],select[name^="' + model.id + '["]',
+                sels = getSelectors( view.$bind, model.id ),
+                bindSelector = sels[0], autobindSelector = sels[1],
                 namespaced, $dom
             ;
             
@@ -2134,8 +2004,9 @@
         
         ,uiEventHandler: function( evt, el ) {
             var view = this, model = view.$model,
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' + model.id + '["],textarea[name^="' + model.id + '["],select[name^="' + model.id + '["]', isAutoBind = false, isBind = false, $el = $(el),
+                sels = getSelectors( view.$bind, model.id ),
+                bindSelector = sels[0], autobindSelector = sels[1],
+                isAutoBind = false, isBind = false, $el = $(el),
                 bind = view.$bindbubble ? view.attr($el, 'bind') : null
             ;
 
@@ -2157,9 +2028,9 @@
         
         ,bind: function( events, dom ) {
             var view = this, model = view.$model,
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' + model.id + '["],textarea[name^="' + model.id + '["],select[name^="' + model.id + '["]', method, evt,
-                namespaced
+                sels = getSelectors( view.$bind, model.id ),
+                bindSelector = sels[0], autobindSelector = sels[1],
+                method, evt, namespaced
             ;
             
             events = events || ['change', 'click'];
@@ -2189,7 +2060,7 @@
             // model events
             for (method in view)
             {
-                if ( !isType( view[ method ], T_FUNC ) || !/^on_model_/.test( method ) ) continue;
+                if ( !is_type( view[ method ], T_FUNC ) || !/^on_model_/.test( method ) ) continue;
                 
                 evt = method.replace(/^on_model_/, '');
                 evt.length && view.onTo( model, evt, view[ method ], view.namespace );
@@ -2200,8 +2071,8 @@
         
         ,sync: function( $dom ) {
             var view = this, model = view.$model, 
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' + model.id + '["],textarea[name^="' + model.id + '["],select[name^="' + model.id + '["]',
+                sels = getSelectors( view.$bind, model.id ),
+                bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
             
@@ -2305,8 +2176,8 @@
         ,on_model_error: function( evt, data ) {
             var view = this, model = view.$model, 
                 name = model.id + data.bracketkey,
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' +name+ '"],textarea[name^="' +name+ '"],select[name^="' +name+ '"]',
+                sels = getSelectors( view.$bind, name ),
+                bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
 
@@ -2335,8 +2206,8 @@
         ,on_model_change: function( evt, data ) {
             var view = this, model = view.$model, 
                 name = model.id + data.bracketkey,
-                bindSelector = '[' + view.$bind + ']',
-                autobindSelector = 'input[name^="' +name+ '"],textarea[name^="' +name+ '"],select[name^="' +name+ '"]',
+                sels = getSelectors( view.$bind, name ),
+                bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
 
@@ -2410,7 +2281,7 @@
             if ( data['css'] )
             {
                 hash = { };
-                if ( isType(data.css, T_OBJ) )
+                if ( is_type(data.css, T_OBJ) )
                 {
                     for (p in data.css)
                     {
@@ -2425,7 +2296,7 @@
             if ( data['attr'] )
             {
                 hash = { };
-                if ( isType(data.attr, T_OBJ) )
+                if ( is_type(data.attr, T_OBJ) )
                 {
                     for (p in data.attr)
                     {
@@ -2440,7 +2311,7 @@
             key = removePrefix(model.id, keyb) || false;
             if ( !key || !model.has( key ) ) return;
             value = key ? model.get( key ) : '';
-            isBool = isType( value, T_BOOL );
+            isBool = is_type( value, T_BOOL );
             
             if ( data['prop'] )
             {
@@ -2448,7 +2319,7 @@
                 switch (attr)
                 {
                     case PROPS['options']:
-                        if ( $el.is('select') && isType( value, T_ARRAY ) )
+                        if ( $el.is('select') && is_type( value, T_ARRAY ) )
                         {
                             var group = $el.find('optgroup'), sel = $el.val(), _options = ''; // get selected value
                             if ( !group.length )  group = $el;
@@ -2608,7 +2479,7 @@
                     key = data.key /*removePrefix(model.id, name)*/ || false;
                     if ( !key ) return;
                     value = data.value; //model.get( key );
-                    isBool = isType( value, T_BOOL );
+                    isBool = is_type( value, T_BOOL );
                     val = $el.val( );
                     
                     if ( $el.is(':radio') )
@@ -2624,7 +2495,7 @@
                     {
                         var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
                         
-                        if ( checkbox.length > 1 && isType( value, T_ARRAY ) )
+                        if ( checkbox.length > 1 && is_type( value, T_ARRAY ) )
                         {
                             checkbox.each(function(i, v) {
                                 var $this = $(this);
@@ -2685,21 +2556,21 @@
                     
                     // "model:change" event and element does not reference the (nested) model key
                     if ( !key || (
-                        ( !startsWith( key, data.model.bracketkey ) ) && 
-                        ( !startsWith( key, data.model.key ) ) 
+                        ( !key.sW( data.model.bracketkey ) ) && 
+                        ( !key.sW( data.model.key ) ) 
                     )) return;
                     
                     // atomic operation(s)
-                    if ( model._atomic && startsWith( key, model.$atom ) ) return;
+                    if ( model._atomic && key.sW( model.$atom ) ) return;
                 }
                 
-                if ( action && isType( view['do_'+action], T_FUNC ) )
+                if ( action && is_type( view['do_'+action], T_FUNC ) )
                 {
                     bindData = extend(true, {}, eventAction);
                     view['do_'+action]( evt, $el, bindData );
                     
                     // allow post-action processing to take place if needed
-                    if ( eventAction.complete && isType( view['do_'+eventAction.complete], T_FUNC ) )
+                    if ( eventAction.complete && is_type( view['do_'+eventAction.complete], T_FUNC ) )
                     {
                         // add a small delay also
                         setTimeout(function(){
@@ -2764,7 +2635,7 @@
     // export it
     exports.ModelView = {
     
-        VERSION: "0.22"
+        VERSION: "0.23"
         
         ,UUID: uuid
         
@@ -2784,7 +2655,7 @@
 }(EXPORTS, jQuery);/**
 *
 *   ModelView.js (jQuery plugin, optional)
-*   @version: 0.22
+*   @version: 0.23
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens

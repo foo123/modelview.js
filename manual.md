@@ -35,34 +35,25 @@ model.rem( key [, publish] );
 // shortcut to model publich change event for key (and nested keys)
 model.notify( key );
 
-// add a typecaster to key
-model.type( key, typeCaster );
-
 // add typecasters given in {key: typecaster} format
 model.types( typeCasters );
-
-// add a validator to key
-model.validator( key, validator );
 
 // add validators given in {key: validator} format
 model.validators( validators );
 
-// add a custom getter for key
-model.getter( key, handler );
-
-// add getters given in {key: getter} format
+// add custom getters given in {key: getter} format
 model.getters( getters );
 
-// add a custom setter for key
-model.setter( key, handler );
-
-// add setters given in {key: setter} format
+// add custom setters given in {key: setter} format
 model.setters( setters );
 
-// get data in JSON format
+// get model data in plain JS Object format
+model.serialize( [key] );
+
+// get data in JSON string format
 model.toJSON( [key] );
 
-// set data from JSON format
+// set data from JSON string format
 model.fromJSON( jsonData [, key] );
 
 // dispose model
@@ -137,8 +128,8 @@ ModelView.Type.Cast.CLAMP( min, max );
 // cast to "eachTypeCaster" for each element in a collection (see examples)
 ModelView.Type.Cast.EACH( eachTypeCaster );
 
-// cast fields of an object with a FIELD TypeCaster
-ModelView.Type.Cast.FIELD({
+// cast fields of an object with a FIELDS TypeCaster
+ModelView.Type.Cast.FIELDS({
     'field1': ModelView.Type.Cast.STRING,
     'field2': ModelView.Type.Cast.BOOLEAN,
     'field3': /* a custom type caster */ ModelView.Type.TypeCaster(function(v) { /* .. */ return v; })
@@ -203,8 +194,9 @@ ModelView.Validation.Validate.NOT_IN( v1, v2 [, ...] );
 
 // validate each element in a collection using "eachValidator"
 ModelView.Validation.Validate.EACH( eachValidator );
-// validate fields of an object with a FIELD Validator
-ModelView.Validation.Validate.FIELD({
+
+// validate fields of an object with a FIELDS Validator
+ModelView.Validation.Validate.FIELDS({
     'field1': ModelView.Validation.Validate.GREATER_THAN( 0 ),
     'field2': ModelView.Validation.Validate.BETWEEN( v1, v2 ),
     'field3': /* a custom validator */ ModelView.Validation.Validator(function(v) { /* .. */ return true; })
@@ -250,7 +242,7 @@ $dom.modelview({
             
             mode: $.ModelView.Type.Cast.STRING,
             // support wildcard assignment of typecasters
-            'collection.*': $.ModelView.Type.Cast.FIELD({
+            'collection.*': $.ModelView.Type.Cast.FIELDS({
                 // type casters  can be composed (using BEFORE/AFTER) in an algebraic/functional way..
                 'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STRING ),
                 'field2': $.ModelView.Type.Cast.BOOLEAN
@@ -262,7 +254,7 @@ $dom.modelview({
             
             mode: $.ModelView.Validation.Validate.IN( 'all', 'active', 'completed' ),
             // support wildcard assignment of validators
-            'collection.*': $.ModelView.Validation.Validate.FIELD({
+            'collection.*': $.ModelView.Validation.Validate.FIELDS({
                 // validators can be combined (using AND/OR/NOT/XOR) in an algebraic/functional way
                 'field1': $.ModelView.Validation.Validate.NOT_EMPTY.AND( $.ModelView.Validation.Validate.MATCH( /item\d+/ ) ),
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
