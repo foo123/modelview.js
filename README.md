@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / light-weight (~26 kB minified) mv* (MVVM) framework based on jQuery
 
 
-**Version 0.22**
+**Version 0.23**
 
 
 **see also:**  
