@@ -84,7 +84,10 @@ view.bind( events, dom );
 // synchronize view to dom
 view.sync( [dom] );
 
-// refresh view caches and bindinds
+// reset view caches only
+view.reset( [dom] );
+
+// reset/refresh view caches and bindinds
 view.refresh( [dom] );
 
 // dispose view (and model)
@@ -159,19 +162,7 @@ ModelView.Validation.Validate.MAXLEN( len );
 // validate (string) minimum length
 ModelView.Validation.Validate.MINLEN( len );
 
-// validate value equal to val
-ModelView.Validation.Validate.EQUAL( val [, strict=true] );
-
-// validate value not equal to val
-ModelView.Validation.Validate.NOT_EQUAL( val [, strict=true] );
-
-// validate value equal to "model field"
-ModelView.Validation.Validate.EQUALTO( model_field [, strict=true] );
-
-// validate value not equal to "model field"
-ModelView.Validation.Validate.NOT_EQUALTO( model_field [, strict=true] );
-
-// validate value is numeric
+// validate (string) is numeric
 ModelView.Validation.Validate.NUMERIC;
 
 // validate value matches regex pattern
@@ -180,17 +171,23 @@ ModelView.Validation.Validate.MATCH( regex );
 // validate value not matches regex pattern
 ModelView.Validation.Validate.NOT_MATCH( regex );
 
-// validate value greater than (or equal if "strict" is false) to val
-ModelView.Validation.Validate.GREATER_THAN( val [, strict=true] );
+// validate equal to value (or model field)
+ModelView.Validation.Validate.EQUAL( value | ModelField [, strict=true] );
 
-// validate value less than (or equal if "strict" is false) to val
-ModelView.Validation.Validate.LESS_THAN( val [, strict=true] );
+// validate not equal to value (or model field)
+ModelView.Validation.Validate.NOT_EQUAL( value | ModelField [, strict=true] );
 
-// validate value between (or equal if "strict" is false) the interval [v1, v2]
-ModelView.Validation.Validate.BETWEEN( v1, v2 [, strict=true] );
+// validate greater than (or equal if "strict" is false) to value (or model field)
+ModelView.Validation.Validate.GREATER_THAN( value | ModelField [, strict=true] );
 
-// validate value not between (or equal if "strict" is false) the interval [v1, v2]
-ModelView.Validation.Validate.NOT_BETWEEN( v1, v2 [, strict=true] );
+// validate less than (or equal if "strict" is false) to value (or model field)
+ModelView.Validation.Validate.LESS_THAN( value | ModelField [, strict=true] );
+
+// validate between (or equal if "strict" is false) the interval [v1, v2]
+ModelView.Validation.Validate.BETWEEN( v1 | ModelField, v2 | ModelField [, strict=true] );
+
+// validate not between (or equal if "strict" is false) the interval [v1, v2]
+ModelView.Validation.Validate.NOT_BETWEEN( v1 | ModelField, v2 | ModelField [, strict=true] );
 
 // validate value is one of v1, v2, ...
 ModelView.Validation.Validate.IN( v1, v2 [, ...] );

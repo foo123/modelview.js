@@ -103,7 +103,7 @@
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
         hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
         
-        //typeOff = function( v ){ return typeof(v); },
+        is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
         
         INF = Infinity, rnd = Math.random, parse_float = parseFloat, parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
         
@@ -707,6 +707,11 @@
             return V;
         },
         
+        Field = function( modelField ) {
+            if ( !is_instance(this, Field) ) return new Field( modelField );
+            this.field = modelField || null;
+        },
+        
         Type = {
             
             TypeCaster: TC
@@ -881,120 +886,94 @@
                     return !!( v && (0 < Str(v).tr().length) ); 
                 }),
                 MAXLEN: function( len ) {
-                    return VC(function( v ) { 
-                        return v.length <= len; 
-                    });
+                    return VC(function( v ) { return v.length <= len; });
                 },
                 MINLEN: function( len ) {
-                    return VC(function( v ) { 
-                        return v.length >= len; 
-                    });
-                },
-                EQUAL: function( val, strict ) { 
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( val === v ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( val == v ); 
-                        }); 
-                    }
-                },
-                NOT_EQUAL: function( val, strict ) { 
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( val !== v ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( val != v ); 
-                        }); 
-                    }
-                },
-                EQUALTO: function( model_field, strict ) { 
-                    return VC(newFunc("v", "return this.$data."+model_field+" "+(false !== strict ? "===" : "==")+" v;")); 
-                },
-                NOT_EQUALTO: function( model_field, strict ) { 
-                    return VC(newFunc("v", "return this.$data."+model_field+" "+(false !== strict ? "!==" : "!=")+" v;")); 
+                    return VC(function( v ) { return v.length >= len; });
                 },
                 MATCH: function( regex_pattern ) { 
-                    return VC(function( v ) { 
-                        return regex_pattern.test( v ); 
-                    }); 
+                    return VC(function( v ) { return regex_pattern.test( v ); }); 
                 },
                 NOT_MATCH: function( regex_pattern ) { 
-                    return VC(function( v ) { 
-                        return !regex_pattern.test( v ); 
-                    }); 
+                    return VC(function( v ) { return !regex_pattern.test( v ); }); 
+                },
+                EQUAL: function( val, strict ) { 
+                    if ( is_instance(val, Field) ) 
+                        return VC(newFunc("v", "return this.$data."+val.field+" "+(false !== strict ? "===" : "==")+" v;")); 
+                    
+                    return false !== strict 
+                        ? VC(function( v ) { return val === v; })
+                        : VC(function( v ) { return val == v; })
+                    ; 
+                },
+                NOT_EQUAL: function( val, strict ) { 
+                    if ( is_instance(val, Field) ) 
+                        return VC(newFunc("v", "return this.$data."+val.field+" "+(false !== strict ? "!==" : "!=")+" v;"));
+                    
+                    return false !== strict 
+                        ? VC(function( v ) { return val !== v; })
+                        : VC(function( v ) { return val != v; })
+                    ; 
                 },
                 GREATER_THAN: function( m, strict ) { 
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( m < v ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( m <= v ); 
-                        }); 
-                    }
+                    if ( is_instance(m, Field) ) 
+                        return VC(newFunc("v", "return this.$data."+m.field+" "+(false !== strict ? "<" : "<=")+" v;")); 
+                    
+                    return false !== strict 
+                        ? VC(function( v ) { return m < v; })
+                        : VC(function( v ) { return m <= v; })
+                    ; 
                 },
                 LESS_THAN: function( M, strict ) { 
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( M > v ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( M >= v ); 
-                        }); 
-                    }
+                    if ( is_instance(M, Field) ) 
+                        return VC(newFunc("v", "return this.$data."+M.field+" "+(false !== strict ? ">" : ">=")+" v;")); 
+                    
+                    return false !== strict 
+                        ? VC(function( v ) { return M > v; })
+                        : VC(function( v ) { return M >= v; })
+                    ; 
                 },
                 BETWEEN: function( m, M, strict ) {  
                     if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
+                    
+                    var tmp, is_m_field = is_instance(m, Field), is_M_field = is_instance(M, Field);
+                    
+                    if ( is_m_field || is_M_field )
+                    {
+                        m = is_m_field ? ("this.$data."+m.field) : (''+m);
+                        M = is_M_field ? ("this.$data."+M.field) : (''+M);
+                        return false !== strict 
+                            ? VC(newFunc("v", "return ( "+m+" < v ) && ( "+M+" > v );"))
+                            : VC(newFunc("v", "return ( "+m+" <= v ) && ( "+M+" >= v );"))
+                        ; 
+                    }
                     // swap
-                    if ( m > M ) { var tmp = M; M = m; m = tmp; }
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( ( m < v ) && ( M > v ) ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( ( m <= v ) && ( M >= v ) ); 
-                        }); 
-                    }
+                    if ( m > M ) { tmp = M; M = m; m = tmp; }
+                    return false !== strict 
+                        ? VC(function( v ) { return ( m < v ) && ( M > v ); })
+                        : VC(function( v ) { return ( m <= v ) && ( M >= v ); })
+                    ; 
                 },
                 NOT_BETWEEN: function( m, M, strict ) {  
                     if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
+                    
+                    var tmp, is_m_field = is_instance(m, Field), is_M_field = is_instance(M, Field);
+                    
+                    if ( is_m_field || is_M_field )
+                    {
+                        m = is_m_field ? ("this.$data."+m.field) : (''+m);
+                        M = is_M_field ? ("this.$data."+M.field) : (''+M);
+                        return false !== strict 
+                            ? VC(newFunc("v", "return ( "+m+" > v ) || ( "+M+" < v );"))
+                            : VC(newFunc("v", "return ( "+m+" >= v ) || ( "+M+" <= v );"))
+                        ; 
+                    }
                     // swap
-                    if ( m > M ) { var tmp = M; M = m; m = tmp; }
-                    if ( false !== strict )
-                    {
-                        return VC(function( v ) { 
-                            return ( ( m > v ) || ( M < v ) ); 
-                        }); 
-                    }
-                    else
-                    {
-                        return VC(function( v ) { 
-                            return ( ( m >= v ) || ( M <= v ) ); 
-                        }); 
-                    }
+                    if ( m > M ) { tmp = M; M = m; m = tmp; }
+                    return false !== strict 
+                        ? VC(function( v ) { return ( m > v ) || ( M < v ); })
+                        : VC(function( v ) { return ( m >= v ) || ( M <= v ); })
+                    ; 
                 },
                 IN: function( /* vals,.. */ ) { 
                     var vals = slice( arguments ); 
@@ -2629,6 +2608,8 @@
         ,UUID: uuid
         
         ,Extend: Mixin
+        
+        ,Field: Field
         
         ,Type: Type
         
