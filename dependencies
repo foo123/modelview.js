@@ -38,7 +38,7 @@ REPLACE =[{}]
 
     "@@EXPORTS@@" = "EXPORTS"
     
-    "@@VERSION@@" = "0.23"
+    "@@VERSION@@" = "0.24"
     
     "@@DEPENDENCIES@@" = "@dependencies: jQuery"
     

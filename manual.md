@@ -1,6 +1,6 @@
 ####ModelView API
 
-**Version 0.23**
+**Version 0.24**
 
 
 **Model**
@@ -152,6 +152,12 @@ ModelView.Type.del( name );
 
 // validate (string) not empty
 ModelView.Validation.Validate.NOT_EMPTY;
+
+// validate (string) maximum length
+ModelView.Validation.Validate.MAXLEN( len );
+
+// validate (string) minimum length
+ModelView.Validation.Validate.MINLEN( len );
 
 // validate value equal to val
 ModelView.Validation.Validate.EQUAL( val [, strict=true] );
