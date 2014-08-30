@@ -172,9 +172,9 @@ Also focus is on enabling dynamic templates (in an engine-agnostic way) directly
 
 ####Performance
 
-Some tests on jsperf with ModelView [0.24](http://jsperf.com/js-mvc-frameworks/11) and [0.25](http://jsperf.com/js-mvc-frameworks/12) (after some optimisations for single keys), latest backbonejs, knockoutjs and emberJS (on models get/set).
+Some tests on jsperf with ModelView [0.24](http://jsperf.com/js-mvc-frameworks/11) and [0.25](http://jsperf.com/js-mvc-frameworks/12) (after some optimisations for single keys and typo fixes), latest backbonejs, knockoutjs and emberJS (on models get/set).
 
-Some notes. The frameworks tested solve different problems so the comparison is only illustrative. The tests use two **get** operations and one **set** operation on a **single key**. ModelView get/set operations are complex operations supporting nested keys (which Ember, Backbone and Knockout do not support by default), custom getters/setters, type-casting and validation. Plus modelview set operatin is in general faster than other approaches, while get operation was slowest. To fix that some minor optimisations were made for get (and set) when just single key is used and the final performance was greatly increased (mostly for get operation which was slower, while it is trivial in other approaches). 
+Some notes. The frameworks tested solve different problems so the comparison is only illustrative. The tests use two **get** operations and one **set** operation on a **single key**. ModelView get/set operations are complex operations supporting nested keys (which Ember, Backbone and Knockout do not support by default), custom getters/setters, type-casting and validation. Moreover, modelview set operation, is in general faster than other approaches, while get operation was slowest. To fix this, some minor optimisations were made for get (and set) when just single key is used and the final performance was greatly increased (mostly for get operation which was slower, while get is trivial in other approaches). 
 
 
 ModelView 0.25 is 1st place on Firefox, Opera and 2nd place on Chrome, IE, having consistent ops/sec measure on all browsers.

@@ -37,7 +37,8 @@
         
         is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
         
-        INF = Infinity, rnd = Math.random, parse_float = parseFloat, parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
+        INF = Infinity, rnd = Math.random, parse_float = parseFloat, 
+        parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
         
         fromJSON = JSON.parse, toJSON = JSON.stringify,
         
@@ -50,7 +51,7 @@
     if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
-    SP.tr = SP.trim; SP.sW = SP.startsWith;
+    SP.tR = SP.trim; SP.sW = SP.startsWith;
     
     var
         WILDCARD = "*", NAMESPACE = "modelview",
@@ -163,18 +164,11 @@
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
-        getRemovePrefix = function( prefix ) {
-            var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
-            return function( key ) {
-                // strict mode (after prefix, a key follows)
-                return key.replace( regex, '$1' );
-            };
-        },
-    
-        /*removePrefix = function( prefix, key ) {
+        getKeyPrefix = function( prefix ) {
             // strict mode (after prefix, a key follows)
-            return key.replace( new Regex( '^' + prefix + '([\\.|\\[])' ), '$1' );
-        },*/
+            var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+            return function( key ) { return key.replace( regex, '$1' ); };
+        },
     
         addBracket = function( k ) { return "[" + k + "]"; },
         
@@ -223,9 +217,9 @@
                     ai = a[ i ];
                     if ( ai )
                     {
-                        if ( ai[ k ] && is_type(ai[ k ].value, T_FUNC) )
+                        if ( ai[ k ] && /*is_type(*/ai[ k ].value/*, T_FUNC)*/ )
                             return ai[ k ].value;
-                        if ( ai[ WILDCARD ] && is_type(ai[ WILDCARD ].value, T_FUNC) )
+                        if ( ai[ WILDCARD ] && /*is_type(*/ai[ WILDCARD ].value/*, T_FUNC)*/ )
                             return ai[ WILDCARD ].value;
                     }
                 }
@@ -235,7 +229,7 @@
                 for (i=0; i<l; i++)
                 {
                     ai = a[ i ];
-                    if ( ai && is_type(ai.value, T_FUNC) )  return ai.value;
+                    if ( ai && /*is_type(*/ai.value/*, T_FUNC)*/ )  return ai.value;
                 }
             }
             return null;
@@ -281,17 +275,17 @@
                         o = o[ k ];
                         // nested sub-composite class
                         if ( o instanceof C ) return [C, o, p];
-                        a = getNext( a, k );
+                        a && (a = getNext( a, k ));
                     }
                     else
                     {
-                        a = getNext( a, k );
+                        a && (a = getNext( a, k ));
                         if ( !a ) return false;
                     }
                 }
                 else
                 {
-                    if ( getValue( a, k ) ) return true;
+                    if ( a && getValue( a, k ) ) return true;
                     else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return true;
                     else if ( T_OBJ === to && 'length' == k ) return true;
                     return false;
@@ -301,7 +295,7 @@
         },
         
         walk2 = function( p, obj, aux, C ) {
-            var o = obj, a = [aux], k, to;
+            var o = obj, a = aux ? [aux] : null, k, to;
             while ( p.length ) 
             {
                 k = p.shift( );
@@ -313,17 +307,17 @@
                         o = o[ k ];
                         // nested sub-composite class
                         if ( o instanceof C ) return [C, o, p];
-                        a = getNext( a, k );
+                        a && (a = getNext( a, k ));
                     }
                     else
                     {
-                        a = getNext( a, k );
+                        a && (a = getNext( a, k ));
                         if ( !a ) return false;
                     }
                 }
                 else
                 {
-                    if ( (a = getValue( a, k )) ) return [false, a];
+                    if ( a && (a = getValue( a, k )) ) return [false, a];
                     else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
                     else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
                     return false;
@@ -714,7 +708,7 @@
                 DEFAULT: function( defaultValue ) {  
                     return TC(function( v ) { 
                         var T = get_type( v );
-                        if ( (T_UNDEF & T) || ((T_STR & T) && !v.tr().length)  ) v = defaultValue;
+                        if ( (T_UNDEF & T) || ((T_STR & T) && !v.tR().length)  ) v = defaultValue;
                         return v;
                     }); 
                 },
@@ -737,7 +731,7 @@
                     return parse_float( v, 10 ); 
                 }),
                 TRIMMED: TC(function( v ) { 
-                    return Str(v).tr();
+                    return Str(v).tR();
                 }),
                 LCASE: TC(function( v ) { 
                     return Str(v).toLowerCase( );
@@ -825,7 +819,7 @@
                     return is_numeric( v ); 
                 }),
                 NOT_EMPTY: VC(function( v ) { 
-                    return !!( v && (0 < Str(v).tr().length) ); 
+                    return !!( v && (0 < Str(v).tR().length) ); 
                 }),
                 MAXLEN: function( len ) {
                     return VC(function( v ) { return v.length <= len; });
@@ -952,7 +946,7 @@
             var k, t,
                 MODELVIEW_COLLECTION_EACH = false
             ;
-            if ( null == key ) return;
+            if ( !key ) return;
             key = parseKey( key ); t = get_type( typeOrValidator );
             if ( T_FUNC & t )
             {
@@ -972,7 +966,7 @@
         
         addModelGetterSetter = function( model, key, getterOrSetter, modelGettersSetters ) {
             var k, t;
-            if ( null == key ) return;
+            if ( !key ) return;
             key = parseKey( key ); t = get_type( getterOrSetter );
             if ( T_FUNC & t )
             {
@@ -997,6 +991,7 @@
         
         model.id = id || uuid('Model');
         model.namespace = model.id;
+        model.getKey = getKeyPrefix( model.id );
         
         model.$view = null;
         
@@ -1043,6 +1038,7 @@
             model.$setters = null;
             model._atomic = false;
             model.$atom = null;
+            model.getKey = null;
             if ( pub ) model.publish('dispose', { target: model } );
             model.disposePubSub( );
             return model;
@@ -1216,7 +1212,7 @@
             if ( 1 === p.length )
             {
                 // handle single key fast
-                if ( (key in model.$data) || (key in model.$getters && model.$getters[key].value) ) return true;
+                if ( (key in model.$data) || ((r=model.$getters[key] || model.$getters[WILDCARD]) && r.value) ) return true;
             }
             else if ( 1 < p.length && (r = walkcheck( p, model.$data, model.$getters, Model )) )
             {
@@ -1232,10 +1228,10 @@
             if ( 1 === p.length )
             {
                 // handle single key fast
-                if ( !RAW && (r=model.$getters[key]) && r.value ) return r.value( key );
+                if ( !RAW && (r=model.$getters[key] || model.$getters[WILDCARD]) && r.value ) return r.value( key );
                 /*if ( k in data )*/ return model.$data[ key ];
             }
-            else if ( 1 < p.length && (r = walk2( p, model.$data, model.$getters, Model )) )
+            else if ( 1 < p.length && (r = walk2( p, model.$data, RAW ? null : model.$getters, Model )) )
             {
                 // nested sub-model
                 if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -1265,21 +1261,14 @@
             {
                 // handle single key fast
                 k = key;
-                setter = (k in setters) ? setters[k].value : null;
-                type = (k in types) ? types[k].value : null;
-                validator = (k in validators) ? validators[k].value : null;
+                setter = (r=setters[key] || setters[WILDCARD]) ? r.value : null;
+                type = (r=types[key] || types[WILDCARD]) ? r.value : null;
+                validator = (r=validators[key] || validators[WILDCARD]) ? r.value : null;
                 canSet = true;
             }
             else if ( 1 < p.length )
             {
-                r = walk3( 
-                    key.split('.'), 
-                    o, 
-                    types, 
-                    validators, 
-                    setters, 
-                    Model 
-                );
+                r = walk3( p, o, types, validators, setters, Model );
                 o = r[ 1 ]; k = r[ 2 ];
                 type = getValue( r[4], k );
                 validator = getValue( r[5], k );
@@ -1375,51 +1364,63 @@
         
         // append value (for arrays like structures)
         ,append: function ( key, val, pub, extra ) {
-            var model = this, r, o, k,
-                type, validator, setter,  data
+            var model = this, r, o, k, p,
+                type, validator, setter,  data,
+                canSet = false
             ;
-            if ( !key ) return model;
-            key = parseKey( key );
+            //if ( !key ) return model;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
             if ( model._atomic && key.sW( model.$atom ) ) return model;
-            
-            r = walk3( 
-                key.split('.'), 
-                model.$data, 
-                model.$types, 
-                model.$validators, 
-                model.$setters, 
-                Model 
-            );
-            o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( getNext( r[4], k ), WILDCARD );
-            validator = getValue( getNext( r[5], k ), WILDCARD );
-            setter = getValue( getNext( r[6], k ), WILDCARD );
-            
-            if ( Model === r[ 0 ]  ) 
+            o = model.$data;
+            types = model.$types; 
+            validators = model.$validators; 
+            setters = model.$setters;
+            if ( 1 === p.length )
             {
-                // nested sub-model
-                if ( k.length ) 
-                {
-                    k = k.join('.');
-                    o.append( k, val ); 
-                }
-                else 
-                {
-                    o.data( val );
-                }
-                if ( pub )
-                {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('change', data);
-                }
+                // handle single key fast
+                k = key;
+                setter = (r=setters[key] || setters[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                type = (r=types[key] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                validator = (r=validators[key] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                canSet = true;
             }
-            else if ( !setter && (false === r[0] && r[3].length) )
+            else if ( 1 < p.length )
             {
-                // cannot add intermediate values or not array
-                return model;
+                r = walk3( p, o, types, validators, setters, Model );
+                o = r[ 1 ]; k = r[ 2 ];
+                type = getValue( getNext( r[4], k ), WILDCARD );
+                validator = getValue( getNext( r[5], k ), WILDCARD );
+                setter = getValue( getNext( r[6], k ), WILDCARD );
+                
+                if ( Model === r[ 0 ]  ) 
+                {
+                    // nested sub-model
+                    if ( k.length ) 
+                    {
+                        k = k.join('.');
+                        o.append( k, val ); 
+                    }
+                    else 
+                    {
+                        o.data( val );
+                    }
+                    if ( pub )
+                    {
+                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                        if ( extra ) data = extend({}, extra, data); 
+                        model.publish('change', data);
+                    }
+                    return model;
+                }
+                else if ( !setter && (false === r[0] && r[3].length) )
+                {
+                    // cannot add intermediate values or not array
+                    return model;
+                }
+                canSet = true;
             }
-            else
+            
+            if ( canSet )
             {
                 if ( type ) val = type( val, key );
                 if ( validator && !validator( val, key ) )
@@ -1481,45 +1482,48 @@
         
         // delete, without re-arranging (array) indexes
         ,del: function( key, pub, extra ) {
-            var model = this, r, o, k, data, val;
+            var model = this, r, o, k, p, data, val, canDel = false;
             
-            if ( !key ) return model;
-            key = parseKey( key );
-            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
-            
-            r = walk3( 
-                key.split('.'), 
-                model.$data, 
-                model.$types, 
-                model.$validators, 
-                model.$setters, 
-                Model, false 
-            );
-            o = r[ 1 ]; k = r[ 2 ];
-            
-            if ( Model === r[ 0 ] && k.length ) 
+            //if ( !key ) return model;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
+            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            o = model.$data;
+            if ( 1 === p.length )
             {
-                // nested sub-model
-                k = k.join('.');
-                val = o.get( k );
-                o.del( k ); 
-                if ( pub )
+                // handle single key fast
+                k = key;
+                canDel = true;
+            }
+            else if ( 1 < p.length )
+            {
+                r = walk3( p, o, null, null, null, Model, false );
+                o = r[ 1 ]; k = r[ 2 ];
+                
+                if ( Model === r[ 0 ] && k.length ) 
                 {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('remove', data);
+                    // nested sub-model
+                    k = k.join('.');
+                    val = o.get( k );
+                    o.del( k ); 
+                    if ( pub )
+                    {
+                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                        if ( extra ) data = extend({}, extra, data); 
+                        model.publish('remove', data);
+                    }
+                    
+                    if ( model.$atom && key === model.$atom ) model._atomic = true;
+                    return model;
                 }
-                
-                if ( model.$atom && key === model.$atom ) model._atomic = true;
-                
-                return model;
+                else if ( r[ 3 ].length )
+                {
+                    // cannot remove intermediate values
+                    return model;
+                }
+                canDel = true;
             }
-            else if ( r[ 3 ].length )
-            {
-                // cannot remove intermediate values
-                return model;
-            }
-            else
+            
+            if ( canDel )
             {
                 val = o[ k ];
                 delete o[ k ]; // not re-arrange indexes
@@ -1538,51 +1542,54 @@
         
         // remove, re-arranging (array) indexes
         ,rem: function( key, pub, extra ) {
-            var model = this, r, o, k, data, val;
+            var model = this, r, o, k, p, data, val, T, canDel = false;
             
-            if ( !key ) return model;
-            key = parseKey( key );
-            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
-            
-            r = walk3( 
-                key.split('.'), 
-                model.$data, 
-                model.$types, 
-                model.$validators, 
-                model.$setters, 
-                Model, false 
-            );
-            o = r[ 1 ]; k = r[ 2 ];
-            
-            if ( Model === r[ 0 ] && k.length ) 
+            //if ( !key ) return model;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
+            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            o = model.$data;
+            if ( 1 === p.length )
             {
-                // nested sub-model
-                k = k.join('.');
-                val = o.get( k );
-                o.rem( k ); 
-                if ( pub )
+                // handle single key fast
+                k = key;
+                canDel = true;
+            }
+            else if ( 1 < p.length )
+            {
+                r = walk3( p, o, null, null, null, Model, false );
+                o = r[ 1 ]; k = r[ 2 ];
+                
+                if ( Model === r[ 0 ] && k.length ) 
                 {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('remove', data);
+                    // nested sub-model
+                    k = k.join('.');
+                    val = o.get( k );
+                    o.rem( k ); 
+                    if ( pub )
+                    {
+                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
+                        if ( extra ) data = extend({}, extra, data); 
+                        model.publish('remove', data);
+                    }
+                    
+                    if ( model.$atom && key === model.$atom ) model._atomic = true;
+                    return model;
                 }
-                
-                if ( model.$atom && key === model.$atom ) model._atomic = true;
-                
-                return model;
+                else if ( r[ 3 ].length )
+                {
+                    // cannot remove intermediate values
+                    return model;
+                }
+                canDel = true;
             }
-            else if ( r[ 3 ].length )
-            {
-                // cannot remove intermediate values
-                return model;
-            }
-            else
+            
+            if ( canDel )
             {
                 val = o[ k ];
                 o[ k ] = undef;
-                var T = get_type( o );
-                if ( T_OBJ == T ) delete o[ p ];
-                else if ( T_ARRAY == T  && is_array_index( k ) ) o.splice( +p, 1 );
+                T = get_type( o );
+                if ( T_OBJ == T ) delete o[ k ];
+                else if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
                 if ( pub )
                 {
                     data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
@@ -1660,7 +1667,7 @@
                 if ( fromModel )
                 {
                     elName = $el.attr('name') || false;
-                    key = (elName && $el.is('input,textarea,select')) ? view.removePrefix(elName) : eventAction.key;
+                    key = (elName && $el.is('input,textarea,select')) ? model.getKey(elName) : eventAction.key;
                     
                     // "model:change" event and element does not reference the (nested) model key
                     if ( !key || (
@@ -1701,7 +1708,7 @@
                     name = $el.attr('name') || false;
                     if ( /*!$el.is("input,textarea,select") ||*/ !name ) return;
                     
-                    key = (fromModel && fromModel.key)  ? fromModel.key : view.removePrefix(name);
+                    key = (fromModel && fromModel.key)  ? fromModel.key : model.getKey(name);
                     
                     if ( fromModel && ('value' in fromModel) ) // action is called from model, so key value are already there
                     {
@@ -1779,7 +1786,6 @@
             {
                 view.$model.dispose( );
                 view.$model = null;
-                view.removePrefix = null;
             }
             view.$dom = null;
             view.$bind = null;
@@ -1811,7 +1817,6 @@
             {
                 if ( view.$model ) view.$model.dispose( );
                 view.$model = model.view( view );
-                view.removePrefix = getRemovePrefix( view.$model.id );
                 return view;
             }
             return view.$model;
@@ -2163,7 +2168,7 @@
             if ( data._isAutoBind && el.attr('name') )
             {
                 name = el.attr('name');
-                key = parseKey( view.removePrefix(name) ) || false;
+                key = parseKey( model.getKey(name) ) || false;
                 
                 if ( key && model.has( key ) )
                 {
@@ -2297,7 +2302,7 @@
             model = view.$model;
             mode = data['mode'] || 'replace';
             
-            key = view.removePrefix(key) || false;
+            key = model.getKey(key) || false;
             if ( !key || !model.has( key ) ) return;
             value = model.get( key );
             
@@ -2350,7 +2355,7 @@
             }
             
             if ( !keyb ) return;
-            key = view.removePrefix(keyb) || false;
+            key = model.getKey(keyb) || false;
             if ( !key || !model.has( key ) ) return;
             value = key ? model.get( key ) : '';
             isBool = is_type( value, T_BOOL );
@@ -2440,7 +2445,7 @@
         ,do_update: function( evt, $el, data ) {
             if ( data['key'] && "value" in data ) 
             {
-                this.$model.set( this.removePrefix( data['key'] ), data['value'], true );
+                this.$model.set( this.$model.getKey( data['key'] ), data['value'], true );
             }
         }
         
@@ -2454,7 +2459,7 @@
                 
             if ( data['key'] ) 
             {
-                key = view.removePrefix(data['key']);
+                key = model.getKey(data['key']);
                 if ( 'value' in data )
                 {
                     // show if data[key] is value, else hide
@@ -2485,7 +2490,7 @@
                 
             if ( data['key'] ) 
             {
-                key = view.removePrefix(data['key']);
+                key = model.getKey(data['key']);
                 if ( 'value' in data )
                 {
                     // hide if data[key] is value, else show
@@ -2516,7 +2521,7 @@
                 /*if ( name )
                 {*/
                     // use already computed/cached key/value from calling method passed in "data"
-                    key = data.key /*removePrefix(model.id, name)*/ || false;
+                    key = data.key /*model.getKey(name)*/ || false;
                     if ( !key ) return;
                     value = data.value; //model.get( key );
                     isBool = is_type( value, T_BOOL );
