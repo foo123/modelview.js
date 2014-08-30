@@ -1,7 +1,7 @@
 modelview.js
 ============
 
-A simple / extendable / light-weight (~26 kB minified) mv* (MVVM) framework based on jQuery
+A simple / extendable / light-weight (~26 kB minified, ~9kB zipped) mv* (MVVM) framework based on jQuery
 
 
 **Version 0.24**
@@ -172,8 +172,8 @@ Also focus is on enabling dynamic templates (in an engine-agnostic way) directly
 
 ####Performance
 
-Some tests with ModelView 0.24, latest backboneJS and emberJS (on models get/set) on [jsperf here](http://jsperf.com/js-mvc-frameworks/11).
+Some tests with ModelView 0.24, latest backboneJS, knockoutjs and emberJS (on models get/set) on [jsperf here](http://jsperf.com/js-mvc-frameworks/11).
 
-ModelView is (consistently) 2nd place (note Ember and Backbone do not support get/set on nested keys by default)
+(note Ember and Backbone do not support get/set on nested keys by default)
 
 ![jsperf-model-getset](/screenshots/jsperf-model-getset.png)
