@@ -163,10 +163,18 @@
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
-        removePrefix = function( prefix, key ) {
+        getRemovePrefix = function( prefix ) {
+            var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+            return function( key ) {
+                // strict mode (after prefix, a key follows)
+                return key.replace( regex, '$1' );
+            };
+        },
+    
+        /*removePrefix = function( prefix, key ) {
             // strict mode (after prefix, a key follows)
             return key.replace( new Regex( '^' + prefix + '([\\.|\\[])' ), '$1' );
-        },
+        },*/
     
         addBracket = function( k ) { return "[" + k + "]"; },
         
@@ -187,7 +195,9 @@
                     .replace( /\.+$/, '' )                       // strip trailing dots
             ;
         },
-
+        
+        notSingleKey = /[.\[]/,
+        
         getNext = function( a, k ) {
             if ( !a ) return null;
             var b = [ ], i, ai, l = a.length;
@@ -1200,17 +1210,13 @@
         }
         
         ,has: function( key ) {
-            var model = this, r, p, k;
-            if ( null == key ) return false;
-            key = parseKey( key );
-            if ( !key ) return false;
-            
-            p = key.split('.');
+            var model = this, r, p;
+            //if ( !key ) return false;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
             if ( 1 === p.length )
             {
-                // handle fast single key
-                k = p[0];
-                if ( (k in model.$data) || (k in model.$getters && model.$getters[k].value) ) return true;
+                // handle single key fast
+                if ( (key in model.$data) || (key in model.$getters && model.$getters[key].value) ) return true;
             }
             else if ( 1 < p.length && (r = walkcheck( p, model.$data, model.$getters, Model )) )
             {
@@ -1220,20 +1226,16 @@
         }
         
         ,get: function( key, RAW ) {
-            var model = this, r, p, k;
-            if ( null == key ) return undef;
-            key = parseKey( key );
-            if ( !key ) return undef;
-            
-            p = key.split('.');
+            var model = this, r, p;
+            //if ( !key ) return undef;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
             if ( 1 === p.length )
             {
-                // handle fast single key
-                k = p[0];
-                if ( !RAW && (r=model.$getters[k]) && r.value ) return r.value( key );
-                if ( k in model.$data ) return model.$data[ k ];
+                // handle single key fast
+                if ( !RAW && (r=model.$getters[key]) && r.value ) return r.value( key );
+                /*if ( k in data )*/ return model.$data[ key ];
             }
-            else if ( 1 < p.length && (r = walk2( p, model.$data, RAW ? null : model.$getters, Model )) )
+            else if ( 1 < p.length && (r = walk2( p, model.$data, model.$getters, Model )) )
             {
                 // nested sub-model
                 if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -1252,19 +1254,17 @@
                 types, validators, setters,
                 data, prevval, canSet = false
             ;
-            if ( !key ) return model;
-            key = parseKey( key );
-            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
-            
-            p = key.split('.');
+            //if ( !key ) return model;
+            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
+            if ( model._atomic && key.sW( model.$atom ) ) return model;
             o = model.$data;
             types = model.$types; 
             validators = model.$validators; 
             setters = model.$setters;
             if ( 1 === p.length )
             {
-                // handle fast single key
-                k = p[0];
+                // handle single key fast
+                k = key;
                 setter = (k in setters) ? setters[k].value : null;
                 type = (k in types) ? types[k].value : null;
                 validator = (k in validators) ? validators[k].value : null;
@@ -1380,7 +1380,7 @@
             ;
             if ( !key ) return model;
             key = parseKey( key );
-            if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
+            if ( model._atomic && key.sW( model.$atom ) ) return model;
             
             r = walk3( 
                 key.split('.'), 
@@ -1638,7 +1638,7 @@
         },
         
         doAction = function( view, $elements, evt, data ) {
-            var model = view.$model;
+            var model = view.$model, fromModel = data.model;
             
             $elements.each(function( ) {
                 var $el = $(this), bind = view.attr($el, 'bind'),
@@ -1657,15 +1657,15 @@
                 // during sync, dont do any actions based on (other) events
                 if ( data.sync && 'change' != event ) return;
                 
-                if ( data.model )
+                if ( fromModel )
                 {
                     elName = $el.attr('name') || false;
-                    key = (elName && $el.is('input,textarea,select')) ? removePrefix(model.id, elName) : eventAction.key;
+                    key = (elName && $el.is('input,textarea,select')) ? view.removePrefix(elName) : eventAction.key;
                     
                     // "model:change" event and element does not reference the (nested) model key
                     if ( !key || (
-                        ( !key.sW( data.model.bracketkey ) ) && 
-                        ( !key.sW( data.model.key ) ) 
+                        ( !key.sW( fromModel.bracketkey ) ) && 
+                        ( !key.sW( fromModel.key ) ) 
                     )) return;
                     
                     // atomic operation(s)
@@ -1683,14 +1683,14 @@
                         // add a small delay also
                         setTimeout(function(){
                             view['do_'+eventAction.complete]( evt, $el, bindData );
-                        }, 20);
+                        }, 10);
                     }
                 }
             });
         },
         
         doAutoBindAction = function( view, $elements, evt, data ) {
-            var model = view.$model, cached = { };
+            var model = view.$model, cached = { }, fromModel = data.model;
             
             if ( view.do_bind )
             {
@@ -1701,11 +1701,11 @@
                     name = $el.attr('name') || false;
                     if ( /*!$el.is("input,textarea,select") ||*/ !name ) return;
                     
-                    key = (data && data['key'])  ? data.key : removePrefix(model.id, name);
+                    key = (fromModel && fromModel.key)  ? fromModel.key : view.removePrefix(name);
                     
-                    if ( data && data['value'] ) // action is called from model, so key value are already there
+                    if ( fromModel && ('value' in fromModel) ) // action is called from model, so key value are already there
                     {
-                        value = data.value;
+                        value = fromModel.value;
                     }
                     
                     else if ( key )
@@ -1779,6 +1779,7 @@
             {
                 view.$model.dispose( );
                 view.$model = null;
+                view.removePrefix = null;
             }
             view.$dom = null;
             view.$bind = null;
@@ -1810,6 +1811,7 @@
             {
                 if ( view.$model ) view.$model.dispose( );
                 view.$model = model.view( view );
+                view.removePrefix = getRemovePrefix( view.$model.id );
                 return view;
             }
             return view.$model;
@@ -2161,7 +2163,7 @@
             if ( data._isAutoBind && el.attr('name') )
             {
                 name = el.attr('name');
-                key = parseKey( removePrefix(model.id, name) ) || false;
+                key = parseKey( view.removePrefix(name) ) || false;
                 
                 if ( key && model.has( key ) )
                 {
@@ -2219,7 +2221,7 @@
                 name = model.id + data.bracketkey,
                 sels = getSelectors( view.$bind, name, true ),
                 bindSelector = sels[0], autobindSelector = sels[1],
-                bindElements, autoBindElements
+                bindElements, autoBindElements, mdata
             ;
 
             bindElements = view.get( bindSelector );
@@ -2233,14 +2235,14 @@
             }*/
             
             // do actions ..
-            
+            mdata = {model:data};
             // do view bind action first
-            doAction( view, bindElements, evt, {model:data} );
+            doAction( view, bindElements, evt, mdata );
             
             if ( view.$autobind )
             {
                 // do view autobind action to bind input elements that map to the model, afterwards
-                doAutoBindAction( view, autoBindElements, evt, {model:data} );
+                doAutoBindAction( view, autoBindElements, evt, mdata );
             }
         }
         
@@ -2249,9 +2251,9 @@
                 name = model.id + data.bracketkey,
                 sels = getSelectors( view.$bind, name, true ),
                 bindSelector = sels[0], autobindSelector = sels[1],
-                bindElements, autoBindElements
+                bindElements, autoBindElements, mdata
             ;
-
+            
             bindElements = view.get( bindSelector );
             autoBindElements = view.get( autobindSelector );
             
@@ -2263,14 +2265,14 @@
             }
             
             // do actions ..
-            
+            mdata = {model:data};
             // do view bind action first
-            doAction( view, bindElements, evt, {model:data} );
+            doAction( view, bindElements, evt, mdata );
             
             if ( view.$autobind )
             {
                 // do view autobind action to bind input elements that map to the model, afterwards
-                doAutoBindAction( view, autoBindElements, evt, {model:data} );
+                doAutoBindAction( view, autoBindElements, evt, mdata );
             }
         }
 
@@ -2295,7 +2297,7 @@
             model = view.$model;
             mode = data['mode'] || 'replace';
             
-            key = removePrefix(model.id, key) || false;
+            key = view.removePrefix(key) || false;
             if ( !key || !model.has( key ) ) return;
             value = model.get( key );
             
@@ -2348,7 +2350,7 @@
             }
             
             if ( !keyb ) return;
-            key = removePrefix(model.id, keyb) || false;
+            key = view.removePrefix(keyb) || false;
             if ( !key || !model.has( key ) ) return;
             value = key ? model.get( key ) : '';
             isBool = is_type( value, T_BOOL );
@@ -2438,7 +2440,7 @@
         ,do_update: function( evt, $el, data ) {
             if ( data['key'] && "value" in data ) 
             {
-                this.$model.set( removePrefix( this.$model.id, data['key'] ), data['value'], true );
+                this.$model.set( this.removePrefix( data['key'] ), data['value'], true );
             }
         }
         
@@ -2452,7 +2454,7 @@
                 
             if ( data['key'] ) 
             {
-                key = removePrefix(model.id, data['key']);
+                key = view.removePrefix(data['key']);
                 if ( 'value' in data )
                 {
                     // show if data[key] is value, else hide
@@ -2483,7 +2485,7 @@
                 
             if ( data['key'] ) 
             {
-                key = removePrefix(model.id, data['key']);
+                key = view.removePrefix(data['key']);
                 if ( 'value' in data )
                 {
                     // hide if data[key] is value, else show
@@ -2594,5 +2596,4 @@
         
         ,View: View
     };
-    
 }(@@EXPORTS@@, jQuery);
