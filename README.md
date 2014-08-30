@@ -21,6 +21,7 @@ A simple / extendable / light-weight (~26 kB minified) mv* (MVVM) framework base
 * [MV* Patterns and MVVM](#mv-patterns-and-mvvm)
 * [ModelView.js](#modelviewjs-1)
 * [API Reference](/manual.md)
+* [Performance](#performance)
 * [Todo](#todo)
 
 
@@ -87,7 +88,7 @@ Why is this:
 
 ```html
 
-<div data-bind='{"event": "click", "action": "openPopup"}' class="button"></div>
+<div data-bind='{"click": "openPopup"}' class="button"></div>
 
 ```
 
@@ -101,7 +102,7 @@ Better than this:
 ```
 
 
-and why should a designer (which designs the UI) be involved in this??
+and why should a designer (who designs the UI) be involved in this??
 
 
 
@@ -135,24 +136,23 @@ Arguably declarative (2-way) data bindings are the closest thing (at present) to
 Specificaly for HTML and Javascript, the MVVM pattern has this association related to the MVC pattern
 
 
-```text
-
-        MVC                             MVVM
-        ===                             ====
-        
-        Model:                          Model:
-            actual data                     actual data
-
-        View:                           UI(View):
-            procedurally generated          actual markup UI (with declarative data bindings)
-            /templates                      /templates
-
-        Controller:                     ViewModel:
-            binds View to Model             binds UI (view) to Model
-
-
-```
-
+<table>
+<thead><tr><td>MVC</td><td>MVVM</td></tr></thead>
+<tbody> 
+    <tr>       
+        <td><strong>Model:</strong> actual data</td>
+        <td><strong>Model:</strong> actual data</td>
+    </tr>
+    <tr>       
+        <td><strong>View:</strong> procedurally generated / templates</td>
+        <td><strong>UI(View):</strong> actual markup UI (with declarative data bindings) / templates</td>
+    </tr>
+    <tr>       
+        <td><strong>Controller:</strong> binds View to Model</td>
+        <td><strong>ViewModel:</strong> binds UI (view) to Model</td>
+    </tr>
+</tbody>
+</table>
 
 
 
@@ -170,3 +170,10 @@ Current work is focusing on (model) collections and using the **composite patter
 Also focus is on enabling dynamic templates (in an engine-agnostic way) directly inside the markup handled by modelview.js and dynamic data-bind update (this is sth that is already handled using 'data-bind' attributes, however it can become cumbersome)
 
 
+####Performance
+
+Some tests with ModelView 0.24, latest backboneJS and emberJS (on models get/set) on [jsperf here](http://jsperf.com/js-mvc-frameworks/11).
+
+ModelView is (consistently) 2nd place (note Ember and Backbone do not support get/set on nested keys by default)
+
+![jsperf-model-getset](/screenshots/jsperf-model-getset.png)

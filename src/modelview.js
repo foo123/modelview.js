@@ -1200,22 +1200,40 @@
         }
         
         ,has: function( key ) {
-            var model = this, r;
+            var model = this, r, p, k;
             if ( null == key ) return false;
             key = parseKey( key );
             if ( !key ) return false;
-            r = walkcheck( key.split('.'), model.$data, model.$getters, Model );
-            if ( r ) return (true === r) ? true : r[1].has(r[2].join('.'));
+            
+            p = key.split('.');
+            if ( 1 === p.length )
+            {
+                // handle fast single key
+                k = p[0];
+                if ( (k in model.$data) || (k in model.$getters && model.$getters[k].value) ) return true;
+            }
+            else if ( 1 < p.length && (r = walkcheck( p, model.$data, model.$getters, Model )) )
+            {
+                return (true === r) ? true : r[1].has(r[2].join('.'));
+            }
             return false;
         }
         
         ,get: function( key, RAW ) {
-            var model = this, r;
+            var model = this, r, p, k;
             if ( null == key ) return undef;
             key = parseKey( key );
             if ( !key ) return undef;
-            r = walk2( key.split('.'), model.$data, RAW ? null : model.$getters, Model );
-            if ( r ) 
+            
+            p = key.split('.');
+            if ( 1 === p.length )
+            {
+                // handle fast single key
+                k = p[0];
+                if ( !RAW && (r=model.$getters[k]) && r.value ) return r.value( key );
+                if ( k in model.$data ) return model.$data[ k ];
+            }
+            else if ( 1 < p.length && (r = walk2( p, model.$data, RAW ? null : model.$getters, Model )) )
             {
                 // nested sub-model
                 if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -1229,56 +1247,77 @@
         
         // it can add last node also if not there
         ,set: function ( key, val, pub, extra ) {
-            var model = this, r, o, k,
+            var model = this, r, o, k, p,
                 type, validator, setter,
-                data, prevval
+                types, validators, setters,
+                data, prevval, canSet = false
             ;
             if ( !key ) return model;
             key = parseKey( key );
             if ( !key || (model._atomic && key.sW( model.$atom )) ) return model;
             
-            r = walk3( 
-                key.split('.'), 
-                model.$data, 
-                model.$types, 
-                model.$validators, 
-                model.$setters, 
-                Model 
-            );
-            o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( r[4], k );
-            validator = getValue( r[5], k );
-            setter = getValue( r[6], k );
+            p = key.split('.');
+            o = model.$data;
+            types = model.$types; 
+            validators = model.$validators; 
+            setters = model.$setters;
+            if ( 1 === p.length )
+            {
+                // handle fast single key
+                k = p[0];
+                setter = (k in setters) ? setters[k].value : null;
+                type = (k in types) ? types[k].value : null;
+                validator = (k in validators) ? validators[k].value : null;
+                canSet = true;
+            }
+            else if ( 1 < p.length )
+            {
+                r = walk3( 
+                    key.split('.'), 
+                    o, 
+                    types, 
+                    validators, 
+                    setters, 
+                    Model 
+                );
+                o = r[ 1 ]; k = r[ 2 ];
+                type = getValue( r[4], k );
+                validator = getValue( r[5], k );
+                setter = getValue( r[6], k );
+                
+                if ( Model === r[ 0 ]  ) 
+                {
+                    // nested sub-model
+                    if ( k.length ) 
+                    {
+                        k = k.join('.');
+                        prevval = o.get( k );
+                        if ( prevval !== val ) o.set( k, val ); 
+                        else  pub = false;
+                    }
+                    else 
+                    {
+                        prevval = o.data( );
+                        if ( prevval !== val ) o.data( val );
+                        else  pub = false;
+                    }
+                    if ( pub )
+                    {
+                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val, valuePrev: prevval};
+                        if ( extra ) data = extend({}, extra, data); 
+                        model.publish('change', data);
+                    }
+                    return model;
+                }
+                else if ( !setter  && (false === r[0] && r[3].length) )
+                {
+                    // cannot add intermediate values
+                    return model;
+                }
+                canSet = true;
+            }
             
-            if ( Model === r[ 0 ]  ) 
-            {
-                // nested sub-model
-                if ( k.length ) 
-                {
-                    k = k.join('.');
-                    prevval = o.get( k );
-                    if ( prevval !== val ) o.set( k, val ); 
-                    else  pub = false;
-                }
-                else 
-                {
-                    prevval = o.data( );
-                    if ( prevval !== val ) o.data( val );
-                    else  pub = false;
-                }
-                if ( pub )
-                {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val, valuePrev: prevval};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('change', data);
-                }
-            }
-            else if ( !setter  && (false === r[0] && r[3].length) )
-            {
-                // cannot add intermediate values
-                return model;
-            }
-            else
+            if ( canSet )
             {
                 if ( type ) val = type( val, key );
                 if ( validator && !validator( val, key ) )
@@ -1589,10 +1628,12 @@
    });
     
     var
-        getSelectors = function( bind, autobind ) {
+        getSelectors = function( bind, autobind, exact ) {
             return [
                 bind ? '[' + bind + ']' : null,
-                autobind ? 'input[name^="' + autobind + '"],textarea[name^="' + autobind + '"],select[name^="' + autobind + '"]' : null
+                autobind 
+                ? (exact ? 'input[name="' + autobind + '"],textarea[name="' + autobind + '"],select[name="' + autobind + '"]': 'input[name^="' + autobind + '["],textarea[name^="' + autobind + '["],select[name^="' + autobind + '["]') 
+                : null
             ];
         },
         
@@ -1973,7 +2014,7 @@
         
         ,unbind: function( events, dom ) {
             var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id+'[' ),
+                sels = getSelectors( view.$bind, model.id ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 namespaced, $dom
             ;
@@ -2004,7 +2045,7 @@
         
         ,uiEventHandler: function( evt, el ) {
             var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id+'[' ),
+                sels = getSelectors( view.$bind, model.id ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 isAutoBind = false, isBind = false, $el = $(el),
                 bind = view.$bindbubble ? view.attr($el, 'bind') : null
@@ -2028,7 +2069,7 @@
         
         ,bind: function( events, dom ) {
             var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id+'[' ),
+                sels = getSelectors( view.$bind, model.id ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 method, evt, namespaced
             ;
@@ -2071,7 +2112,7 @@
         
         ,sync: function( $dom ) {
             var view = this, model = view.$model, 
-                sels = getSelectors( view.$bind, model.id+'[' ),
+                sels = getSelectors( view.$bind, model.id ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
@@ -2176,7 +2217,7 @@
         ,on_model_error: function( evt, data ) {
             var view = this, model = view.$model, 
                 name = model.id + data.bracketkey,
-                sels = getSelectors( view.$bind, name ),
+                sels = getSelectors( view.$bind, name, true ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
@@ -2206,7 +2247,7 @@
         ,on_model_change: function( evt, data ) {
             var view = this, model = view.$model, 
                 name = model.id + data.bracketkey,
-                sels = getSelectors( view.$bind, name ),
+                sels = getSelectors( view.$bind, name, true ),
                 bindSelector = sels[0], autobindSelector = sels[1],
                 bindElements, autoBindElements
             ;
