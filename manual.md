@@ -1,6 +1,6 @@
 ####ModelView API
 
-**Version 0.25**
+**Version 0.26**
 
 
 **Model**
@@ -8,63 +8,71 @@
 ```javascript
 // modelview.js model methods
 
+var model = new ModelView.Model( [id=UUID, data={}, types=null, validators=null, getters=null, setters=null] );
+
+
 // get / set model data
 model.data( [data] );
 
-// whether model has given key
-model.has( key );
+// whether model has given key (bypass custom model getters if RAW is true)
+model.has( dottedKey [, RAW=false ] );
 
 // model enable / disable atomic operations, do next update operations on key (and nested keys) as one atom
-model.atom( key | false );
+model.atom( dottedKey | false );
 
 // model get given key (bypass custom model getters if RAW is true)
-model.get( key [, RAW ] );
+model.get( dottedKey [, RAW=false ] );
 
 // model set key to val
-model.set( key, val [, publish] );
+model.set( dottedKey, val [, publish=false] );
 
 // model append val to key (if key is array-like)
-model.append( key, val [, publish] );
+model.append( dottedKey, val [, publish=false] );
 
 // model delete key (without re-arranging array indexes)
-model.del( key [, publish] );
+model.del( dottedKey [, publish=false] );
 
 // model remove key (re-arranging array indexes)
-model.rem( key [, publish] );
+model.rem( dottedKey [, publish=false] );
 
 // shortcut to model publich change event for key (and nested keys)
-model.notify( key );
+model.notify( dottedKey );
 
-// add typecasters given in {key: typecaster} format
+// add typecasters given in {dottedKey: typecaster} format
 model.types( typeCasters );
 
-// add validators given in {key: validator} format
+// add validators given in {dottedKey: validator} format
 model.validators( validators );
 
-// add custom getters given in {key: getter} format
+// add custom getters (i.e custom observables) given in {dottedKey: getter} format
 model.getters( getters );
 
-// add custom setters given in {key: setter} format
+// add custom setters given in {dottedKey: setter} format
 model.setters( setters );
 
 // get model data in plain JS Object format
-model.serialize( [key] );
+model.serialize( );
 
 // get data in JSON string format
-model.toJSON( [key] );
+model.toJSON( [dottedKey] );
 
 // set data from JSON string format
-model.fromJSON( jsonData [, key] );
+model.fromJSON( jsonData [, dottedKey] );
 
 // dispose model
 model.dispose( );
 
 ```
 
+
+
 **View**
 
 ```javascript
 // modelview.js view methods
+
+var view = new ModelView.View( [id=UUID, model=new Model(), viewAttributes={bind:"data-bind"}, cacheSize=View._CACHE_SIZE, refreshInterval=View._REFRESH_INTERVAL] );
+
 
 // get / set view model
 view.model( [model] );
@@ -79,16 +87,16 @@ view.event( name, handler );
 view.autobind( [bool] );
 
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( events, dom );
+view.bind( events=['change', 'click'] [, dom=document] );
 
 // synchronize view to dom
-view.sync( [dom] );
+view.sync( [dom=view.dom] );
 
 // reset view caches only
-view.reset( [dom] );
+view.reset( );
 
-// reset/refresh view caches and bindinds
-view.refresh( [dom] );
+// reset view caches and re-bind to UI
+view.rebind( events [, dom=document] );
 
 // dispose view (and model)
 view.dispose( );
@@ -96,7 +104,46 @@ view.dispose( );
 ```
 
 
-**Types**
+
+**Default View Actions (inherited by sub-views)**
+
+<table>
+<thead>
+    <tr>
+        <td>Declarative Binding</td><td>Method Name</td><td>Description</td>
+    </tr>
+</thead>
+<tbody>
+    <tr>
+        <td>prop</td><td>view.do_prop</td><td>set element prop(s) based on model data</td>
+    </tr>
+    <tr>
+        <td>html</td><td>view.do_html</td><td>set element html/text property based on model data</td>
+    </tr>
+    <tr>
+        <td>css</td><td>view.do_css</td><td>set element css style(s) based on model data</td>
+    </tr>
+    <tr>
+        <td>show</td><td>view.do_show</td><td>show/hide element based on model data</td>
+    </tr>
+    <tr>
+        <td>hide</td><td>view.do_hide</td><td>hide/show element based on model data</td>
+    </tr>
+    <tr>
+        <td>tpl</td><td>view.do_tpl</td><td>element render a template based on model data</td>
+    </tr>
+    <tr>
+        <td>set</td><td>view.do_set</td><td>element set/update model data based on given value(s)</td>
+    </tr>
+    <tr>
+        <td>bind</td><td>view.do_bind</td><td>element default autobind action (automaticaly update value based on changed model data)</td>
+    </tr>
+</tbody>
+</table>
+
+
+
+**Types (used with Models)**
 
 ```javascript
 // modelview.js type casters
@@ -105,13 +152,13 @@ view.dispose( );
 ModelView.Type.Cast.DEFAULT( defaultValue );
 
 // cast to boolean
-ModelView.Type.Cast.BOOLEAN;
+ModelView.Type.Cast.BOOL;
 
 // cast to string
-ModelView.Type.Cast.STRING;
+ModelView.Type.Cast.STR;
 
 // cast to trimmed string of spaces
-ModelView.Type.Cast.TRIMMED;
+ModelView.Type.Cast.TRIM;
 
 // cast to lowercase string
 ModelView.Type.Cast.LCASE;
@@ -120,12 +167,18 @@ ModelView.Type.Cast.LCASE;
 ModelView.Type.Cast.UCASE;
 
 // cast to integer
-ModelView.Type.Cast.INTEGER;
+ModelView.Type.Cast.INT;
 
 // cast to float
 ModelView.Type.Cast.FLOAT;
 
-// clamp between min-max
+// min if value is less than
+ModelView.Type.Cast.MIN( min );
+
+// max if value is greater than
+ModelView.Type.Cast.MAX( max );
+
+// clamp between min-max (included)
 ModelView.Type.Cast.CLAMP( min, max );
 
 // cast to "eachTypeCaster" for each element in a collection (see examples)
@@ -133,8 +186,8 @@ ModelView.Type.Cast.EACH( eachTypeCaster );
 
 // cast fields of an object with a FIELDS TypeCaster
 ModelView.Type.Cast.FIELDS({
-    'field1': ModelView.Type.Cast.STRING,
-    'field2': ModelView.Type.Cast.BOOLEAN,
+    'field1': ModelView.Type.Cast.STR,
+    'field2': ModelView.Type.Cast.BOOL,
     'field3': /* a custom type caster */ ModelView.Type.TypeCaster(function(v) { /* .. */ return v; })
     // etc..
 });
@@ -148,7 +201,8 @@ ModelView.Type.del( name );
 ```
 
 
-**Validators**
+
+**Validators (used with Models)**
 
 ```javascript
 // modelview.js validators
@@ -215,6 +269,7 @@ ModelView.Validation.del( name );
 ```
 
 
+
 **example**
 ```javascript
 
@@ -243,12 +298,15 @@ $dom.modelview({
         types: {
             // data type-casters here ..
             
-            mode: $.ModelView.Type.Cast.STRING,
+            mode: $.ModelView.Type.Cast.STR,
+            
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
                 // type casters  can be composed (using BEFORE/AFTER) in an algebraic/functional way..
-                'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STRING ),
-                'field2': $.ModelView.Type.Cast.BOOLEAN
+                
+                'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STR ),
+                
+                'field2': $.ModelView.Type.Cast.BOOL
             })
         },
         
@@ -256,10 +314,13 @@ $dom.modelview({
             // data validators here ..
             
             mode: $.ModelView.Validation.Validate.IN( 'all', 'active', 'completed' ),
+            
             // support wildcard assignment of validators
             'collection.*': $.ModelView.Validation.Validate.FIELDS({
                 // validators can be combined (using AND/OR/NOT/XOR) in an algebraic/functional way
+                
                 'field1': $.ModelView.Validation.Validate.NOT_EMPTY.AND( $.ModelView.Validation.Validate.MATCH( /item\d+/ ) ),
+                
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
             })
         }
@@ -272,6 +333,8 @@ $dom.modelview({
 
 
 ```
+
+
 
 **simple example (jQueryUI also used)**
 
@@ -294,12 +357,12 @@ $dom.modelview({
 <div id="screen">
 
     <!-- nested model key used, no problem -->
-    <!-- multiple actions per multiple events (change->set, mouseover->hoverAction) -->
+    <!-- multiple actions per multiple events (change->settext, mouseover->hoverAction) -->
     <!-- view action "set" is one of modelview.js "default actions" -->
     <span>Sample Percent:</span>
     <strong id="percent" 
         style="display: inline-block; margin-left: 15px;"
-        data-bind='{"change":{"action":"set", "key":"percent.percentVisual", "prop":"text"}, "mouseover":{"action":"hoverAction"}}'>
+        data-bind='{"text":"percent.percentVisual", "mouseover":"hoverAction"}'>
         0%
     </strong>
     
@@ -312,13 +375,15 @@ $dom.modelview({
     
     <button class="button ui-button-large" 
         data-icon="ui-icon-extra ui-icon-userinfo" 
-        data-bind='{"click":{"action":"openPopup", "domRef": "#userinfo-popup"}}'>
+        data-bind='{"click":"openPopup"}' data-popup="#userinfo-popup">
         User Instructions
     </button>
 
 </div>
                             
 ```
+
+
 
 **javascript**
 
@@ -329,28 +394,30 @@ $dom.modelview({
 jQuery(document).ready(function( $ ) {
 
     // add a custom data type-caster
-    ModelView.Type.add('HEXINTEGER', function( val ){
+    ModelView.Type.add('HEXINT', function( val ){
         // 'this' refers to the model that calls this type-caster
         return parseInt(val, 16);
     });
     
     // delete a custom data-type-caster
-    //ModelView.Type.del( 'HEXINTEGER' );
+    //ModelView.Type.del( 'HEXINT' );
     
     // add a custom data validator
-    ModelView.Validation.add('BOOLEAN', function( val ){
+    ModelView.Validation.add('BOOL', function( val ){
         // 'this' refers to the model that calls this validator
         return !!( true===val || false===val );
     });
     
     // delete a custom data validator
-    //ModelView.Validation.del( 'BOOLEAN' );
+    //ModelView.Validation.del( 'BOOL' );
     
     // Application Model
     // 'model' is the model 'id', same as the name used in UI input elements
     // that refer to model keys ( see markup above )
     model = new ModelView.Model('model', {
+        
         userMode: false,
+        
         // nested key
         percent: {
             percentVisual: '00%'
@@ -359,12 +426,14 @@ jQuery(document).ready(function( $ ) {
         // data typing for model keys, can be used here
         // custom types can also be added
         
-        userMode: ModelView.Type.Cast.BOOLEAN,
+        userMode: ModelView.Type.Cast.BOOL,
+        
         percent: {
-            percentVisual: ModelView.Type.Cast.STRING
+            percentVisual: ModelView.Type.Cast.STR
         }
+        
         // this will also work
-        //'percent.percentVisual': ModelView.Type.Cast.HEXINTEGER
+        //'percent.percentVisual': ModelView.Type.Cast.HEXINT
         // this will also work
         //'percent.percentVisual': ModelView.Type.TypeCaster(function( val ){
         //                                // 'this' refers to the model that calls this type-caster
@@ -374,15 +443,18 @@ jQuery(document).ready(function( $ ) {
         // data validation for model keys, can be used here
         // custom validators can also be added
         
-        userMode: ModelView.Validation.Validate.BOOLEAN,
+        userMode: ModelView.Validation.Validate.BOOL,
+        
         // this will also work
         //userMode: ModelView.Validation.Validator(function( val ){
         //                // 'this' refers to the model that calls this validator
         //                return !!( true===val || false===val );
         //            }),
+        
         percent: {
             percentVisual: ModelView.Validation.Validate.NOT_EMPTY
         }
+        
         // this will also work
         //'percent.percentVisual': ModelView.Validation.Validate.NOT_EMPTY
     });
@@ -399,17 +471,13 @@ jQuery(document).ready(function( $ ) {
         })
         
         .action('openPopup', function(evt, $el, data){
-            var popup;
-            
-            if ( data['domRef'] && (popup = $(data['domRef'])) )
-            {
-                popup.dialog('open');
-            }
+            var popup = $el.attr('data-popup');
+            if ( popup ) $(popup).dialog('open');
         })
         
         .action('setUserMode', function(evt, $el, data){
             var userMode, domRef;
-            model.set('[userMode]', userMode = $el.is(':checked'));
+            this.model.set('userMode', userMode = $el.is(':checked'));
             
             setUserMode( userMode );
             
@@ -440,6 +508,8 @@ jQuery(document).ready(function( $ ) {
 });
 
 ```
+
+
 
 **or as a jquery plugin (include the jquery.modelview.js file)**
 
@@ -474,6 +544,7 @@ jQuery(document).ready(function( $ ) {
             
             data: {
                 userMode: false,
+                
                 // nested key
                 percent: {
                     percentVisual: '00%'
@@ -484,19 +555,21 @@ jQuery(document).ready(function( $ ) {
                 // data typing for model keys, can be used here
                 // custom types can also be added
                 
-                userMode: $.ModelView.Type.Cast.BOOLEAN,
+                userMode: $.ModelView.Type.Cast.BOOL,
+                
                 percent: {
-                    percentVisual: $.ModelView.Type.Cast.STRING
+                    percentVisual: $.ModelView.Type.Cast.STR
                 }
                 // this will also work
-                //'percent.percentVisual': $.ModelView.Type.Cast.HEXINTEGER
+                //'percent.percentVisual': $.ModelView.Type.Cast.HEXINT
             }, 
             
             validators: {
                 // data validation for model keys, can be used here
                 // custom validators can also be added
                 
-                userMode: $.ModelView.Validation.Validate.BOOLEAN,
+                userMode: $.ModelView.Validation.Validate.BOOL,
+                
                 percent: {
                     percentVisual: $.ModelView.Validation.Validate.NOT_EMPTY
                 }
@@ -516,17 +589,15 @@ jQuery(document).ready(function( $ ) {
             'hoverAction': function(evt, $el, data) {
                 console.log('hover action');
             },
+            
             'openPopup': function(evt, $el, data){
-                var popup;
-                
-                if ( data['domRef'] && (popup = $(data['domRef'])).length )
-                {
-                    popup.dialog('open');
-                }
+                var popup = $el.attr('data-popup');
+                if ( popup ) $(popup).dialog('open');
             },
+            
             'setUserMode': function(evt, $el, data){
                 var userMode, domRef;
-                model.set('[userMode]', userMode = $el.is(':checked'));
+                this.model.set('userMode', userMode = $el.is(':checked'));
                 
                 setUserMode( userMode );
                 

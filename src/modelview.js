@@ -55,15 +55,6 @@
     
     var
         WILDCARD = "*", NAMESPACE = "modelview",
-        PROPS = {
-            options : 1, 
-            html : 2, 
-            text : 3,
-            class : 4,
-            value : 5,
-            checked : 6,
-            disabled : 7
-        },
         
         // types
         T_NUM = 2,
@@ -164,34 +155,6 @@
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
-        getKeyPrefix = function( prefix ) {
-            // strict mode (after prefix, a key follows)
-            var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
-            return function( key ) { return key.replace( regex, '$1' ); };
-        },
-    
-        addBracket = function( k ) { return "[" + k + "]"; },
-        
-        // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
-        parseKey = function( key, bracketed ) {
-            if ( null == key ) return undef;
-            
-            if ( bracketed )
-                return Str(key)
-                        .replace( /\.+$/, '' )                       // strip trailing dots
-                        .replace( /^\./, '' )                     // strip a leading dot
-                        .split( '.' ).map( addBracket ).join( '' )  // convert properties to bracketed props
-                ;
-            
-            return Str(key)
-                    .replace( /\[([^\]]*)\]/g, '.$1' )         // convert indexes to properties
-                    .replace( /^\./, '' )                       // strip a leading dot
-                    .replace( /\.+$/, '' )                       // strip trailing dots
-            ;
-        },
-        
-        notSingleKey = /[.\[]/,
-        
         getNext = function( a, k ) {
             if ( !a ) return null;
             var b = [ ], i, ai, l = a.length;
@@ -229,13 +192,14 @@
                 for (i=0; i<l; i++)
                 {
                     ai = a[ i ];
-                    if ( ai && /*is_type(*/ai.value/*, T_FUNC)*/ )  return ai.value;
+                    if ( ai && /*is_type(*/ai.value/*, T_FUNC)*/ )  
+                        return ai.value;
                 }
             }
             return null;
         },
         
-        walkadd = function( v, p, obj, MODELVIEW_COLLECTION_EACH ) {
+        walkadd = function( v, p, obj, isCollectionEach ) {
             var o = obj, k;
             while ( p.length )
             {
@@ -248,7 +212,7 @@
                 }
                 else 
                 {
-                    if ( MODELVIEW_COLLECTION_EACH )
+                    if ( isCollectionEach )
                     {
                         if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = { value: null, next: {} };
                         o.next[ WILDCARD ].value = v;
@@ -263,7 +227,7 @@
         },
         
         walkcheck = function( p, obj, aux, C ) {
-            var o = obj, a = [aux], k, to;
+            var o = obj, a = aux ? [aux] : null, k, to;
             while ( p.length ) 
             {
                 k = p.shift( );
@@ -277,10 +241,9 @@
                         if ( o instanceof C ) return [C, o, p];
                         a && (a = getNext( a, k ));
                     }
-                    else
+                    else if ( !a || !(a = getNext( a, k )) )
                     {
-                        a && (a = getNext( a, k ));
-                        if ( !a ) return false;
+                        return false;
                     }
                 }
                 else
@@ -309,10 +272,9 @@
                         if ( o instanceof C ) return [C, o, p];
                         a && (a = getNext( a, k ));
                     }
-                    else
+                    else if ( !a || !(a = getNext( a, k )) )
                     {
-                        a && (a = getNext( a, k ));
-                        if ( !a ) return false;
+                        return false;
                     }
                 }
                 else
@@ -586,6 +548,58 @@
     //
     // Data Types / Validators (Static)
     var 
+        // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+        dotted = function( key ) {
+            return key
+                    .replace(/\[([^\]]*)\]/g, '.$1')         // convert indexes to properties
+                    .replace(/^\.+/, '')                       // strip a leading dot
+                    .replace(/\.+$/, '')                       // strip trailing dots
+            ;
+        },
+        
+        bracketed = function( dottedKey ) { return '['+dottedKey.split('.').join('][')+']'; },
+        
+        removePrefix = function( prefix ) {
+            // strict mode (after prefix, a key follows)
+            var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+            return function( key, to_dotted ) { 
+                var k = key.replace( regex, '$1' );
+                return to_dotted ? dotted( k ) : k;
+            };
+        },
+    
+        keyLevelUp = function( dottedKey, level ) {
+            return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
+        },
+        
+        ModelField = function( modelField ) {
+            if ( !is_instance(this, ModelField) ) return new ModelField( modelField );
+            this.f = modelField || null;
+        },
+        
+        CollectionEach = function( f ) {
+            if ( !is_instance(this, CollectionEach) ) return new CollectionEach( f );
+            this.f = f || null;
+        },
+        
+        bindFieldsToModel = function( model, fields ) {
+            var p, t;
+            for ( p in fields )
+            {
+                t = fields[ p ];
+                if ( is_instance( t, CollectionEach ) )
+                {
+                    fields[ p ] = bindF( t.f, model );
+                    fields[ p ].fEach = true;
+                }
+                else
+                {
+                    fields[ p ] = bindF( t, model );
+                }
+            }
+            return fields;
+        },
+        
         // Type Compositor
         TC = function( T ) {
             
@@ -643,11 +657,6 @@
             return V;
         },
         
-        Field = function( modelField ) {
-            if ( !is_instance(this, Field) ) return new Field( modelField );
-            this.field = modelField || null;
-        },
-        
         Type = {
             
             TypeCaster: TC
@@ -655,50 +664,27 @@
             // default type casters
             ,Cast: {
                 // collection for each item type caster
-                EACH: function( eachItemTypeCaster ) {
-                    var each = function( ) {
-                        return eachItemTypeCaster;
-                    };
-                    each.MODELVIEW_COLLECTION_EACH = true;
-                    return each;
-                },
+                EACH: CollectionEach,
                 
                 // type caster for each specific field of an object
-                FIELDS: function( fieldsTypesMap ) {
+                FIELDS: function( typesPerField ) {
                     var notbinded = true;
-                    fieldsTypesMap = extend( {}, fieldsTypesMap || {} );
+                    typesPerField = extend( {}, typesPerField || {} );
                     return TC(function( v ) { 
-                        var self = this, p, t, a, l, i;
-                        if ( notbinded )
+                        var field, type, val, l, i;
+                        if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
+                        for ( field in typesPerField )
                         {
-                            for ( p in fieldsTypesMap )
+                            type = typesPerField[ field ]; val = v[ field ];
+                            if ( type.fEach && is_type(val, T_ARRAY) )
                             {
-                                t = fieldsTypesMap[ p ];
-                                if ( t.MODELVIEW_COLLECTION_EACH )
-                                {
-                                    fieldsTypesMap[ p ] = bindF( t( ), self );
-                                    fieldsTypesMap[ p ].MODELVIEW_COLLECTION_EACH = true;
-                                }
-                                else
-                                {
-                                    fieldsTypesMap[ p ] = bindF( t, self );
-                                }
-                            }
-                            notbinded = false;
-                        }
-                        for ( p in fieldsTypesMap )
-                        {
-                            t = fieldsTypesMap[ p ];
-                            a = v[ p ];
-                            if ( t.MODELVIEW_COLLECTION_EACH && is_type(a, T_ARRAY) )
-                            {
-                               l = a.length;
-                               for (i=0; i<l; i++) a[ i ] = t( a[ i ] );
-                               v[ p ] = a;
+                               l = val.length;
+                               for (i=0; i<l; i++) val[ i ] = type( val[ i ] );
+                               v[ field ] = val;
                             }
                             else
                             {
-                                v[ p ] = t( a );
+                                v[ field ] = type( val );
                             }
                         }
                         return v;
@@ -712,25 +698,27 @@
                         return v;
                     }); 
                 },
-                BOOLEAN: TC(function( v ) { 
+                BOOL: TC(function( v ) { 
                     return !!v; 
                 }),
+                INT: TC(function( v ) { 
+                    return parseInt(v, 10);
+                }),
+                FLOAT: TC(function( v ) { 
+                    return parseFloat(v, 10); 
+                }),
+                MIN: function( m ) {  
+                    return TC(function( v ) { return (v < m) ? m : v; }); 
+                },
+                MAX: function( M ) {  
+                    return TC(function( v ) { return (v > M) ? M : v; }); 
+                },
                 CLAMP: function( m, M ) {  
                     // swap
                     if ( m > M ) { var tmp = M; M = m; m = tmp; }
-                    return TC(function( v ) { 
-                        if ( v < m ) v = m;
-                        else if ( v > M ) v = M;
-                        return v;
-                    }); 
+                    return TC(function( v ) { return (v < m) ? m : ((v > M) ? M : v); }); 
                 },
-                INTEGER: TC(function( v ) { 
-                    return parse_int( v, 10 ); 
-                }),
-                FLOAT: TC(function( v ) { 
-                    return parse_float( v, 10 ); 
-                }),
-                TRIMMED: TC(function( v ) { 
+                TRIM: TC(function( v ) { 
                     return Str(v).tR();
                 }),
                 LCASE: TC(function( v ) { 
@@ -739,8 +727,8 @@
                 UCASE: TC(function( v ) { 
                     return Str(v).toUpperCase( );
                 }),
-                STRING: TC(function( v ) { 
-                    return Str(v); 
+                STR: TC(function( v ) { 
+                    return (''+v); 
                 })
             }
             
@@ -766,49 +754,26 @@
             // default validators
             ,Validate: {
                 // collection for each item validator
-                EACH: function( eachItemValidator ) {
-                    var each = function( ) {
-                        return eachItemValidator;
-                    };
-                    each.MODELVIEW_COLLECTION_EACH = true;
-                    return each;
-                },
+                EACH: CollectionEach,
                 
                 // validator for each specific field of an object
-                FIELDS: function( fieldsValidatorsMap ) {
+                FIELDS: function( validatorsPerField ) {
                     var notbinded = true;
-                    fieldsValidatorsMap = extend( {}, fieldsValidatorsMap || {} );
+                    validatorsPerField = extend( {}, validatorsPerField || {} );
                     return VC(function( v ) { 
-                        var self = this, p, t, a, l, i;
-                        if ( notbinded )
+                        var field, validator, val, l, i;
+                        if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
+                        for ( field in validatorsPerField )
                         {
-                            for ( p in fieldsValidatorsMap )
+                            validator = validatorsPerField[ field ]; val = v[ field ];
+                            if ( validator.fEach && is_type(val, T_ARRAY) )
                             {
-                                t = fieldsValidatorsMap[ p ];
-                                if ( t.MODELVIEW_COLLECTION_EACH )
-                                {
-                                    fieldsValidatorsMap[ p ] = bindF( t( ), self );
-                                    fieldsValidatorsMap[ p ].MODELVIEW_COLLECTION_EACH = true;
-                                }
-                                else
-                                {
-                                    fieldsValidatorsMap[ p ] = bindF( t, self );
-                                }
-                            }
-                            notbinded = false;
-                        }
-                        for ( p in fieldsValidatorsMap )
-                        {
-                            t = fieldsValidatorsMap[ p ];
-                            a = v[ p ];
-                            if ( t.MODELVIEW_COLLECTION_EACH && is_type(a, T_ARRAY) )
-                            {
-                               l = a.length;
-                               for (i=0; i<l; i++) if ( !t( a[ i ] ) )  return false;
+                               l = val.length;
+                               for (i=0; i<l; i++) if ( !validator( val[ i ] ) )  return false;
                             }
                             else
                             {
-                                if ( !t( a ) ) return false;
+                                if ( !validator( val ) ) return false;
                             }
                         }
                         return true;
@@ -822,10 +787,10 @@
                     return !!( v && (0 < Str(v).tR().length) ); 
                 }),
                 MAXLEN: function( len ) {
-                    return VC(function( v ) { return v.length <= len; });
+                    return VC(newFunc("v", "return v.length <= "+len+";")); 
                 },
                 MINLEN: function( len ) {
-                    return VC(function( v ) { return v.length >= len; });
+                    return VC(newFunc("v", "return v.length >= "+len+";")); 
                 },
                 MATCH: function( regex_pattern ) { 
                     return VC(function( v ) { return regex_pattern.test( v ); }); 
@@ -834,81 +799,55 @@
                     return VC(function( v ) { return !regex_pattern.test( v ); }); 
                 },
                 EQUAL: function( val, strict ) { 
-                    if ( is_instance(val, Field) ) 
-                        return VC(newFunc("v", "return this.$data."+val.field+" "+(false !== strict ? "===" : "==")+" v;")); 
-                    
+                    if ( is_instance(val, ModelField) ) 
+                        return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "===" : "==")+" v;")); 
                     return false !== strict 
                         ? VC(function( v ) { return val === v; })
                         : VC(function( v ) { return val == v; })
                     ; 
                 },
                 NOT_EQUAL: function( val, strict ) { 
-                    if ( is_instance(val, Field) ) 
-                        return VC(newFunc("v", "return this.$data."+val.field+" "+(false !== strict ? "!==" : "!=")+" v;"));
-                    
+                    if ( is_instance(val, ModelField) ) 
+                        return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "!==" : "!=")+" v;"));
                     return false !== strict 
                         ? VC(function( v ) { return val !== v; })
                         : VC(function( v ) { return val != v; })
                     ; 
                 },
                 GREATER_THAN: function( m, strict ) { 
-                    if ( is_instance(m, Field) ) 
-                        return VC(newFunc("v", "return this.$data."+m.field+" "+(false !== strict ? "<" : "<=")+" v;")); 
-                    
-                    return false !== strict 
-                        ? VC(function( v ) { return m < v; })
-                        : VC(function( v ) { return m <= v; })
-                    ; 
+                    if ( is_instance(m, ModelField) ) m = "this.$data."+m.f;
+                    else if ( is_type(m, T_STR) ) m = '"' + m + '"';
+                    return VC(newFunc("v", "return "+m+" "+(false !== strict ? "<" : "<=")+" v;")); 
                 },
                 LESS_THAN: function( M, strict ) { 
-                    if ( is_instance(M, Field) ) 
-                        return VC(newFunc("v", "return this.$data."+M.field+" "+(false !== strict ? ">" : ">=")+" v;")); 
-                    
-                    return false !== strict 
-                        ? VC(function( v ) { return M > v; })
-                        : VC(function( v ) { return M >= v; })
-                    ; 
+                    if ( is_instance(M, ModelField) ) M = "this.$data."+M.f;
+                    else if ( is_type(M, T_STR) ) M = '"' + M + '"';
+                    return VC(newFunc("v", "return "+M+" "+(false !== strict ? ">" : ">=")+" v;")); 
                 },
                 BETWEEN: function( m, M, strict ) {  
                     if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
                     
-                    var tmp, is_m_field = is_instance(m, Field), is_M_field = is_instance(M, Field);
-                    
-                    if ( is_m_field || is_M_field )
-                    {
-                        m = is_m_field ? ("this.$data."+m.field) : (''+m);
-                        M = is_M_field ? ("this.$data."+M.field) : (''+M);
-                        return false !== strict 
-                            ? VC(newFunc("v", "return ( "+m+" < v ) && ( "+M+" > v );"))
-                            : VC(newFunc("v", "return ( "+m+" <= v ) && ( "+M+" >= v );"))
-                        ; 
-                    }
+                    var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
                     // swap
-                    if ( m > M ) { tmp = M; M = m; m = tmp; }
+                    if ( !is_m_field && !is_M_field && m > M ) { tmp = M; M = m; m = tmp; }
+                    m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
+                    M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
                     return false !== strict 
-                        ? VC(function( v ) { return ( m < v ) && ( M > v ); })
-                        : VC(function( v ) { return ( m <= v ) && ( M >= v ); })
+                        ? VC(newFunc("v", "return ( "+m+" < v ) && ( "+M+" > v );"))
+                        : VC(newFunc("v", "return ( "+m+" <= v ) && ( "+M+" >= v );"))
                     ; 
                 },
                 NOT_BETWEEN: function( m, M, strict ) {  
                     if ( is_type(m, T_ARRAY) ) { strict = M; M = m[1]; m=m[0]; }
                     
-                    var tmp, is_m_field = is_instance(m, Field), is_M_field = is_instance(M, Field);
-                    
-                    if ( is_m_field || is_M_field )
-                    {
-                        m = is_m_field ? ("this.$data."+m.field) : (''+m);
-                        M = is_M_field ? ("this.$data."+M.field) : (''+M);
-                        return false !== strict 
-                            ? VC(newFunc("v", "return ( "+m+" > v ) || ( "+M+" < v );"))
-                            : VC(newFunc("v", "return ( "+m+" >= v ) || ( "+M+" <= v );"))
-                        ; 
-                    }
+                    var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
                     // swap
-                    if ( m > M ) { tmp = M; M = m; m = tmp; }
+                    if ( !is_m_field && !is_M_field && m > M ) { tmp = M; M = m; m = tmp; }
+                    m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
+                    M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
                     return false !== strict 
-                        ? VC(function( v ) { return ( m > v ) || ( M < v ); })
-                        : VC(function( v ) { return ( m >= v ) || ( M <= v ); })
+                        ? VC(newFunc("v", "return ( "+m+" > v ) || ( "+M+" < v );"))
+                        : VC(newFunc("v", "return ( "+m+" >= v ) || ( "+M+" <= v );"))
                     ; 
                 },
                 IN: function( /* vals,.. */ ) { 
@@ -942,42 +881,61 @@
             }
         },
         
-        addModelTypeValidator = function( model, key, typeOrValidator, modelTypesValidators ) {
-            var k, t,
-                MODELVIEW_COLLECTION_EACH = false
-            ;
-            if ( !key ) return;
-            key = parseKey( key ); t = get_type( typeOrValidator );
+        addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
+            var k, t, isCollectionEach = false;
+            t = get_type( typeOrValidator );
             if ( T_FUNC & t )
             {
-                MODELVIEW_COLLECTION_EACH = typeOrValidator.MODELVIEW_COLLECTION_EACH;
+                isCollectionEach = is_instance( typeOrValidator, CollectionEach );
                 // each wrapper
-                if ( MODELVIEW_COLLECTION_EACH ) typeOrValidator = bindF( typeOrValidator( ), model );
+                if ( isCollectionEach ) typeOrValidator = bindF( typeOrValidator.f, model );
                 else typeOrValidator = bindF( typeOrValidator, model );
-                // bind the type caster handler to 'this model'
-                walkadd( typeOrValidator, key.split('.'), modelTypesValidators, MODELVIEW_COLLECTION_EACH );
+                // bind the typeOrValidator handler to 'this model'
+                walkadd( typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach );
             }
             else if ( T_ARRAY_OR_OBJ & t )
             {
                 // nested keys given, recurse
-                for ( k in typeOrValidator ) addModelTypeValidator( model, key + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+                for ( k in typeOrValidator ) addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
             }
         },
         
-        addModelGetterSetter = function( model, key, getterOrSetter, modelGettersSetters ) {
+        addModelGetterSetter = function( model, dottedKey, getterOrSetter, modelGettersSetters ) {
             var k, t;
-            if ( !key ) return;
-            key = parseKey( key ); t = get_type( getterOrSetter );
+            t = get_type( getterOrSetter );
             if ( T_FUNC & t )
             {
-                // bind the getter handler to 'this model'
-                walkadd( bindF( getterOrSetter, model ), key.split('.'), modelGettersSetters );
+                // bind the getterOrSetter handler to 'this model'
+                walkadd( bindF( getterOrSetter, model ), -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters );
             }
             else if ( T_ARRAY_OR_OBJ & t )
             {
                 // nested keys given, recurse
-                for ( k in getterOrSetter ) addModelGetterSetter( model, key + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+                for ( k in getterOrSetter ) addModelGetterSetter( model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters );
             }
+        },
+        
+        // handle sub-composite models as data, via walking the data
+        serializeModel = function( modelClass, data, dataType ) {
+            var key, type;
+            
+            while ( data instanceof modelClass ) { data = data.data( ); }
+            
+            type = dataType || get_type( data );
+            data = (T_OBJ & type) ? extend({}, data) : ((T_ARRAY & type) ? data.slice(0) : data);
+            
+            if ( T_ARRAY_OR_OBJ & type )
+            {
+                for (key in data)
+                {
+                    if ( data[ key ] instanceof modelClass )
+                        data[ key ] = serializeModel( modelClass, extend( {}, data[ key ].data( ) ) );
+                    else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
+                        data[ key ] = serializeModel( modelClass, data[ key ], type );
+                }
+            }
+            
+            return data;
         }
     ;
     
@@ -989,28 +947,17 @@
         // constructor-factory pattern
         if ( !(model instanceof Model) ) return new Model( id, data, types, validators, getters, setters );
         
-        model.id = id || uuid('Model');
-        model.namespace = model.id;
-        model.getKey = getKeyPrefix( model.id );
+        model.namespace = model.id = id || uuid('Model');
+        model.strip = removePrefix( model.id );
         
         model.$view = null;
+        model.atomic = false;  model.$atom = null;
+        model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
         
-        model.$types = { };
-        model.$validators = { };
-        model.$getters = { };
-        model.$setters = { };
-        
-        model
-            .data( data || { } )
-            
-            .types( types )
-            .validators( validators )
-            
-            .getters( getters )
-            .setters( setters )
-            
+        model.data( data || { } )
+            .types( types ).validators( validators )
+            .getters( getters ).setters( setters )
             .initPubSub( )
-            .init( )
         ;
     };
     Model[proto] = Mixin( Create( Obj[proto] ), PublishSubscribe, {
@@ -1025,30 +972,20 @@
         ,$validators: null
         ,$getters: null
         ,$setters: null
-        ,_atomic: false
+        ,atomic: false
         ,$atom: null
         
-        ,dispose: function( pub ) {
+        ,dispose: function( ) {
             var model = this;
-            model.$view = null;
+            model.disposePubSub( ).$view = null;
             model.$data = null;
             model.$types = null;
             model.$validators = null;
             model.$getters = null;
             model.$setters = null;
-            model._atomic = false;
+            model.atomic = false;
             model.$atom = null;
-            model.getKey = null;
-            if ( pub ) model.publish('dispose', { target: model } );
-            model.disposePubSub( );
-            return model;
-        }
-        
-        ,init: function( pub ) {
-            var model = this;
-            model._atomic = false;
-            model.$atom = null;
-            if ( pub ) model.publish('init', { target: model } );
+            model.strip = null;
             return model;
         }
         
@@ -1114,90 +1051,38 @@
         }
         
         // handle sub-composite models as data, via walking the data
-        ,serialize: function( data ) {
-            var model = this, key, type, dat;
-            
-            while ( data instanceof Model ) { data = data.data( ); }
-            
-            type = get_type( data );
-            
-            if ( T_OBJ & type )  data = extend( {}, data );
-            else if ( T_ARRAY & type ) data = data.slice( );
-            
-            if ( T_ARRAY_OR_OBJ & type )
-            {
-                for (key in data)
-                {
-                    type = get_type( data[ key ] );
-                    
-                    if ( data[ key ] instanceof Model )
-                    {
-                        data[ key ] = model.serialize( extend( {}, data[ key ].data( ) ) );
-                    }
-                    else if ( T_OBJ & type )
-                    {
-                        data[ key ] = model.serialize( extend( {}, data[ key ] ) );
-                    }
-                    else if ( T_ARRAY & type )
-                    {
-                        data[ key ] = model.serialize( data[ key ].slice( ) );
-                    }
-                }
-            }
-            
-            return data;
+        ,serialize: function( ) {
+            return serializeModel( Model, this.$data );
         }
         
-        ,toJSON: function( key ) {
-            var model = this, json, data, T;
+        ,toJSON: function( dottedKey ) {
+            var model = this, json, data, T, e;
             
-            if ( arguments.length ) data = model.get( key );
+            if ( arguments.length ) data = model.get( dottedKey );
             else data = model.data( );
             
-            try {
-                
-                json = toJSON( model.serialize( data ) );
-            
-            } catch( e ) {
-                
-                throw e;
-                
-                return;
-            
-            }
+            try { json = toJSON( serializeModel( Model, data ) ); } 
+            catch( e ) { throw e; return; }
             
             return json;
         }
         
-        ,fromJSON: function( dataJson, key ) {
-            var model = this, data;
+        ,fromJSON: function( dataJson, dottedKey ) {
+            var model = this, data, e;
             if ( dataJson )
             {
-                try {
-                    
-                    data = fromJSON( dataJson );
+                try { data = fromJSON( dataJson ); } 
+                catch( e ) { throw e; return; }
                 
-                } catch( e ) {
-                    
-                    throw e;
-                    
-                    return;
-                
-                }
-                
-                if ( key ) model.set( key, data );
+                if ( dottedKey ) model.set( dottedKey, data );
                 else model.data( data );
             }
             return model;
         }
         
-        ,key: function( key, level ) {
-            return key && (0 > level) ? key.split( '.' ).slice( 0, level ).join( '.' ) : key;
-        }
-        
-        ,count: function( key, val ) {
+        ,count: function( dottedKey, val ) {
             if ( !arguments.length ) return 0;
-            var o = key ? this.get( key ) : val, T = get_type( o );
+            var o = dottedKey ? this.get( dottedKey ) : val, T = get_type( o );
             
             if ( T_OBJ === T ) return Keys( o ).length;
             else if ( T_ARRAY === T ) return o.length;
@@ -1205,38 +1090,44 @@
             return 0;
         }
         
-        ,has: function( key ) {
+        ,has: function( dottedKey, RAW ) {
             var model = this, r, p;
-            //if ( !key ) return false;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
+            
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             if ( 1 === p.length )
             {
                 // handle single key fast
-                if ( (key in model.$data) || ((r=model.$getters[key] || model.$getters[WILDCARD]) && r.value) ) return true;
+                if ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.value) ) return true;
             }
-            else if ( 1 < p.length && (r = walkcheck( p, model.$data, model.$getters, Model )) )
+            else if ( 1 < p.length && (r = walkcheck( p, model.$data, RAW ? null : model.$getters, Model )) )
             {
                 return (true === r) ? true : r[1].has(r[2].join('.'));
             }
             return false;
         }
         
-        ,get: function( key, RAW ) {
+        ,get: function( dottedKey, RAW ) {
             var model = this, r, p;
-            //if ( !key ) return undef;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
+            
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             if ( 1 === p.length )
             {
                 // handle single key fast
-                if ( !RAW && (r=model.$getters[key] || model.$getters[WILDCARD]) && r.value ) return r.value( key );
-                /*if ( k in data )*/ return model.$data[ key ];
+                if ( !RAW && (r=model.$getters[dottedKey]) && r.value ) return r.value( dottedKey );
+                return model.$data[ dottedKey ];
             }
             else if ( 1 < p.length && (r = walk2( p, model.$data, RAW ? null : model.$getters, Model )) )
             {
                 // nested sub-model
                 if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
                 // custom getter
-                else if ( false === r[ 0 ] ) return r[ 1 ]( key );
+                else if ( false === r[ 0 ] ) return r[ 1 ]( dottedKey );
                 // model field
                 return r[ 1 ];
             }
@@ -1244,26 +1135,30 @@
         }
         
         // it can add last node also if not there
-        ,set: function ( key, val, pub, extra ) {
+        ,set: function ( dottedKey, val, pub, callData ) {
             var model = this, r, o, k, p,
                 type, validator, setter,
                 types, validators, setters,
-                data, prevval, canSet = false
+                prevval, canSet = false
             ;
-            //if ( !key ) return model;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
-            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            
+            if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             o = model.$data;
             types = model.$types; 
             validators = model.$validators; 
             setters = model.$setters;
+            
             if ( 1 === p.length )
             {
                 // handle single key fast
-                k = key;
-                setter = (r=setters[key] || setters[WILDCARD]) ? r.value : null;
-                type = (r=types[key] || types[WILDCARD]) ? r.value : null;
-                validator = (r=validators[key] || validators[WILDCARD]) ? r.value : null;
+                k = dottedKey;
+                setter = (r=setters[k]) ? r.value : null;
+                type = (r=types[k] || types[WILDCARD]) ? r.value : null;
+                validator = (r=validators[k] || validators[WILDCARD]) ? r.value : null;
                 canSet = true;
             }
             else if ( 1 < p.length )
@@ -1281,7 +1176,7 @@
                     {
                         k = k.join('.');
                         prevval = o.get( k );
-                        if ( prevval !== val ) o.set( k, val ); 
+                        if ( prevval !== val ) o.set( k, val, pub, callData ); 
                         else  pub = false;
                     }
                     else 
@@ -1290,12 +1185,15 @@
                         if ( prevval !== val ) o.data( val );
                         else  pub = false;
                     }
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val, valuePrev: prevval};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('change', data);
-                    }
+                    
+                    pub && model.publish('change', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: val, 
+                            valuePrev: prevval,
+                            $callData: callData
+                        });
+                    
                     return model;
                 }
                 else if ( !setter  && (false === r[0] && r[3].length) )
@@ -1308,19 +1206,18 @@
             
             if ( canSet )
             {
-                if ( type ) val = type( val, key );
-                if ( validator && !validator( val, key ) )
+                if ( type ) val = type( val, dottedKey );
+                if ( validator && !validator( val, dottedKey ) )
                 {
                     if ( pub )
                     {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) 
-                        {
-                            // set model error flag
-                            extra._error = true;
-                            data = extend({}, extra, data); 
-                        }
-                        model.publish('error', data);
+                        if ( callData ) callData.error = true;
+                        model.publish('error', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: o[k], 
+                            $callData: callData
+                        });
                     }
                     return model;
                 }
@@ -1328,16 +1225,16 @@
                 // custom setter
                 if ( setter ) 
                 {
-                    if ( setter( key, val ) ) 
+                    if ( setter( dottedKey, val ) ) 
                     {
-                        if ( pub )
-                        {
-                            data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                            if ( extra ) data = extend({}, extra, data); 
-                            model.publish('change', data);
-                        }
+                        pub && model.publish('change', {
+                                model: model, 
+                                key: dottedKey, 
+                                value: val,
+                                $callData: callData
+                            });
                         
-                        if ( model.$atom && key === model.$atom ) model._atomic = true;
+                        if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                     }
                     return model;
                 }
@@ -1349,39 +1246,44 @@
                     // modify or add final node here
                     o[ k ] = val;
                 
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val, valuePrev: prevval};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('change', data);
-                    }
+                    pub && model.publish('change', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: val, 
+                            valuePrev: prevval,
+                            $callData: callData
+                        });
                     
-                    if ( model.$atom && key === model.$atom ) model._atomic = true;
+                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                 }
             }
             return model;
         }
         
         // append value (for arrays like structures)
-        ,append: function ( key, val, pub, extra ) {
+        ,append: function ( dottedKey, val, pub, callData ) {
             var model = this, r, o, k, p,
-                type, validator, setter,  data,
+                type, validator, setter,
                 canSet = false
             ;
-            //if ( !key ) return model;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
-            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            
+            if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             o = model.$data;
             types = model.$types; 
             validators = model.$validators; 
             setters = model.$setters;
+            
             if ( 1 === p.length )
             {
                 // handle single key fast
-                k = key;
-                setter = (r=setters[key] || setters[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
-                type = (r=types[key] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
-                validator = (r=validators[key] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                k = dottedKey;
+                setter = (r=setters[k]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                type = (r=types[k] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                validator = (r=validators[k] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
                 canSet = true;
             }
             else if ( 1 < p.length )
@@ -1398,18 +1300,20 @@
                     if ( k.length ) 
                     {
                         k = k.join('.');
-                        o.append( k, val ); 
+                        o.append( k, val, pub, callData ); 
                     }
                     else 
                     {
                         o.data( val );
                     }
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('change', data);
-                    }
+                    
+                    pub && model.publish('change', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: val,
+                            $callData: callData
+                        });
+                    
                     return model;
                 }
                 else if ( !setter && (false === r[0] && r[3].length) )
@@ -1422,19 +1326,18 @@
             
             if ( canSet )
             {
-                if ( type ) val = type( val, key );
-                if ( validator && !validator( val, key ) )
+                if ( type ) val = type( val, dottedKey );
+                if ( validator && !validator( val, dottedKey ) )
                 {
                     if ( pub )
                     {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) 
-                        {
-                            // set model error flag
-                            extra._error = true;
-                            data = extend({}, extra, data); 
-                        }
-                        model.publish('error', data);
+                        if ( callData ) callData.error = true;
+                        model.publish('error', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: /*val*/undef,
+                            $callData: callData
+                        });
                     }
                     return model;
                 }
@@ -1442,16 +1345,16 @@
                 // custom setter
                 if ( setter ) 
                 {
-                    if ( setter( key, val ) ) 
+                    if ( setter( dottedKey, val ) ) 
                     {
-                        if ( pub )
-                        {
-                            data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                            if ( extra ) data = extend({}, extra, data); 
-                            model.publish('change', data);
-                        }
+                        pub && model.publish('change', {
+                                model: model, 
+                                key: dottedKey, 
+                                value: val,
+                                $callData: callData
+                            });
                         
-                        if ( model.$atom && key === model.$atom ) model._atomic = true;
+                        if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                     }
                     return model;
                 }
@@ -1467,31 +1370,32 @@
                     o[ k ] = val;
                 }
             
-                if ( pub )
-                {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('append', data);
-                    model.publish('change', data);
-                }
+                pub && model.publish('change', {
+                        model: model, 
+                        key: dottedKey, 
+                        value: val,
+                        $callData: callData
+                    });
                 
-                if ( model.$atom && key === model.$atom ) model._atomic = true;
+                if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
             }
             return model;
         }
         
         // delete, without re-arranging (array) indexes
-        ,del: function( key, pub, extra ) {
-            var model = this, r, o, k, p, data, val, canDel = false;
+        ,del: function( dottedKey, pub, callData ) {
+            var model = this, r, o, k, p, val, canDel = false;
             
-            //if ( !key ) return model;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
-            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             o = model.$data;
             if ( 1 === p.length )
             {
                 // handle single key fast
-                k = key;
+                k = dottedKey;
                 canDel = true;
             }
             else if ( 1 < p.length )
@@ -1504,15 +1408,15 @@
                     // nested sub-model
                     k = k.join('.');
                     val = o.get( k );
-                    o.del( k ); 
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('remove', data);
-                    }
+                    o.del( k, pub, callData ); 
+                    pub && model.publish('remove', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: val,
+                            $callData: callData
+                        });
                     
-                    if ( model.$atom && key === model.$atom ) model._atomic = true;
+                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                     return model;
                 }
                 else if ( r[ 3 ].length )
@@ -1527,31 +1431,32 @@
             {
                 val = o[ k ];
                 delete o[ k ]; // not re-arrange indexes
+                pub && model.publish('remove', {
+                        model: model, 
+                        key: dottedKey, 
+                        value: val,
+                        $callData: callData
+                    });
                 
-                if ( pub )
-                {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('remove', data);
-                }
-                
-                if ( model.$atom && key === model.$atom ) model._atomic = true;
+                if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
             }
             return model;
         }
         
         // remove, re-arranging (array) indexes
-        ,rem: function( key, pub, extra ) {
-            var model = this, r, o, k, p, data, val, T, canDel = false;
+        ,rem: function( dottedKey, pub, callData ) {
+            var model = this, r, o, k, p, val, T, canDel = false;
             
-            //if ( !key ) return model;
-            p = notSingleKey.test(key) ? (key = parseKey( key )).split('.') : [key];
-            if ( model._atomic && key.sW( model.$atom ) ) return model;
+            if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
             o = model.$data;
             if ( 1 === p.length )
             {
                 // handle single key fast
-                k = key;
+                k = dottedKey;
                 canDel = true;
             }
             else if ( 1 < p.length )
@@ -1564,15 +1469,15 @@
                     // nested sub-model
                     k = k.join('.');
                     val = o.get( k );
-                    o.rem( k ); 
-                    if ( pub )
-                    {
-                        data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                        if ( extra ) data = extend({}, extra, data); 
-                        model.publish('remove', data);
-                    }
+                    o.rem( k, pub, callData ); 
+                    pub && model.publish('remove', {
+                            model: model, 
+                            key: dottedKey, 
+                            value: val,
+                            $callData: callData
+                        });
                     
-                    if ( model.$atom && key === model.$atom ) model._atomic = true;
+                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                     return model;
                 }
                 else if ( r[ 3 ].length )
@@ -1588,49 +1493,52 @@
                 val = o[ k ];
                 o[ k ] = undef;
                 T = get_type( o );
-                if ( T_OBJ == T ) delete o[ k ];
-                else if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
-                if ( pub )
-                {
-                    data = {target: model, bracketkey: parseKey(key, 1), key: key, value: val};
-                    if ( extra ) data = extend({}, extra, data); 
-                    model.publish('remove', data);
-                }
+                if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
+                else if ( T_OBJ == T ) delete o[ k ];
+                pub && model.publish('remove', {
+                        model: model, 
+                        key: dottedKey, 
+                        value: val,
+                        $callData: callData
+                    });
                 
-                if ( model.$atom && key === model.$atom ) model._atomic = true;
+                if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
             }
             return model;
         }
         
         // shortcut to trigger "model:change" per given key
-        ,notify: function( key, evt ) {
-            if ( key )
-                this.publish(evt || 'change', {target: this, bracketkey: parseKey(key, 1), key: parseKey( key ), value: null});
+        ,notify: function( dottedKey, evt, callData ) {
+            dottedKey && this.publish(evt||'change', {
+                    model: this, 
+                    key: dottedKey,
+                    /*, value: null*/
+                    $callData: callData
+                });
             return this;
         }
         
         // atomic (update) operation(s) by key
-        ,atom: function( key ) {
+        ,atom: function( dottedKey ) {
             var model = this;
-            if ( undef !== key )
+            if ( undef !== dottedKey )
             {
-                if ( false === key )
+                if ( false === dottedKey )
                 {
-                    model._atomic = false;
+                    model.atomic = false;
                     model.$atom = null;
                 }
                 else
                 {
-                    model._atomic = false;
-                    model.$atom = parseKey( key );
+                    model.atomic = false;
+                    model.$atom = dottedKey;
                 }
             }
             return model;
         }
         
         ,toString: function( ) {
-            //return '[ModelView.Model id: '+this.id+']';
-            return this.toJSON( );
+            return '[ModelView.Model id: '+this.id+']';
         }
    });
     
@@ -1638,126 +1546,82 @@
         getSelectors = function( bind, autobind, exact ) {
             return [
                 bind ? '[' + bind + ']' : null,
+                
                 autobind 
-                ? (exact ? 'input[name="' + autobind + '"],textarea[name="' + autobind + '"],select[name="' + autobind + '"]': 'input[name^="' + autobind + '["],textarea[name^="' + autobind + '["],select[name^="' + autobind + '["]') 
+                ? (exact ? 'input[name="' + autobind + '"],textarea[name="' + autobind + '"],select[name="' + autobind + '"]': 'input[name^="' + autobind + '"],textarea[name^="' + autobind + '"],select[name^="' + autobind + '"]') 
                 : null
             ];
         },
         
-        doAction = function( view, $elements, evt, data ) {
-            var model = view.$model, fromModel = data.model;
+        getBindData = function( event, bind ) {
+            if ( bind && bind[ event ] )
+            {
+                if ( is_type(bind[ event ], T_STR) ) bind[ event ] = { action: bind[ event ] };
+                return bind[ event ];
+            }
+        },
+        
+        doAction = function( view, $elements, evt, fromModel ) {
+            var model = view.$model, isSync = 'sync' == evt.type, 
+                event = isSync ? 'change' : evt.type;
             
             $elements.each(function( ) {
-                var $el = $(this), bind = view.attr($el, 'bind'),
-                    eventAction, event, action, key, bindData, elName
-                ;
+                var $el = $(this), bind, do_action, name, key;
                 
-                if ( !bind ) return;
-                
-                eventAction = view.eventaction(evt.type, bind);
-                
-                if ( !eventAction || !eventAction.action ) return;
-                
-                event = eventAction.event;
-                action = 'do_'+eventAction.action;
-                
+                bind = getBindData( event, view.attr($el, 'bind') );
                 // during sync, dont do any actions based on (other) events
-                if ( data.sync && 'change' != event ) return;
+                if ( !bind || !bind.action ) return;
                 
-                if ( fromModel )
-                {
-                    elName = $el.attr('name') || false;
-                    key = (elName && $el.is('input,textarea,select')) ? model.getKey(elName) : eventAction.key;
-                    
-                    // "model:change" event and element does not reference the (nested) model key
-                    if ( !key || (
-                        ( !key.sW( fromModel.bracketkey ) ) && 
-                        ( !key.sW( fromModel.key ) ) 
-                    )) return;
-                    
-                    // atomic operation(s)
-                    if ( model._atomic && key.sW( model.$atom ) ) return;
-                }
+                do_action = 'do_' + bind.action;
+                if ( !is_type( view[ do_action ], T_FUNC ) ) return;
+                name = $el.attr('name')
+                key = bind.key || (name && model.strip(name, 1));
+                // "model:change" event and element does not reference the (nested) model key
+                // OR model atomic operation(s)
+                if ( fromModel && (!key || !key.sW( fromModel.key ) || 
+                    (model.atomic && key.sW( model.$atom ))) ) return;
                 
-                if ( /*action &&*/ is_type( view[action], T_FUNC ) )
-                {
-                    bindData = /*extend(true, {},*/ eventAction/*)*/;
-                    view[action]( evt, $el, bindData );
-                    
-                    // allow post-action processing to take place if needed
-                    if ( eventAction.complete && is_type( view['do_'+eventAction.complete], T_FUNC ) )
-                    {
-                        // add a small delay also
-                        setTimeout(function(){
-                            view['do_'+eventAction.complete]( evt, $el, bindData );
-                        }, 10);
-                    }
-                }
+                view[ do_action ]( evt, $el, bind );
             });
         },
         
-        doAutoBindAction = function( view, $elements, evt, data ) {
-            var model = view.$model, cached = { }, fromModel = data.model;
+        doAutoBindAction = function( view, $elements, evt, fromModel ) {
+            var model = view.$model, cached = { }, isSync = 'sync' == evt.type, 
+                event = isSync ? 'change' : evt.type;
             
-            if ( view.do_bind )
-            {
-                $elements.each(function( ) {
-                    var $el = $( this ), name,
-                        key, value;
-                        
-                    name = $el.attr('name') || false;
-                    if ( /*!$el.is("input,textarea,select") ||*/ !name ) return;
+            $elements.each(function( ) {
+                var $el = $(this), name = $el.attr('name'), 
+                    key = name ? model.strip( name, 1 ) : 0, value;
                     
-                    key = (fromModel && fromModel.key)  ? fromModel.key : model.getKey(name);
-                    
-                    if ( fromModel && ('value' in fromModel) ) // action is called from model, so key value are already there
-                    {
-                        value = fromModel.value;
-                    }
-                    
-                    else if ( key )
-                    {
-                        if ( cached[ key ] )
-                        {
-                            // use already cached key/value
-                            value = cached[ key ][ 0 ];
-                        }
-                        else if ( model.has( key ) )
-                        {
-                            value = model.get( key );
-                            cached[ key ] = [ value ];
-                        }
-                        else
-                        {
-                            return;  // nothing to do here
-                        }
-                    }
-                    
-                    else return;  // nothing to do here
-                    
-                    // call default action (eg: live update)
-                    view.do_bind( evt, $el, { name: name, key: key, value: value } );
-                });
-            }
+                if ( !key ) return;
+                
+                // use already cached key/value
+                if ( cached[ key ] )  value = cached[ key ][ 0 ];
+                else if ( model.has( key ) ) cached[ key ] = [ value=model.get( key ) ];
+                else return;  // nothing to do here
+                
+                // call default action (ie: live update)
+                view.do_bind( evt, $el, {name:name, key:key, value:value} );
+            });
         }
     ;
     
     //
     // View Class
-    var View = function( id, model, atts ) {
+    var View = function( id, model, atts, cacheSize, refreshInterval ) {
         var view = this;
         
         // constructor-factory pattern
-        if ( !(view instanceof View) ) return new View( id, model, atts );
+        if ( !(view instanceof View) ) return new View( id, model, atts, cacheSize, refreshInterval );
         
-        view.id = id || uuid('View');
-        view.namespace = view.id;
+        view.namespace = view.id = id || uuid('View');
         view.$atts = atts || { "bind": "data-bind" };
-        view
-            .model( model || new Model( ) )
-            .initPubSub( )
-            .init( )
-        ;
+        cacheSize = cacheSize || View._CACHE_SIZE;
+        refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
+        view.$memoize = new Cache( cacheSize, refreshInterval );
+        view.$selectors = new Cache( cacheSize, refreshInterval );
+        view.$bind = view.attribute( "bind" );
+        view.model( model || new Model( ) ).initPubSub( );
     };
     // STATIC
     View._CACHE_SIZE = 600;
@@ -1780,13 +1644,9 @@
         
         ,dispose: function( ) {
             var view = this;
-            view.unbind( );
-            
-            if ( view.$model )
-            {
-                view.$model.dispose( );
-                view.$model = null;
-            }
+            view.unbind( ).disposePubSub( );
+            if ( view.$model ) view.$model.dispose( );
+            view.$model = null;
             view.$dom = null;
             view.$bind = null;
             view.$template = null;
@@ -1795,19 +1655,6 @@
             view.$memoize = null;
             view.$selectors.dispose( );
             view.$selectors = null;
-            view.disposePubSub( );
-            
-            return view;
-        }
-        
-        ,init: function( pub ) {
-            var view = this;
-            view.$bind = view.attribute( "bind" );
-            view.$memoize = new Cache( View._CACHE_SIZE, View._REFRESH_INTERVAL );
-            view.$selectors = new Cache( View._CACHE_SIZE, View._REFRESH_INTERVAL );
-            
-            if ( pub ) view.publish('init', { target: view });
-            
             return view;
         }
         
@@ -1854,13 +1701,13 @@
         }
         
         ,action: function( name, handler ) {
-            var view = this;
+            var view = this, do_action = name && ('do_'+name);
             if ( arguments.length > 1 )
             {
-                view['do_'+name] = is_type( handler, T_FUNC ) ? handler : null;
+                view[ do_action ] = is_type( handler, T_FUNC ) ? handler : null;
                 return view;
             }
-            return name ? (view['do_'+name] || undef) : undef;
+            return do_action && view[ do_action ];
         }
         
         ,bindbubble: function( enable ) {
@@ -1883,11 +1730,6 @@
             return view.$autobind;                        
         }
         
-        // get a Universal Unique Identifier (UUID)
-        ,uuid: function( namespace ) {
-            return uuid( namespace );
-        }
-        
         // cache jquery selectors for even faster performance
         ,get: function( selector, $dom, bypass ) {
             var view = this, selectorsCache = view.$selectors, elements;
@@ -1897,9 +1739,7 @@
             if ( bypass ) return $dom.find( selector );
             
             elements = selectorsCache.get( selector );
-                
-            if ( undef === elements )
-                selectorsCache.set( selector, elements = $dom.find( selector ) );
+            if ( !elements ) selectorsCache.set( selector, elements = $dom.find( selector ) );
             
             return elements;
         }
@@ -1908,8 +1748,7 @@
         // http://stackoverflow.com/questions/2937120/how-to-get-javascript-object-references-or-reference-count
         ,attr: function( $el, att ) {
             var view = this, attr = view.$atts[ att ], 
-                memoizeCache = view.$memoize, attribute
-                /*, sep = "::"*/
+                memoizeCache = view.$memoize, attribute, attbind
             ;
             
             // use memoization/caching
@@ -1923,76 +1762,99 @@
                     attribute = fromJSON( attr );
                     
                     // shortcut abbreviations for some default actions
-                    if ( attribute.text )
+                    if ( attribute.set )
                     {
-                        attribute.change = {action: "set", prop: "text", key: attribute.text, domRef: attribute.domRef||null};
-                        delete attribute.text;
-                    }
-                    else if ( attribute.html )
-                    {
-                        attribute.change = {action: "set", prop: "html", key: attribute.html, domRef: attribute.domRef||null};
-                        delete attribute.html;
-                    }
-                    else if ( attribute.value )
-                    {
-                        attribute.change = {action: "set", prop: "value", key: attribute.value, domRef: attribute.domRef||null};
-                        delete attribute.value;
-                    }
-                    else if ( attribute.options )
-                    {
-                        attribute.change = {action: "set", prop: "options", key: attribute.options, domRef: attribute.domRef||null};
-                        delete attribute.options;
-                    }
-                    else if ( attribute['class'] )
-                    {
-                        attribute.change = {action: "set", prop: "class", key: attribute['class'], domRef: attribute.domRef||null};
-                        delete attribute['class'];
-                    }
-                    else if ( attribute.checked )
-                    {
-                        attribute.change = {action: "set", prop: "checked", key: attribute.checked, domRef: attribute.domRef||null};
-                        delete attribute.checked;
-                    }
-                    else if ( attribute.disabled )
-                    {
-                        attribute.change = {action: "set", prop: "disabled", key: attribute.disabled, domRef: attribute.domRef||null};
-                        delete attribute.disabled;
-                    }
-                    else if ( attribute.show )
-                    {
-                        attribute.change = {action: "show", key: attribute.show, domRef: attribute.domRef||null};
-                        delete attribute.show;
-                    }
-                    else if ( attribute.hide )
-                    {
-                        attribute.change = {action: "hide", key: attribute.hide, domRef: attribute.domRef||null};
-                        delete attribute.hide;
-                    }
-                    else if ( attribute.css || attribute.attr  || attribute.prop )
-                    {
-                        attribute.change = {action: "set", key: attribute.key||null, domRef: attribute.domRef||null};
-                        if ( attribute.css )
-                        {
-                            attribute.change.css = attribute.css;
-                            delete attribute.css;
-                        }
-                        if ( attribute.attr )
-                        {
-                            attribute.change.attr = attribute.attr;
-                            delete attribute.attr;
-                        }
-                        if ( attribute.prop )
-                        {
-                            attribute.change.prop = attribute.prop;
-                            delete attribute.prop;
-                        }
+                        attribute.click = attribute.set;
+                        attribute.click.action = "set";
+                        attribute.set = undef;
+                        delete attribute.set;
                     }
                     
-                    if ( attribute.change && ("set" === attribute.change.action) &&
-                        attribute.change.prop && (attribute.change.prop in PROPS)
-                    )
+                    if ( attribute.show )
                     {
-                        attribute.change.prop = PROPS[attribute.change.prop];
+                        attribute.change = {action:"show", key:attribute.show};
+                        attribute.show = undef;
+                        delete attribute.show;
+                    }
+                    if ( attribute.hide )
+                    {
+                        attribute.change = {action:"hide", key:attribute.hide};
+                        attribute.hide = undef;
+                        delete attribute.hide;
+                    }
+                    
+                    if ( attribute.html )
+                    {
+                        attribute.change = {action:"html", key:attribute.html};
+                        attribute.html = undef;
+                        delete attribute.html;
+                        attribute.text = undef;
+                        delete attribute.text;
+                    }
+                    else if ( attribute.text )
+                    {
+                        attribute.change = {action:"html", key:attribute.text, text:1};
+                        attribute.text = undef;
+                        delete attribute.text;
+                    }
+                    
+                    if ( attribute.css )
+                    {
+                        attribute.change = {action:"css", css:attribute.css};
+                        attribute.css = undef;
+                        delete attribute.css;
+                    }
+                    
+                    if ( attribute.value )
+                    {
+                        if ( attribute.change && ("prop" == attribute.change.action) )
+                            attribute.change.prop.value = attribute.value;
+                        else
+                            attribute.change = {action:"prop", prop:{value:attribute.value}};
+                        attribute.value = undef;
+                        delete attribute.value;
+                    }
+                    if ( attribute.checked )
+                    {
+                        if ( attribute.change && ("prop" == attribute.change.action) )
+                            attribute.change.prop.checked = attribute.checked;
+                        else
+                            attribute.change = {action:"prop", prop:{checked:attribute.checked}};
+                        attribute.checked = undef;
+                        delete attribute.checked;
+                    }
+                    if ( attribute.disabled )
+                    {
+                        if ( attribute.change && ("prop" == attribute.change.action) )
+                            attribute.change.prop.disabled = attribute.disabled;
+                        else
+                            attribute.change = {action:"prop", prop:{disabled:attribute.disabled}};
+                        attribute.disabled = undef;
+                        delete attribute.disabled;
+                    }
+                    if ( attribute.options )
+                    {
+                        if ( attribute.change && ("prop" == attribute.change.action) )
+                            attribute.change.prop.options = attribute.options;
+                        else
+                            attribute.change = {action:"prop", prop:{options:attribute.options}};
+                        attribute.options = undef;
+                        delete attribute.options;
+                    }
+                    if ( attribute['class'] )
+                    {
+                        if ( attribute.change && ("prop" == attribute.change.action) )
+                            attribute.change.prop["class"] = attribute['class'];
+                        else
+                            attribute.change = {action:"prop", prop:{"class":attribute['class']}};
+                        attribute['class'] = undef;
+                        delete attribute['class'];
+                    }
+                    
+                    if ( (attbind=attribute.change) )
+                    {
+                        if ( !attbind.domRef && attribute.domRef ) attbind.domRef = attribute.domRef;
+                        if ( !attbind.key && attribute.key ) attbind.key = attribute.key;
                     }
                     
                     // parsing is expensive, use memoize cache
@@ -2005,24 +1867,71 @@
             return undef;
         }
         
-        ,eventaction: function( evt, bind ) {
-            if ( evt && bind && bind[evt] )
-            {
-                if ( is_type(bind[evt], T_STR) ) return {event: evt, action: bind[evt]};
-                return extend( {event: evt}, bind[evt] );
-            }
-            return null;
-        }
-        
-        ,getDomRef: function($el, ref) {
+        ,getDomRef: function( $el, ref ) {
             // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
             return ( ref && ("$this::" == ref.slice(0, 7)) ) ? $( ref.slice( 7 ), $el ) : $( ref );
         }
         
+        ,bind: function( events, dom ) {
+            var view = this, model = view.$model,
+                sels = getSelectors( view.$bind, model.id+'[' ),
+                bindSelector = sels[ 0 ], autobindSelector = sels[ 1 ],
+                method, evt, namespaced, modelMethodPrefix = /^on_model_/
+            ;
+            
+            events = events || ['change', 'click'];
+            view.$dom = $(dom || window.document);
+             
+            // view/dom change events
+            if ( view.on_view_change && events.length )
+            {
+                namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
+                
+                // use one event handler for bind and autobind
+                // avoid running same (view) action twice on autobind and bind elements
+                view.$dom.on( 
+                    events.map( namespaced ).join( ' ' ), 
+                    
+                    [ autobindSelector, bindSelector ].join( ',' ),
+                    
+                    function( evt ) {
+                        // avoid "ghosting" events on other elements which may be inside a bind element
+                        // Chrome issue on nested button clicked, when data-bind on original button
+                        // add "bubble" option in modelview data-bind params
+                        var el = this, $el = $(el),
+                            isAutoBind = false, isBind = false, 
+                            bind = view.$bindbubble ? view.attr($el, 'bind') : null
+                        ;
+                        if ( (evt.target === el) || (bind && bind.bubble) )
+                        {
+                            // view/dom change events
+                            isBind = view.$bindbubble ? !!bind : $el.is( bindSelector );
+                            // view change autobind events
+                            isAutoBind = view.$autobind && "change" == evt.type && $el.is( autobindSelector );
+                            
+                            if ( isBind || isAutoBind ) 
+                                view.on_view_change( evt, {$el:$el, isBind:isBind, isAutoBind:isAutoBind} );
+                        }
+                        return true;
+                    }
+                );
+            }
+            
+            // model events
+            for (method in view)
+            {
+                if ( !is_type( view[ method ], T_FUNC ) || !modelMethodPrefix.test( method ) ) continue;
+                
+                evt = method.replace( modelMethodPrefix, '' );
+                evt.length && view.onTo( model, evt, view[ method ], view.namespace );
+            }
+            
+            return view;
+        }
+        
         ,unbind: function( events, dom ) {
             var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id ),
-                bindSelector = sels[0], autobindSelector = sels[1],
+                selectors = getSelectors( view.$bind, model.id+'[' ),
                 namespaced, $dom
             ;
             
@@ -2030,17 +1939,15 @@
             $dom = dom ? $(dom) : view.$dom;
              
             // view/dom change events
-            if ( view['on_view_change'] )
+            if ( view.on_view_change )
             {
-                namespaced = function( evt ) { 
-                    return NSEvent(evt, view.namespace); 
-                };
+                namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
                 
                 $dom.off( 
                     
                     events && events.length ? events.map( namespaced ).join(' ') : NSEvent('', view.namespace), 
                     
-                    [ autobindSelector, bindSelector ].join( ',' )
+                    [ selectors[ 1 ], selectors[ 0 ] ].join( ',' )
                 );
             }
             
@@ -2050,88 +1957,23 @@
             return view;
         }
         
-        ,uiEventHandler: function( evt, el ) {
-            var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id ),
-                bindSelector = sels[0], autobindSelector = sels[1],
-                isAutoBind = false, isBind = false, $el = $(el),
-                bind = view.$bindbubble ? view.attr($el, 'bind') : null
-            ;
-
-            // avoid "ghosting" events on other elements which may be inside a bind element
-            // Chrome issue on nested button clicked, when data-bind on original button
-            // add "bubble" option in modelview data-bind params
-            if ( (evt.target === el) || (view.$bindbubble && bind && bind.bubble) )
-            {
-                // view/dom change events
-                isBind = view.$bindbubble ? !!bind : $el.is( bindSelector );
-                // view change autobind events
-                isAutoBind = ( view.$autobind && "change" == evt.type && $el.is( autobindSelector ) );
-                
-                if ( isBind || isAutoBind ) 
-                    view.on_view_change( evt, { el: $el, _isBind: isBind, _isAutoBind: isAutoBind } );
-            }
-            return true;
-        }
-        
-        ,bind: function( events, dom ) {
-            var view = this, model = view.$model,
-                sels = getSelectors( view.$bind, model.id ),
-                bindSelector = sels[0], autobindSelector = sels[1],
-                method, evt, namespaced
-            ;
-            
-            events = events || ['change', 'click'];
-            view.$dom = $(dom || window.document);
-             
-            // view/dom change events
-            if ( view['on_view_change'] && events.length )
-            {
-                namespaced = function( evt ) { 
-                    return NSEvent(evt, view.namespace); 
-                };
-                
-                // use one event handler for bind and autobind
-                // avoid running same (view) action twice on autobind and bind elements
-                view.$dom.on( 
-                    events.map( namespaced ).join( ' ' ), 
-                    
-                    [ autobindSelector, bindSelector ].join( ',' ),
-                    
-                    function( e ) {
-                        view.uiEventHandler(e, this);
-                        return true;
-                    }
-                );
-            }
-            
-            // model events
-            for (method in view)
-            {
-                if ( !is_type( view[ method ], T_FUNC ) || !/^on_model_/.test( method ) ) continue;
-                
-                evt = method.replace(/^on_model_/, '');
-                evt.length && view.onTo( model, evt, view[ method ], view.namespace );
-            }
-            
-            return view;
+        ,rebind: function( events, $dom ) {
+            var view = this;
+            // refresh caches
+            view.$memoize.reset( );
+            view.$selectors.reset( );
+            // re-bind to UI
+            return view.unbind( ).bind( events, $dom );
         }
         
         ,sync: function( $dom ) {
-            var view = this, model = view.$model, 
-                sels = getSelectors( view.$bind, model.id ),
-                bindSelector = sels[0], autobindSelector = sels[1],
-                bindElements, autoBindElements
-            ;
+            var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
+                syncEvent = Event('sync');
             
             $dom = $dom ? $($dom) : view.$dom;
-            
-            bindElements = view.get( bindSelector, $dom, true );
-            autoBindElements = view.get( autobindSelector, $dom, true );
-            
-            doAction( view, bindElements, Event('change'), {sync: true} );
-            view.$autobind && doAutoBindAction( view, autoBindElements, Event('change'), {sync: true} );
-            
+            doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
+            if ( view.$autobind /*&& view.do_bind*/ )
+                doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
             return view;
         }
         
@@ -2143,36 +1985,24 @@
             return view;
         }
         
-        ,refresh: function( events, $dom ) {
-            var view = this;
-            view.unbind( );
-            // refresh caches
-            view.$memoize.reset( );
-            view.$selectors.reset( );
-            view.bind( events, $dom );
-            //view.sync( );
-            return view;
-        }
-        
         //
         // view "on_event" methods
         //
         
         ,on_view_change: function( evt, data ) {
-            var view = this, model = view.$model, 
-                name, key, val, el = data.el, modeldata = { },
-                isCheckbox, checkbox
+            var view = this, model = view.$model, $el = data.$el, 
+                name, key, val, isCheckbox, checkbox, modeldata = { }
             ;
             
             // update model and propagate to other elements of same view (via model publish hook)
-            if ( data._isAutoBind && el.attr('name') )
+            if ( data.isAutoBind && $el.attr('name') )
             {
-                name = el.attr('name');
-                key = parseKey( model.getKey(name) ) || false;
+                key = model.strip( name=$el.attr('name'), 1 );
                 
                 if ( key && model.has( key ) )
                 {
-                    isCheckbox = el.is(':checkbox');
+                    isCheckbox = $el.is(':checkbox');
+                    
                     if ( isCheckbox )
                     {
                         checkbox = view.get('input[type="checkbox"][name="'+name+'"]');
@@ -2181,14 +2011,8 @@
                         {
                             val = [ ];
                             checkbox.each(function( ) {
-                                var $this = $(this), v;
-                                
-                                if ( $this.is(':checked') )
-                                    v = $this.val();
-                                else
-                                    v = '';
-                                    
-                                val.push( v );
+                                var $c = $(this);
+                                val.push( $c.is(':checked') ? $c.val() : '' );
                             });
                         }
                         else if ( checkbox.is(':checked') )
@@ -2202,85 +2026,64 @@
                     }
                     else
                     {
-                        val = el.val( );
+                        val = $el.val( );
                     }
                     
-                    modeldata._triggerElement = el;
+                    modeldata.$trigger = $el;
                     model.set( key, val, 1, modeldata );
                 }
             }
             
             // if not model update error and element is bind element
-            if ( !modeldata._error && data._isBind )
-            {
-                // do view bind action
-                doAction(view, el, evt, data);
-            }
+            if ( !modeldata.error && data.isBind )
+                // do view action
+                doAction( view, $el, evt/*, data*/ );
             
             // notify any 3rd-party also if needed
-            view.publish('change', data);
-        }
-        
-        ,on_model_error: function( evt, data ) {
-            var view = this, model = view.$model, 
-                name = model.id + data.bracketkey,
-                sels = getSelectors( view.$bind, name, true ),
-                bindSelector = sels[0], autobindSelector = sels[1],
-                bindElements, autoBindElements, mdata
-            ;
-
-            bindElements = view.get( bindSelector );
-            autoBindElements = view.get( autobindSelector );
-            
-            // bypass element that triggered the "model:change" event
-            /*if ( data._triggerElement )
-            {
-                bindElements = bindElements.not( data._triggerElement );
-                autoBindElements = autoBindElements.not( data._triggerElement );
-            }*/
-            
-            // do actions ..
-            mdata = {model:data};
-            // do view bind action first
-            doAction( view, bindElements, evt, mdata );
-            
-            if ( view.$autobind )
-            {
-                // do view autobind action to bind input elements that map to the model, afterwards
-                doAutoBindAction( view, autoBindElements, evt, mdata );
-            }
+            view.publish( 'change', data );
         }
         
         ,on_model_change: function( evt, data ) {
-            var view = this, model = view.$model, 
-                name = model.id + data.bracketkey,
-                sels = getSelectors( view.$bind, name, true ),
-                bindSelector = sels[0], autobindSelector = sels[1],
-                bindElements, autoBindElements, mdata
+            var view = this, model = view.$model,
+                selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
+                bindElements, autoBindElements, autobind = view.$autobind
             ;
             
-            bindElements = view.get( bindSelector );
-            autoBindElements = view.get( autobindSelector );
+            bindElements = view.get( selectors[ 0 ] );
+            if ( autobind ) autoBindElements = view.get( selectors[ 1 ] );
             
             // bypass element that triggered the "model:change" event
-            if ( data._triggerElement )
+            if ( data.$callData && data.$callData.$trigger )
             {
-                bindElements = bindElements.not( data._triggerElement );
-                autoBindElements = autoBindElements.not( data._triggerElement );
+                bindElements = bindElements.not( data.$callData.$trigger );
+                if ( autobind ) autoBindElements = autoBindElements.not( data.$callData.$trigger );
+                data.$callData = null;
             }
             
             // do actions ..
-            mdata = {model:data};
-            // do view bind action first
-            doAction( view, bindElements, evt, mdata );
             
-            if ( view.$autobind )
-            {
+            // do view action first
+            doAction( view, bindElements, evt, data );
+            
+            if ( autobind && autoBindElements.length /*&& view.do_bind*/ )
                 // do view autobind action to bind input elements that map to the model, afterwards
-                doAutoBindAction( view, autoBindElements, evt, mdata );
-            }
+                doAutoBindAction( view, autoBindElements, evt, data );
         }
 
+        ,on_model_error: function( evt, data ) {
+            var view = this, model = view.$model,
+                selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) )
+            ;
+
+            // do actions ..
+            
+            // do view bind action first
+            doAction( view, view.get( selectors[ 0 ] ), evt, data );
+            if ( view.$autobind /*&& view.do_bind*/ )
+                // do view autobind action to bind input elements that map to the model, afterwards
+                doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
+        }
+        
         //
         // view "do_action" methods
         //
@@ -2288,290 +2091,240 @@
         // NOP action
         ,do_NOP: null
         
-        // render an element using a custom template and model data
-        ,do_render: function( evt, $el, data ) {
-            var view = this, model, 
-                key = data['key'], tpl = data['tpl'],
-                mode, html
-            ;
-            if ( !view.$template || !key || !tpl ) return;
-            
-            if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
-            if ( !$el.length ) return;
-            
-            model = view.$model;
-            mode = data['mode'] || 'replace';
-            
-            key = model.getKey(key) || false;
-            if ( !key || !model.has( key ) ) return;
-            value = model.get( key );
-            
-            if ( 'replace' == mode ) $el.empty( );
-            
-            html = view.$template( tpl, value );
-            if ( html ) $el.append( html );
-        }
-        
         // set element(s) attributes/properties according to binding
-        ,do_set: function( evt, $el, data ) {
-            if ( !data['key'] && !data['css'] && !data['attr'] ) return;
+        ,do_prop: function( evt, $el, data ) {
+            if ( !is_type(data.prop, T_OBJ) ) return;
             
             var view = this, model = view.$model, 
-                keyb = data['key'] || false, 
-                hash, attr, p,
-                key, value, isBool;
+                prop = data.prop, hash, p, k, v, vT
+            ;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
             if ( !$el.length ) return;
                 
-            // css attributes
-            if ( data['css'] )
+            hash = { };
+            for (p in prop)
             {
-                hash = { };
-                if ( is_type(data.css, T_OBJ) )
+                k = prop[ p ];
+                if ( !model.has( k ) ) continue;
+                v = model.get( k ); vT = get_type( v );
+                switch( p )
                 {
-                    for (p in data.css)
-                    {
-                        if ( model.has( data.css[p] ) )
-                            hash[p] = model.get( data.css[p] );
-                    }
-                    $el.css( hash );
-                }
-            }
-            
-            // other attributes
-            if ( data['attr'] )
-            {
-                hash = { };
-                if ( is_type(data.attr, T_OBJ) )
-                {
-                    for (p in data.attr)
-                    {
-                        if ( model.has( data.attr[p] ) )
-                            hash[p] = model.get( data.attr[p] );
-                    }
-                    $el.attr( hash );
-                }
-            }
-            
-            if ( !keyb ) return;
-            key = model.getKey(keyb) || false;
-            if ( !key || !model.has( key ) ) return;
-            value = key ? model.get( key ) : '';
-            isBool = is_type( value, T_BOOL );
-            
-            if ( data['prop'] )
-            {
-                attr = data['prop'];
-                switch (attr)
-                {
-                    case PROPS['options']:
-                        if ( $el.is('select') && is_type( value, T_ARRAY ) )
+                    case 'value':
+                        $el.val( v );
+                        break;
+                    
+                    case 'options':
+                        if ( $el.is('select') && (T_ARRAY === vT) )
                         {
-                            var group = $el.find('optgroup'), sel = $el.val(), _options = ''; // get selected value
-                            if ( !group.length )  group = $el;
-                            
-                            group.find('option').remove();
-                            
-                            for (var ii=0; ii<value.length; ii++)
+                            var sel, ii, vl = v.length,
+                                _options = '', group = $el.find('optgroup');
+                            sel = $el.val( ); // get selected value
+                            if ( !group.length ) group = $el;
+                            group.find( 'option' ).remove( );
+                            for (ii=0; ii<vl; ii++)
                             {
-                                if ( value[ii] && value[ii].label )
-                                    _options += '<option value="' + value[ii].value + '">' + value[ii].label + '</option>';
+                                if ( v[ii] && v[ii].label )
+                                    _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
                                 else
-                                    _options += '<option value="' + value[ii] + '">' + value[ii] + '</option>';
+                                    _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
                             }
                             group.append( _options );
                             $el.val( sel ); // select the appropriate option
                         }
                         break;
                     
-                    case PROPS['html']:
-                        $el.html( value );
-                        break;
-                    
-                    case PROPS['text']:
-                        $el.text( value );
-                        break;
-                    
-                    case PROPS['class']:
-                        if ( value && value.length )
+                    case 'class':
+                        if ( v && v.length )
                         {
-                            var v0 = value.charAt(0);
-                            if ( '-' == v0 )
-                                $el.removeClass( value.slice(1) );
-                            else if ( '+' == v0 )
-                                $el.addClass( value.slice(1) );
-                            else if ( !$el.hasClass( value ) )
-                                $el.addClass( value );
-                            else if ( $el.hasClass( value ) )
-                                $el.removeClass( value );
+                            var v0 = v.charAt( 0 ), hasClass;
+                            if ( '-' == v0 ) $el.removeClass( v.slice( 1 ) );
+                            else if ( '+' == v0 ) $el.addClass( v.slice( 1 ) );
+                            else if ( (hasClass=$el.hasClass( v )) ) $el.removeClass( v );
+                            else if ( !hasClass ) $el.addClass( v );
                         }
                         break;
                     
-                    case PROPS['value']:
-                        $el.val( value );
+                    case 'checked':
+                        if ( T_BOOL === vT ) $el.prop(p, v);
+                        else if ( v == $el.val( ) ) $el.prop(p, true);
+                        else  $el.prop(p, false);
                         break;
                     
+                    case 'disabled':
+                        if ( T_BOOL === vT ) $el.prop(p, v);
+                        else if ( v == $el.val( ) ) $el.prop(p, true);
+                        else $el.prop(p, false);
+                        break;
+                        
                     default:
-                        if ( PROPS['checked'] == attr )
-                        {
-                            if ( isBool )
-                                $el.prop('checked', value);
-                            else if ( value == $el.val() )
-                                $el.prop('checked', true);
-                            else
-                                $el.prop('checked', false);
-                        }
-                        else if ( PROPS['disabled'] == attr )
-                        {
-                            if ( isBool )
-                                $el.prop('disabled', value);
-                            else if ( value == $el.val() )
-                                $el.prop('disabled', true);
-                            else
-                                $el.prop('disabled', false);
-                        }
-                        else
-                        {
-                            //$el.prop(attr, value);
-                            $el.attr(attr, value);
-                        }
+                        hash[ p ] = v;
+                        //$el.prop( p, v );
+                        //$el.attr( p, v );
                         break;
                 }
             }
+            $el.attr( hash );
         }
         
-        // update a model field with a value
-        ,do_update: function( evt, $el, data ) {
-            if ( data['key'] && "value" in data ) 
+        // set element(s) html/text prop based on model key value
+        ,do_html: function( evt, $el, data ) {
+            if ( !data.key ) return;
+            var view = this, model = view.$model, key = data.key, html;
+            if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
+            if ( !$el.length || !key || !model.has( key ) ) return;
+            html = model.get( key );
+            (data.text ? $el.text( html ) : $el.html( html ));
+        }
+        
+        // set element(s) css props based on model key value
+        ,do_css: function( evt, $el, data ) {
+            if ( !is_type(data.css, T_OBJ) ) return;
+            var view = this, model = view.$model, css = data.css, k, p, v, hash;
+            if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
+            if ( !$el.length ) return;
+            // css attributes
+            hash = { };
+            for ( p in css )
             {
-                this.$model.set( this.$model.getKey( data['key'] ), data['value'], true );
+                k = css[ p ]; v = model.get( k );
+                if ( /*model.has( k )*/v ) hash[ p ] = v;
             }
+            $el.css( hash );
+        }
+        
+        // update/set a model field with a given value
+        ,do_set: function( evt, $el, data ) {
+            var view = this, model = view.$model, 
+                key = data.key || model.strip($el.attr(name), 1), val;
+            if ( !!key ) 
+            {
+                if ( "value" in data ) 
+                {
+                    val = data.value;
+                }
+                else
+                {
+                    if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
+                    val = $el.is('input,select,textarea') ? $el.val( ) : $el.text( );
+                }
+                model.set( key, val, 1 );
+            }
+        }
+        
+        // render an element using a custom template and model data
+        ,do_tpl: function( evt, $el, data ) {
+            var view = this, model, 
+                key = data.key, tplID = data.tpl,
+                mode, html
+            ;
+            if ( !view.$template || !key || !tplID ) return;
+            if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
+            if ( !$el.length ) return;
+            
+            model = view.$model;
+            if ( !key || !model.has( key ) ) return;
+            
+            mode = data.mode || 'replace';
+            if ( 'replace' == mode ) $el.empty( );
+            html = view.$template( tplID, model.get( key ) );
+            if ( html ) $el.append( html );
         }
         
         // show/hide element(s) according to binding
         ,do_show: function( evt, $el, data ) {
-            var view = this, model = view.$model, 
-                key, val;
+            var view = this, model = view.$model, key = data.key;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
-            if ( !$el.length ) return;
+            if ( !$el.length || !key ) return;
                 
-            if ( data['key'] ) 
+            if ( 'value' in data )
             {
-                key = model.getKey(data['key']);
-                if ( 'value' in data )
-                {
-                    // show if data[key] is value, else hide
-                    if ( data['value'] === model.get(key) ) $el.show( );
-                    else $el.hide( );
-                }
-                else
-                {
-                    // show if data[key] is true, else hide
-                    if ( !!model.get(key) ) $el.show( );
-                    else $el.hide( );
-                }
+                // show if data[key] is value, else hide
+                if ( data.value === model.get( key ) ) $el.show( );
+                else $el.hide( );
             }
             else
             {
-                // show unconditionally
-                $el.show( );
+                // show if data[key] is true, else hide
+                if ( !!model.get( key ) ) $el.show( );
+                else $el.hide( );
             }
         }
         
         // hide/show element(s) according to binding
         ,do_hide: function( evt, $el, data ) {
-            var view = this, model = view.$model, 
-                key;
+            var view = this, model = view.$model, key = data.key;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
-            if ( !$el.length ) return;
+            if ( !$el.length || !key ) return;
                 
-            if ( data['key'] ) 
+            if ( 'value' in data )
             {
-                key = model.getKey(data['key']);
-                if ( 'value' in data )
-                {
-                    // hide if data[key] is value, else show
-                    if ( data['value'] === model.get(key) ) $el.hide( );
-                    else $el.show( );
-                }
-                else
-                {
-                    // hide if data[key] is true, else show
-                    if ( !!model.get(key) ) $el.hide( );
-                    else $el.show( );
-                }
+                // hide if data[key] is value, else show
+                if ( data.value === model.get( key ) ) $el.hide( );
+                else $el.show( );
             }
             else
             {
-                // hide unconditionally
-                $el.hide( );
+                // hide if data[key] is true, else show
+                if ( !!model.get( key ) ) $el.hide( );
+                else $el.show( );
             }
         }
         
         // default bind/update element(s) values according to binding on model:change
         ,do_bind: function( evt, $el, data ) {
-            var key, value, isBool, val, name, view = this, model = view.$model;
+            var view = this, model = view.$model, 
+                name = data.name, key = data.key, 
+                value, valueT, val
+            ;
             
-            /*if ( $el.is("input,textarea,select") ) 
-            {*/
-                name = data.name; //$el.attr('name') || false;
-                /*if ( name )
-                {*/
-                    // use already computed/cached key/value from calling method passed in "data"
-                    key = data.key /*model.getKey(name)*/ || false;
-                    if ( !key ) return;
-                    value = data.value; //model.get( key );
-                    isBool = is_type( value, T_BOOL );
-                    val = $el.val( );
-                    
-                    if ( $el.is(':radio') )
-                    {
-                        if ( value == val )
-                        {
-                            view.get('input[name="'+name+'"]').not( $el ).prop('checked', false);
-                            $el.prop('checked', true);
-                        }
-                    }
-                    
-                    else if ( $el.is(':checkbox') )
-                    {
-                        var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
-                        
-                        if ( checkbox.length > 1 && is_type( value, T_ARRAY ) )
-                        {
-                            checkbox.each(function(i, v) {
-                                var $this = $(this);
-                                if ( $.inArray($this.val(), value) > -1 )
-                                    $this.prop('checked', true);
-                                else
-                                    $this.prop('checked', false);
-                            });
-                        }
-                        
-                        else if ( isBool )
-                        {
-                            $el.prop('checked', value);
-                        }
-                        
-                        else if ( value == val )
-                        {
-                            $el.prop('checked', true);
-                        }
-                        
-                        else
-                        {
-                            $el.prop('checked', false);
-                        }
-                    }
-                    else
-                    {
-                        $el.val( value );
-                    }
-                /*}*/
-            /*} */
+            // use already computed/cached key/value from calling method passed in "data"
+            if ( !key ) return;
+            value = data.value; valueT = get_type( value ); val = $el.val( );
+            
+            if ( $el.is(':radio') )
+            {
+                if ( value == val )
+                {
+                    view.get('input[name="'+name+'"]').not( $el ).prop('checked', false);
+                    $el.prop('checked', true);
+                }
+            }
+            
+            else if ( $el.is(':checkbox') )
+            {
+                var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
+                
+                if ( checkbox.length > 1 && (T_ARRAY === valueT) )
+                {
+                    checkbox.each(function(i, v) {
+                        var $this = $(this);
+                        if ( $.inArray($this.val(), value) > -1 )  $this.prop('checked', true);
+                        else $this.prop('checked', false);
+                    });
+                }
+                
+                else if ( T_BOOL === valueT )
+                {
+                    $el.prop('checked', value);
+                }
+                
+                else if ( value == val )
+                {
+                    $el.prop('checked', true);
+                }
+                
+                else
+                {
+                    $el.prop('checked', false);
+                }
+            }
+            else
+            {
+                $el.val( value );
+            }
         }
         
         ,toString: function( ) {
@@ -2589,7 +2342,7 @@
         
         ,Extend: Mixin
         
-        ,Field: Field
+        ,Field: ModelField
         
         ,Type: Type
         

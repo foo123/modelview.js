@@ -36,9 +36,11 @@ HEADER =
 
 REPLACE =[{}]
 
+    "@@ROOT@@" = "this.self || this"
+    
     "@@EXPORTS@@" = "EXPORTS"
     
-    "@@VERSION@@" = "0.25"
+    "@@VERSION@@" = "0.26"
     
     "@@DEPENDENCIES@@" = "@dependencies: jQuery"
     
