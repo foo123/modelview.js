@@ -180,10 +180,8 @@
                     ai = a[ i ];
                     if ( ai )
                     {
-                        if ( ai[ k ] && /*is_type(*/ai[ k ].value/*, T_FUNC)*/ )
-                            return ai[ k ].value;
-                        if ( ai[ WILDCARD ] && /*is_type(*/ai[ WILDCARD ].value/*, T_FUNC)*/ )
-                            return ai[ WILDCARD ].value;
+                        if ( ai[ k ] && ai[ k ].value ) return ai[ k ].value;
+                        if ( ai[ WILDCARD ] && ai[ WILDCARD ].value ) return ai[ WILDCARD ].value;
                     }
                 }
             }
@@ -192,8 +190,7 @@
                 for (i=0; i<l; i++)
                 {
                     ai = a[ i ];
-                    if ( ai && /*is_type(*/ai.value/*, T_FUNC)*/ )  
-                        return ai.value;
+                    if ( ai && ai.value )  return ai.value;
                 }
             }
             return null;
@@ -421,10 +418,6 @@
     };
     // aliases
     PublishSubscribe.publish = PublishSubscribe.trigger;
-    /*PublishSubscribe.subscribe = PublishSubscribe.on;
-    PublishSubscribe.unsubscribe = PublishSubscribe.off;
-    PublishSubscribe.subscribeTo = PublishSubscribe.onTo;
-    PublishSubscribe.unsubscribeFrom = PublishSubscribe.offFrom;*/
     
     //
     // Cache with max duration and max size conditions
@@ -604,17 +597,15 @@
         TC = function( T ) {
             
             T.BEFORE = function( T2 ) {
-                return TC(function( v ) { 
-                    var self = this, args = slice( arguments );
-                    args[ 0 ] = T.apply( self, args );
-                    return T2.apply( self, args );
+                return TC(function( v, k ) { 
+                    var self = this;
+                    return T2.call(self, T.call(self, v, k), k);
                 }); 
             };
             T.AFTER = function( T2 ) {
-                return TC(function( v ) { 
-                    var self = this, args = slice( arguments );
-                    args[ 0 ] = T2.apply( self, args );
-                    return T.apply( self, args );
+                return TC(function( v, k ) { 
+                    var self = this;
+                    return T.call(self, T2.call(self, v, k), k);
                 }); 
             };
             
@@ -625,32 +616,29 @@
         VC = function( V ) {
             
             V.NOT = function( ) { 
-                return VC(function( v ) { 
-                    return !V.apply(this, arguments); 
+                return VC(function( v, k ) { 
+                    return !V.call(this, v, k); 
                 }); 
             };
             
             V.AND = function( V2 ) { 
-                return VC(function( v ) { 
+                return VC(function( v, k ) { 
                     var self = this;
-                    return !!(V.apply(self, arguments) && V2.apply(self, arguments));
+                    return V.call(self, v, k) && V2.call(self, v, k);
                 }); 
             };
             
             V.OR = function( V2 ) { 
-                return VC(function( v ) { 
+                return VC(function( v, k ) { 
                     var self = this;
-                    return !!(V.apply(self, arguments) || V2.apply(self, arguments));
+                    return V.call(self, v, k) || V2.call(self, v, k);
                 }); 
             };
 
             V.XOR = function( V2 ) { 
-                return VC(function( v ) { 
-                    var self = this,
-                        r1 = V.apply(self, arguments)
-                        r2 = V2.apply(self, arguments)
-                    ;
-                    return !!((r1 && !r2) || (r2 && !r1));
+                return VC(function( v, k ) { 
+                    var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+                    return (r1 && !r2) || (r2 && !r1);
                 }); 
             };
             
@@ -948,7 +936,7 @@
         if ( !(model instanceof Model) ) return new Model( id, data, types, validators, getters, setters );
         
         model.namespace = model.id = id || uuid('Model');
-        model.strip = removePrefix( model.id );
+        model.key = removePrefix( model.id );
         
         model.$view = null;
         model.atomic = false;  model.$atom = null;
@@ -985,7 +973,7 @@
             model.$setters = null;
             model.atomic = false;
             model.$atom = null;
-            model.strip = null;
+            model.key = null;
             return model;
         }
         
@@ -1091,18 +1079,17 @@
         }
         
         ,has: function( dottedKey, RAW ) {
-            var model = this, r, p;
+            var model = this, r;
             
             // http://jsperf.com/regex-vs-indexof-with-and-without-char
             // http://jsperf.com/split-vs-test-and-split
             // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
-            if ( 1 === p.length )
+            if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.value) ) )
             {
                 // handle single key fast
-                if ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.value) ) return true;
+                return true;
             }
-            else if ( 1 < p.length && (r = walkcheck( p, model.$data, RAW ? null : model.$getters, Model )) )
+            else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
             {
                 return (true === r) ? true : r[1].has(r[2].join('.'));
             }
@@ -1115,14 +1102,13 @@
             // http://jsperf.com/regex-vs-indexof-with-and-without-char
             // http://jsperf.com/split-vs-test-and-split
             // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
-            if ( 1 === p.length )
+            if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
                 if ( !RAW && (r=model.$getters[dottedKey]) && r.value ) return r.value( dottedKey );
                 return model.$data[ dottedKey ];
             }
-            else if ( 1 < p.length && (r = walk2( p, model.$data, RAW ? null : model.$getters, Model )) )
+            else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
             {
                 // nested sub-model
                 if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -1143,16 +1129,16 @@
             ;
             
             if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
-            // http://jsperf.com/regex-vs-indexof-with-and-without-char
-            // http://jsperf.com/split-vs-test-and-split
-            // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
+            
             o = model.$data;
             types = model.$types; 
             validators = model.$validators; 
             setters = model.$setters;
             
-            if ( 1 === p.length )
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
                 k = dottedKey;
@@ -1161,9 +1147,8 @@
                 validator = (r=validators[k] || validators[WILDCARD]) ? r.value : null;
                 canSet = true;
             }
-            else if ( 1 < p.length )
+            else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
             {
-                r = walk3( p, o, types, validators, setters, Model );
                 o = r[ 1 ]; k = r[ 2 ];
                 type = getValue( r[4], k );
                 validator = getValue( r[5], k );
@@ -1268,16 +1253,16 @@
             ;
             
             if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
-            // http://jsperf.com/regex-vs-indexof-with-and-without-char
-            // http://jsperf.com/split-vs-test-and-split
-            // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
+            
             o = model.$data;
             types = model.$types; 
             validators = model.$validators; 
             setters = model.$setters;
             
-            if ( 1 === p.length )
+            // http://jsperf.com/regex-vs-indexof-with-and-without-char
+            // http://jsperf.com/split-vs-test-and-split
+            // test and split (if needed) is fastest
+            if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
                 k = dottedKey;
@@ -1286,9 +1271,8 @@
                 validator = (r=validators[k] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
                 canSet = true;
             }
-            else if ( 1 < p.length )
+            else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
             {
-                r = walk3( p, o, types, validators, setters, Model );
                 o = r[ 1 ]; k = r[ 2 ];
                 type = getValue( getNext( r[4], k ), WILDCARD );
                 validator = getValue( getNext( r[5], k ), WILDCARD );
@@ -1387,20 +1371,20 @@
             var model = this, r, o, k, p, val, canDel = false;
             
             if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            
+            o = model.$data;
+            
             // http://jsperf.com/regex-vs-indexof-with-and-without-char
             // http://jsperf.com/split-vs-test-and-split
             // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
-            o = model.$data;
-            if ( 1 === p.length )
+            if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
                 k = dottedKey;
                 canDel = true;
             }
-            else if ( 1 < p.length )
+            else if ( (r = walk3( dottedKey.split('.'), o, null, null, null, Model, false )) )
             {
-                r = walk3( p, o, null, null, null, Model, false );
                 o = r[ 1 ]; k = r[ 2 ];
                 
                 if ( Model === r[ 0 ] && k.length ) 
@@ -1448,20 +1432,20 @@
             var model = this, r, o, k, p, val, T, canDel = false;
             
             if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+            
+            o = model.$data;
+            
             // http://jsperf.com/regex-vs-indexof-with-and-without-char
             // http://jsperf.com/split-vs-test-and-split
             // test and split (if needed) is fastest
-            p = -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey];
-            o = model.$data;
-            if ( 1 === p.length )
+            if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
                 k = dottedKey;
                 canDel = true;
             }
-            else if ( 1 < p.length )
+            else if ( (r = walk3( dottedKey.split('.'), o, null, null, null, Model, false )) )
             {
-                r = walk3( p, o, null, null, null, Model, false );
                 o = r[ 1 ]; k = r[ 2 ];
                 
                 if ( Model === r[ 0 ] && k.length ) 
@@ -1575,7 +1559,7 @@
                 do_action = 'do_' + bind.action;
                 if ( !is_type( view[ do_action ], T_FUNC ) ) return;
                 name = $el.attr('name')
-                key = bind.key || (name && model.strip(name, 1));
+                key = bind.key || (name && model.key(name, 1));
                 // "model:change" event and element does not reference the (nested) model key
                 // OR model atomic operation(s)
                 if ( fromModel && (!key || !key.sW( fromModel.key ) || 
@@ -1591,7 +1575,7 @@
             
             $elements.each(function( ) {
                 var $el = $(this), name = $el.attr('name'), 
-                    key = name ? model.strip( name, 1 ) : 0, value;
+                    key = name ? model.key( name, 1 ) : 0, value;
                     
                 if ( !key ) return;
                 
@@ -1997,7 +1981,7 @@
             // update model and propagate to other elements of same view (via model publish hook)
             if ( data.isAutoBind && $el.attr('name') )
             {
-                key = model.strip( name=$el.attr('name'), 1 );
+                key = model.key( name=$el.attr('name'), 1 );
                 
                 if ( key && model.has( key ) )
                 {
@@ -2089,7 +2073,7 @@
         //
         
         // NOP action
-        ,do_NOP: null
+        ,do_nop: null
         
         // set element(s) attributes/properties according to binding
         ,do_prop: function( evt, $el, data ) {
@@ -2196,7 +2180,7 @@
         // update/set a model field with a given value
         ,do_set: function( evt, $el, data ) {
             var view = this, model = view.$model, 
-                key = data.key || model.strip($el.attr(name), 1), val;
+                key = data.key || model.key($el.attr(name), 1), val;
             if ( !!key ) 
             {
                 if ( "value" in data ) 
