@@ -2420,32 +2420,36 @@
 
     "use strict";
     
-    var slice = Function.prototype.call.bind( Array.prototype.slice );
-    
-    var defaultOptions = {
-        
-        viewClass: ModelView.View
-        ,modelClass: ModelView.Model
-        
-        ,id: 'view'
-        
-        ,autobind: false
-        ,bindbubble: false
-        ,bindAttribute: 'data-bind'
-        
-        ,model: {
+    var slice = Function.prototype.call.bind( Array.prototype.slice ),
+        extend = $.extend, View = ModelView.View, Model = ModelView.Model,
+        defaultModel = {
             id: 'model'
             ,data: { }
             ,types: { }
             ,validators: { }
             ,getters: { }
             ,setters: { }
+        },
+        defaultOptions = {
+            
+            viewClass: View
+            ,modelClass: Model
+            
+            ,id: 'view'
+            
+            ,autobind: false
+            ,bindbubble: false
+            ,bindAttribute: 'data-bind'
+            ,cacheSize: View._CACHE_SIZE
+            ,refreshInterval: View._REFRESH_INTERVAL
+            
+            ,model: null
+            ,template: null
+            ,events: null
+            ,actions: { }
+            ,handlers: { }
         }
-        ,template: null
-        ,events: null
-        ,actions: { }
-        ,handlers: { }
-    };
+    ;
     
     // add it to root jQuery object as a jQuery reference
     $.ModelView = ModelView;
@@ -2454,9 +2458,7 @@
     $.fn.modelview = function( options ) {
         var args = slice( arguments ), 
             method = args.length ? args.shift( ) : null, 
-            isInit = true, 
-            optionsParsed = false,
-            map = [ ]
+            isInit = true, optionsParsed = false,  map = [ ]
         ;
         
         // apply for each matched element (better use one element per time)
@@ -2516,22 +2518,12 @@
             
             if ( !optionsParsed )
             {
-                var data = null;
-                
-                if ( options.data )
-                {
-                    // not clone data, pass-by-reference
-                    // so custom objects are not ruined
-                    data = options.data;
-                    delete options.data;
-                }
-                
                 // parse options once
-                options = $.extend( true, {}, defaultOptions, options );
+                options = extend( {}, defaultOptions, options );
                 
-                if ( data )
+                if ( options.model && !(options.model instanceof Model) )
                 {
-                    options.data = data;
+                    options.model = extend( {}, defaultModel, options.model );
                 }
                 
                 optionsParsed = true;
@@ -2539,18 +2531,22 @@
             
             if ( !options.model ) return this;
             
-            model = new options.modelClass(
-                options.model.id, 
-                options.model.data, 
-                options.model.types, 
-                options.model.validators, 
-                options.model.getters, 
-                options.model.setters
-            );
+            model = (options.model instanceof Model) 
+                    ? options.model 
+                    : new options.modelClass(
+                        options.model.id, 
+                        options.model.data, 
+                        options.model.types, 
+                        options.model.validators, 
+                        options.model.getters, 
+                        options.model.setters
+                    )
+                ;
             
             view = new options.viewClass(
                 options.id, model, 
-                { bind: options.bindAttribute || 'data-bind' }
+                { bind: options.bindAttribute || 'data-bind' },
+                options.cacheSize, options.refreshInterval
             );
             
             // custom view template renderer
@@ -2564,8 +2560,7 @@
                 for (var eventname in options.handlers)
                 {
                     handler = options.handlers[ eventname ];
-                    if ( handler )
-                        view.event( eventname, handler );
+                    if ( handler ) view.event( eventname, handler );
                 }
             }
             // custom view actions
@@ -2574,8 +2569,7 @@
                 for (var action in options.actions)
                 {
                     handler = options.actions[ action ];
-                    if ( handler )
-                        view.action( action, handler );
+                    if ( handler ) view.action( action, handler );
                 }
             }
             
