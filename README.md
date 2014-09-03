@@ -185,9 +185,9 @@ Results before and after below:
 
 **with ModelView 0.24**
 
-![jsperf-model-getset](/screenshots/jsperf-model-getset.png)
+[![jsperf-model-getset](/screenshots/jsperf-model-getset.png)](http://jsperf.com/js-mvc-frameworks/11)
 
 
 **with ModelView 0.26.1**
 
-![jsperf-model-getset](/screenshots/jsperf-model-getset-3.png)
+[![jsperf-model-getset](/screenshots/jsperf-model-getset-3.png)](http://jsperf.com/js-mvc-frameworks/16)
