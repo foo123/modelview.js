@@ -20,7 +20,13 @@ SRC =[]
     !tpl:umd-exports-header-no-worker.tpl.js  # include a umd-header template
     
     ### modelview.js, main framework ###
-    ./src/modelview.js
+    ./src/header.js
+    ./src/utils.js
+    ./src/pb.js
+    ./src/cache.js
+    ./src/model.js
+    ./src/view.js
+    ./src/footer.js
     
     ### jquery.modelview.js, jQuery plugin (optional) ###
     ./src/jquery.modelview.js
@@ -31,7 +37,7 @@ SRC =[]
 
 # extract header from this file
 HEADER =
-./src/modelview.js
+./src/header.js
 
 
 REPLACE =[{}]

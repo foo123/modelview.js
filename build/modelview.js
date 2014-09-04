@@ -120,7 +120,6 @@
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
     SP.tR = SP.trim; SP.sW = SP.startsWith;
-    
     var
         WILDCARD = "*", NAMESPACE = "modelview",
         
@@ -414,7 +413,6 @@
             return nsevent.join( '.' )
         }
     ;
-    
     //
     // PublishSubscribe (Interface)
     var PublishSubscribe = {
@@ -486,7 +484,6 @@
     };
     // aliases
     PublishSubscribe.publish = PublishSubscribe.trigger;
-    
     //
     // Cache with max duration and max size conditions
     var Cache = function( cacheSize, refreshInterval ) {
@@ -584,28 +581,6 @@
             return '[ModelView.Cache]';
         }
     };
-    
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    //
-    //
-    // Main Framework
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    
-    // the logic behind this:
-    //
-    // when, what, who, why, how
-    //
-    // when             -> event  (default "on model/dom change")
-    // what             -> action  (default "update value")
-    // who, why, how    -> additional conditions/parameters
-    
-    // TODO: implement more simpler/flexible/generic/faster mapping between model data and view dom elements and attributes (eg. micro templating)
-    
-        
     //
     // Data Types / Validators (Static)
     var 
@@ -1593,7 +1568,6 @@
             return '[ModelView.Model id: '+this.id+']';
         }
    });
-    
     var
         getSelectors = function( bind, autobind, exact ) {
             return [
@@ -2383,7 +2357,6 @@
             return '[ModelView.View id: '+this.id+']';
         }
     });
-    
     // main
     // export it
     exports.ModelView = {
