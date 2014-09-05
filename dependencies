@@ -17,7 +17,7 @@
 
 SRC =[]
     
-    !tpl:umd-header-single.tpl.js  # include a umd-header template
+    !tpl:umd-header.tpl.js  # include a umd-header template
     
     ### modelview.js, main framework ###
     ./src/header.js
@@ -44,9 +44,11 @@ REPLACE =[{}]
 
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
+    "@@MODULE_NAME@@" = "ModelView"
+    "@@MODULE_DEPENDENCIES@@" = "[['jQuery'],['./jquery.js']]"
+    "@@MODULE_ARGUMENTS@@" = "jQuery"
     "@@VERSION@@" = "0.26.2"
     "@@DEPENDENCIES@@" = "@dependencies: jQuery"
-    "@@MODULE_NAME@@" = "ModelView"
     
 @ # end block
 

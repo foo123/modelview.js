@@ -7,30 +7,145 @@
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
 *
-**/!function( root, name, factory ) {
-
+**/!function ( root, name, deps, factory ) {
     "use strict";
     
     //
-    // export the module, umd-style
+    // export the module umd-style (with deps bundled-in or external)
     
-    // node, CommonJS, etc..
-    if ( 'object' === typeof(module) && module.exports ) 
-        module.exports = (module.deps = module.deps || {})[ name ] = module.deps[ name ] || (factory.call( root ) || 1);
+    // Get current filename/path
+    function currentPath( isNode, isWebWorker, isAMD, isBrowser, amdMod ) 
+    {
+        var f;
+        if ( isNode ) 
+            return { file: __filename, path: __dirname };
+        else if ( isWebWorker )
+            return { file: (f=self.location.href), path: f.split('/').slice(0, -1).join('/') };
+        else if ( isAMD && amdMod && amdMod.uri ) 
+            return { file: (f=amdMod.uri), path: f.split('/').slice(0, -1).join('/') };
+        else if ( isBrowser && (f = document.getElementsByTagName('script')) && f.length ) 
+            return { file: (f=f[f.length - 1].src), path: f.split('/').slice(0, -1).join('/') };
+        return { path: null, file: null };
+    }
     
-    // AMD, etc..
-    else if ( 'function' === typeof(define) && define.amd ) define( name, [ ], function( ){ return factory.call( root ); } );
+    // load javascript(s) async using <script> tags in browser
+    function loadScripts( root, base, names, paths, mods, callback )
+    {
+        loadScripts.head = loadScripts.head || document.getElementsByTagName("head")[ 0 ];
+        loadScripts.link = loadScripts.link || document.createElement( 'a' );
+        var i = 0, dl = names.length, rel = /^\./, t = 0;
+        var load = function( url, cb ) {
+            var head = loadScripts.head, link = loadScripts.link, done = 0, script = document.createElement('script');
+            script.type = 'text/javascript'; script.language = 'javascript';
+            script.onload = script.onreadystatechange = function( ) {
+                if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
+                {
+                    done = 1;
+                    script.onload = script.onreadystatechange = null;
+                    cb( );
+                    head.removeChild( script ); script = null;
+                }
+            }
+            if ( rel.test( url ) ) 
+            {
+                // http://stackoverflow.com/a/14781678/3591273
+                // let the browser generate abs path
+                link.href = base + url;
+                url = link.protocol + "//" + link.host + link.pathname + link.search + link.hash;
+            }
+            // load it
+            script.src = url; head.appendChild( script );
+        };
+        var next = function( ) {
+            if ( names[ i ] in root )
+            {
+                mods[ i ] = root[ names[ i ] ];
+                if ( ++i >= dl ) callback( );
+                else if ( names[ i ] in root ) next( ); 
+                else load( paths[ i ], next );
+            }
+            else if ( ++t < 30 ) { setTimeout( next, 30 ); }
+            else { t = 0; i++; next( ); }
+        };
+        while ( i < dl && (names[ i ] in root) ) mods[ i ] = root[ names[ i++ ] ];
+        if ( i < dl ) load( paths[ i ], next );
+        else callback( );
+    }
+
+    deps = deps || [[],[]]; name = name && name.length ? name : 0;
     
-    // browser, etc..
-    else if ( !(name in root) ) root[ name ] = factory.call( root ) || 1;
+    var isNode = ("undefined" !== typeof(global)) && ("[object global]" === {}.toString.call(global)),
+        isBrowser = !isNode && ("undefined" !== typeof(navigator)), 
+        isWebWorker = !isNode && ("function" === typeof(importScripts)) && (navigator instanceof WorkerNavigator),
+        isAMD = ("function" === typeof(define)) && define.amd,
+        isCommonJS = isNode && ("object" === typeof(module)) && module.exports,
+        names = [].concat(deps[0]), paths = [].concat(deps[1]), dl = names.length, mods = new Array( dl ),
+        basePath = currentPath( isNode, isWebWorker, isAMD, isBrowser ), defineAMD, requireJSPath, ext_js = /\.js$/i, i, m
+    ;
+    
+    // commonjs, node, etc..
+    if ( isCommonJS ) 
+    {
+        module.$deps = module.$deps || {};
+        for (i=0; i<dl; i++)  mods[ i ] = module.$deps[ names[ i ] ] || require( paths[ i ] );
+        m = factory.apply( root, [{NODE:module}].concat(mods) ) || 1;
+        name && (module.exports = module.$deps[ name ] = m);
+    }
+    
+    // amd, requirejs, etc..
+    else if ( isAMD && ("function" === typeof(require)) && ("function" === typeof(require.specified)) &&
+        name && require.specified(name) ) 
+    {
+        if ( !require.defined(name) )
+        {
+            requireJSPath = { };
+            for (i=0; i<dl; i++) 
+                require.specified( names[ i ] ) || (requireJSPath[ names[ i ] ] = paths[ i ].replace(ext_js, ''));
+            //requireJSPath[ name ] = basePath.file.replace(ext_js, '');
+            require.config({ paths: requireJSPath });
+            defineAMD = function( require, exports, module ) {
+                for (i=0; i<dl; i++) mods[ i ] = arguments[i+3]; /*require( paths[ i ] );*/
+                return factory.apply( root, [{AMD:module}].concat(mods) );
+            };
+            names = ["require", "exports", "module"].concat( names );
+            // named modules, require the module by name given
+            name ? define( name, names, defineAMD ) : define( names, defineAMD );
+        }
+    }
+    
+    // web worker + AMD
+    else if ( isWebWorker ) 
+    {
+        if ( !(name in self) )
+        {
+            for (i=0; i<dl; i++)  
+            {
+                if ( !(names[ i ] in self) ) importScripts( paths[ i ] );
+                mods[ i ] = self[ names[ i ] ];
+            }
+            m = factory.apply( root, [{}].concat(mods) ) || 1;
+            name && (self[name] = m) && isAMD && define( name, ["require"], function( ){ return m; } );
+        }
+    }
+    
+    // browsers, other loaders, etc.. + AMD
+    else if ( !(name in root) ) /*if ( isBrowser )*/
+    {
+        if ( dl > 0 ) 
+            loadScripts( root, basePath.path + '/', names, paths, mods, function( ){ 
+                m = factory.apply( root, [{}].concat(mods) ) || 1; 
+                name && (root[ name ] = m);
+            });
+        else (m = factory.call( root, {} ) || 1) && name && (root[ name ] = m);
+        name && isAMD && define( name, ["require"], function( ){ return m; } );
+    }
 
 
 }(  /* current root */          this, 
     /* module name */           "ModelView",
-    /* module factory */        function( ) {
+    /* module dependencies */   [['jQuery'],['./jquery.js']], 
+    /* module factory */        function( exports, jQuery ) {
         
-    /* custom exports object */
-    var exports = {};
     /* main code starts here */
 
 /**
@@ -2530,6 +2645,6 @@
 }(exports.ModelView, jQuery);
     
     /* main code ends here */
-    /* export the module "ModelView" */
+    /* export the module */
     return exports["ModelView"];
 });
