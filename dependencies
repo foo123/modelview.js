@@ -17,7 +17,7 @@
 
 SRC =[]
     
-    !tpl:umd-exports-header-no-worker.tpl.js  # include a umd-header template
+    !tpl:umd-header-single.tpl.js  # include a umd-header template
     
     ### modelview.js, main framework ###
     ./src/header.js
@@ -31,7 +31,7 @@ SRC =[]
     ### jquery.modelview.js, jQuery plugin (optional) ###
     ./src/jquery.modelview.js
     
-    !tpl:umd-exports-footer.tpl.js  # include a umd-footer template
+    !tpl:umd-footer.tpl.js  # include a umd-footer template
     
 @ # end block
 
@@ -42,19 +42,11 @@ HEADER =
 
 REPLACE =[{}]
 
-    "@@ROOT@@" = "this.self || this"
-    
-    "@@EXPORTS@@" = "EXPORTS"
-    
-    "@@VERSION@@" = "0.26.1"
-    
+    "@@ROOT@@" = "this"
+    "@@EXPORTS@@" = "exports"
+    "@@VERSION@@" = "0.26.2"
     "@@DEPENDENCIES@@" = "@dependencies: jQuery"
-    
     "@@MODULE_NAME@@" = "ModelView"
-    
-    "@@MODULE_DEPENDENCIES@@" = "[ ['jQuery', 'jquery'] ]"
-    
-    "@@MODULE_ARGUMENTS@@"  = "jQuery"
     
 @ # end block
 

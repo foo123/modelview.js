@@ -179,4 +179,4 @@
         return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
     };
 
-}(@@EXPORTS@@["ModelView"], jQuery);
+}(@@EXPORTS@@.ModelView, jQuery);
