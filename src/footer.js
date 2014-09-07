@@ -1,6 +1,6 @@
     // main
     // export it
-    exports.ModelView = {
+    exports['@@MODULE_NAME@@'] = {
     
         VERSION: "@@VERSION@@"
         

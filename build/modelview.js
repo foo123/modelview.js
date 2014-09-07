@@ -2427,7 +2427,7 @@
     });
     // main
     // export it
-    exports.ModelView = {
+    exports['ModelView'] = {
     
         VERSION: "0.26.2"
         
@@ -2628,7 +2628,7 @@
         return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
     };
 
-}(exports.ModelView, jQuery);
+}(exports['ModelView'], jQuery);
     
     /* main code ends here */
     /* export the module */
