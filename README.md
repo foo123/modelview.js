@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / light-weight (~25 kB minified, ~9kB gzipped) mv* (MVVM) framework based on jQuery
 
 
-**Version 0.26.2**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.26.4**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -17,6 +17,7 @@ A simple / extendable / light-weight (~25 kB minified, ~9kB gzipped) mv* (MVVM) 
 
 ###Contents
 
+* [Hello World](#hello-world)
 * [Live Examples](#live-examples)
 * [MV* Patterns and MVVM](#mv-patterns-and-mvvm)
 * [ModelView.js](#modelviewjs-1)
@@ -25,6 +26,66 @@ A simple / extendable / light-weight (~25 kB minified, ~9kB gzipped) mv* (MVVM) 
 * [Todo](#todo)
 
 
+
+####Hello World
+
+[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+
+
+```html
+
+<div id="screen">
+    Hello <span data-bind='{"text":"msg"}'></span> &nbsp;&nbsp;(updated live on <i>change</i>)
+    <br /><br />
+    <input type="text" name="model[msg]" size="50" value="" />
+    <button class="button" data-bind='{"text":"alert_msg","click":"alert_msg"}'></button>
+</div>
+
+```
+
+```javascript
+
+// jQuery is a dependency
+$('#screen').modelview({
+    
+    id: 'view',
+    
+    autobind: true,
+    bindAttribute: 'data-bind',
+    events: [ 'change', 'click' ],
+    
+    model: {
+        id: 'model',
+        
+        data: {
+            // model data here ..
+            msg: 'World!',
+            alert_msg: 'Alert Message'
+        },
+        
+        types: {
+            // model data type-casters (if any) here ..
+            msg: ModelView.Type.Cast.STR
+        },
+        
+        validators: {
+            // model data validators (if any) here ..
+            msg: ModelView.Validation.Validate.NOT_EMPTY
+        }
+    },
+    
+    actions: {
+        // custom view actions (if any) here ..
+        alert_msg: function( evt, $el, bindData ) {
+            alert( this.model().get('msg') );
+        }
+    }
+
+});
+// sync model to view
+$('#screen').modelview('sync');
+
+```
 
 
 ####Live Examples

@@ -149,6 +149,12 @@
             }
         },
         
+        // http://stackoverflow.com/a/683429/3591273
+        /*empty = function( el ) {
+            while ( el.firstChild ) el.removeChild( el.firstChild );
+            el.textContent = "";
+        },*/
+
         // http://stackoverflow.com/a/2364000/3591273
         getStyle = window.getComputedStyle || function( el ) { return el.currentStyle; },
         

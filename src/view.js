@@ -665,7 +665,7 @@
         ,do_tpl: function( evt, $el, data ) {
             var view = this, model, 
                 key = data.key, tplID = data.tpl,
-                mode, html
+                mode, html, el
             ;
             if ( !view.$template || !key || !tplID ) return;
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
@@ -674,10 +674,10 @@
             model = view.$model;
             if ( !key || !model.has( key ) ) return;
             
-            mode = data.mode || 'replace';
-            if ( 'replace' == mode ) $el.empty( );
+            mode = data.mode || 'replace'; el = $el[0];
+            if ( 'replace' == mode ) el[HTML] = ''; //empty($el[0]); //$el.empty( );
             html = view.$template( tplID, model.get( key ) );
-            if ( html ) $el.append( html );
+            if ( html ) el[HTML] += html; //$el.append( html );
         }
         
         // show/hide element(s) according to binding
