@@ -1,22 +1,31 @@
-    var
-        WILDCARD = "*", NAMESPACE = "modelview",
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    //
+    // utility functions
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    var bindF = function( f, scope ) { return f.bind(scope); },
+        proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
+        Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
+        Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
+        hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
+        
+        is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
+        
+        newFunc = function( args, code ){ return new Func(args, code); },
+        
+        INF = Infinity, rnd = Math.random, parse_float = parseFloat, 
+        parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
         
         // types
-        T_NUM = 2,
-        T_NAN = 3,
-        //T_INF = 3,
-        T_BOOL = 4,
-        T_STR = 8,
-        T_CHAR = 9,
-        T_ARRAY = 16,
-        T_OBJ = 32,
-        T_FUNC = 64,
-        T_REGEX = 128,
-        T_NULL = 256,
-        T_UNDEF = 512,
-        T_UNKNOWN = 1024,
-        T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ,
-        T_ARRAY_OR_STR = T_ARRAY | T_STR,
+        T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
+        T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
+        T_NULL = 256, T_UNDEF = 512, T_UNKNOWN = 1024, 
+        T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
         
         get_type = function( v ) {
             var type_of, to_string;
@@ -47,6 +56,135 @@
         
         is_type = function( v, type ) { return !!( type & get_type( v ) ); },
 
+        ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
+        CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
+        NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
+        OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
+        STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
+        
+        /*INPUT_SELECT_TEXTAREA = 'input|select|textarea|INPUT|SELECT|TEXTAREA',
+        
+        is_input_element = function( el ) {
+            return -1 < INPUT_SELECT_TEXTAREA.indexOf( el[TAG] );
+        },
+        
+        element_is = function( el, check, what ) {
+            return what === el[check];
+        },*/
+        
+        opt_val = function( o ) {
+            // attributes.value is undefined in Blackberry 4.7 but
+            // uses .value. See #6932
+            var val = o.attributes[VAL];
+            return !val || val.specified ? o[VAL] : o.text;
+        },
+        
+        // adapted from jQuery
+        select_get = function( el ) {
+            var val, opt, options = el[OPTIONS], sel_index = el[SELECTED_INDEX],
+                one = "select-one" === el[TYPE] || sel_index < 0,
+                values = one ? null : [],
+                max = one ? sel_index + 1 : options.length,
+                i = sel_index < 0 ? max : (one ? sel_index : 0)
+            ;
+
+            // Loop through all the selected options
+            for ( ; i<max; i++ ) 
+            {
+                opt = options[ i ];
+
+                // oldIE doesn't update selected after form reset (#2551)
+                if ( ( opt[SELECTED] || i === sel_index ) &&
+                    // Don't return options that are disabled or in a disabled optgroup
+                    ( !opt[DISABLED] ) &&
+                    ( !opt[PARENT][DISABLED] || "optgroup" !== opt[PARENT][TAG] ) 
+                ) 
+                {
+                    // Get the specific value for the option
+                    val = opt_val( opt );
+                    // We don't need an array for one selects
+                    if ( one ) return val;
+                    // Multi-Selects return an array
+                    values.push( val );
+                }
+            }
+            return values;
+        },
+        
+        select_set = function( el, v ) {
+            var values = [ ].concat( v ), 
+                options = el[OPTIONS],//el.getElementsByTagName('option'), 
+                opt, i, sel_index = -1
+            ;
+            
+            for (i=0; i<options.length; i++ )
+            {
+                opt = options[ i ];
+                opt[SELECTED] = -1 < values.indexOf( opt_val( opt ) );
+                //if ( opt[SELECTED] ) sel_index = i;
+            }
+            if ( !values.length ) el[SELECTED_INDEX] = -1;
+        },
+        
+        get_val = function( el ) {
+            if ( !el ) return;
+            switch( el[TAG].toLowerCase( ) )
+            {
+                case 'textarea':case 'input': return el[VAL/*HTML*/];
+                case 'select': return select_get( el );
+                default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
+            }
+        },
+        
+        set_val = function( el, v ) {
+            if ( !el ) return;
+            switch( el[TAG].toLowerCase( ) )
+            {
+                case 'textarea':case 'input': el[VAL/*HTML*/] = v; break;
+                case 'select': select_set( el, v ); break;
+                default: 
+                    if ( TEXTC in el ) el[TEXTC] = v; 
+                    else el[TEXT] = v;
+                    break;
+            }
+        },
+        
+        // http://stackoverflow.com/a/2364000/3591273
+        getStyle = window.getComputedStyle || function( el ) { return el.currentStyle; },
+        
+        show = function( el ) {
+            if ( !el._displayCached ) el._displayCached = getStyle( el, null ).display || 'block';
+            el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : 'block';
+            el._displayCached = undef;
+        },
+        
+        hide = function( el ) {
+            if ( !el._displayCached ) el._displayCached = getStyle( el, null ).display || 'block';
+            el[STYLE].display = 'none';
+        },
+        
+        fromJSON = JSON.parse, toJSON = JSON.stringify,
+        
+        // http://www.sitepoint.com/jquery-vs-raw-javascript-1-dom-forms/
+        //SELECT = 'querySelectorAll', SELECT_FIRST = 'querySelector', BY_ID = 'getElementById',
+        //BY_TAG = 'getElementsByTagName', BY_CLASS = 'getElementsByClassName',
+        
+        NOW = function( ) { return new Date( ).getTime( ); },
+        
+        // jQuery methods
+        Event = $.Event, extend = $.extend
+    ;
+    
+    // use native methods and abbreviation aliases if available
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
+    SP.tR = SP.trim; SP.sW = SP.startsWith;
+    
+    var
+        WILDCARD = "*", NAMESPACE = "modelview",
+        
         // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
         is_numeric = function( n ) { return !is_nan( parse_float( n ) ) && is_finite( n ); },
     
@@ -92,10 +230,6 @@
             return o1; 
         },
 
-        newFunc = function( args, code ){ return new Func(args, code); },
-        
-        hasAtt = function( $el, att ) { return ( undef !== $el.attr( att ) ); },
-    
         hasNamespace = function( evt, namespace ) { 
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
@@ -273,8 +407,6 @@
             }
             return [false, o, k, p, null, null, null];
         },
-        
-        NOW = function( ) { return new Date( ).getTime( ); },
         
         // UUID counter for Modelviews
         _uuidCnt = 0,

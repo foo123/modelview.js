@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.26.2
+*   @version: 0.26.3
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -137,7 +137,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.26.2
+*   @version: 0.26.3
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -155,7 +155,7 @@
     *       agility.js
     *       backbone.js 
     **/
-
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     //
     //
@@ -173,40 +173,16 @@
         
         is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
         
+        newFunc = function( args, code ){ return new Func(args, code); },
+        
         INF = Infinity, rnd = Math.random, parse_float = parseFloat, 
         parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
         
-        fromJSON = JSON.parse, toJSON = JSON.stringify,
-        
-        // jQuery methods
-        Event = $.Event, extend = $.extend
-    ;
-    
-    // use native methods and abbreviation aliases if available
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-    if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
-    if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
-    SP.tR = SP.trim; SP.sW = SP.startsWith;
-    var
-        WILDCARD = "*", NAMESPACE = "modelview",
-        
         // types
-        T_NUM = 2,
-        T_NAN = 3,
-        //T_INF = 3,
-        T_BOOL = 4,
-        T_STR = 8,
-        T_CHAR = 9,
-        T_ARRAY = 16,
-        T_OBJ = 32,
-        T_FUNC = 64,
-        T_REGEX = 128,
-        T_NULL = 256,
-        T_UNDEF = 512,
-        T_UNKNOWN = 1024,
-        T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ,
-        T_ARRAY_OR_STR = T_ARRAY | T_STR,
+        T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
+        T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
+        T_NULL = 256, T_UNDEF = 512, T_UNKNOWN = 1024, 
+        T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
         
         get_type = function( v ) {
             var type_of, to_string;
@@ -237,6 +213,135 @@
         
         is_type = function( v, type ) { return !!( type & get_type( v ) ); },
 
+        ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
+        CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
+        NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
+        OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
+        STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
+        
+        /*INPUT_SELECT_TEXTAREA = 'input|select|textarea|INPUT|SELECT|TEXTAREA',
+        
+        is_input_element = function( el ) {
+            return -1 < INPUT_SELECT_TEXTAREA.indexOf( el[TAG] );
+        },
+        
+        element_is = function( el, check, what ) {
+            return what === el[check];
+        },*/
+        
+        opt_val = function( o ) {
+            // attributes.value is undefined in Blackberry 4.7 but
+            // uses .value. See #6932
+            var val = o.attributes[VAL];
+            return !val || val.specified ? o[VAL] : o.text;
+        },
+        
+        // adapted from jQuery
+        select_get = function( el ) {
+            var val, opt, options = el[OPTIONS], sel_index = el[SELECTED_INDEX],
+                one = "select-one" === el[TYPE] || sel_index < 0,
+                values = one ? null : [],
+                max = one ? sel_index + 1 : options.length,
+                i = sel_index < 0 ? max : (one ? sel_index : 0)
+            ;
+
+            // Loop through all the selected options
+            for ( ; i<max; i++ ) 
+            {
+                opt = options[ i ];
+
+                // oldIE doesn't update selected after form reset (#2551)
+                if ( ( opt[SELECTED] || i === sel_index ) &&
+                    // Don't return options that are disabled or in a disabled optgroup
+                    ( !opt[DISABLED] ) &&
+                    ( !opt[PARENT][DISABLED] || "optgroup" !== opt[PARENT][TAG] ) 
+                ) 
+                {
+                    // Get the specific value for the option
+                    val = opt_val( opt );
+                    // We don't need an array for one selects
+                    if ( one ) return val;
+                    // Multi-Selects return an array
+                    values.push( val );
+                }
+            }
+            return values;
+        },
+        
+        select_set = function( el, v ) {
+            var values = [ ].concat( v ), 
+                options = el[OPTIONS],//el.getElementsByTagName('option'), 
+                opt, i, sel_index = -1
+            ;
+            
+            for (i=0; i<options.length; i++ )
+            {
+                opt = options[ i ];
+                opt[SELECTED] = -1 < values.indexOf( opt_val( opt ) );
+                //if ( opt[SELECTED] ) sel_index = i;
+            }
+            if ( !values.length ) el[SELECTED_INDEX] = -1;
+        },
+        
+        get_val = function( el ) {
+            if ( !el ) return;
+            switch( el[TAG].toLowerCase( ) )
+            {
+                case 'textarea':case 'input': return el[VAL/*HTML*/];
+                case 'select': return select_get( el );
+                default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
+            }
+        },
+        
+        set_val = function( el, v ) {
+            if ( !el ) return;
+            switch( el[TAG].toLowerCase( ) )
+            {
+                case 'textarea':case 'input': el[VAL/*HTML*/] = v; break;
+                case 'select': select_set( el, v ); break;
+                default: 
+                    if ( TEXTC in el ) el[TEXTC] = v; 
+                    else el[TEXT] = v;
+                    break;
+            }
+        },
+        
+        // http://stackoverflow.com/a/2364000/3591273
+        getStyle = window.getComputedStyle || function( el ) { return el.currentStyle; },
+        
+        show = function( el ) {
+            if ( !el._displayCached ) el._displayCached = getStyle( el, null ).display || 'block';
+            el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : 'block';
+            el._displayCached = undef;
+        },
+        
+        hide = function( el ) {
+            if ( !el._displayCached ) el._displayCached = getStyle( el, null ).display || 'block';
+            el[STYLE].display = 'none';
+        },
+        
+        fromJSON = JSON.parse, toJSON = JSON.stringify,
+        
+        // http://www.sitepoint.com/jquery-vs-raw-javascript-1-dom-forms/
+        //SELECT = 'querySelectorAll', SELECT_FIRST = 'querySelector', BY_ID = 'getElementById',
+        //BY_TAG = 'getElementsByTagName', BY_CLASS = 'getElementsByClassName',
+        
+        NOW = function( ) { return new Date( ).getTime( ); },
+        
+        // jQuery methods
+        Event = $.Event, extend = $.extend
+    ;
+    
+    // use native methods and abbreviation aliases if available
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
+    SP.tR = SP.trim; SP.sW = SP.startsWith;
+    
+    var
+        WILDCARD = "*", NAMESPACE = "modelview",
+        
         // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
         is_numeric = function( n ) { return !is_nan( parse_float( n ) ) && is_finite( n ); },
     
@@ -282,10 +387,6 @@
             return o1; 
         },
 
-        newFunc = function( args, code ){ return new Func(args, code); },
-        
-        hasAtt = function( $el, att ) { return ( undef !== $el.attr( att ) ); },
-    
         hasNamespace = function( evt, namespace ) { 
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
@@ -463,8 +564,6 @@
             }
             return [false, o, k, p, null, null, null];
         },
-        
-        NOW = function( ) { return new Date( ).getTime( ); },
         
         // UUID counter for Modelviews
         _uuidCnt = 0,
@@ -1660,16 +1759,16 @@
                 event = isSync ? 'change' : evt.type;
             
             $elements.each(function( ) {
-                var $el = $(this), bind, do_action, name, key;
+                var el = this, $el = $(el), bind, do_action, name, key;
                 
-                bind = getBindData( event, view.attr($el, 'bind') );
+                bind = getBindData( event, view.attr(el, 'bind') );
                 // during sync, dont do any actions based on (other) events
                 if ( !bind || !bind.action ) return;
                 
                 do_action = 'do_' + bind.action;
                 if ( !is_type( view[ do_action ], T_FUNC ) ) return;
-                name = $el.attr('name')
-                key = bind.key || (name && model.key(name, 1));
+                name = el[NAME];
+                key = bind.key || (!!name && model.key(name, 1));
                 // "model:change" event and element does not reference the (nested) model key
                 // OR model atomic operation(s)
                 if ( fromModel && (!key || !key.sW( fromModel.key ) || 
@@ -1684,8 +1783,8 @@
                 event = isSync ? 'change' : evt.type;
             
             $elements.each(function( ) {
-                var $el = $(this), name = $el.attr('name'), 
-                    key = name ? model.key( name, 1 ) : 0, value;
+                var el = this, $el = $(el), name = el[NAME], 
+                    key = !!name ? model.key( name, 1 ) : 0, value;
                     
                 if ( !key ) return;
                 
@@ -1709,7 +1808,8 @@
         if ( !(view instanceof View) ) return new View( id, model, atts, cacheSize, refreshInterval );
         
         view.namespace = view.id = id || uuid('View');
-        view.$atts = atts || { "bind": "data-bind" };
+        if ( !('bind' in (atts=atts||{})) ) atts['bind'] = "data-bind";
+        view.$atts = atts;
         cacheSize = cacheSize || View._CACHE_SIZE;
         refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
         view.$memoize = new Cache( cacheSize, refreshInterval );
@@ -1840,15 +1940,14 @@
         
         // http://stackoverflow.com/questions/10892322/javascript-hashtable-use-object-key
         // http://stackoverflow.com/questions/2937120/how-to-get-javascript-object-references-or-reference-count
-        ,attr: function( $el, att ) {
-            var view = this, attr = view.$atts[ att ], 
+        ,attr: function( el, att ) {
+            var view = this, attr = view.$atts[ att ],
                 memoizeCache = view.$memoize, attribute, attbind
             ;
             
             // use memoization/caching
-            if ( attr && hasAtt( $el, attr ) )
+            if ( /*el && attr &&*/ !!(attr=el[ATTR]( attr )) )
             {
-                attr = $el.attr( attr );
                 attribute = memoizeCache.get( attr );
                 
                 if ( undef === attribute )
@@ -1963,7 +2062,8 @@
         
         ,getDomRef: function( $el, ref ) {
             // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-            return ( ref && ("$this::" == ref.slice(0, 7)) ) ? $( ref.slice( 7 ), $el ) : $( ref );
+            return ( ref && ref.sW("$this::") ) ? $( ref.slice( 7 ), $el ) : $( ref );
+            //return ( ref && ref.sW("$this::") ) ? $el[0][SELECT](ref.slice( 7 )) : document[SELECT]( ref );
         }
         
         ,bind: function( events, dom ) {
@@ -1994,7 +2094,7 @@
                         // add "bubble" option in modelview data-bind params
                         var el = this, $el = $(el),
                             isAutoBind = false, isBind = false, 
-                            bind = view.$bindbubble ? view.attr($el, 'bind') : null
+                            bind = view.$bindbubble ? view.attr(el, 'bind') : null
                         ;
                         if ( (evt.target === el) || (bind && bind.bubble) )
                         {
@@ -2084,20 +2184,19 @@
         //
         
         ,on_view_change: function( evt, data ) {
-            var view = this, model = view.$model, $el = data.$el, 
-                name, key, val, isCheckbox, checkbox, modeldata = { }
+            var view = this, model = view.$model, 
+                $el = data.$el, el = $el[0],
+                name, key, val, checkbox, modeldata = { }
             ;
             
             // update model and propagate to other elements of same view (via model publish hook)
-            if ( data.isAutoBind && $el.attr('name') )
+            if ( data.isAutoBind && !!(name=el[NAME]) )
             {
-                key = model.key( name=$el.attr('name'), 1 );
+                key = model.key( name, 1 );
                 
                 if ( key && model.has( key ) )
                 {
-                    isCheckbox = $el.is(':checkbox');
-                    
-                    if ( isCheckbox )
+                    if ( 'checkbox' === el[TYPE].toLowerCase( ) )
                     {
                         checkbox = view.get('input[type="checkbox"][name="'+name+'"]');
                         
@@ -2105,13 +2204,13 @@
                         {
                             val = [ ];
                             checkbox.each(function( ) {
-                                var $c = $(this);
-                                val.push( $c.is(':checked') ? $c.val() : '' );
+                                var c = this;
+                                val.push( c[CHECKED] ? c[VAL] : '' );
                             });
                         }
-                        else if ( checkbox.is(':checked') )
+                        else if ( el[CHECKED] )
                         {
-                            val = checkbox.val( );
+                            val = el[VAL];
                         }
                         else
                         {
@@ -2120,7 +2219,7 @@
                     }
                     else
                     {
-                        val = $el.val( );
+                        val = get_val( el );
                     }
                     
                     modeldata.$trigger = $el;
@@ -2190,13 +2289,13 @@
             if ( !is_type(data.prop, T_OBJ) ) return;
             
             var view = this, model = view.$model, 
-                prop = data.prop, hash, p, k, v, vT
+                prop = data.prop, p, k, v, vT, el//, eT, eV
             ;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
             if ( !$el.length ) return;
                 
-            hash = { };
+            el = $el[0]; //eT = el[TAG]; //eV = get_val( el );
             for (p in prop)
             {
                 k = prop[ p ];
@@ -2205,11 +2304,15 @@
                 switch( p )
                 {
                     case 'value':
-                        $el.val( v );
+                        set_val(el, v);
+                        break;
+                    
+                    case 'checked': case 'disabled':
+                        el[p] = ( T_BOOL === vT ) ? v : (v == el[VAL]);
                         break;
                     
                     case 'options':
-                        if ( $el.is('select') && (T_ARRAY === vT) )
+                        if ( 'select' === el[TAG] && (T_ARRAY === vT) )
                         {
                             var sel, ii, vl = v.length,
                                 _options = '', group = $el.find('optgroup');
@@ -2239,36 +2342,25 @@
                         }
                         break;
                     
-                    case 'checked':
-                        if ( T_BOOL === vT ) $el.prop(p, v);
-                        else if ( v == $el.val( ) ) $el.prop(p, true);
-                        else  $el.prop(p, false);
-                        break;
-                    
-                    case 'disabled':
-                        if ( T_BOOL === vT ) $el.prop(p, v);
-                        else if ( v == $el.val( ) ) $el.prop(p, true);
-                        else $el.prop(p, false);
-                        break;
-                        
                     default:
-                        hash[ p ] = v;
+                        //hash[ p ] = v;
                         //$el.prop( p, v );
                         //$el.attr( p, v );
+                        //el[p] = v;
+                        el[SET_ATTR](p, v);
                         break;
                 }
             }
-            $el.attr( hash );
+            //$el.attr( hash );
         }
         
         // set element(s) html/text prop based on model key value
         ,do_html: function( evt, $el, data ) {
             if ( !data.key ) return;
-            var view = this, model = view.$model, key = data.key, html;
+            var view = this, model = view.$model, key = data.key, el;
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
             if ( !$el.length || !key || !model.has( key ) ) return;
-            html = model.get( key );
-            (data.text ? $el.text( html ) : $el.html( html ));
+            (el=$el[0])[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
         }
         
         // set element(s) css props based on model key value
@@ -2290,7 +2382,7 @@
         // update/set a model field with a given value
         ,do_set: function( evt, $el, data ) {
             var view = this, model = view.$model, 
-                key = data.key || model.key($el.attr(name), 1), val;
+                key = data.key || model.key($el[0][NAME], 1), val;
             if ( !!key ) 
             {
                 if ( "value" in data ) 
@@ -2300,7 +2392,7 @@
                 else
                 {
                     if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
-                    val = $el.is('input,select,textarea') ? $el.val( ) : $el.text( );
+                    val = get_val( $el[0] );
                 }
                 model.set( key, val, 1 );
             }
@@ -2327,43 +2419,43 @@
         
         // show/hide element(s) according to binding
         ,do_show: function( evt, $el, data ) {
-            var view = this, model = view.$model, key = data.key;
+            var view = this, model = view.$model, key = data.key, el;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
             if ( !$el.length || !key ) return;
-                
+            el = $el[0];    
             if ( 'value' in data )
             {
                 // show if data[key] is value, else hide
-                if ( data.value === model.get( key ) ) $el.show( );
-                else $el.hide( );
+                if ( data.value === model.get( key ) ) show(el); /*$el.show( );*/
+                else hide(el);/*$el.hide( );*/
             }
             else
             {
                 // show if data[key] is true, else hide
-                if ( !!model.get( key ) ) $el.show( );
-                else $el.hide( );
+                if ( !!model.get( key ) ) show(el); /*$el.show( );*/
+                else hide(el); /*$el.hide( );*/
             }
         }
         
         // hide/show element(s) according to binding
         ,do_hide: function( evt, $el, data ) {
-            var view = this, model = view.$model, key = data.key;
+            var view = this, model = view.$model, key = data.key, el;
             
             if ( data['domRef'] ) $el = view.getDomRef( $el, data['domRef'] );
             if ( !$el.length || !key ) return;
-                
+            el = $el[0];    
             if ( 'value' in data )
             {
                 // hide if data[key] is value, else show
-                if ( data.value === model.get( key ) ) $el.hide( );
-                else $el.show( );
+                if ( data.value === model.get( key ) ) hide(el); /*$el.hide( );*/
+                else show(el); /*$el.show( );*/
             }
             else
             {
                 // hide if data[key] is true, else show
-                if ( !!model.get( key ) ) $el.hide( );
-                else $el.show( );
+                if ( !!model.get( key ) ) hide(el); /*$el.hide( );*/
+                else show(el); /*$el.show( );*/
             }
         }
         
@@ -2371,53 +2463,44 @@
         ,do_bind: function( evt, $el, data ) {
             var view = this, model = view.$model, 
                 name = data.name, key = data.key, 
-                value, valueT, val
+                el = $el[ 0 ], elType = el[TYPE].toLowerCase( ),
+                value, valueType
             ;
             
             // use already computed/cached key/value from calling method passed in "data"
             if ( !key ) return;
-            value = data.value; valueT = get_type( value ); val = $el.val( );
+            value = data.value; valueType = get_type( value );
             
-            if ( $el.is(':radio') )
+            if ( 'radio' === elType )
             {
-                if ( value == val )
+                if ( value == el[VAL] )
                 {
-                    view.get('input[name="'+name+'"]').not( $el ).prop('checked', false);
-                    $el.prop('checked', true);
+                    view.get('input[name="'+name+'"]').not( el ).prop('checked', false);
+                    el[CHECKED] = true;
                 }
             }
             
-            else if ( $el.is(':checkbox') )
+            else if ( 'checkbox' === elType )
             {
                 var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
                 
-                if ( checkbox.length > 1 && (T_ARRAY === valueT) )
+                if ( checkbox.length > 1 && (T_ARRAY === valueType) )
                 {
-                    checkbox.each(function(i, v) {
-                        var $this = $(this);
-                        if ( $.inArray($this.val(), value) > -1 )  $this.prop('checked', true);
-                        else $this.prop('checked', false);
+                    checkbox.each(function( ) {
+                        var cb = this;
+                        if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
+                        else cb[CHECKED] = false;
                     });
-                }
-                
-                else if ( T_BOOL === valueT )
-                {
-                    $el.prop('checked', value);
-                }
-                
-                else if ( value == val )
-                {
-                    $el.prop('checked', true);
                 }
                 
                 else
                 {
-                    $el.prop('checked', false);
+                    el[CHECKED] = T_BOOL === valueType ? value : (value == el[VAL]);
                 }
             }
             else
             {
-                $el.val( value );
+                set_val(el, value);
             }
         }
         
@@ -2429,7 +2512,7 @@
     // export it
     exports['ModelView'] = {
     
-        VERSION: "0.26.2"
+        VERSION: "0.26.3"
         
         ,UUID: uuid
         
@@ -2450,7 +2533,7 @@
 }(exports, jQuery);/**
 *
 *   ModelView.js (jQuery plugin, optional)
-*   @version: 0.26.2
+*   @version: 0.26.3
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
