@@ -571,7 +571,7 @@
                         break;
                     
                     case 'checked': case 'disabled':
-                        el[p] = ( T_BOOL === vT ) ? v : (v == el[VAL]);
+                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
                         break;
                     
                     case 'options':
@@ -736,7 +736,7 @@
             
             if ( 'radio' === elType )
             {
-                if ( value == el[VAL] )
+                if ( Str(value) == el[VAL] )
                 {
                     view.get('input[name="'+name+'"]').not( el ).prop('checked', false);
                     el[CHECKED] = true;
@@ -758,7 +758,7 @@
                 
                 else
                 {
-                    el[CHECKED] = T_BOOL === valueType ? value : (value == el[VAL]);
+                    el[CHECKED] = T_BOOL === valueType ? value : (Str(value) == el[VAL]);
                 }
             }
             else

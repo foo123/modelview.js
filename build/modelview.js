@@ -268,8 +268,10 @@
             return values;
         },
         
+        tostr = function( v ) { return Str(v); },
+        
         select_set = function( el, v ) {
-            var values = [ ].concat( v ), 
+            var values = [ ].concat( v ).map( tostr ), 
                 options = el[OPTIONS],//el.getElementsByTagName('option'), 
                 opt, i, sel_index = -1
             ;
@@ -297,11 +299,11 @@
             if ( !el ) return;
             switch( el[TAG].toLowerCase( ) )
             {
-                case 'textarea':case 'input': el[VAL/*HTML*/] = v; break;
+                case 'textarea':case 'input': el[VAL/*HTML*/] = Str(v); break;
                 case 'select': select_set( el, v ); break;
                 default: 
-                    if ( TEXTC in el ) el[TEXTC] = v; 
-                    else el[TEXT] = v;
+                    if ( TEXTC in el ) el[TEXTC] = Str(v); 
+                    else el[TEXT] = Str(v);
                     break;
             }
         },
@@ -2314,7 +2316,7 @@
                         break;
                     
                     case 'checked': case 'disabled':
-                        el[p] = ( T_BOOL === vT ) ? v : (v == el[VAL]);
+                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
                         break;
                     
                     case 'options':
@@ -2479,7 +2481,7 @@
             
             if ( 'radio' === elType )
             {
-                if ( value == el[VAL] )
+                if ( Str(value) == el[VAL] )
                 {
                     view.get('input[name="'+name+'"]').not( el ).prop('checked', false);
                     el[CHECKED] = true;
@@ -2501,7 +2503,7 @@
                 
                 else
                 {
-                    el[CHECKED] = T_BOOL === valueType ? value : (value == el[VAL]);
+                    el[CHECKED] = T_BOOL === valueType ? value : (Str(value) == el[VAL]);
                 }
             }
             else
