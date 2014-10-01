@@ -15,7 +15,7 @@
         
         getKeyTextNodes = function( node, re_key ) {
             var matchedNodes, matchedAtts, i, l, m, matched, n, a, key,
-                keyNode, aNodes, rest, stack, keyNodes = {}, keyAtts = {};
+                keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes = {}, keyAtts = {};
             
             if ( node )
             {
@@ -71,20 +71,34 @@
                         m = rest.nodeValue.match( re_key );
                     } while ( m );
                 }
-                
+                aNodes = { };
                 for (i=0,l=matchedAtts.length; i<l; i++)
                 {
                     matched = matchedAtts[ i ];
-                    a = matched[0]; m = matched[1]; rest = getTextNode( a.nodeValue ); aNodes = [ rest ];
-                    do {
-                        key = m[1]; 
-                        keyNode = rest.splitText( m.index );
-                        rest = keyNode.splitText( m[0].length );
-                        aNodes.push( keyNode ); aNodes.push( rest );
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes] );
-                        m = rest.nodeValue.match( re_key );
-                    } while ( m );
+                    a = matched[0]; m = matched[1]; 
+                    txt = a.nodeValue;  aNodesCached = (txt in aNodes);
+                    if ( !aNodesCached ) 
+                    {
+                        rest = getTextNode( txt );
+                        aNodes[ txt ] = [[], [ rest ]];
+                        do {
+                            key = m[1]; 
+                            keyNode = rest.splitText( m.index );
+                            rest = keyNode.splitText( m[0].length );
+                            aNodes[ txt ][0].push( key );
+                            aNodes[ txt ][1].push( keyNode ); 
+                            aNodes[ txt ][1].push( rest );
+                            (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            m = rest.nodeValue.match( re_key );
+                        } while ( m );
+                    }
+                    else
+                    {
+                        // share txt nodes between same (value) attributes
+                        for (m=0; m<aNodes[ txt ][0].length; m++)
+                            keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1]] );
+                    }
                 }
             }
             return [keyNodes, keyAtts];
