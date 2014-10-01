@@ -47,7 +47,7 @@ REPLACE =[{}]
     "@@MODULE_NAME@@" = "ModelView"
     "@@MODULE_DEPENDENCIES@@" = "[['jQuery'],['./jquery.js']]"
     "@@MODULE_ARGUMENTS@@" = "jQuery"
-    "@@VERSION@@" = "0.26.4"
+    "@@VERSION@@" = "0.30"
     "@@DEPENDENCIES@@" = "@dependencies: jQuery"
     
 @ # end block

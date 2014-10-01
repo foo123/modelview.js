@@ -32,6 +32,7 @@
             ,autobind: false
             ,bindbubble: false
             ,bindAttribute: 'data-bind'
+            ,inlineTplFormat: '$(__KEY__)'
             ,cacheSize: View._CACHE_SIZE
             ,refreshInterval: View._REFRESH_INTERVAL
             
@@ -168,6 +169,7 @@
             // init view
             $dom.data( 'modelview', view );
             view
+                .inlineTplFormat( options.inlineTplFormat )
                 .bindbubble( options.bindbubble )
                 .autobind( options.autobind )
                 .bind( options.events, $dom )

@@ -72,6 +72,8 @@
             return what === el[check];
         },*/
         
+        getTextNode = function( txt ) { return document.createTextNode(txt||''); },
+        
         opt_val = function( o ) {
             // attributes.value is undefined in Blackberry 4.7 but
             // uses .value. See #6932
@@ -207,11 +209,11 @@
         },
     
         Mixin = function(/* var args here.. */) { 
-            var args = slice( arguments ), argslen, 
+            var args = arguments, argslen, 
                 o1, o2, v, p, i, T ;
-            o1 = args.shift( ) || {}; 
+            o1 = args[0] || {}; 
             argslen = args.length;
-            for (i=0; i<argslen; i++)
+            for (i=1; i<argslen; i++)
             {
                 o2 = args[ i ];
                 if ( T_OBJ === get_type( o2 ) )
@@ -242,6 +244,11 @@
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
+        Node = function( val, next ) {
+            this.val = val || null;
+            this.next = next || {};
+        },
+        
         getNext = function( a, k ) {
             if ( !a ) return null;
             var b = [ ], i, ai, l = a.length;
@@ -267,8 +274,8 @@
                     ai = a[ i ];
                     if ( ai )
                     {
-                        if ( ai[ k ] && ai[ k ].value ) return ai[ k ].value;
-                        if ( ai[ WILDCARD ] && ai[ WILDCARD ].value ) return ai[ WILDCARD ].value;
+                        if ( ai[ k ] && ai[ k ].val ) return ai[ k ].val;
+                        if ( ai[ WILDCARD ] && ai[ WILDCARD ].val ) return ai[ WILDCARD ].val;
                     }
                 }
             }
@@ -277,18 +284,18 @@
                 for (i=0; i<l; i++)
                 {
                     ai = a[ i ];
-                    if ( ai && ai.value )  return ai.value;
+                    if ( ai && ai.val )  return ai.val;
                 }
             }
             return null;
         },
         
-        walkadd = function( v, p, obj, isCollectionEach ) {
+        walkadd = function( v, p, obj, isCollectionEach/*, isKeyNode*/ ) {
             var o = obj, k;
             while ( p.length )
             {
                 k = p.shift( );
-                if ( !(k in o) ) o[ k ] = { value: null, next: {} };
+                if ( !(k in o) ) o[ k ] = new Node( ); //{ value: null, next: {} };
                 o = o[ k ];
                 if ( p.length ) 
                 {
@@ -296,14 +303,18 @@
                 }
                 else 
                 {
-                    if ( isCollectionEach )
+                    /*if ( isKeyNode )
                     {
-                        if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = { value: null, next: {} };
-                        o.next[ WILDCARD ].value = v;
+                        (o.val=o.val||[]).push(v);
+                    }
+                    else */if ( isCollectionEach )
+                    {
+                        if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( ); //{ value: null, next: {} };
+                        o.next[ WILDCARD ].val = v;
                     }
                     else
                     {
-                        o.value = v;
+                        o.val = v;
                     }
                 }
             }

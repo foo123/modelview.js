@@ -1,6 +1,6 @@
 ####ModelView API
 
-**Version 0.26.4**
+**Version 0.30**
 
 
 **Model**
@@ -336,305 +336,62 @@ $dom.modelview({
 
 
 
-**simple example (jQueryUI also used)**
+**simple example** [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+
 
 **markup**
 
 ```html
-
-<!--     
-    modelview.js (default) 2-way bindings use JSON format embedded in an element's (user-defined) "data-bind" attribute
-    the logic behind this:
-    
-    when, what, who, why, how
-    
-    when -> event  (eg on model change, on view change, on click, etc..)
-    what -> action  (eg auto-bind/update value, (custom) view actions)
-    who, why, how -> additional conditions/data
--->
- 
-<!-- view binds on this part of the page -->
 <div id="screen">
-
-    <!-- nested model key used, no problem -->
-    <!-- multiple actions per multiple events (change->settext, mouseover->hoverAction) -->
-    <!-- view action "set" is one of modelview.js "default actions" -->
-    <span>Sample Percent:</span>
-    <strong id="percent" 
-        style="display: inline-block; margin-left: 15px;"
-        data-bind='{"text":"percent.percentVisual", "mouseover":"hoverAction"}'>
-        0%
-    </strong>
-    
-    <!-- view "custom actions" here -->
-    <!-- note the input[name] uses the model key AND the model id as name="modelID[key][key2][..]" -->
-    <!-- here name="model[userMode]", see javascript below -->
-    <input type="checkbox" class="switch" 
-        id="userMode" name="model[userMode]" 
-        data-bind='{"change":{"action":"setUserMode", "domRef": "#grid-controls,#image-controls"}}' />
-    
-    <button class="button ui-button-large" 
-        data-icon="ui-icon-extra ui-icon-userinfo" 
-        data-bind='{"click":"openPopup"}' data-popup="#userinfo-popup">
-        User Instructions
-    </button>
-
+    Hello $(msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+    <br /><br />
+    <input type="text" name="model[msg]" size="50" value="" />
+    <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
 </div>
-                            
 ```
 
-
-
-**javascript**
+**javascript** (*as a jquery plugin, include the jquery.modelview.js file*)
 
 ```javascript
+// jQuery is a dependency
+$('#screen').modelview({
     
-// jQuery should be already loaded, it is a dependency
+    id: 'view',
     
-jQuery(document).ready(function( $ ) {
-
-    // add a custom data type-caster
-    ModelView.Type.add('HEXINT', function( val ){
-        // 'this' refers to the model that calls this type-caster
-        return parseInt(val, 16);
-    });
+    autobind: true,
+    bindAttribute: 'data-bind',
+    inlineTplFormat: '$(__KEY__)',
+    events: [ 'change', 'click' ],
     
-    // delete a custom data-type-caster
-    //ModelView.Type.del( 'HEXINT' );
-    
-    // add a custom data validator
-    ModelView.Validation.add('BOOL', function( val ){
-        // 'this' refers to the model that calls this validator
-        return !!( true===val || false===val );
-    });
-    
-    // delete a custom data validator
-    //ModelView.Validation.del( 'BOOL' );
-    
-    // Application Model
-    // 'model' is the model 'id', same as the name used in UI input elements
-    // that refer to model keys ( see markup above )
-    model = new ModelView.Model('model', {
+    model: {
+        id: 'model',
         
-        userMode: false,
-        
-        // nested key
-        percent: {
-            percentVisual: '00%'
-        }
-    }, {
-        // data typing for model keys, can be used here
-        // custom types can also be added
-        
-        userMode: ModelView.Type.Cast.BOOL,
-        
-        percent: {
-            percentVisual: ModelView.Type.Cast.STR
-        }
-        
-        // this will also work
-        //'percent.percentVisual': ModelView.Type.Cast.HEXINT
-        // this will also work
-        //'percent.percentVisual': ModelView.Type.TypeCaster(function( val ){
-        //                                // 'this' refers to the model that calls this type-caster
-        //                                return parseInt(val, 16);
-        //                            })
-    }, {
-        // data validation for model keys, can be used here
-        // custom validators can also be added
-        
-        userMode: ModelView.Validation.Validate.BOOL,
-        
-        // this will also work
-        //userMode: ModelView.Validation.Validator(function( val ){
-        //                // 'this' refers to the model that calls this validator
-        //                return !!( true===val || false===val );
-        //            }),
-        
-        percent: {
-            percentVisual: ModelView.Validation.Validate.NOT_EMPTY
-        }
-        
-        // this will also work
-        //'percent.percentVisual': ModelView.Validation.Validate.NOT_EMPTY
-    });
-    
-
-    // Application View
-    // pass the associated model also
-    view = new ModelView.View('view', model);
-    
-    // custom view actions
-    view
-        .action('hoverAction', function(evt, $el, data) {
-            console.log('hover action');
-        })
-        
-        .action('openPopup', function(evt, $el, data){
-            var popup = $el.attr('data-popup');
-            if ( popup ) $(popup).dialog('open');
-        })
-        
-        .action('setUserMode', function(evt, $el, data){
-            var userMode, domRef;
-            this.model.set('userMode', userMode = $el.is(':checked'));
-            
-            setUserMode( userMode );
-            
-            domRef = data['domRef'];
-            if ( domRef )
-            {
-                if ( userMode )
-                {
-                    $(domRef).disabable('disableIt');
-                }
-                else
-                {
-                    $(domRef).disabable('enableIt');
-                }
-            }
-        })
-    ;
-    
-    
-    // init and bind view to UI
-    view
-        .bindbubble( false )  // whether to detect(bubble) events on nested elements inside a "data-bind" element
-        .autobind( true )  // autobind enables input elements which refer to model keys to be updated automatically
-        .bind( ['change', 'click', 'mouseover'], '#screen' )  // bind specifies the part of the page and the events the view should bind to
-        .sync( )  // synchronize ui/view/model, useful for initialization of UI visual states, etc..
-    ;
-    
-});
-
-```
-
-
-
-**or as a jquery plugin (include the jquery.modelview.js file)**
-
-```javascript
-    
-jQuery(document).ready(function( $ ) {
-
-    $('#screen').modelview({
-        
-        // custom extended classes for View and Model ( optional )
-        //viewClass: $.ModelView.View,
-        //modelClass: $.ModelView.Model,
-        
-        // view id
-        id: 'view',
-        
-        // whether to detect(bubble) events on nested elements inside a "data-bind" element
-        bindbubble: false,
-        
-        // autobind enables input elements which refer to model keys to be updated automatically
-        autobind: true,
-        
-        // element attribute for declarative (2-way) data binding
-        bindAttribute: 'data-bind',
-        
-        // bind events
-        events: ['change', 'click', 'mouseover'],
-    
-        // Application Model
-        model: {
-            id: 'model',
-            
-            data: {
-                userMode: false,
-                
-                // nested key
-                percent: {
-                    percentVisual: '00%'
-                }
-            }, 
-            
-            types: , {
-                // data typing for model keys, can be used here
-                // custom types can also be added
-                
-                userMode: $.ModelView.Type.Cast.BOOL,
-                
-                percent: {
-                    percentVisual: $.ModelView.Type.Cast.STR
-                }
-                // this will also work
-                //'percent.percentVisual': $.ModelView.Type.Cast.HEXINT
-            }, 
-            
-            validators: {
-                // data validation for model keys, can be used here
-                // custom validators can also be added
-                
-                userMode: $.ModelView.Validation.Validate.BOOL,
-                
-                percent: {
-                    percentVisual: $.ModelView.Validation.Validate.NOT_EMPTY
-                }
-                // this will also work
-                //'percent.percentVisual': $.ModelView.Validation.Validate.NOT_EMPTY
-            },
-            
-            // custom getters per key (eg. custom observables)
-            getters: { },
-            
-            // custom setters per key
-            setters: { }
+        data: {
+            // model data here ..
+            msg: 'World!'
         },
-    
-        // custom view actions
-        actions: {
-            'hoverAction': function(evt, $el, data) {
-                console.log('hover action');
-            },
-            
-            'openPopup': function(evt, $el, data){
-                var popup = $el.attr('data-popup');
-                if ( popup ) $(popup).dialog('open');
-            },
-            
-            'setUserMode': function(evt, $el, data){
-                var userMode, domRef;
-                this.model.set('userMode', userMode = $el.is(':checked'));
-                
-                setUserMode( userMode );
-                
-                domRef = data['domRef'];
-                if ( domRef )
-                {
-                    if ( userMode )
-                    {
-                        $(domRef).disabable('disableIt');
-                    }
-                    else
-                    {
-                        $(domRef).disabable('enableIt');
-                    }
-                }
-            }
+        
+        types: {
+            // model data type-casters (if any) here ..
+            msg: ModelView.Type.Cast.STR
+        },
+        
+        validators: {
+            // model data validators (if any) here ..
+            msg: ModelView.Validation.Validate.NOT_EMPTY
         }
-    });
+    },
     
-    // getter methods
-    var view = $( '#screen' ).modelview( 'view' );
-    var model = $( '#screen' ).modelview( 'model' );
-    var data = $( '#screen' ).modelview( 'data' );
-    
-    // setter methods
-    //$( '#screen' ).modelview( 'model', model );
-    //$( '#screen' ).modelview( 'data', data );
-    
-    // sync method
-    $( '#screen' ).modelview( 'sync' );
-    
-    // refresh method
-    //$( '#screen' ).modelview( 'refresh' );
-    
-    // dispose method
-    //$( '#screen' ).modelview( 'dispose' );
-    
-});
+    actions: {
+        // custom view actions (if any) here ..
+        alert_msg: function( evt, $el, bindData ) {
+            alert( this.model().get('msg') );
+            // this also works
+            //alert( this.$model.get('msg') );
+        }
+    }
 
+});
+// sync model to view
+$('#screen').modelview('sync');
 ```

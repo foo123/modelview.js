@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.26.4
+*   @version: 0.30
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -137,7 +137,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.26.4
+*   @version: 0.30
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -228,6 +228,8 @@
         element_is = function( el, check, what ) {
             return what === el[check];
         },*/
+        
+        getTextNode = function( txt ) { return document.createTextNode(txt||''); },
         
         opt_val = function( o ) {
             // attributes.value is undefined in Blackberry 4.7 but
@@ -364,11 +366,11 @@
         },
     
         Mixin = function(/* var args here.. */) { 
-            var args = slice( arguments ), argslen, 
+            var args = arguments, argslen, 
                 o1, o2, v, p, i, T ;
-            o1 = args.shift( ) || {}; 
+            o1 = args[0] || {}; 
             argslen = args.length;
-            for (i=0; i<argslen; i++)
+            for (i=1; i<argslen; i++)
             {
                 o2 = args[ i ];
                 if ( T_OBJ === get_type( o2 ) )
@@ -399,6 +401,11 @@
             return !!evt.namespace && new Regex( "\\b" + namespace + "\\b" ).test( evt.namespace || '' ); 
         },
         
+        Node = function( val, next ) {
+            this.val = val || null;
+            this.next = next || {};
+        },
+        
         getNext = function( a, k ) {
             if ( !a ) return null;
             var b = [ ], i, ai, l = a.length;
@@ -424,8 +431,8 @@
                     ai = a[ i ];
                     if ( ai )
                     {
-                        if ( ai[ k ] && ai[ k ].value ) return ai[ k ].value;
-                        if ( ai[ WILDCARD ] && ai[ WILDCARD ].value ) return ai[ WILDCARD ].value;
+                        if ( ai[ k ] && ai[ k ].val ) return ai[ k ].val;
+                        if ( ai[ WILDCARD ] && ai[ WILDCARD ].val ) return ai[ WILDCARD ].val;
                     }
                 }
             }
@@ -434,18 +441,18 @@
                 for (i=0; i<l; i++)
                 {
                     ai = a[ i ];
-                    if ( ai && ai.value )  return ai.value;
+                    if ( ai && ai.val )  return ai.val;
                 }
             }
             return null;
         },
         
-        walkadd = function( v, p, obj, isCollectionEach ) {
+        walkadd = function( v, p, obj, isCollectionEach/*, isKeyNode*/ ) {
             var o = obj, k;
             while ( p.length )
             {
                 k = p.shift( );
-                if ( !(k in o) ) o[ k ] = { value: null, next: {} };
+                if ( !(k in o) ) o[ k ] = new Node( ); //{ value: null, next: {} };
                 o = o[ k ];
                 if ( p.length ) 
                 {
@@ -453,14 +460,18 @@
                 }
                 else 
                 {
-                    if ( isCollectionEach )
+                    /*if ( isKeyNode )
                     {
-                        if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = { value: null, next: {} };
-                        o.next[ WILDCARD ].value = v;
+                        (o.val=o.val||[]).push(v);
+                    }
+                    else */if ( isCollectionEach )
+                    {
+                        if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( ); //{ value: null, next: {} };
+                        o.next[ WILDCARD ].val = v;
                     }
                     else
                     {
-                        o.value = v;
+                        o.val = v;
                     }
                 }
             }
@@ -1744,6 +1755,116 @@
         }
    });
     var
+        getInlineTplRE = function( InlineTplFormat ) {
+            return new Regex(
+                InlineTplFormat
+                .replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
+                .replace('__KEY__', '(\\S+?)')
+            ,'');
+        },
+        
+        joinTextNodes = function( nodes ) {
+            var txt = '', i, l = nodes.length;
+            for (i=0; i<l; i++) txt += nodes[i].nodeValue;
+            return txt;
+        },
+        
+        getKeyTextNodes = function( node, re_key ) {
+            var matchedNodes, matchedAtts, i, l, m, matched, n, a, key,
+                keyNode, aNodes, rest, stack, keyNodes = {}, keyAtts = {};
+            
+            if ( node )
+            {
+                // http://www.geeksforgeeks.org/inorder-tree-traversal-without-recursion/
+                /*
+                1) Create an empty stack S.
+                2) Initialize current node as root
+                3) Push the current node to S and set current = current->left until current is NULL
+                4) If current is NULL and stack is not empty then 
+                     a) Pop the top item from stack.
+                     b) Print the popped item, set current = current->right 
+                     c) Go to step 3.
+                5) If current is NULL and stack is empty then we are done.            
+                */
+                matchedNodes = [ ]; matchedAtts = [ ]; n = node;
+                if ( 3 === n.nodeType ) 
+                {
+                    if ( m=n./*data*/nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
+                }  
+                else if ( n.firstChild )
+                {
+                    stack = [ n=n.firstChild ];
+                    while ( stack.length ) 
+                    {
+                        if ( n.attributes && (l=n.attributes.length) ) 
+                        {
+                            for (i=0; i<l; i++)
+                            {
+                                a = n.attributes[ i ];
+                                if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m]);
+                            }
+                        }
+                        if ( n.firstChild ) stack.push( n=n.firstChild );
+                        else 
+                        {
+                            if ( 3 === n.nodeType && (m=n.nodeValue.match(re_key)) ) matchedNodes.push([n, m]);
+                            n = stack.pop( );
+                            while ( stack.length && !n.nextSibling ) n = stack.pop( );
+                            if ( n.nextSibling ) stack.push( n=n.nextSibling );
+                        }
+                    }
+                }
+                
+                for (i=0,l=matchedNodes.length; i<l; i++)
+                {
+                    matched = matchedNodes[ i ];
+                    rest = matched[0]; m = matched[1];
+                    do {
+                        key = m[1]; 
+                        keyNode = rest.splitText( m.index );
+                        rest = keyNode.splitText( m[0].length );
+                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                        m = rest.nodeValue.match( re_key );
+                    } while ( m );
+                }
+                
+                for (i=0,l=matchedAtts.length; i<l; i++)
+                {
+                    matched = matchedAtts[ i ];
+                    a = matched[0]; m = matched[1]; rest = getTextNode( a.nodeValue ); aNodes = [ rest ];
+                    do {
+                        key = m[1]; 
+                        keyNode = rest.splitText( m.index );
+                        rest = keyNode.splitText( m[0].length );
+                        aNodes.push( keyNode ); aNodes.push( rest );
+                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes] );
+                        m = rest.nodeValue.match( re_key );
+                    } while ( m );
+                }
+            }
+            return [keyNodes, keyAtts];
+        },
+        
+        /*logNodes = function( keyNodes ) {
+            var k, nodes, l, i;
+            for (k in keyNodes)
+            {
+                nodes = keyNodes[k]; 
+                console.log('Key = ' + k);
+                console.log('Nodes: ');
+                if ( nodes )
+                {
+                    l = nodes.length;
+                    for (i=0; i<l; i++)
+                    {
+                        console.log(nodes[i].data);
+                    }
+                    
+                }
+            }
+        },*/
+        
         getSelectors = function( bind, autobind, exact ) {
             return [
                 bind ? '[' + bind + ']' : null,
@@ -1804,6 +1925,73 @@
                 // call default action (ie: live update)
                 view.do_bind( evt, $el, {name:name, key:key, value:value} );
             });
+        },
+        
+        doDOMLiveUpdateAction = function( view, key, val ) {
+            var model = view.$model, 
+                keyNodes = view.$keynodes[0], keyAtts = view.$keynodes[1],
+                i, nodes, l, keys, k, kk, kl;
+            if ( key )
+            {
+                // text nodes
+                if ( (nodes=keyNodes[key]) )
+                {
+                    val = '' + val;
+                    for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
+                }
+                // element attributes
+                if ( (nodes=keyAtts[key]) )
+                {
+                    for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                }
+                // text nodes
+                keys = Keys(keyNodes);
+                for (k=0,kl=keys.length; k<kl; k++)
+                {
+                    kk = keys[k];
+                    if ( key === kk ) continue;
+                    if ( kk.sW( key ) && (nodes=keyNodes[kk]).length )
+                    {
+                        val = '' + model.get( kk );
+                        for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
+                    }
+                }
+                // element attributes
+                keys = Keys(keyAtts);
+                for (k=0,kl=keys.length; k<kl; k++)
+                {
+                    kk = keys[k];
+                    if ( key === kk ) continue;
+                    if ( kk.sW( key ) && (nodes=keyAtts[kk]).length )
+                    {
+                        for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                    }
+                }
+            }
+            else
+            {
+                // text nodes
+                keys = Keys(keyNodes);
+                for (k=0,kl=keys.length; k<kl; k++)
+                {
+                    kk = keys[k];
+                    if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
+                    {
+                        val = '' + model.get( kk );
+                        for (i=0; i<l; i++) nodes[i].nodeValue = val;
+                    }
+                }
+                // element attributes
+                keys = Keys(keyAtts);
+                for (k=0,kl=keys.length; k<kl; k++)
+                {
+                    kk = keys[k];
+                    if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
+                    {
+                        for (i=0; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                    }
+                }
+            }
         }
     ;
     
@@ -1823,7 +2011,7 @@
         view.$memoize = new Cache( cacheSize, refreshInterval );
         view.$selectors = new Cache( cacheSize, refreshInterval );
         view.$bind = view.attribute( "bind" );
-        view.model( model || new Model( ) ).initPubSub( );
+        view.inlineTplFormat( '$(__KEY__)' ).model( model || new Model( ) ).initPubSub( );
     };
     // STATIC
     View._CACHE_SIZE = 600;
@@ -1843,6 +2031,8 @@
         ,$atts: null
         ,$memoize: null
         ,$selectors: null
+        ,$keynodes: null
+        ,$inlineTplFormat: null
         
         ,dispose: function( ) {
             var view = this;
@@ -1857,6 +2047,8 @@
             view.$memoize = null;
             view.$selectors.dispose( );
             view.$selectors = null;
+            view.$keynodes = null;
+            view.$inlineTplFormat = null;
             return view;
         }
         
@@ -1879,6 +2071,11 @@
                 return view;
             }
             return type ? (view.$atts[ type ] || undef) : undef;
+        }
+        
+        ,inlineTplFormat: function( format ) {
+            this.$inlineTplFormat = format;
+            return this;
         }
         
         ,template: function( renderer ) {
@@ -2128,6 +2325,8 @@
                 evt.length && view.onTo( model, evt, view[ method ], view.namespace );
             }
             
+            view.$keynodes = getKeyTextNodes( view.$dom[0], getInlineTplRE( view.$inlineTplFormat ) );
+            //logNodes(view.$keynodes);
             return view;
         }
         
@@ -2156,6 +2355,8 @@
             // model events
             view.offFrom( model, '', null, view.namespace );
             
+            view.$keynodes = null;
+            
             return view;
         }
         
@@ -2174,6 +2375,9 @@
             
             $dom = $dom ? $($dom) : view.$dom;
             doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
+            
+            doDOMLiveUpdateAction( view );
+            
             if ( view.$autobind /*&& view.do_bind*/ )
                 doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
             return view;
@@ -2248,6 +2452,7 @@
             var view = this, model = view.$model,
                 selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
                 bindElements, autoBindElements, autobind = view.$autobind
+                //,keyNodes = view.$keynodes
             ;
             
             bindElements = view.get( selectors[ 0 ] );
@@ -2266,6 +2471,8 @@
             // do view action first
             doAction( view, bindElements, evt, data );
             
+            doDOMLiveUpdateAction( view, data.key, data.value );
+            
             if ( autobind && autoBindElements.length /*&& view.do_bind*/ )
                 // do view autobind action to bind input elements that map to the model, afterwards
                 doAutoBindAction( view, autoBindElements, evt, data );
@@ -2280,6 +2487,9 @@
             
             // do view bind action first
             doAction( view, view.get( selectors[ 0 ] ), evt, data );
+            
+            doDOMLiveUpdateAction( view, data.key, data.value );
+            
             if ( view.$autobind /*&& view.do_bind*/ )
                 // do view autobind action to bind input elements that map to the model, afterwards
                 doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
@@ -2520,7 +2730,7 @@
     // export it
     exports['ModelView'] = {
     
-        VERSION: "0.26.4"
+        VERSION: "0.30"
         
         ,UUID: uuid
         
@@ -2541,7 +2751,7 @@
 }(exports, jQuery);/**
 *
 *   ModelView.js (jQuery plugin, optional)
-*   @version: 0.26.4
+*   @version: 0.30
 *   @dependencies: jQuery
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
@@ -2572,6 +2782,7 @@
             ,autobind: false
             ,bindbubble: false
             ,bindAttribute: 'data-bind'
+            ,inlineTplFormat: '$(__KEY__)'
             ,cacheSize: View._CACHE_SIZE
             ,refreshInterval: View._REFRESH_INTERVAL
             
@@ -2708,6 +2919,7 @@
             // init view
             $dom.data( 'modelview', view );
             view
+                .inlineTplFormat( options.inlineTplFormat )
                 .bindbubble( options.bindbubble )
                 .autobind( options.autobind )
                 .bind( options.events, $dom )

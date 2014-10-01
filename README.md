@@ -1,10 +1,10 @@
 modelview.js
 ============
 
-A simple / extendable / light-weight (~25 kB minified, ~9kB gzipped) mv* (MVVM) framework based on jQuery
+A simple / extendable / light-weight (~30 kB minified, ~10kB gzipped) mv* (MVVM) framework based on jQuery
 
 
-**Version 0.26.4**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.30**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -33,18 +33,15 @@ A simple / extendable / light-weight (~25 kB minified, ~9kB gzipped) mv* (MVVM) 
 
 
 ```html
-
 <div id="screen">
-    Hello <span data-bind='{"text":"msg"}'></span> &nbsp;&nbsp;(updated live on <i>change</i>)
+    Hello $(msg) &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" data-bind='{"text":"alert_msg","click":"alert_msg"}'></button>
+    <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
 </div>
-
 ```
 
 ```javascript
-
 // jQuery is a dependency
 $('#screen').modelview({
     
@@ -52,6 +49,7 @@ $('#screen').modelview({
     
     autobind: true,
     bindAttribute: 'data-bind',
+    inlineTplFormat: '$(__KEY__)',
     events: [ 'change', 'click' ],
     
     model: {
@@ -59,8 +57,7 @@ $('#screen').modelview({
         
         data: {
             // model data here ..
-            msg: 'World!',
-            alert_msg: 'Alert Message'
+            msg: 'World!'
         },
         
         types: {
@@ -78,13 +75,14 @@ $('#screen').modelview({
         // custom view actions (if any) here ..
         alert_msg: function( evt, $el, bindData ) {
             alert( this.model().get('msg') );
+            // this also works
+            //alert( this.$model.get('msg') );
         }
     }
 
 });
 // sync model to view
 $('#screen').modelview('sync');
-
 ```
 
 
