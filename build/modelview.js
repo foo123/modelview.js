@@ -1787,6 +1787,14 @@
                 5) If current is NULL and stack is empty then we are done.            
                 */
                 matchedNodes = [ ]; matchedAtts = [ ]; n = node;
+                if ( n.attributes && (l=n.attributes.length) ) 
+                {
+                    for (i=0; i<l; i++)
+                    {
+                        a = n.attributes[ i ];
+                        if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m]);
+                    }
+                }
                 if ( 3 === n.nodeType ) 
                 {
                     if ( m=n./*data*/nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
