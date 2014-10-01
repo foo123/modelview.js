@@ -544,7 +544,7 @@
             // http://jsperf.com/regex-vs-indexof-with-and-without-char
             // http://jsperf.com/split-vs-test-and-split
             // test and split (if needed) is fastest
-            if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.value) ) )
+            if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.val) ) )
             {
                 // handle single key fast
                 return true;
@@ -565,7 +565,7 @@
             if ( 0 > dottedKey.indexOf('.') )
             {
                 // handle single key fast
-                if ( !RAW && (r=model.$getters[dottedKey]) && r.value ) return r.value( dottedKey );
+                if ( !RAW && (r=model.$getters[dottedKey]) && r.val ) return r.val( dottedKey );
                 return model.$data[ dottedKey ];
             }
             else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
@@ -602,9 +602,9 @@
             {
                 // handle single key fast
                 k = dottedKey;
-                setter = (r=setters[k]) ? r.value : null;
-                type = (r=types[k] || types[WILDCARD]) ? r.value : null;
-                validator = (r=validators[k] || validators[WILDCARD]) ? r.value : null;
+                setter = (r=setters[k]) ? r.val : null;
+                type = (r=types[k] || types[WILDCARD]) ? r.val : null;
+                validator = (r=validators[k] || validators[WILDCARD]) ? r.val : null;
                 canSet = true;
             }
             else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
@@ -726,9 +726,9 @@
             {
                 // handle single key fast
                 k = dottedKey;
-                setter = (r=setters[k]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
-                type = (r=types[k] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
-                validator = (r=validators[k] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].value : null;
+                setter = (r=setters[k]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
+                type = (r=types[k] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
+                validator = (r=validators[k] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
                 canSet = true;
             }
             else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )

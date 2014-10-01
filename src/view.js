@@ -13,9 +13,11 @@
             return txt;
         },
         
-        getKeyTextNodes = function( node, re_key ) {
+        getKeyTextNodes = function( node, re_key, hash ) {
+            hash = hash || [null, null];
             var matchedNodes, matchedAtts, i, l, m, matched, n, a, key,
-                keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes = {}, keyAtts = {};
+                keyNode, aNodes, aNodesCached, txt, rest, stack, 
+                keyNodes = hash[0] || {}, keyAtts = hash[1] || {};
             
             if ( node )
             {
@@ -109,7 +111,9 @@
                     }
                 }
             }
-            return [keyNodes, keyAtts];
+            hash[0] = keyNodes;
+            hash[1] = keyAtts;
+            return hash;
         },
         
         /*logNodes = function( keyNodes ) {
