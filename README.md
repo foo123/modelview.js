@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / light-weight (~30 kB minified, ~10kB gzipped) mv* (MVVM) framework based on jQuery
 
 
-**Version 0.30.1**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.30.2**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -81,9 +81,10 @@ $('#screen').modelview({
     }
 
 });
-// sync model to view
-$('#screen').modelview('sync');
 ```
+
+[ModelView Temperature example on jsfiddle](http://jsfiddle.net/foo123/ksvovj7u/) based on the example post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
+
 
 
 ####Live Examples

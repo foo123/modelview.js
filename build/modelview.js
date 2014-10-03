@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.30.1
-*   @dependencies: jQuery
+*   @version: 0.30.2
+*   @dependencies: jQuery, jQueryUI (optional)
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -137,8 +137,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.30.1
-*   @dependencies: jQuery
+*   @version: 0.30.2
+*   @dependencies: jQuery, jQueryUI (optional)
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -2756,7 +2756,7 @@
     // export it
     exports['ModelView'] = {
     
-        VERSION: "0.30.1"
+        VERSION: "0.30.2"
         
         ,UUID: uuid
         
@@ -2777,8 +2777,8 @@
 }(exports, jQuery);/**
 *
 *   ModelView.js (jQuery plugin, optional)
-*   @version: 0.30.1
-*   @dependencies: jQuery
+*   @version: 0.30.2
+*   @dependencies: jQuery, jQueryUI (optional)
 *
 *   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -2804,7 +2804,7 @@
             ,modelClass: Model
             
             ,id: 'view'
-            
+            ,autoSync: true
             ,autobind: false
             ,bindbubble: false
             ,bindAttribute: 'data-bind'
@@ -2949,13 +2949,47 @@
                 .bindbubble( options.bindbubble )
                 .autobind( options.autobind )
                 .bind( options.events, $dom )
-                //.sync( )
             ;
+            if ( options.autoSync ) view.sync( );
         });
         
         // chainable or values return
         return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
     };
+    
+    // add modelview as a jQueryUI widget as well if jQueryuI is loaded
+    // to create stateful self-contained MVC widgets (e.g calendar etc..)
+    if ( $.widget )
+    {
+        $.widget( 'ModelView', {
+            
+            options: { },
+            
+            $view: null,
+            
+            _create: function() {
+                var self = this;
+                self.element.modelview( self.options );
+                self.$view = self.element.modelview( 'view' );
+            },
+            
+            value: function( k, v ) {
+                var self = this;
+                if ( 1 < arguments.length ) 
+                {
+                    self.$view.$model.set( k, v, true );
+                    return self.element;
+                }
+                return self.$view.$model.get( k );
+            },
+            
+            _destroy: function() {
+                var self = this.
+                self.$view = null;
+                self.element.modelview( 'dispose' );
+            }
+        });
+    }
 
 }(exports['ModelView'], jQuery);
     
