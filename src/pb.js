@@ -1,8 +1,10 @@
 //
 // PublishSubscribe (Interface)
-var PBEvent = function( evt, namespace ) {
-    if ( !(this instanceof PBEvent) ) return new PBEvent( evt, namespace );
+var PBEvent = function( evt, target, namespace ) {
+    if ( !(this instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
     this.type = evt;
+    this.target = target;
+    this.originalTarget = target;
     this.namespace = namespace || null;
 };
 var PublishSubscribe = {
@@ -25,7 +27,7 @@ var PublishSubscribe = {
         var self = this, PB = self.$PB, queue, i, l;
         if ( (queue=PB[evt]) && (l=queue.length) )
         {
-            evt = PBEvent( evt );
+            evt = PBEvent( evt, self );
             for (i=0; i<l; i++) queue[ i ]( evt, data );
         }
         return self;
