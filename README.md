@@ -18,6 +18,7 @@ A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM)
 ###Contents
 
 * [Hello World](#hello-world)
+* [Browser Support](#browser-support)
 * [Live Examples](#live-examples)
 * [MV* Patterns and MVVM](#mv-patterns-and-mvvm)
 * [ModelView.js](#modelviewjs-1)
@@ -114,11 +115,22 @@ $('#screen').modelview({
 });
 ```
 
-[ModelView Temperature example on jsfiddle](http://jsfiddle.net/foo123/ksvovj7u/) based on the example post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
+####Browser Support
+
+for ModelView 0.30+ (using native)
+
+* Firefox 4+
+* Chrome 4+
+* Opera 10+
+* IE 10+
+
+for ModelView <= 0.26 (using jQuery) browser support is same as basic jQuery support
 
 
 
 ####Live Examples
+
+[ModelView Temperature example on jsfiddle](http://jsfiddle.net/foo123/ksvovj7u/) based on the example post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
 
 [ModelView TodoMVC example](https://foo123.github.io/examples/modelview-todomvc) (with routing and localStorage support)
 

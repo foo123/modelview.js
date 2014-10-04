@@ -1,11 +1,39 @@
 //
 // PublishSubscribe (Interface)
+var 
+    CAPTURING_PHASE                = 1,
+    AT_TARGET                      = 2,
+    BUBBLING_PHASE                 = 3;
 var PBEvent = function( evt, target, namespace ) {
-    if ( !(this instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
-    this.type = evt;
-    this.target = target;
-    this.originalTarget = target;
-    this.namespace = namespace || null;
+    var self = this;
+    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
+    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+    self.type = evt;
+    self.target = target;
+    self.currentTarget = target;
+    self.timeStamp = NOW( );
+    self.eventPhase = AT_TARGET;
+    self.bubbles = false;
+    self.cancelable = false;
+    self.namespace = namespace || null;
+};
+PBEvent[proto] = {
+    constructor: PBEvent,
+    
+    type: null,
+    target: null,
+    currentTarget: null,
+    timeStamp: null,
+    eventPhase: AT_TARGET,
+    bubbles: false,
+    cancelable: false,
+    namespace: null,
+    
+    stopPropagation: function( ) {
+        this.bubbles = false;
+    },
+    preventDefault: function( ) {
+    }
 };
 var PublishSubscribe = {
 

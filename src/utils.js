@@ -14,7 +14,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
     
-    is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
+    is_instance = function( o, T ){ return o instanceof T; },
     
     newFunc = function( args, code ){ return new Func(args, code); },
     
@@ -77,23 +77,18 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
     // http://youmightnotneedjquery.com/
-    get_by_selector = function( selector, el ) {
-        return AP.slice.call( (el || document).querySelectorAll( selector ), 0 );
+    $id = function( id, el ) {
+        return [ (el || document).getElementById( id ) ];
     },
-    get_selector = function( selector, el ) {
-        return [ (el || document).querySelector( selector ) ];
-    },
-    get_by_tagname = function( tagname, el ) {
+    $tag = function( tagname, el ) {
         return AP.slice.call( (el || document).getElementsByTagName( tagname ), 0 );
     },
-    /*get_by_classname = function( classes, el ) {
-        el = el || document;
-        return AP.slice.call( el.getElementsByClassName( classes ), 0 );
+    $sel = function( selector, el, single ) {
+        return true === single 
+            ? [ (el || document).querySelector( selector ) ]
+            : AP.slice.call( (el || document).querySelectorAll( selector ), 0 )
+        ;
     },
-    get_by_id = function( id, el ) {
-        el = el || document;
-        return [ el.getElementById( id ) ];
-    },*/
     
     // http://youmightnotneedjquery.com/
     matches = (function( P ) {
@@ -125,16 +120,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el._displayCached ) el._displayCached = get_style( el ).display || 'block';
         el[STYLE].display = 'none';
     },
-    
-    /*INPUT_SELECT_TEXTAREA = 'input|select|textarea|INPUT|SELECT|TEXTAREA',
-    
-    is_input_element = function( el ) {
-        return -1 < INPUT_SELECT_TEXTAREA.indexOf( el[TAG] );
-    },
-    
-    element_is = function( el, check, what ) {
-        return what === el[check];
-    },*/
     
     opt_val = function( o ) {
         // attributes.value is undefined in Blackberry 4.7 but
@@ -177,7 +162,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     select_set = function( el, v ) {
         var values = [ ].concat( v ).map( tostr ), 
-            options = el[OPTIONS],//el.getElementsByTagName('option'), 
+            options = el[OPTIONS],
             opt, i, sel_index = -1
         ;
         
@@ -185,7 +170,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             opt = options[ i ];
             opt[SELECTED] = -1 < values.indexOf( opt_val( opt ) );
-            //if ( opt[SELECTED] ) sel_index = i;
         }
         if ( !values.length ) el[SELECTED_INDEX] = -1;
     },
@@ -194,7 +178,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG].toLowerCase( ) )
         {
-            case 'textarea':case 'input': return el[VAL/*HTML*/];
+            case 'textarea':case 'input': return el[VAL];
             case 'select': return select_get( el );
             default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
         }
@@ -204,7 +188,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG].toLowerCase( ) )
         {
-            case 'textarea':case 'input': el[VAL/*HTML*/] = Str(v); break;
+            case 'textarea':case 'input': el[VAL] = Str(v); break;
             case 'select': select_set( el, v ); break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
@@ -213,17 +197,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
     
-    // http://stackoverflow.com/a/683429/3591273
-    /*empty = function( el ) {
-        while ( el.firstChild ) el.removeChild( el.firstChild );
-        el.textContent = "";
-    },*/
-
     fromJSON = JSON.parse, toJSON = JSON.stringify,
-    
-    // http://www.sitepoint.com/jquery-vs-raw-javascript-1-dom-forms/
-    //SELECT = 'querySelectorAll', SELECT_FIRST = 'querySelector', BY_ID = 'getElementById',
-    //BY_TAG = 'getElementsByTagName', BY_CLASS = 'getElementsByClassName',
     
     NOW = function( ) { return new Date( ).getTime( ); }
 ;
@@ -316,12 +290,12 @@ var
         return null;
     },
     
-    walkadd = function( v, p, obj, isCollectionEach/*, isKeyNode*/ ) {
+    walkadd = function( v, p, obj, isCollectionEach ) {
         var o = obj, k;
         while ( p.length )
         {
             k = p.shift( );
-            if ( !(k in o) ) o[ k ] = new Node( ); //{ value: null, next: {} };
+            if ( !(k in o) ) o[ k ] = new Node( );
             o = o[ k ];
             if ( p.length ) 
             {
@@ -329,13 +303,9 @@ var
             }
             else 
             {
-                /*if ( isKeyNode )
+                if ( isCollectionEach )
                 {
-                    (o.val=o.val||[]).push(v);
-                }
-                else */if ( isCollectionEach )
-                {
-                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( ); //{ value: null, next: {} };
+                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( );
                     o.next[ WILDCARD ].val = v;
                 }
                 else

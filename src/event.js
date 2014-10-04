@@ -89,6 +89,7 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
         }
     });
 
+    
     // CustomEvent
     Object.defineProperty(Window[proto], "CustomEvent", {
         get: function () {
@@ -98,6 +99,7 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
                 var event = self.document.createEventObject(), key;
 
                 event.type = type;
+                eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
                 for (key in eventInitDict) {
                     if (key == 'cancelable'){
                         event.returnValue = !eventInitDict.cancelable;
@@ -111,20 +113,6 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
             };
         }
     });
-    /*
-    // ready
-    function ready(event) {
-        if (ready.interval && document.body) {
-            ready.interval = clearInterval(ready.interval);
-
-            document.dispatchEvent(new CustomEvent("DOMContentLoaded"));
-        }
-    }
-
-    ready.interval = setInterval(ready, 1);
-
-    window.addEventListener("load", ready);
-    */
 }( );
 
 if ( !this.CustomEvent ) 
@@ -147,24 +135,7 @@ if ( !this.CustomEvent )
         return event;
     };
 }( );
-/*
-// adapted from jQuery
-if ( !Event[proto].isPropagationStopped )
-{
-    function returnTrue( ){ return true; }
-    function returnFalse( ){ return false; }
-    var orStop = Event[proto].stopPropagation, orImmediateStop = Event[proto].stopImmediatePropagation;
-    Event[proto].isPropagationStopped = returnFalse;
-    Event[proto].stopPropagation = function( ) {
-        this.isPropagationStopped = returnTrue;
-        orStop.call(this);
-    };
-    Event[proto].stopImmediatePropagation = function( ) {
-        this.isPropagationStopped = returnTrue;
-        orImmediateStop.call(this);
-    };
-}
-*/
+
 // adapted from https://github.com/ftlabs/ftdomdelegate
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'load', 'resize', 'scroll']
@@ -317,17 +288,7 @@ DOMEvent[proto] = {
 
         self.$element = el;
         el.$listeners = el.$listeners || [{}, {}];
-        /*
-        listeners = el.$listeners;
-        // Set up master event listeners
-        eventTypes = Keys( listeners[1] );
-        for (k=0; k<eventTypes.length; k++ )
-            el.addEventListener( eventTypes[k], self.$handle, true );
-        
-        eventTypes = Keys( listeners[0] );
-        for (k=0; k<eventTypes.length; k++ )
-            el.addEventListener( eventTypes[k], self.$handle, false );
-        */
+
         return self;
     },
 

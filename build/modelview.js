@@ -68,7 +68,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
     
-    is_instance = function( o, T ){ return o instanceof T; }, //typeOff = function( v ){ return typeof(v); },
+    is_instance = function( o, T ){ return o instanceof T; },
     
     newFunc = function( args, code ){ return new Func(args, code); },
     
@@ -131,23 +131,18 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
     // http://youmightnotneedjquery.com/
-    get_by_selector = function( selector, el ) {
-        return AP.slice.call( (el || document).querySelectorAll( selector ), 0 );
+    $id = function( id, el ) {
+        return [ (el || document).getElementById( id ) ];
     },
-    get_selector = function( selector, el ) {
-        return [ (el || document).querySelector( selector ) ];
-    },
-    get_by_tagname = function( tagname, el ) {
+    $tag = function( tagname, el ) {
         return AP.slice.call( (el || document).getElementsByTagName( tagname ), 0 );
     },
-    /*get_by_classname = function( classes, el ) {
-        el = el || document;
-        return AP.slice.call( el.getElementsByClassName( classes ), 0 );
+    $sel = function( selector, el, single ) {
+        return true === single 
+            ? [ (el || document).querySelector( selector ) ]
+            : AP.slice.call( (el || document).querySelectorAll( selector ), 0 )
+        ;
     },
-    get_by_id = function( id, el ) {
-        el = el || document;
-        return [ el.getElementById( id ) ];
-    },*/
     
     // http://youmightnotneedjquery.com/
     matches = (function( P ) {
@@ -179,16 +174,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el._displayCached ) el._displayCached = get_style( el ).display || 'block';
         el[STYLE].display = 'none';
     },
-    
-    /*INPUT_SELECT_TEXTAREA = 'input|select|textarea|INPUT|SELECT|TEXTAREA',
-    
-    is_input_element = function( el ) {
-        return -1 < INPUT_SELECT_TEXTAREA.indexOf( el[TAG] );
-    },
-    
-    element_is = function( el, check, what ) {
-        return what === el[check];
-    },*/
     
     opt_val = function( o ) {
         // attributes.value is undefined in Blackberry 4.7 but
@@ -231,7 +216,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     select_set = function( el, v ) {
         var values = [ ].concat( v ).map( tostr ), 
-            options = el[OPTIONS],//el.getElementsByTagName('option'), 
+            options = el[OPTIONS],
             opt, i, sel_index = -1
         ;
         
@@ -239,7 +224,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             opt = options[ i ];
             opt[SELECTED] = -1 < values.indexOf( opt_val( opt ) );
-            //if ( opt[SELECTED] ) sel_index = i;
         }
         if ( !values.length ) el[SELECTED_INDEX] = -1;
     },
@@ -248,7 +232,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG].toLowerCase( ) )
         {
-            case 'textarea':case 'input': return el[VAL/*HTML*/];
+            case 'textarea':case 'input': return el[VAL];
             case 'select': return select_get( el );
             default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
         }
@@ -258,7 +242,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG].toLowerCase( ) )
         {
-            case 'textarea':case 'input': el[VAL/*HTML*/] = Str(v); break;
+            case 'textarea':case 'input': el[VAL] = Str(v); break;
             case 'select': select_set( el, v ); break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
@@ -267,17 +251,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
     
-    // http://stackoverflow.com/a/683429/3591273
-    /*empty = function( el ) {
-        while ( el.firstChild ) el.removeChild( el.firstChild );
-        el.textContent = "";
-    },*/
-
     fromJSON = JSON.parse, toJSON = JSON.stringify,
-    
-    // http://www.sitepoint.com/jquery-vs-raw-javascript-1-dom-forms/
-    //SELECT = 'querySelectorAll', SELECT_FIRST = 'querySelector', BY_ID = 'getElementById',
-    //BY_TAG = 'getElementsByTagName', BY_CLASS = 'getElementsByClassName',
     
     NOW = function( ) { return new Date( ).getTime( ); }
 ;
@@ -370,12 +344,12 @@ var
         return null;
     },
     
-    walkadd = function( v, p, obj, isCollectionEach/*, isKeyNode*/ ) {
+    walkadd = function( v, p, obj, isCollectionEach ) {
         var o = obj, k;
         while ( p.length )
         {
             k = p.shift( );
-            if ( !(k in o) ) o[ k ] = new Node( ); //{ value: null, next: {} };
+            if ( !(k in o) ) o[ k ] = new Node( );
             o = o[ k ];
             if ( p.length ) 
             {
@@ -383,13 +357,9 @@ var
             }
             else 
             {
-                /*if ( isKeyNode )
+                if ( isCollectionEach )
                 {
-                    (o.val=o.val||[]).push(v);
-                }
-                else */if ( isCollectionEach )
-                {
-                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( ); //{ value: null, next: {} };
+                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( );
                     o.next[ WILDCARD ].val = v;
                 }
                 else
@@ -614,6 +584,7 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
         }
     });
 
+    
     // CustomEvent
     Object.defineProperty(Window[proto], "CustomEvent", {
         get: function () {
@@ -623,6 +594,7 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
                 var event = self.document.createEventObject(), key;
 
                 event.type = type;
+                eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
                 for (key in eventInitDict) {
                     if (key == 'cancelable'){
                         event.returnValue = !eventInitDict.cancelable;
@@ -636,20 +608,6 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
             };
         }
     });
-    /*
-    // ready
-    function ready(event) {
-        if (ready.interval && document.body) {
-            ready.interval = clearInterval(ready.interval);
-
-            document.dispatchEvent(new CustomEvent("DOMContentLoaded"));
-        }
-    }
-
-    ready.interval = setInterval(ready, 1);
-
-    window.addEventListener("load", ready);
-    */
 }( );
 
 if ( !this.CustomEvent ) 
@@ -672,24 +630,7 @@ if ( !this.CustomEvent )
         return event;
     };
 }( );
-/*
-// adapted from jQuery
-if ( !Event[proto].isPropagationStopped )
-{
-    function returnTrue( ){ return true; }
-    function returnFalse( ){ return false; }
-    var orStop = Event[proto].stopPropagation, orImmediateStop = Event[proto].stopImmediatePropagation;
-    Event[proto].isPropagationStopped = returnFalse;
-    Event[proto].stopPropagation = function( ) {
-        this.isPropagationStopped = returnTrue;
-        orStop.call(this);
-    };
-    Event[proto].stopImmediatePropagation = function( ) {
-        this.isPropagationStopped = returnTrue;
-        orImmediateStop.call(this);
-    };
-}
-*/
+
 // adapted from https://github.com/ftlabs/ftdomdelegate
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'load', 'resize', 'scroll']
@@ -842,17 +783,7 @@ DOMEvent[proto] = {
 
         self.$element = el;
         el.$listeners = el.$listeners || [{}, {}];
-        /*
-        listeners = el.$listeners;
-        // Set up master event listeners
-        eventTypes = Keys( listeners[1] );
-        for (k=0; k<eventTypes.length; k++ )
-            el.addEventListener( eventTypes[k], self.$handle, true );
-        
-        eventTypes = Keys( listeners[0] );
-        for (k=0; k<eventTypes.length; k++ )
-            el.addEventListener( eventTypes[k], self.$handle, false );
-        */
+
         return self;
     },
 
@@ -1045,12 +976,40 @@ DOMEvent[proto] = {
     }
 };//
 // PublishSubscribe (Interface)
+var 
+    CAPTURING_PHASE                = 1,
+    AT_TARGET                      = 2,
+    BUBBLING_PHASE                 = 3;
 var PBEvent = function( evt, target, namespace ) {
-    if ( !(this instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
-    this.type = evt;
-    this.target = target;
-    this.originalTarget = target;
-    this.namespace = namespace || null;
+    var self = this;
+    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
+    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+    self.type = evt;
+    self.target = target;
+    self.currentTarget = target;
+    self.timeStamp = NOW( );
+    self.eventPhase = AT_TARGET;
+    self.bubbles = false;
+    self.cancelable = false;
+    self.namespace = namespace || null;
+};
+PBEvent[proto] = {
+    constructor: PBEvent,
+    
+    type: null,
+    target: null,
+    currentTarget: null,
+    timeStamp: null,
+    eventPhase: AT_TARGET,
+    bubbles: false,
+    cancelable: false,
+    namespace: null,
+    
+    stopPropagation: function( ) {
+        this.bubbles = false;
+    },
+    preventDefault: function( ) {
+    }
 };
 var PublishSubscribe = {
 
@@ -2299,7 +2258,7 @@ var
             }
             if ( 3 === n.nodeType ) 
             {
-                if ( m=n./*data*/nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
+                if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
             }  
             else if ( n.firstChild )
             {
@@ -2647,10 +2606,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         $dom = $dom || view.$dom;
         
-        if ( bypass ) return get_by_selector( selector, $dom );
+        if ( bypass ) return $sel( selector, $dom );
         
         elements = selectorsCache.get( selector );
-        if ( !elements ) selectorsCache.set( selector, elements = get_by_selector( selector, $dom ) );
+        if ( !elements ) selectorsCache.set( selector, elements = $sel( selector, $dom ) );
         
         return elements;
     }
@@ -2663,7 +2622,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         // use memoization/caching
-        if ( /*el && attr &&*/ !!(attr=el[ATTR]( attr )) )
+        if ( !!(attr=el[ATTR]( attr )) )
         {
             attribute = memoizeCache.get( attr );
             
@@ -2751,15 +2710,6 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     attribute.options = undef;
                     delete attribute.options;
                 }
-                if ( attribute['class'] )
-                {
-                    if ( attribute.change && ("prop" == attribute.change.action) )
-                        attribute.change.prop["class"] = attribute['class'];
-                    else
-                        attribute.change = {action:"prop", prop:{"class":attribute['class']}};
-                    attribute['class'] = undef;
-                    delete attribute['class'];
-                }
                 
                 if ( (attbind=attribute.change) )
                 {
@@ -2779,7 +2729,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,getDomRef: function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ ref.sW("$this::") ) ? get_selector( ref.slice( 7 ), el ) : get_selector( ref );
+        return ( /*ref &&*/ ref.sW("$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
     }
     
     ,bind: function( events, dom ) {
@@ -2881,14 +2831,14 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,sync: function( $dom ) {
         var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
-            syncEvent = new CustomEvent('sync');
+            syncEvent = PBEvent('sync', view);
         
         $dom = $dom || view.$dom;
         doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
         
         doDOMLiveUpdateAction( view );
         
-        if ( view.$autobind /*&& view.do_bind*/ )
+        if ( view.$autobind )
             doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
         return view;
     }
@@ -3000,7 +2950,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         doDOMLiveUpdateAction( view, data.key, data.value );
         
-        if ( view.$autobind /*&& view.do_bind*/ )
+        if ( view.$autobind )
             // do view autobind action to bind input elements that map to the model, afterwards
             doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
     }
@@ -3042,10 +2992,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     if ( 'select' === el[TAG] && (T_ARRAY === vT) )
                     {
                         var sel, ii, vl = v.length,
-                            _options = '', group = get_by_tagname( 'optgroup', el );
+                            _options = '', group = $tag( 'optgroup', el );
                         sel = select_get( el ); // get selected value
                         group = group.length ? group[ 0 ] : el;
-                        get_by_tagname( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                        $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
                         for (ii=0; ii<vl; ii++)
                         {
                             if ( v[ii] && v[ii].label )
@@ -3057,17 +3007,6 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         select_set( el, sel ); // select the appropriate option
                     }
                     break;
-                
-                /*case 'class':
-                    if ( v && v.length )
-                    {
-                        var v0 = v.charAt( 0 ), hasClass;
-                        if ( '-' == v0 ) $el.removeClass( v.slice( 1 ) );
-                        else if ( '+' == v0 ) $el.addClass( v.slice( 1 ) );
-                        else if ( (hasClass=$el.hasClass( v )) ) $el.removeClass( v );
-                        else if ( !hasClass ) $el.addClass( v );
-                    }
-                    break;*/
                 
                 default:
                     el[SET_ATTR](p, v);

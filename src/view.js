@@ -43,7 +43,7 @@ var
             }
             if ( 3 === n.nodeType ) 
             {
-                if ( m=n./*data*/nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
+                if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
             }  
             else if ( n.firstChild )
             {
@@ -391,10 +391,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         $dom = $dom || view.$dom;
         
-        if ( bypass ) return get_by_selector( selector, $dom );
+        if ( bypass ) return $sel( selector, $dom );
         
         elements = selectorsCache.get( selector );
-        if ( !elements ) selectorsCache.set( selector, elements = get_by_selector( selector, $dom ) );
+        if ( !elements ) selectorsCache.set( selector, elements = $sel( selector, $dom ) );
         
         return elements;
     }
@@ -407,7 +407,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         // use memoization/caching
-        if ( /*el && attr &&*/ !!(attr=el[ATTR]( attr )) )
+        if ( !!(attr=el[ATTR]( attr )) )
         {
             attribute = memoizeCache.get( attr );
             
@@ -495,15 +495,6 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     attribute.options = undef;
                     delete attribute.options;
                 }
-                if ( attribute['class'] )
-                {
-                    if ( attribute.change && ("prop" == attribute.change.action) )
-                        attribute.change.prop["class"] = attribute['class'];
-                    else
-                        attribute.change = {action:"prop", prop:{"class":attribute['class']}};
-                    attribute['class'] = undef;
-                    delete attribute['class'];
-                }
                 
                 if ( (attbind=attribute.change) )
                 {
@@ -523,7 +514,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,getDomRef: function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ ref.sW("$this::") ) ? get_selector( ref.slice( 7 ), el ) : get_selector( ref );
+        return ( /*ref &&*/ ref.sW("$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
     }
     
     ,bind: function( events, dom ) {
@@ -625,14 +616,14 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,sync: function( $dom ) {
         var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
-            syncEvent = new CustomEvent('sync');
+            syncEvent = PBEvent('sync', view);
         
         $dom = $dom || view.$dom;
         doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
         
         doDOMLiveUpdateAction( view );
         
-        if ( view.$autobind /*&& view.do_bind*/ )
+        if ( view.$autobind )
             doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
         return view;
     }
@@ -744,7 +735,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         doDOMLiveUpdateAction( view, data.key, data.value );
         
-        if ( view.$autobind /*&& view.do_bind*/ )
+        if ( view.$autobind )
             // do view autobind action to bind input elements that map to the model, afterwards
             doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
     }
@@ -786,10 +777,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     if ( 'select' === el[TAG] && (T_ARRAY === vT) )
                     {
                         var sel, ii, vl = v.length,
-                            _options = '', group = get_by_tagname( 'optgroup', el );
+                            _options = '', group = $tag( 'optgroup', el );
                         sel = select_get( el ); // get selected value
                         group = group.length ? group[ 0 ] : el;
-                        get_by_tagname( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                        $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
                         for (ii=0; ii<vl; ii++)
                         {
                             if ( v[ii] && v[ii].label )
@@ -801,17 +792,6 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         select_set( el, sel ); // select the appropriate option
                     }
                     break;
-                
-                /*case 'class':
-                    if ( v && v.length )
-                    {
-                        var v0 = v.charAt( 0 ), hasClass;
-                        if ( '-' == v0 ) $el.removeClass( v.slice( 1 ) );
-                        else if ( '+' == v0 ) $el.addClass( v.slice( 1 ) );
-                        else if ( (hasClass=$el.hasClass( v )) ) $el.removeClass( v );
-                        else if ( !hasClass ) $el.addClass( v );
-                    }
-                    break;*/
                 
                 default:
                     el[SET_ATTR](p, v);
