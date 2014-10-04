@@ -1,10 +1,10 @@
 modelview.js
 ============
 
-A simple / extendable / light-weight (~30 kB minified, ~10kB gzipped) mv* (MVVM) framework based on jQuery
+A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin as well)
 
 
-**Version 0.30.2**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.40**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -42,9 +42,39 @@ A simple / extendable / light-weight (~30 kB minified, ~10kB gzipped) mv* (MVVM)
 ```
 
 ```javascript
-// jQuery is a dependency
+// standalone
+
+new ModelView.View('view', 
+    new ModelView.Model('model', 
+    // model data here ..
+    { msg: 'World!' },
+    // model data type-casters (if any) here ..
+    { msg: ModelView.Type.Cast.STR },
+    // model data validators (if any) here ..
+    { msg: ModelView.Validation.Validate.NOT_EMPTY }
+    ),
+    {bind: 'data-bind'}
+)
+.action('alert_msg', function( evt, el, bindData ) {
+    alert( this.$model.get('msg') );
+    // this also works
+    //alert( this.model().get('msg') );
+    // or even this, if you want the raw data without any processing
+    //alert( this.$model.$data.msg );
+})
+.autobind( true )
+.bind( [ 'change', 'click' ], document.getElementById('screen') )
+.sync( )
+;
+```
+
+```javascript
+// as a jQuery plugin/widget
+
+// make sure the modelview jQuery plugin is added if not already
+if ( ModelView.jquery ) ModelView.jquery( $ );
+
 $('#screen').modelview({
-    
     id: 'view',
     
     autobind: true,
@@ -73,13 +103,14 @@ $('#screen').modelview({
     
     actions: {
         // custom view actions (if any) here ..
-        alert_msg: function( evt, $el, bindData ) {
-            alert( this.model().get('msg') );
+        alert_msg: function( evt, el, bindData ) {
+            alert( this.$model.get('msg') );
             // this also works
-            //alert( this.$model.get('msg') );
+            //alert( this.model().get('msg') );
+            // or even this, if you want the raw data without any processing
+            //alert( this.$model.$data.msg );
         }
     }
-
 });
 ```
 
@@ -225,9 +256,11 @@ Inspired mainly by Knockoutjs, Agility and Backbone.js, it is an attempt to comb
 modelview.js uses JSON format for declarative data binding which is relevant to web (and not only) development. Also modelview.js does not implement every possible interaction and action (some default actions are implemented nevertheless), but can easily define new subclasses of both model and view to have more functionality out of the box.
 
 
-Current work is focusing on (model) collections and using the **composite pattern** to define composite models and composite views (which can contain submodels and subviews). This way more complexity (especially collections of objects) can be handled in a more abstract, clean and generic way. Apart from that, current work extends the **type-casting**, **validation** framework in an *algebraic/functional* way, which makes more intuitive and easier to apply types and validation to model data.
+Current work is focusing on (model) collections and using the **composite pattern** to define composite models and composite views (which can contain submodels and subviews). This way more complexity (especially collections of objects) can be handled in a more abstract, clean and generic way. Apart from that, current work extends the **type-casting**, **validation** framework in an *algebraic/functional* way, which makes more intuitive and easier to apply types and validation to model data, see examples and updates.
 
-Also focus is on enabling dynamic templates (in an engine-agnostic way) directly inside the markup handled by modelview.js and dynamic data-bind update (this is sth that is already handled using 'data-bind' attributes, however it can become cumbersome)
+Also focusing on dynamic templates (in an engine-agnostic way) directly inside the markup handled by modelview.js and dynamic data-bind update (this is sth that is already handled using 'data-bind: text' attributes, however it can become cumbersome), see examples and updates.
+
+jQuery DOM/Event dependency has been removed, ModelView can be used a standalone framework, however it provides a plugin (and widget) for jQuery (jQueryUI) for easy integration (see examples).
 
 
 ####Performance

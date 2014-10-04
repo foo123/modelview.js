@@ -1,6 +1,6 @@
 ####ModelView API
 
-**Version 0.30.2**
+**Version 0.40**
 
 
 **Model**
@@ -37,6 +37,12 @@ model.rem( dottedKey [, publish=false] );
 
 // shortcut to model publich change event for key (and nested keys)
 model.notify( dottedKey );
+
+// (experimental) shortcut to synchronise specific fields of this model to other fields of another model
+model.syncTo( otherModel, fieldsMap );
+
+// (experimental) shortcut to un-synchronise any fields of this model to other fields of another model
+model.unsyncFrom( otherModel );
 
 // add typecasters given in {dottedKey: typecaster} format
 model.types( typeCasters );
@@ -87,9 +93,9 @@ view.event( name, handler );
 view.autobind( [bool] );
 
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( events=['change', 'click'] [, dom=document] );
+view.bind( events=['change', 'click'] [, dom=document.body] );
 
-// synchronize view to dom
+// synchronize view.dom to model
 view.sync( [dom=view.dom] );
 
 // reset view caches only
@@ -350,12 +356,42 @@ $dom.modelview({
 </div>
 ```
 
-**javascript** (*as a jquery plugin, include the jquery.modelview.js file*)
-
+**javascript** (*standalone*)
 ```javascript
-// jQuery is a dependency
+// standalone
+
+new ModelView.View('view', 
+    new ModelView.Model('model', 
+    // model data here ..
+    { msg: 'World!' },
+    // model data type-casters (if any) here ..
+    { msg: ModelView.Type.Cast.STR },
+    // model data validators (if any) here ..
+    { msg: ModelView.Validation.Validate.NOT_EMPTY }
+    ),
+    {bind: 'data-bind'}
+)
+.action('alert_msg', function( evt, el, bindData ) {
+    alert( this.$model.get('msg') );
+    // this also works
+    //alert( this.model().get('msg') );
+    // or even this, if you want the raw data without any processing
+    //alert( this.$model.$data.msg );
+})
+.autobind( true )
+.bind( [ 'change', 'click' ], document.getElementById('screen') )
+.sync( )
+;
+```
+
+**javascript** (*as a jquery plugin/widget, include the jquery.modelview.js file*)
+```javascript
+// as a jQuery plugin/widget
+
+// make sure the modelview jQuery plugin is added if not already
+if ( ModelView.jquery ) ModelView.jquery( $ );
+
 $('#screen').modelview({
-    
     id: 'view',
     
     autobind: true,
@@ -384,14 +420,13 @@ $('#screen').modelview({
     
     actions: {
         // custom view actions (if any) here ..
-        alert_msg: function( evt, $el, bindData ) {
-            alert( this.model().get('msg') );
+        alert_msg: function( evt, el, bindData ) {
+            alert( this.$model.get('msg') );
             // this also works
-            //alert( this.$model.get('msg') );
+            //alert( this.model().get('msg') );
+            // or even this, if you want the raw data without any processing
+            //alert( this.$model.$data.msg );
         }
     }
-
 });
-// sync model to view
-$('#screen').modelview('sync');
 ```

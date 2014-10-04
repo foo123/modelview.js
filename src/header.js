@@ -2,20 +2,17 @@
 *
 *   ModelView.js
 *   @version: @@VERSION@@
-*   @@DEPENDENCIES@@
 *
-*   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
+*   A micro-MV* (MVVM) framework for complex (UI) screens 
+*   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *
 **/
-// jQuery should be already loaded, it is a dependency
-!function( exports, $, undef ) {
-    
-    "use strict";
-    
-    /**
-    *   uses concepts from various MV* frameworks like:
-    *       knockoutjs 
-    *       agility.js
-    *       backbone.js 
-    **/
+
+"use strict";
+/**
+*   uses concepts from various MV* frameworks like:
+*       knockoutjs 
+*       agility.js
+*       backbone.js 
+**/

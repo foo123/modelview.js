@@ -17,18 +17,19 @@
 
 SRC =[]
     
-    !tpl:umd-header.tpl.js  # include a umd-header template
+    !tpl:umd-header-single.tpl.js  # include a umd-header template
     
     ### modelview.js, main framework ###
     ./src/header.js
     ./src/utils.js
+    ./src/event.js
     ./src/pb.js
     ./src/cache.js
     ./src/model.js
     ./src/view.js
     ./src/footer.js
     
-    ### jquery.modelview.js, jQuery plugin (optional) ###
+    ### jquery.modelview.js, jQuery/jQueryUI plugin/widget (optional) ###
     ./src/jquery.modelview.js
     
     !tpl:umd-footer.tpl.js  # include a umd-footer template
@@ -45,10 +46,7 @@ REPLACE =[{}]
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
     "@@MODULE_NAME@@" = "ModelView"
-    "@@MODULE_DEPENDENCIES@@" = "[['jQuery'],['./jquery.js']]"
-    "@@MODULE_ARGUMENTS@@" = "jQuery"
-    "@@VERSION@@" = "0.30.2"
-    "@@DEPENDENCIES@@" = "@dependencies: jQuery, jQueryUI (optional)"
+    "@@VERSION@@" = "0.40"
     
 @ # end block
 

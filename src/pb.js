@@ -1,71 +1,82 @@
-    //
-    // PublishSubscribe (Interface)
-    var PublishSubscribe = {
+//
+// PublishSubscribe (Interface)
+var PBEvent = function( evt, namespace ) {
+    if ( !(this instanceof PBEvent) ) return new PBEvent( evt, namespace );
+    this.type = evt;
+    this.namespace = namespace || null;
+};
+var PublishSubscribe = {
+
+    $PB: null
     
-        $PB: null
-        ,namespace: null
-        
-        ,initPubSub: function( ) {
-            var self = this;
-            // use a jQuery object as simple PubSub
-            self.$PB = $( {} );
-            return self;
+    ,initPubSub: function( ) {
+        var self = this;
+        self.$PB = { };
+        return self;
+    }
+    
+    ,disposePubSub: function( ) {
+        var self = this;
+        self.$PB = null;
+        return self;
+    }
+    
+    ,trigger: function( evt, data ) {
+        var self = this, PB = self.$PB, queue, i, l;
+        if ( (queue=PB[evt]) && (l=queue.length) )
+        {
+            evt = PBEvent( evt );
+            for (i=0; i<l; i++) queue[ i ]( evt, data );
         }
-        
-        ,disposePubSub: function( ) {
-            var self = this;
-            // unbind all namespaced events on this pubsub
-            self.$PB.off( NSEvent('') ); 
-            self.$PB = null;
-            return self;
+        return self;
+    }
+    
+    ,on: function( evt, callback ) {
+        var self = this;
+        if ( is_type( callback, T_FUNC ) )
+        {
+            if ( !self.$PB[evt] ) self.$PB[evt] = [ ];
+            self.$PB[evt].push( callback );
         }
-        
-        ,trigger: function( message, data, namespace ) {
-            var self = this;
-            if ( self.namespace )
-                namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
-            
-            self.$PB.trigger( NSEvent(message, namespace), data );
-            return self;
+        return self;
+    }
+    
+    ,onTo: function( pubSub, evt, callback ) {
+        var self = this;
+        if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+        pubSub.on( evt, callback );
+        return self;
+    }
+    
+    ,off: function( evt, callback ) {
+        var self = this, queue, i, l, PB = self.$PB;
+        if ( !evt )
+        {
+            for (i in PB) delete PB[evt];
         }
-        
-        ,on: function( message, callback, namespace ) {
-            var self = this;
-            if ( is_type( callback, T_FUNC ) )
-            {
-                if ( self.namespace )
-                    namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
-            
-                self.$PB.on( NSEvent(message, namespace), callback );
-            }
-            return self;
-        }
-        
-        ,onTo: function( pubSub, message, callback, namespace ) {
-            var self = this;
-            if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
-            pubSub.on( message, callback, namespace );
-            return self;
-        }
-        
-        ,off: function( message, callback, namespace ) {
-            var self = this;
-            if ( self.namespace )
-                namespace = namespace ? [self.namespace].concat(namespace) : [self.namespace];
-            
+        else if ( (queue=PB[evt]) && (l=queue.length) )
+        {
             if ( is_type( callback, T_FUNC ) ) 
-                self.$PB.off( NSEvent(message, namespace), callback );
+            {
+                for (i=l-1; i>=0; i--)
+                {
+                    if ( callback === queue[i] ) queue.splice(i, 1);
+                }
+            }
             else 
-                self.$PB.off( NSEvent(message, namespace) );
-            return self;
+            {
+                PB[evt] = [ ];
+            }
         }
-        
-        ,offFrom: function( pubSub, message, callback, namespace ) {
-            var self = this;
-            if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
-            pubSub.off( message, callback, namespace );
-            return self;
-        }
-    };
-    // aliases
-    PublishSubscribe.publish = PublishSubscribe.trigger;
+        return self;
+    }
+    
+    ,offFrom: function( pubSub, evt, callback ) {
+        var self = this;
+        if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+        pubSub.off( evt, callback );
+        return self;
+    }
+};
+// aliases
+PublishSubscribe.publish = PublishSubscribe.trigger;
