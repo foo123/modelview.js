@@ -353,6 +353,8 @@ $dom.modelview({
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" />
     <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
+    <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
+    <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
 </div>
 ```
 
@@ -363,13 +365,12 @@ $dom.modelview({
 new ModelView.View('view', 
     new ModelView.Model('model', 
     // model data here ..
-    { msg: 'World!' },
+    { msg: 'Earth!' },
     // model data type-casters (if any) here ..
     { msg: ModelView.Type.Cast.STR },
     // model data validators (if any) here ..
     { msg: ModelView.Validation.Validate.NOT_EMPTY }
-    ),
-    {bind: 'data-bind'}
+    )
 )
 .action('alert_msg', function( evt, el, bindData ) {
     alert( this.$model.get('msg') );
@@ -378,6 +379,10 @@ new ModelView.View('view',
     // or even this, if you want the raw data without any processing
     //alert( this.$model.$data.msg );
 })
+.action('hello_world', function( evt, el, bindData ) {
+    this.$model.set('msg', "World", true);
+})
+.attribute( 'bind', 'data-bind' )
 .autobind( true )
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
 .sync( )
@@ -395,6 +400,7 @@ $('#screen').modelview({
     id: 'view',
     
     autobind: true,
+    autoSync: true,
     bindAttribute: 'data-bind',
     inlineTplFormat: '$(__KEY__)',
     events: [ 'change', 'click' ],
@@ -404,7 +410,7 @@ $('#screen').modelview({
         
         data: {
             // model data here ..
-            msg: 'World!'
+            msg: 'Earth!'
         },
         
         types: {
@@ -426,6 +432,9 @@ $('#screen').modelview({
             //alert( this.model().get('msg') );
             // or even this, if you want the raw data without any processing
             //alert( this.$model.$data.msg );
+        },
+        hello_world: function( evt, el, bindData ) {
+            this.$model.set('msg', "World", true);
         }
     }
 });
