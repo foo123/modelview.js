@@ -1,6 +1,9 @@
 
+//
+// DOM Events polyfils and delegation
+
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListener )
+if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].addEventListener )
 !function( ){
     
     function addToPrototype( name, method ) 
@@ -240,7 +243,7 @@ DOMEvent[proto] = {
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
-        eventTypes = eventType.split( /\s+/g ).map( getNS );
+        eventTypes = eventType.split( SPACES ).map( getNS );
         if ( !eventTypes.length ) return self;
         
         // handler can be passed as

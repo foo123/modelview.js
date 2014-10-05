@@ -1,17 +1,20 @@
+
 //
 // PublishSubscribe (Interface)
-var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
-var PBEvent = function( evt, target, ns ) {
-    var self = this;
-    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
-    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
-    self.type = evt;
-    self.target = target;
-    self.currentTarget = target;
-    self.timeStamp = NOW( );
-    self.eventPhase = AT_TARGET;
-    self.namespace = ns || null;
-};
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3,
+    
+    PBEvent = function( evt, target, ns ) {
+        var self = this;
+        if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
+        // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+        self.type = evt;
+        self.target = target;
+        self.currentTarget = target;
+        self.timeStamp = NOW( );
+        self.eventPhase = AT_TARGET;
+        self.namespace = ns || null;
+    }
+;
 PBEvent[proto] = {
     constructor: PBEvent
     
@@ -84,18 +87,23 @@ var PublishSubscribe = {
     }
     
     ,on: function( evt, callback, oneOff ) {
-        var self = this, PB = self.$PB, ns;
-        if ( is_type( callback, T_FUNC ) )
+        var self = this, PB = self.$PB, ns, evts, i, l;
+        if ( evt && evt.length && is_type( callback, T_FUNC ) )
         {
             oneOff = !!oneOff;
-            ns = getNS( evt ); evt = ns[ 0 ]; ns = ns[ 1 ].join('.');
-            if ( !PB[evt] ) 
+            evts = evt.split( SPACES ).map( getNS );
+            if ( !(l=evts.length) ) return self;
+            for (i=0; i<l; i++)
             {
-                PB[evt] = [ ];
-                PB[evt].oneOffs = 0;
+                evt = evts[ i ][ 0 ]; ns = evts[ i ][ 1 ].join('.');
+                if ( !PB[evt] ) 
+                {
+                    PB[evt] = [ ];
+                    PB[evt].oneOffs = 0;
+                }
+                PB[evt].push( [callback, ns, oneOff, 0] );
+                if ( oneOff ) PB[evt].oneOffs++;
             }
-            PB[evt].push( [callback, ns, oneOff, 0] );
-            if ( oneOff ) PB[evt].oneOffs++;
         }
         return self;
     }
@@ -108,49 +116,53 @@ var PublishSubscribe = {
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc;
-        if ( !evt )
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl;
+        if ( !evt || !evt.length )
         {
             for (e in PB) delete PB[ e ];
         }
         else 
         {
-            ns = getNS( evt ); evt = ns[ 0 ]; ns = getNSMatcher( ns[ 1 ] );
             isFunc = is_type( callback, T_FUNC );
-            if ( evt.length )
+            evts = evt.split( SPACES ).map( getNS );
+            for (j=0,jl=evts.length; j<jl; j++)
             {
-                if ( (queue=PB[evt]) && (l=queue.length) )
+                evt = evts[ j ][ 0 ]; ns = getNSMatcher( evts[ j ][ 1 ] );
+                if ( evt.length )
                 {
-                    for (i=l-1; i>=0; i--)
+                    if ( (queue=PB[evt]) && (l=queue.length) )
                     {
-                        q = queue[ i ];
-                        if ( (!isFunc || callback === q[0]) && 
-                            (!ns || ns.test(q[1]))
-                        ) 
+                        for (i=l-1; i>=0; i--)
                         {
-                            // oneOff
-                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                            queue.splice( i, 1 );
+                            q = queue[ i ];
+                            if ( (!isFunc || callback === q[0]) && 
+                                (!ns || ns.test(q[1]))
+                            ) 
+                            {
+                                // oneOff
+                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                queue.splice( i, 1 );
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                for (e in PB) 
+                else if ( isFunc || ns )
                 {
-                    queue = PB[ e ];
-                    if ( !queue || !(l=queue.length) ) continue;
-                    for (i=l-1; i>=0; i--)
+                    for (e in PB) 
                     {
-                        q = queue[ i ];
-                        if ( (!isFunc || callback === q[0]) && 
-                            (!ns || ns.test(q[1]))
-                        ) 
+                        queue = PB[ e ];
+                        if ( !queue || !(l=queue.length) ) continue;
+                        for (i=l-1; i>=0; i--)
                         {
-                            // oneOff
-                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                            queue.splice( i, 1 );
+                            q = queue[ i ];
+                            if ( (!isFunc || callback === q[0]) && 
+                                (!ns || ns.test(q[1]))
+                            ) 
+                            {
+                                // oneOff
+                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                queue.splice( i, 1 );
+                            }
                         }
                     }
                 }

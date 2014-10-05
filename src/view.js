@@ -1,3 +1,5 @@
+
+// View utils
 var
     getInlineTplRE = function( InlineTplFormat ) {
         return new Regex(
@@ -111,8 +113,7 @@ var
                 }
             }
         }
-        hash[0] = keyNodes;
-        hash[1] = keyAtts;
+        hash[0] = keyNodes; hash[1] = keyAtts;
         return hash;
     },
     
@@ -153,8 +154,8 @@ var
             key = bind.key || (!!name && model.key(name, 1));
             // "model:change" event and element does not reference the (nested) model key
             // OR model atomic operation(s)
-            if ( fromModel && (!key || !key.sW( fromModel.key ) || 
-                (model.atomic && key.sW( model.$atom ))) ) continue;
+            if ( fromModel && (!key || !startsWith( key, fromModel.key ) || 
+                (model.atomic && startsWith( key, model.$atom ))) ) continue;
             
             view[ do_action ]( evt, el, bind );
         }
@@ -206,7 +207,7 @@ var
             {
                 kk = keys[k];
                 if ( key === kk ) continue;
-                if ( kk.sW( keyDot ) && (nodes=keyNodes[kk]).length )
+                if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
                 {
                     val = '' + model.get( kk );
                     for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
@@ -218,7 +219,7 @@ var
             {
                 kk = keys[k];
                 if ( key === kk ) continue;
-                if ( kk.sW( keyDot ) && (nodes=keyAtts[kk]).length )
+                if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
                 {
                     for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
                 }
@@ -272,6 +273,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
 // STATIC
 View._CACHE_SIZE = 600;
 View._REFRESH_INTERVAL = INF; // refresh cache interval
+// View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // allow chaining, return this;
@@ -319,18 +321,18 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$model;
     }
     
-    ,attribute: function( type, att ) {
+    ,attribute: function( name, att ) {
         var view = this;
         if ( arguments.length > 1 )
         {
-            view.$atts[ type ] = att;
+            view.$atts[ name ] = att;
             return view;
         }
-        return type ? (view.$atts[ type ] || undef) : undef;
+        return name ? (view.$atts[ name ] || undef) : undef;
     }
     
     ,inlineTplFormat: function( format ) {
-        this.$inlineTplFormat = format;
+        this.$inlineTplFormat = format ? getInlineTplRE( format ) : null;
         return this;
     }
     
@@ -514,7 +516,31 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,getDomRef: function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ ref.sW("$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
+    }
+    
+    ,append: function( el, dom ) {  
+        var view = this;
+        if ( el )
+        {
+            dom = dom || view.$dom;
+            dom.appendChild( el );
+            // update/add live DOM bindings
+            view.$keynodes = getKeyTextNodes( el, view.$inlineTplFormat, view.$keynodes );
+            view.sync( dom );
+        }
+        return view;
+    }
+    
+    ,remove: function( el ) {  
+        var view = this;
+        if ( el )
+        {
+            el.parentNode.removeChild( el );
+            // update/remove live DOM bindings
+            // ??
+        }
+        return view;
     }
     
     ,bind: function( events, dom ) {
@@ -570,7 +596,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             evt.length && view.onTo( model, evt, view[ method ] );
         }
         
-        view.$keynodes = getKeyTextNodes( view.$dom, getInlineTplRE( view.$inlineTplFormat ) );
+        view.$keynodes = getKeyTextNodes( view.$dom, view.$inlineTplFormat, view.$keynodes );
         
         return view;
     }
@@ -614,17 +640,28 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.unbind( ).bind( events, $dom );
     }
     
-    ,sync: function( $dom ) {
+    ,sync: function( $dom, el ) {
         var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
-            syncEvent = PBEvent('sync', view);
+            syncEvent = PBEvent('sync', view), binds, autobinds, doAutobind;
         
         $dom = $dom || view.$dom;
-        doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
-        
+        doAutobind = view.$autobind;
+        if ( el )
+        {
+            syncEvent.currentTarget = el;
+            binds = [ el ].concat( view.get( selectors[ 0 ], el, 1 ) );
+            if ( doAutobind )
+                autobinds = [ el ].concat( view.get( selectors[ 1 ], el, 1 ) );
+        }
+        else
+        {
+            binds = view.get( selectors[ 0 ], $dom, 1 );
+            if ( doAutobind )
+                autobinds = view.get( selectors[ 1 ], $dom, 1 );
+        }
+        doAction( view, binds, syncEvent );
         doDOMLiveUpdateAction( view );
-        
-        if ( view.$autobind )
-            doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
+        if ( doAutobind ) doAutoBindAction( view, autobinds, syncEvent );
         return view;
     }
     
@@ -684,9 +721,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         }
         
         // if not model update error and element is bind element
-        if ( !modeldata.error && data.isBind )
-            // do view action
-            doAction( view, [el], evt/*, data*/ );
+        // do view action
+        if ( !modeldata.error && data.isBind ) doAction( view, [el], evt/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -714,30 +750,28 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do actions ..
         
         // do view action first
-        doAction( view, bindElements, evt, data );
-        
+        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        // do view live DOM bindings update action
         doDOMLiveUpdateAction( view, data.key, data.value );
-        
-        if ( autobind && autoBindElements.length /*&& view.do_bind*/ )
-            // do view autobind action to bind input elements that map to the model, afterwards
-            doAutoBindAction( view, autoBindElements, evt, data );
+        // do view autobind action to bind input elements that map to the model, afterwards
+        if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
-            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) )
+            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
+            bindElements = view.get( selectors[ 0 ] ), 
+            autoBindElements = view.get( selectors[ 1 ] )
         ;
 
         // do actions ..
         
         // do view bind action first
-        doAction( view, view.get( selectors[ 0 ] ), evt, data );
-        
+        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        // do view live DOM bindings update action
         doDOMLiveUpdateAction( view, data.key, data.value );
-        
-        if ( view.$autobind )
-            // do view autobind action to bind input elements that map to the model, afterwards
-            doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
+        // do view autobind action to bind input elements that map to the model, afterwards
+        if ( view.$autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
     
     //

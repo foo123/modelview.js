@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
 
 
-**Version 0.40**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.41**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -40,6 +40,8 @@ A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gz
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" />
     <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
+    <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
+    <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
 </div>
 ```
 
@@ -62,6 +64,9 @@ new ModelView.View('view',
     //alert( this.model().get('msg') );
     // or even this, if you want the raw data without any processing
     //alert( this.$model.$data.msg );
+})
+.action('hello_world', function( evt, el, bindData ) {
+    this.$model.set('msg', "World", true);
 })
 .attribute( 'bind', 'data-bind' )
 .autobind( true )
@@ -112,6 +117,9 @@ $('#screen').modelview({
             //alert( this.model().get('msg') );
             // or even this, if you want the raw data without any processing
             //alert( this.$model.$data.msg );
+        },
+        hello_world: function( evt, el, bindData ) {
+            this.$model.set('msg', "World", true);
         }
     }
 });

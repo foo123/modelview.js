@@ -1,3 +1,4 @@
+
 // main
 // export it
 exports['@@MODULE_NAME@@'] = {

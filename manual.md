@@ -1,6 +1,6 @@
 ####ModelView API
 
-**Version 0.40**
+**Version 0.41**
 
 
 **Model**
@@ -27,22 +27,19 @@ model.get( dottedKey [, RAW=false ] );
 model.set( dottedKey, val [, publish=false] );
 
 // model append val to key (if key is array-like)
-model.append( dottedKey, val [, publish=false] );
+model.[add|append]( dottedKey, val [, publish=false] );
 
-// model delete key (without re-arranging array indexes)
-model.del( dottedKey [, publish=false] );
-
-// model remove key (re-arranging array indexes)
-model.rem( dottedKey [, publish=false] );
+// model delete key (with or without re-arranging array indexes)
+model.[del|rem]( dottedKey [, reArrangeIndexes=false , publish=false] );
 
 // shortcut to model publich change event for key (and nested keys)
 model.notify( dottedKey );
 
 // (experimental) shortcut to synchronise specific fields of this model to other fields of another model
-model.syncTo( otherModel, fieldsMap );
+model.sync( otherModel, fieldsMap );
 
 // (experimental) shortcut to un-synchronise any fields of this model to other fields of another model
-model.unsyncFrom( otherModel );
+model.unsync( otherModel );
 
 // add typecasters given in {dottedKey: typecaster} format
 model.types( typeCasters );
@@ -91,6 +88,9 @@ view.event( name, handler );
 
 // get / set autobind, autobind automatically binds change events to input elements that refer to model data (via name attribute)
 view.autobind( [bool] );
+
+// get/set the name of view-specific attribute (e.g "bind" : "data-bind" )
+view.attribute( name [, att] );
 
 // bind view to dom listening given events (default: ['change', 'click'])
 view.bind( events=['change', 'click'] [, dom=document.body] );

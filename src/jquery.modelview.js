@@ -1,14 +1,13 @@
 /**
 *
-*   ModelView.js (jQuery plugin, optional)
+*   ModelView.js (jQuery plugin, jQueryUI widget optional)
 *   @version: @@VERSION@@
-*   @@DEPENDENCIES@@
 *
-*   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
+*   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function( ModelView, undef ) {
+!function( ModelView, window, undef ) {
     "use strict";
     
     ModelView.jquery = function( $ ) {
@@ -188,8 +187,8 @@
         }
         
         // add modelview as a jQueryUI widget as well if jQueryuI is loaded
-        // to create stateful self-contained MVC widgets (e.g calendar etc..)
-        if ( $.widget && !$.fn.ModelViewWidget )
+        // to create state-full, self-contained, full-MVC widgets (e.g calendars, grids, etc..)
+        if ( $.widget && (!$.mvc || !$.mvc.ModelViewWidget) )
         {
             $.widget( 'mvc.ModelViewWidget', {
                 
@@ -225,4 +224,4 @@
     // add to jQuery if available/accesible now
     if ( 'undefined' !== typeof window.jQuery ) ModelView.jquery( window.jQuery );
     
-}( exports['@@MODULE_NAME@@'] );
+}( exports['@@MODULE_NAME@@'], this );

@@ -2,7 +2,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-// utility functions
+// utilities
 //
 //
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +67,38 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return false
     },
 
+    Merge = function(/* var args here.. */) { 
+        var args = arguments, argslen, 
+            o1, o2, v, p, i, T ;
+        o1 = args[0] || {}; 
+        argslen = args.length;
+        for (i=1; i<argslen; i++)
+        {
+            o2 = args[ i ];
+            if ( T_OBJ === get_type( o2 ) )
+            {
+                for (p in o2)
+                {            
+                    v = o2[ p ];
+                    T = get_type( v );
+                    
+                    if ( T_NUM & T )
+                        // shallow copy for numbers, better ??
+                        o1[ p ] = 0 + v;  
+                    
+                    else if ( T_ARRAY_OR_STR & T )
+                        // shallow copy for arrays or strings, better ??
+                        o1[ p ] = v.slice( 0 );  
+                    
+                    else
+                        // just reference copy
+                        o1[ p ] = v;  
+                }
+            }
+        }
+        return o1; 
+    },
+
     ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
@@ -98,7 +130,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             P.msMatchesSelector || 
             P.oMatchesSelector
         );
-    }(Element ? Element[proto] : null)),
+    }(this.Element ? this.Element[proto] : null)),
 
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
@@ -194,7 +226,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
     
-    notEmpty = function( s ){ return s.length > 0; },
+    notEmpty = function( s ){ return s.length > 0; }, SPACES = /\s+/g,
     
     // adapted from jQuery
     getNS = function( evt ) {
@@ -208,237 +240,35 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             : false;
     },
     
-    fromJSON = JSON.parse, toJSON = JSON.stringify,
+    // use native methods and abbreviation aliases if available
+    fromJSON = JSON.parse, toJSON = JSON.stringify, 
     
-    NOW = function( ) { return new Date( ).getTime( ); }
-;
-
-// use native methods and abbreviation aliases if available
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
-if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
-SP.tR = SP.trim; SP.sW = SP.startsWith;
-
-var
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    trim = SP.trim 
+            ? function( s ){ return s.trim( ); } 
+            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    startsWith = SP.startsWith 
+            ? function( s, prefix, pos ){ return s.startsWith(prefix, pos); } 
+            : function( s, prefix, pos ){ pos=pos||0; return ( prefix === s.substr(pos, prefix.length+pos) ); },
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
+    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
+    
+    Node = function( val, next ) {
+        this.v = val || null;
+        this.n = next || {};
+    },
+    
     WILDCARD = "*", NAMESPACE = "modelview",
     
-    Merge = function(/* var args here.. */) { 
-        var args = arguments, argslen, 
-            o1, o2, v, p, i, T ;
-        o1 = args[0] || {}; 
-        argslen = args.length;
-        for (i=1; i<argslen; i++)
-        {
-            o2 = args[ i ];
-            if ( T_OBJ === get_type( o2 ) )
-            {
-                for (p in o2)
-                {            
-                    v = o2[ p ];
-                    T = get_type( v );
-                    
-                    if ( T_NUM & T )
-                        // shallow copy for numbers, better ??
-                        o1[ p ] = 0 + v;  
-                    
-                    else if ( T_ARRAY_OR_STR & T )
-                        // shallow copy for arrays or strings, better ??
-                        o1[ p ] = v.slice( 0 );  
-                    
-                    else
-                        // just reference copy
-                        o1[ p ] = v;  
-                }
-            }
-        }
-        return o1; 
-    },
-
-    Node = function( val, next ) {
-        this.val = val || null;
-        this.next = next || {};
-    },
-    
-    getNext = function( a, k ) {
-        if ( !a ) return null;
-        var b = [ ], i, ai, l = a.length;
-        for (i=0; i<l; i++)
-        {
-            ai = a[ i ];
-            if ( ai )
-            {
-                if ( ai[ k ] ) b.push( ai[ k ].next );
-                if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].next );
-            }
-        }
-        return b.length ? b : null;
-    },
-    
-    getValue = function( a, k ) {
-        if ( !a ) return null;
-        var i, ai, l = a.length;
-        if ( k )
-        {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if ( ai )
-                {
-                    if ( ai[ k ] && ai[ k ].val ) return ai[ k ].val;
-                    if ( ai[ WILDCARD ] && ai[ WILDCARD ].val ) return ai[ WILDCARD ].val;
-                }
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if ( ai && ai.val )  return ai.val;
-            }
-        }
-        return null;
-    },
-    
-    walkadd = function( v, p, obj, isCollectionEach ) {
-        var o = obj, k;
-        while ( p.length )
-        {
-            k = p.shift( );
-            if ( !(k in o) ) o[ k ] = new Node( );
-            o = o[ k ];
-            if ( p.length ) 
-            {
-                o = o.next;
-            }
-            else 
-            {
-                if ( isCollectionEach )
-                {
-                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( );
-                    o.next[ WILDCARD ].val = v;
-                }
-                else
-                {
-                    o.val = v;
-                }
-            }
-        }
-        return obj;
-    },
-    
-    walkcheck = function( p, obj, aux, C ) {
-        var o = obj, a = aux ? [aux] : null, k, to;
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p];
-                    a && (a = getNext( a, k ));
-                }
-                else if ( !a || !(a = getNext( a, k )) )
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if ( a && getValue( a, k ) ) return true;
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return true;
-                else if ( T_OBJ === to && 'length' == k ) return true;
-                return false;
-            }
-        }
-        return false;
-    },
-    
-    walk2 = function( p, obj, aux, C ) {
-        var o = obj, a = aux ? [aux] : null, k, to;
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p];
-                    a && (a = getNext( a, k ));
-                }
-                else if ( !a || !(a = getNext( a, k )) )
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if ( a && (a = getValue( a, k )) ) return [false, a];
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
-                else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
-                return false;
-            }
-        }
-        return false;
-    },
-    
-    walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
-        var o = obj, a1 = null, a2 = null, a3 = null, 
-            k, to
-        ;
-        all3 = false !== all3;
-        if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-        
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p, 0, null, null, null];
-                    if ( all3 )
-                    {
-                        a1 = getNext( a1, k );
-                        a2 = getNext( a2, k );
-                        a3 = getNext( a3, k );
-                    }
-                }
-                else
-                {
-                    return [false, o, k, p, null, null, null];
-                }
-            }
-            else if ( (to&T_ARRAY_OR_OBJ) ) 
-            {
-                
-                // nested sub-composite class
-                if ( o[ k ] instanceof C )
-                    return [C, o[k], p, 0, null, null, null];
-                else if ((k in o) /*|| (to === T_OBJ && "length" === k)*/) 
-                    return [true, o, k, p, a1, a2, a3];
-                return [false, o, k, p, a1, a2, a3];
-            }
-        }
-        return [false, o, k, p, null, null, null];
-    },
-    
     // UUID counter for Modelviews
-    _uuidCnt = 0,
+    _uuid = 0,
         
     // get a Universal Unique Identifier (UUID)
     uuid =  function( namespace ) {
-        return [ namespace||'UUID', ++_uuidCnt, NOW( ) ].join( '_' );
+        return [ namespace||'UUID', ++_uuid, NOW( ) ].join( '_' );
     }
 ;
+

@@ -1,3 +1,4 @@
+
 //
 // Cache with max duration and max size conditions
 var Cache = function( cacheSize, refreshInterval ) {

@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.40
+*   @version: 0.41
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.40
+*   @version: 0.41
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -56,7 +56,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-// utility functions
+// utilities
 //
 //
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +121,38 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return false
     },
 
+    Merge = function(/* var args here.. */) { 
+        var args = arguments, argslen, 
+            o1, o2, v, p, i, T ;
+        o1 = args[0] || {}; 
+        argslen = args.length;
+        for (i=1; i<argslen; i++)
+        {
+            o2 = args[ i ];
+            if ( T_OBJ === get_type( o2 ) )
+            {
+                for (p in o2)
+                {            
+                    v = o2[ p ];
+                    T = get_type( v );
+                    
+                    if ( T_NUM & T )
+                        // shallow copy for numbers, better ??
+                        o1[ p ] = 0 + v;  
+                    
+                    else if ( T_ARRAY_OR_STR & T )
+                        // shallow copy for arrays or strings, better ??
+                        o1[ p ] = v.slice( 0 );  
+                    
+                    else
+                        // just reference copy
+                        o1[ p ] = v;  
+                }
+            }
+        }
+        return o1; 
+    },
+
     ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
@@ -152,7 +184,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             P.msMatchesSelector || 
             P.oMatchesSelector
         );
-    }(Element ? Element[proto] : null)),
+    }(this.Element ? this.Element[proto] : null)),
 
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
@@ -248,7 +280,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
     
-    notEmpty = function( s ){ return s.length > 0; },
+    notEmpty = function( s ){ return s.length > 0; }, SPACES = /\s+/g,
     
     // adapted from jQuery
     getNS = function( evt ) {
@@ -262,243 +294,44 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             : false;
     },
     
-    fromJSON = JSON.parse, toJSON = JSON.stringify,
+    // use native methods and abbreviation aliases if available
+    fromJSON = JSON.parse, toJSON = JSON.stringify, 
     
-    NOW = function( ) { return new Date( ).getTime( ); }
-;
-
-// use native methods and abbreviation aliases if available
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-if ( !SP.trim ) SP.trim = function( ) { return this.replace(/^\s+|\s+$/g, ''); };
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
-if ( !SP.startsWith ) SP.startsWith = function( prefix, pos ) { pos=pos||0; return ( prefix === this.substr(pos, prefix.length+pos) ); };
-SP.tR = SP.trim; SP.sW = SP.startsWith;
-
-var
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    trim = SP.trim 
+            ? function( s ){ return s.trim( ); } 
+            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    startsWith = SP.startsWith 
+            ? function( s, prefix, pos ){ return s.startsWith(prefix, pos); } 
+            : function( s, prefix, pos ){ pos=pos||0; return ( prefix === s.substr(pos, prefix.length+pos) ); },
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
+    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
+    
+    Node = function( val, next ) {
+        this.v = val || null;
+        this.n = next || {};
+    },
+    
     WILDCARD = "*", NAMESPACE = "modelview",
     
-    Merge = function(/* var args here.. */) { 
-        var args = arguments, argslen, 
-            o1, o2, v, p, i, T ;
-        o1 = args[0] || {}; 
-        argslen = args.length;
-        for (i=1; i<argslen; i++)
-        {
-            o2 = args[ i ];
-            if ( T_OBJ === get_type( o2 ) )
-            {
-                for (p in o2)
-                {            
-                    v = o2[ p ];
-                    T = get_type( v );
-                    
-                    if ( T_NUM & T )
-                        // shallow copy for numbers, better ??
-                        o1[ p ] = 0 + v;  
-                    
-                    else if ( T_ARRAY_OR_STR & T )
-                        // shallow copy for arrays or strings, better ??
-                        o1[ p ] = v.slice( 0 );  
-                    
-                    else
-                        // just reference copy
-                        o1[ p ] = v;  
-                }
-            }
-        }
-        return o1; 
-    },
-
-    Node = function( val, next ) {
-        this.val = val || null;
-        this.next = next || {};
-    },
-    
-    getNext = function( a, k ) {
-        if ( !a ) return null;
-        var b = [ ], i, ai, l = a.length;
-        for (i=0; i<l; i++)
-        {
-            ai = a[ i ];
-            if ( ai )
-            {
-                if ( ai[ k ] ) b.push( ai[ k ].next );
-                if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].next );
-            }
-        }
-        return b.length ? b : null;
-    },
-    
-    getValue = function( a, k ) {
-        if ( !a ) return null;
-        var i, ai, l = a.length;
-        if ( k )
-        {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if ( ai )
-                {
-                    if ( ai[ k ] && ai[ k ].val ) return ai[ k ].val;
-                    if ( ai[ WILDCARD ] && ai[ WILDCARD ].val ) return ai[ WILDCARD ].val;
-                }
-            }
-        }
-        else
-        {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if ( ai && ai.val )  return ai.val;
-            }
-        }
-        return null;
-    },
-    
-    walkadd = function( v, p, obj, isCollectionEach ) {
-        var o = obj, k;
-        while ( p.length )
-        {
-            k = p.shift( );
-            if ( !(k in o) ) o[ k ] = new Node( );
-            o = o[ k ];
-            if ( p.length ) 
-            {
-                o = o.next;
-            }
-            else 
-            {
-                if ( isCollectionEach )
-                {
-                    if ( !(WILDCARD in o.next) ) o.next[ WILDCARD ] = new Node( );
-                    o.next[ WILDCARD ].val = v;
-                }
-                else
-                {
-                    o.val = v;
-                }
-            }
-        }
-        return obj;
-    },
-    
-    walkcheck = function( p, obj, aux, C ) {
-        var o = obj, a = aux ? [aux] : null, k, to;
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p];
-                    a && (a = getNext( a, k ));
-                }
-                else if ( !a || !(a = getNext( a, k )) )
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if ( a && getValue( a, k ) ) return true;
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return true;
-                else if ( T_OBJ === to && 'length' == k ) return true;
-                return false;
-            }
-        }
-        return false;
-    },
-    
-    walk2 = function( p, obj, aux, C ) {
-        var o = obj, a = aux ? [aux] : null, k, to;
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p];
-                    a && (a = getNext( a, k ));
-                }
-                else if ( !a || !(a = getNext( a, k )) )
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if ( a && (a = getValue( a, k )) ) return [false, a];
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
-                else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
-                return false;
-            }
-        }
-        return false;
-    },
-    
-    walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
-        var o = obj, a1 = null, a2 = null, a3 = null, 
-            k, to
-        ;
-        all3 = false !== all3;
-        if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-        
-        while ( p.length ) 
-        {
-            k = p.shift( );
-            to = get_type( o );
-            if ( p.length )
-            {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if ( o instanceof C ) return [C, o, p, 0, null, null, null];
-                    if ( all3 )
-                    {
-                        a1 = getNext( a1, k );
-                        a2 = getNext( a2, k );
-                        a3 = getNext( a3, k );
-                    }
-                }
-                else
-                {
-                    return [false, o, k, p, null, null, null];
-                }
-            }
-            else if ( (to&T_ARRAY_OR_OBJ) ) 
-            {
-                
-                // nested sub-composite class
-                if ( o[ k ] instanceof C )
-                    return [C, o[k], p, 0, null, null, null];
-                else if ((k in o) /*|| (to === T_OBJ && "length" === k)*/) 
-                    return [true, o, k, p, a1, a2, a3];
-                return [false, o, k, p, a1, a2, a3];
-            }
-        }
-        return [false, o, k, p, null, null, null];
-    },
-    
     // UUID counter for Modelviews
-    _uuidCnt = 0,
+    _uuid = 0,
         
     // get a Universal Unique Identifier (UUID)
     uuid =  function( namespace ) {
-        return [ namespace||'UUID', ++_uuidCnt, NOW( ) ].join( '_' );
+        return [ namespace||'UUID', ++_uuid, NOW( ) ].join( '_' );
     }
 ;
 
+
+//
+// DOM Events polyfils and delegation
+
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListener )
+if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].addEventListener )
 !function( ){
     
     function addToPrototype( name, method ) 
@@ -738,7 +571,7 @@ DOMEvent[proto] = {
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
-        eventTypes = eventType.split( /\s+/g ).map( getNS );
+        eventTypes = eventType.split( SPACES ).map( getNS );
         if ( !eventTypes.length ) return self;
         
         // handler can be passed as
@@ -921,20 +754,24 @@ DOMEvent[proto] = {
         }
         return self;
     }
-};//
-// PublishSubscribe (Interface)
-var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
-var PBEvent = function( evt, target, ns ) {
-    var self = this;
-    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
-    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
-    self.type = evt;
-    self.target = target;
-    self.currentTarget = target;
-    self.timeStamp = NOW( );
-    self.eventPhase = AT_TARGET;
-    self.namespace = ns || null;
 };
+
+//
+// PublishSubscribe (Interface)
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3,
+    
+    PBEvent = function( evt, target, ns ) {
+        var self = this;
+        if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
+        // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+        self.type = evt;
+        self.target = target;
+        self.currentTarget = target;
+        self.timeStamp = NOW( );
+        self.eventPhase = AT_TARGET;
+        self.namespace = ns || null;
+    }
+;
 PBEvent[proto] = {
     constructor: PBEvent
     
@@ -1007,18 +844,23 @@ var PublishSubscribe = {
     }
     
     ,on: function( evt, callback, oneOff ) {
-        var self = this, PB = self.$PB, ns;
-        if ( is_type( callback, T_FUNC ) )
+        var self = this, PB = self.$PB, ns, evts, i, l;
+        if ( evt && evt.length && is_type( callback, T_FUNC ) )
         {
             oneOff = !!oneOff;
-            ns = getNS( evt ); evt = ns[ 0 ]; ns = ns[ 1 ].join('.');
-            if ( !PB[evt] ) 
+            evts = evt.split( SPACES ).map( getNS );
+            if ( !(l=evts.length) ) return self;
+            for (i=0; i<l; i++)
             {
-                PB[evt] = [ ];
-                PB[evt].oneOffs = 0;
+                evt = evts[ i ][ 0 ]; ns = evts[ i ][ 1 ].join('.');
+                if ( !PB[evt] ) 
+                {
+                    PB[evt] = [ ];
+                    PB[evt].oneOffs = 0;
+                }
+                PB[evt].push( [callback, ns, oneOff, 0] );
+                if ( oneOff ) PB[evt].oneOffs++;
             }
-            PB[evt].push( [callback, ns, oneOff, 0] );
-            if ( oneOff ) PB[evt].oneOffs++;
         }
         return self;
     }
@@ -1031,49 +873,53 @@ var PublishSubscribe = {
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc;
-        if ( !evt )
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl;
+        if ( !evt || !evt.length )
         {
             for (e in PB) delete PB[ e ];
         }
         else 
         {
-            ns = getNS( evt ); evt = ns[ 0 ]; ns = getNSMatcher( ns[ 1 ] );
             isFunc = is_type( callback, T_FUNC );
-            if ( evt.length )
+            evts = evt.split( SPACES ).map( getNS );
+            for (j=0,jl=evts.length; j<jl; j++)
             {
-                if ( (queue=PB[evt]) && (l=queue.length) )
+                evt = evts[ j ][ 0 ]; ns = getNSMatcher( evts[ j ][ 1 ] );
+                if ( evt.length )
                 {
-                    for (i=l-1; i>=0; i--)
+                    if ( (queue=PB[evt]) && (l=queue.length) )
                     {
-                        q = queue[ i ];
-                        if ( (!isFunc || callback === q[0]) && 
-                            (!ns || ns.test(q[1]))
-                        ) 
+                        for (i=l-1; i>=0; i--)
                         {
-                            // oneOff
-                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                            queue.splice( i, 1 );
+                            q = queue[ i ];
+                            if ( (!isFunc || callback === q[0]) && 
+                                (!ns || ns.test(q[1]))
+                            ) 
+                            {
+                                // oneOff
+                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                queue.splice( i, 1 );
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                for (e in PB) 
+                else if ( isFunc || ns )
                 {
-                    queue = PB[ e ];
-                    if ( !queue || !(l=queue.length) ) continue;
-                    for (i=l-1; i>=0; i--)
+                    for (e in PB) 
                     {
-                        q = queue[ i ];
-                        if ( (!isFunc || callback === q[0]) && 
-                            (!ns || ns.test(q[1]))
-                        ) 
+                        queue = PB[ e ];
+                        if ( !queue || !(l=queue.length) ) continue;
+                        for (i=l-1; i>=0; i--)
                         {
-                            // oneOff
-                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                            queue.splice( i, 1 );
+                            q = queue[ i ];
+                            if ( (!isFunc || callback === q[0]) && 
+                                (!ns || ns.test(q[1]))
+                            ) 
+                            {
+                                // oneOff
+                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                queue.splice( i, 1 );
+                            }
                         }
                     }
                 }
@@ -1091,6 +937,7 @@ var PublishSubscribe = {
 };
 // aliases
 PublishSubscribe.publish = PublishSubscribe.trigger;
+
 //
 // Cache with max duration and max size conditions
 var Cache = function( cacheSize, refreshInterval ) {
@@ -1188,33 +1035,10 @@ Cache[proto] = {
         return '[ModelView.Cache]';
     }
 };
-//
-// Data Types / Validators (Static)
-var 
-    // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
-    dotted = function( key ) {
-        return key
-                .replace(/\[([^\]]*)\]/g, '.$1')         // convert indexes to properties
-                .replace(/^\.+/, '')                       // strip a leading dot
-                .replace(/\.+$/, '')                       // strip trailing dots
-        ;
-    },
-    
-    bracketed = function( dottedKey ) { return '['+dottedKey.split('.').join('][')+']'; },
-    
-    removePrefix = function( prefix ) {
-        // strict mode (after prefix, a key follows)
-        var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
-        return function( key, to_dotted ) { 
-            var k = key.replace( regex, '$1' );
-            return to_dotted ? dotted( k ) : k;
-        };
-    },
 
-    keyLevelUp = function( dottedKey, level ) {
-        return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },
-    
+//
+// Data Types / Validators for Models (Static)
+var 
     ModelField = function( modelField ) {
         if ( !is_instance(this, ModelField) ) return new ModelField( modelField );
         this.f = modelField || null;
@@ -1332,7 +1156,7 @@ var
             DEFAULT: function( defaultValue ) {  
                 return TC(function( v ) { 
                     var T = get_type( v );
-                    if ( (T_UNDEF & T) || ((T_STR & T) && !v.tR().length)  ) v = defaultValue;
+                    if ( (T_UNDEF & T) || ((T_STR & T) && !trim(v).length)  ) v = defaultValue;
                     return v;
                 }); 
             },
@@ -1357,7 +1181,7 @@ var
                 return TC(function( v ) { return (v < m) ? m : ((v > M) ? M : v); }); 
             },
             TRIM: TC(function( v ) { 
-                return Str(v).tR();
+                return trim(Str(v));
             }),
             LCASE: TC(function( v ) { 
                 return Str(v).toLowerCase( );
@@ -1422,7 +1246,7 @@ var
                 return is_numeric( v ); 
             }),
             NOT_EMPTY: VC(function( v ) { 
-                return !!( v && (0 < Str(v).tR().length) ); 
+                return !!( v && (0 < trim(Str(v)).length) ); 
             }),
             MAXLEN: function( len ) {
                 return VC(newFunc("v", "return v.length <= "+len+";")); 
@@ -1517,6 +1341,207 @@ var
         ,toString: function( ) {
             return '[ModelView.Validation]';
         }
+    }
+;
+
+// Model utils
+var 
+    getNext = function( a, k ) {
+        if ( !a ) return null;
+        var b = [ ], i, ai, l = a.length;
+        for (i=0; i<l; i++)
+        {
+            ai = a[ i ];
+            if ( ai )
+            {
+                if ( ai[ k ] ) b.push( ai[ k ].n );
+                if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].n );
+            }
+        }
+        return b.length ? b : null;
+    },
+    
+    getValue = function( a, k ) {
+        if ( !a ) return null;
+        var i, ai, l = a.length;
+        if ( k )
+        {
+            for (i=0; i<l; i++)
+            {
+                ai = a[ i ];
+                if ( ai )
+                {
+                    if ( ai[ k ] && ai[ k ].v ) return ai[ k ].v;
+                    if ( ai[ WILDCARD ] && ai[ WILDCARD ].v ) return ai[ WILDCARD ].v;
+                }
+            }
+        }
+        else
+        {
+            for (i=0; i<l; i++)
+            {
+                ai = a[ i ];
+                if ( ai && ai.v )  return ai.v;
+            }
+        }
+        return null;
+    },
+    
+    walkadd = function( v, p, obj, isCollectionEach ) {
+        var o = obj, k, i = 0, l = p.length;
+        while ( i < l )
+        {
+            k = p[i++];
+            if ( !(k in o) ) o[ k ] = new Node( );
+            o = o[ k ];
+            if ( i < l ) 
+            {
+                o = o.n;
+            }
+            else 
+            {
+                if ( isCollectionEach )
+                {
+                    if ( !(WILDCARD in o.n) ) o.n[ WILDCARD ] = new Node( );
+                    o.n[ WILDCARD ].v = v;
+                }
+                else
+                {
+                    o.v = v;
+                }
+            }
+        }
+        return obj;
+    },
+    
+    walkcheck = function( p, obj, aux, C ) {
+        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+        while ( i < l ) 
+        {
+            k = p[i++];
+            to = get_type( o );
+            if ( i < l )
+            {
+                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                {
+                    o = o[ k ];
+                    // nested sub-composite class
+                    if ( o instanceof C ) return [C, o, p.slice(i)];
+                    a && (a = getNext( a, k ));
+                }
+                else if ( !a || !(a = getNext( a, k )) )
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if ( a && getValue( a, k ) ) return true;
+                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return true;
+                else if ( T_OBJ === to && 'length' == k ) return true;
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    walk2 = function( p, obj, aux, C ) {
+        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+        while ( i < l ) 
+        {
+            k = p[i++];
+            to = get_type( o );
+            if ( i < l )
+            {
+                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                {
+                    o = o[ k ];
+                    // nested sub-composite class
+                    if ( o instanceof C ) return [C, o, p.slice(i)];
+                    a && (a = getNext( a, k ));
+                }
+                else if ( !a || !(a = getNext( a, k )) )
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if ( a && (a = getValue( a, k )) ) return [false, a];
+                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
+                else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
+        var o = obj, a1 = null, a2 = null, a3 = null, 
+            k, to, i = 0, l = p.length
+        ;
+        all3 = false !== all3;
+        if ( all3 ) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
+        
+        while ( i < l ) 
+        {
+            k = p[i++];
+            to = get_type( o );
+            if ( i < l )
+            {
+                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                {
+                    o = o[ k ];
+                    // nested sub-composite class
+                    if ( o instanceof C ) return [C, o, p.slice(i), 0, null, null, null];
+                    if ( all3 )
+                    {
+                        a1 = getNext( a1, k );
+                        a2 = getNext( a2, k );
+                        a3 = getNext( a3, k );
+                    }
+                }
+                else
+                {
+                    return [false, o, k, p, null, null, null];
+                }
+            }
+            else if ( (to&T_ARRAY_OR_OBJ) ) 
+            {
+                
+                // nested sub-composite class
+                if ( o[ k ] instanceof C )
+                    return [C, o[k], p.slice(i), 0, null, null, null];
+                else if ((k in o) /*|| (to === T_OBJ && "length" === k)*/) 
+                    return [true, o, k, p.slice(i), a1, a2, a3];
+                return [false, o, k, p.slice(i), a1, a2, a3];
+            }
+        }
+        return [false, o, k, p.slice(i), null, null, null];
+    },
+    
+    // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+    dotted = function( key ) {
+        return key
+                .replace(/\[([^\]]*)\]/g, '.$1')         // convert indexes to properties
+                .replace(/^\.+/, '')                       // strip a leading dot
+                .replace(/\.+$/, '')                       // strip trailing dots
+        ;
+    },
+    
+    bracketed = function( dottedKey ) { return '['+dottedKey.split('.').join('][')+']'; },
+    
+    removePrefix = function( prefix ) {
+        // strict mode (after prefix, a key follows)
+        var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+        return function( key, to_dotted ) { 
+            var k = key.replace( regex, '$1' );
+            return to_dotted ? dotted( k ) : k;
+        };
+    },
+
+    keyLevelUp = function( dottedKey, level ) {
+        return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
     },
     
     addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
@@ -1609,6 +1634,18 @@ var Model = function( id, data, types, validators, getters, setters ) {
         .initPubSub( )
     ;
 };
+// STATIC
+Model.count = function( o ) {
+    if ( !arguments.length ) return 0;
+    var T = get_type( o );
+
+    if ( T_OBJ === T ) return Keys( o ).length;
+    else if ( T_ARRAY === T ) return o.length;
+    else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
+    return 0;
+};
+
+// Model implements PublishSubscribe pattern
 Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     constructor: Model
@@ -1732,23 +1769,13 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    ,count: function( dottedKey, val ) {
-        if ( !arguments.length ) return 0;
-        var o = dottedKey ? this.get( dottedKey ) : val, T = get_type( o );
-        
-        if ( T_OBJ === T ) return Keys( o ).length;
-        else if ( T_ARRAY === T ) return o.length;
-        else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
-        return 0;
-    }
-    
     ,has: function( dottedKey, RAW ) {
         var model = this, r;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.val) ) )
+        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.v) ) )
         {
             // handle single key fast
             return true;
@@ -1769,7 +1796,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( 0 > dottedKey.indexOf('.') )
         {
             // handle single key fast
-            if ( !RAW && (r=model.$getters[dottedKey]) && r.val ) return r.val( dottedKey );
+            if ( !RAW && (r=model.$getters[dottedKey]) && r.v ) return r.v( dottedKey );
             return model.$data[ dottedKey ];
         }
         else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
@@ -1784,7 +1811,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return undef;
     }
     
-    // it can add last node also if not there
+    // set/add, it can add last node also if not there
     ,set: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
             type, validator, setter,
@@ -1792,7 +1819,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             prevval, canSet = false
         ;
         
-        if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+        if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
         
         o = model.$data;
         types = model.$types; 
@@ -1806,9 +1833,9 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             // handle single key fast
             k = dottedKey;
-            setter = (r=setters[k]) ? r.val : null;
-            type = (r=types[k] || types[WILDCARD]) ? r.val : null;
-            validator = (r=validators[k] || validators[WILDCARD]) ? r.val : null;
+            setter = (r=setters[k]) ? r.v : null;
+            type = (r=types[k] || types[WILDCARD]) ? r.v : null;
+            validator = (r=validators[k] || validators[WILDCARD]) ? r.v : null;
             canSet = true;
         }
         else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
@@ -1905,14 +1932,14 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    // append value (for arrays like structures)
-    ,append: function ( dottedKey, val, pub, callData ) {
+    // add/append value (for arrays like structures)
+    ,add: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
             type, validator, setter,
             canSet = false
         ;
         
-        if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+        if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
         
         o = model.$data;
         types = model.$types; 
@@ -1926,9 +1953,9 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             // handle single key fast
             k = dottedKey;
-            setter = (r=setters[k]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
-            type = (r=types[k] || types[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
-            validator = (r=validators[k] || validators[WILDCARD]) && r.next[WILDCARD] ? r.next[WILDCARD].val : null;
+            setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            validator = (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             canSet = true;
         }
         else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
@@ -2022,12 +2049,13 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    // delete, without re-arranging (array) indexes
-    ,del: function( dottedKey, pub, callData ) {
+    // delete/remove, with or without re-arranging (array) indexes
+    ,del: function( dottedKey, reArrangeIndexes, pub, callData ) {
         var model = this, r, o, k, p, val, canDel = false;
         
-        if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
+        if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
         
+        reArrangeIndexes = !!reArrangeIndexes;
         o = model.$data;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
@@ -2048,8 +2076,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 // nested sub-model
                 k = k.join('.');
                 val = o.get( k );
-                o.del( k, pub, callData ); 
-                pub && model.publish('remove', {
+                o.del( k, reArrangeIndexes, pub, callData ); 
+                pub && model.publish('delete', {
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -2069,70 +2097,18 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( canDel )
         {
             val = o[ k ];
-            delete o[ k ]; // not re-arrange indexes
-            pub && model.publish('remove', {
-                    key: dottedKey, 
-                    value: val,
-                    $callData: callData
-                });
-            
-            if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
-        }
-        return model;
-    }
-    
-    // remove, re-arranging (array) indexes
-    ,rem: function( dottedKey, pub, callData ) {
-        var model = this, r, o, k, p, val, T, canDel = false;
-        
-        if ( model.atomic && dottedKey.sW( model.$atom ) ) return model;
-        
-        o = model.$data;
-        
-        // http://jsperf.com/regex-vs-indexof-with-and-without-char
-        // http://jsperf.com/split-vs-test-and-split
-        // test and split (if needed) is fastest
-        if ( 0 > dottedKey.indexOf('.') )
-        {
-            // handle single key fast
-            k = dottedKey;
-            canDel = true;
-        }
-        else if ( (r = walk3( dottedKey.split('.'), o, null, null, null, Model, false )) )
-        {
-            o = r[ 1 ]; k = r[ 2 ];
-            
-            if ( Model === r[ 0 ] && k.length ) 
+            if ( reArrangeIndexes )
             {
-                // nested sub-model
-                k = k.join('.');
-                val = o.get( k );
-                o.rem( k, pub, callData ); 
-                pub && model.publish('remove', {
-                        key: dottedKey, 
-                        value: val,
-                        $callData: callData
-                    });
-                
-                if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
-                return model;
+                o[ k ] = undef; T = get_type( o );
+                 // re-arrange indexes
+                if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
+                else if ( T_OBJ == T ) delete o[ k ];
             }
-            else if ( r[ 3 ].length )
+            else
             {
-                // cannot remove intermediate values
-                return model;
+                delete o[ k ]; // not re-arrange indexes
             }
-            canDel = true;
-        }
-        
-        if ( canDel )
-        {
-            val = o[ k ];
-            o[ k ] = undef;
-            T = get_type( o );
-            if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
-            else if ( T_OBJ == T ) delete o[ k ];
-            pub && model.publish('remove', {
+            pub && model.publish('delete', {
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -2144,7 +2120,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     // synchronize fields with other model(s)
-    ,syncTo: function( model, fieldsMap ) {
+    ,sync: function( model, fieldsMap ) {
         var self = this, k;
         for ( k in fieldsMap )
         {
@@ -2157,7 +2133,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     // un-synchronize fields with other model(s)
-    ,unsyncFrom: function( model ) {
+    ,unsync: function( model ) {
         var self = this, k, syncTo = self.$syncTo, list, i;
         for ( k in syncTo )
         {
@@ -2204,6 +2180,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return '[ModelView.Model id: '+this.id+']';
     }
 });
+// aliases
+Model[proto].append = Model[proto].add;
+Model[proto].rem = Model[proto].del;
+
+// View utils
 var
     getInlineTplRE = function( InlineTplFormat ) {
         return new Regex(
@@ -2317,8 +2298,7 @@ var
                 }
             }
         }
-        hash[0] = keyNodes;
-        hash[1] = keyAtts;
+        hash[0] = keyNodes; hash[1] = keyAtts;
         return hash;
     },
     
@@ -2359,8 +2339,8 @@ var
             key = bind.key || (!!name && model.key(name, 1));
             // "model:change" event and element does not reference the (nested) model key
             // OR model atomic operation(s)
-            if ( fromModel && (!key || !key.sW( fromModel.key ) || 
-                (model.atomic && key.sW( model.$atom ))) ) continue;
+            if ( fromModel && (!key || !startsWith( key, fromModel.key ) || 
+                (model.atomic && startsWith( key, model.$atom ))) ) continue;
             
             view[ do_action ]( evt, el, bind );
         }
@@ -2412,7 +2392,7 @@ var
             {
                 kk = keys[k];
                 if ( key === kk ) continue;
-                if ( kk.sW( keyDot ) && (nodes=keyNodes[kk]).length )
+                if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
                 {
                     val = '' + model.get( kk );
                     for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
@@ -2424,7 +2404,7 @@ var
             {
                 kk = keys[k];
                 if ( key === kk ) continue;
-                if ( kk.sW( keyDot ) && (nodes=keyAtts[kk]).length )
+                if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
                 {
                     for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
                 }
@@ -2478,6 +2458,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
 // STATIC
 View._CACHE_SIZE = 600;
 View._REFRESH_INTERVAL = INF; // refresh cache interval
+// View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // allow chaining, return this;
@@ -2525,18 +2506,18 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$model;
     }
     
-    ,attribute: function( type, att ) {
+    ,attribute: function( name, att ) {
         var view = this;
         if ( arguments.length > 1 )
         {
-            view.$atts[ type ] = att;
+            view.$atts[ name ] = att;
             return view;
         }
-        return type ? (view.$atts[ type ] || undef) : undef;
+        return name ? (view.$atts[ name ] || undef) : undef;
     }
     
     ,inlineTplFormat: function( format ) {
-        this.$inlineTplFormat = format;
+        this.$inlineTplFormat = format ? getInlineTplRE( format ) : null;
         return this;
     }
     
@@ -2720,7 +2701,31 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,getDomRef: function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ ref.sW("$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
+    }
+    
+    ,append: function( el, dom ) {  
+        var view = this;
+        if ( el )
+        {
+            dom = dom || view.$dom;
+            dom.appendChild( el );
+            // update/add live DOM bindings
+            view.$keynodes = getKeyTextNodes( el, view.$inlineTplFormat, view.$keynodes );
+            view.sync( dom );
+        }
+        return view;
+    }
+    
+    ,remove: function( el ) {  
+        var view = this;
+        if ( el )
+        {
+            el.parentNode.removeChild( el );
+            // update/remove live DOM bindings
+            // ??
+        }
+        return view;
     }
     
     ,bind: function( events, dom ) {
@@ -2776,7 +2781,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             evt.length && view.onTo( model, evt, view[ method ] );
         }
         
-        view.$keynodes = getKeyTextNodes( view.$dom, getInlineTplRE( view.$inlineTplFormat ) );
+        view.$keynodes = getKeyTextNodes( view.$dom, view.$inlineTplFormat, view.$keynodes );
         
         return view;
     }
@@ -2820,17 +2825,28 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.unbind( ).bind( events, $dom );
     }
     
-    ,sync: function( $dom ) {
+    ,sync: function( $dom, el ) {
         var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
-            syncEvent = PBEvent('sync', view);
+            syncEvent = PBEvent('sync', view), binds, autobinds, doAutobind;
         
         $dom = $dom || view.$dom;
-        doAction( view, view.get( selectors[ 0 ], $dom, 1 ), syncEvent );
-        
+        doAutobind = view.$autobind;
+        if ( el )
+        {
+            syncEvent.currentTarget = el;
+            binds = [ el ].concat( view.get( selectors[ 0 ], el, 1 ) );
+            if ( doAutobind )
+                autobinds = [ el ].concat( view.get( selectors[ 1 ], el, 1 ) );
+        }
+        else
+        {
+            binds = view.get( selectors[ 0 ], $dom, 1 );
+            if ( doAutobind )
+                autobinds = view.get( selectors[ 1 ], $dom, 1 );
+        }
+        doAction( view, binds, syncEvent );
         doDOMLiveUpdateAction( view );
-        
-        if ( view.$autobind )
-            doAutoBindAction( view, view.get( selectors[ 1 ], $dom, 1 ), syncEvent );
+        if ( doAutobind ) doAutoBindAction( view, autobinds, syncEvent );
         return view;
     }
     
@@ -2890,9 +2906,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         }
         
         // if not model update error and element is bind element
-        if ( !modeldata.error && data.isBind )
-            // do view action
-            doAction( view, [el], evt/*, data*/ );
+        // do view action
+        if ( !modeldata.error && data.isBind ) doAction( view, [el], evt/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -2920,30 +2935,28 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do actions ..
         
         // do view action first
-        doAction( view, bindElements, evt, data );
-        
+        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        // do view live DOM bindings update action
         doDOMLiveUpdateAction( view, data.key, data.value );
-        
-        if ( autobind && autoBindElements.length /*&& view.do_bind*/ )
-            // do view autobind action to bind input elements that map to the model, afterwards
-            doAutoBindAction( view, autoBindElements, evt, data );
+        // do view autobind action to bind input elements that map to the model, afterwards
+        if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
-            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) )
+            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
+            bindElements = view.get( selectors[ 0 ] ), 
+            autoBindElements = view.get( selectors[ 1 ] )
         ;
 
         // do actions ..
         
         // do view bind action first
-        doAction( view, view.get( selectors[ 0 ] ), evt, data );
-        
+        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        // do view live DOM bindings update action
         doDOMLiveUpdateAction( view, data.key, data.value );
-        
-        if ( view.$autobind )
-            // do view autobind action to bind input elements that map to the model, afterwards
-            doAutoBindAction( view, view.get( selectors[ 1 ] ), evt, data );
+        // do view autobind action to bind input elements that map to the model, afterwards
+        if ( view.$autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
     
     //
@@ -3158,11 +3171,12 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return '[ModelView.View id: '+this.id+']';
     }
 });
+
 // main
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.40"
+    VERSION: "0.41"
     
     ,UUID: uuid
     
@@ -3182,15 +3196,14 @@ exports['ModelView'] = {
 };
 /**
 *
-*   ModelView.js (jQuery plugin, optional)
-*   @version: 0.40
-*   @@DEPENDENCIES@@
+*   ModelView.js (jQuery plugin, jQueryUI widget optional)
+*   @version: 0.41
 *
-*   A micro-MV* (MVVM) jQuery-based framework for complex (UI) screens
+*   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function( ModelView, undef ) {
+!function( ModelView, window, undef ) {
     "use strict";
     
     ModelView.jquery = function( $ ) {
@@ -3370,8 +3383,8 @@ exports['ModelView'] = {
         }
         
         // add modelview as a jQueryUI widget as well if jQueryuI is loaded
-        // to create stateful self-contained MVC widgets (e.g calendar etc..)
-        if ( $.widget && !$.fn.ModelViewWidget )
+        // to create state-full, self-contained, full-MVC widgets (e.g calendars, grids, etc..)
+        if ( $.widget && (!$.mvc || !$.mvc.ModelViewWidget) )
         {
             $.widget( 'mvc.ModelViewWidget', {
                 
@@ -3407,7 +3420,7 @@ exports['ModelView'] = {
     // add to jQuery if available/accesible now
     if ( 'undefined' !== typeof window.jQuery ) ModelView.jquery( window.jQuery );
     
-}( exports['ModelView'] );
+}( exports['ModelView'], this );
     
     /* main code ends here */
     /* export the module */

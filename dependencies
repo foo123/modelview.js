@@ -25,6 +25,7 @@ SRC =[]
     ./src/event.js
     ./src/pb.js
     ./src/cache.js
+    ./src/types.js
     ./src/model.js
     ./src/view.js
     ./src/footer.js
@@ -46,7 +47,7 @@ REPLACE =[{}]
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
     "@@MODULE_NAME@@" = "ModelView"
-    "@@VERSION@@" = "0.40"
+    "@@VERSION@@" = "0.41"
     
 @ # end block
 
