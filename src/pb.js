@@ -1,43 +1,39 @@
 //
 // PublishSubscribe (Interface)
-var 
-    CAPTURING_PHASE                = 1,
-    AT_TARGET                      = 2,
-    BUBBLING_PHASE                 = 3;
-var PBEvent = function( evt, target, namespace ) {
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
+var PBEvent = function( evt, target, ns ) {
     var self = this;
-    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
+    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
     // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
     self.type = evt;
     self.target = target;
     self.currentTarget = target;
     self.timeStamp = NOW( );
     self.eventPhase = AT_TARGET;
-    self.bubbles = false;
-    self.cancelable = false;
-    self.namespace = namespace || null;
+    self.namespace = ns || null;
 };
 PBEvent[proto] = {
-    constructor: PBEvent,
+    constructor: PBEvent
     
-    type: null,
-    target: null,
-    currentTarget: null,
-    timeStamp: null,
-    eventPhase: AT_TARGET,
-    bubbles: false,
-    cancelable: false,
-    namespace: null,
+    ,type: null
+    ,target: null
+    ,currentTarget: null
+    ,timeStamp: null
+    ,eventPhase: AT_TARGET
+    ,bubbles: false
+    ,cancelable: false
+    ,namespace: null
     
-    stopPropagation: function( ) {
+    ,stopPropagation: function( ) {
         this.bubbles = false;
-    },
-    preventDefault: function( ) {
+    }
+    ,preventDefault: function( ) {
     }
 };
 var PublishSubscribe = {
 
     $PB: null
+    ,namespace: null
     
     ,initPubSub: function( ) {
         var self = this;
@@ -52,50 +48,112 @@ var PublishSubscribe = {
     }
     
     ,trigger: function( evt, data ) {
-        var self = this, PB = self.$PB, queue, i, l;
+        var self = this, PB = self.$PB, queue, q, i, l, ns;
+        ns = getNS( evt ); evt = ns[ 0 ];
         if ( (queue=PB[evt]) && (l=queue.length) )
         {
-            evt = PBEvent( evt, self );
-            for (i=0; i<l; i++) queue[ i ]( evt, data );
+            q = queue.slice( 0 ); ns = ns[1].join('.');
+            evt = new PBEvent( evt, self, ns );
+            for (i=0; i<l; i++) 
+            {
+                q[ i ][ 3 ] = 1; // handler called
+                if ( false === q[ i ][ 0 ]( evt, data ) ) break;
+            }
+            if ( (queue=PB[evt]) && (l=queue.length) )
+            {
+                // remove any oneOffs that were called this time
+                if ( queue.oneOffs > 0 )
+                {
+                    for (i=l-1; i>=0; i--) 
+                    {
+                        q = queue[ i ];
+                        if ( q[2] && q[3] ) 
+                        {
+                            queue.splice( i, 1 );
+                            queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                        }
+                    }
+                }
+                else
+                {
+                    queue.oneOffs = 0;
+                }
+            }
         }
         return self;
     }
     
-    ,on: function( evt, callback ) {
-        var self = this;
+    ,on: function( evt, callback, oneOff ) {
+        var self = this, PB = self.$PB, ns;
         if ( is_type( callback, T_FUNC ) )
         {
-            if ( !self.$PB[evt] ) self.$PB[evt] = [ ];
-            self.$PB[evt].push( callback );
+            oneOff = !!oneOff;
+            ns = getNS( evt ); evt = ns[ 0 ]; ns = ns[ 1 ].join('.');
+            if ( !PB[evt] ) 
+            {
+                PB[evt] = [ ];
+                PB[evt].oneOffs = 0;
+            }
+            PB[evt].push( [callback, ns, oneOff, 0] );
+            if ( oneOff ) PB[evt].oneOffs++;
         }
         return self;
     }
     
-    ,onTo: function( pubSub, evt, callback ) {
+    ,onTo: function( pubSub, evt, callback, oneOff ) {
         var self = this;
         if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
-        pubSub.on( evt, callback );
+        pubSub.on( evt, callback, oneOff );
         return self;
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, i, l, PB = self.$PB;
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc;
         if ( !evt )
         {
-            for (i in PB) delete PB[evt];
+            for (e in PB) delete PB[ e ];
         }
-        else if ( (queue=PB[evt]) && (l=queue.length) )
+        else 
         {
-            if ( is_type( callback, T_FUNC ) ) 
+            ns = getNS( evt ); evt = ns[ 0 ]; ns = getNSMatcher( ns[ 1 ] );
+            isFunc = is_type( callback, T_FUNC );
+            if ( evt.length )
             {
-                for (i=l-1; i>=0; i--)
+                if ( (queue=PB[evt]) && (l=queue.length) )
                 {
-                    if ( callback === queue[i] ) queue.splice(i, 1);
+                    for (i=l-1; i>=0; i--)
+                    {
+                        q = queue[ i ];
+                        if ( (!isFunc || callback === q[0]) && 
+                            (!ns || ns.test(q[1]))
+                        ) 
+                        {
+                            // oneOff
+                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                            queue.splice( i, 1 );
+                        }
+                    }
                 }
             }
-            else 
+            else
             {
-                PB[evt] = [ ];
+                for (e in PB) 
+                {
+                    queue = PB[ e ];
+                    if ( !queue || !(l=queue.length) ) continue;
+                    for (i=l-1; i>=0; i--)
+                    {
+                        q = queue[ i ];
+                        if ( (!isFunc || callback === q[0]) && 
+                            (!ns || ns.test(q[1]))
+                        ) 
+                        {
+                            // oneOff
+                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                            queue.splice( i, 1 );
+                        }
+                    }
+                }
             }
         }
         return self;
@@ -103,7 +161,7 @@ var PublishSubscribe = {
     
     ,offFrom: function( pubSub, evt, callback ) {
         var self = this;
-        if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+        //if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
         pubSub.off( evt, callback );
         return self;
     }

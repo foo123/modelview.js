@@ -13,14 +13,11 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
-    
+    newFunc = function( args, code ){ return new Func(args, code); },
     is_instance = function( o, T ){ return o instanceof T; },
     
-    newFunc = function( args, code ){ return new Func(args, code); },
-    
     tostr = function( s ){ return Str(s); },
-    INF = Infinity, rnd = Math.random, parse_float = parseFloat, 
-    parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
+    INF = Infinity, rnd = Math.random, 
     
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
@@ -39,7 +36,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         
         if (undef === v || "undefined" === type_of)  return T_UNDEF;
         
-        else if (v instanceof Num || "number" === type_of)  return is_nan(v) ? T_NAN : T_NUM;
+        else if (v instanceof Num || "number" === type_of)  return isNaN(v) ? T_NAN : T_NUM;
         
         else if (v instanceof Str || "string" === type_of) return (1 === v.length) ? T_CHAR : T_STR;
         
@@ -58,7 +55,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     is_type = function( v, type ) { return !!( type & get_type( v ) ); },
 
     // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
-    is_numeric = function( n ) { return !is_nan( parse_float( n ) ) && is_finite( n ); },
+    is_numeric = function( n ) { return !isNaN( parseFloat( n, 10 ) ) && isFinite( n ); },
 
     is_array_index = function( n ) {
         if ( is_numeric( n ) ) // is numeric
@@ -103,7 +100,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         );
     }(Element ? Element[proto] : null)),
 
-    getTextNode = function( txt ) { return document.createTextNode(txt||''); },
+    get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
     get_style = window.getComputedStyle 
@@ -195,6 +192,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 else el[TEXT] = Str(v);
                 break;
         }
+    },
+    
+    notEmpty = function( s ){ return s.length > 0; },
+    
+    // adapted from jQuery
+    getNS = function( evt ) {
+        var ns = evt.split('.'), e = ns[ 0 ];
+        ns = ns.slice( 1 ).filter( notEmpty );
+        return [e, ns.sort( )];
+    },
+    getNSMatcher = function( givenNamespaces ) {
+        return givenNamespaces.length 
+            ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ) 
+            : false;
     },
     
     fromJSON = JSON.parse, toJSON = JSON.stringify,
@@ -429,13 +440,5 @@ var
     // get a Universal Unique Identifier (UUID)
     uuid =  function( namespace ) {
         return [ namespace||'UUID', ++_uuidCnt, NOW( ) ].join( '_' );
-    },
-    
-    
-    // namespaced events, play nice with possible others
-    NSEvent = function( evt, namespace ) { 
-        var nsevent = [ ( evt || "" ), NAMESPACE ]; 
-        if ( namespace ) nsevent = nsevent.concat( namespace );
-        return nsevent.join( '.' )
     }
 ;

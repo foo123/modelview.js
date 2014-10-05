@@ -67,14 +67,11 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
-    
+    newFunc = function( args, code ){ return new Func(args, code); },
     is_instance = function( o, T ){ return o instanceof T; },
     
-    newFunc = function( args, code ){ return new Func(args, code); },
-    
     tostr = function( s ){ return Str(s); },
-    INF = Infinity, rnd = Math.random, parse_float = parseFloat, 
-    parse_int = parseInt, is_nan = isNaN, is_finite = isFinite,
+    INF = Infinity, rnd = Math.random, 
     
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
@@ -93,7 +90,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         
         if (undef === v || "undefined" === type_of)  return T_UNDEF;
         
-        else if (v instanceof Num || "number" === type_of)  return is_nan(v) ? T_NAN : T_NUM;
+        else if (v instanceof Num || "number" === type_of)  return isNaN(v) ? T_NAN : T_NUM;
         
         else if (v instanceof Str || "string" === type_of) return (1 === v.length) ? T_CHAR : T_STR;
         
@@ -112,7 +109,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     is_type = function( v, type ) { return !!( type & get_type( v ) ); },
 
     // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
-    is_numeric = function( n ) { return !is_nan( parse_float( n ) ) && is_finite( n ); },
+    is_numeric = function( n ) { return !isNaN( parseFloat( n, 10 ) ) && isFinite( n ); },
 
     is_array_index = function( n ) {
         if ( is_numeric( n ) ) // is numeric
@@ -157,7 +154,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         );
     }(Element ? Element[proto] : null)),
 
-    getTextNode = function( txt ) { return document.createTextNode(txt||''); },
+    get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
     get_style = window.getComputedStyle 
@@ -249,6 +246,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 else el[TEXT] = Str(v);
                 break;
         }
+    },
+    
+    notEmpty = function( s ){ return s.length > 0; },
+    
+    // adapted from jQuery
+    getNS = function( evt ) {
+        var ns = evt.split('.'), e = ns[ 0 ];
+        ns = ns.slice( 1 ).filter( notEmpty );
+        return [e, ns.sort( )];
+    },
+    getNSMatcher = function( givenNamespaces ) {
+        return givenNamespaces.length 
+            ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ) 
+            : false;
     },
     
     fromJSON = JSON.parse, toJSON = JSON.stringify,
@@ -483,16 +494,9 @@ var
     // get a Universal Unique Identifier (UUID)
     uuid =  function( namespace ) {
         return [ namespace||'UUID', ++_uuidCnt, NOW( ) ].join( '_' );
-    },
-    
-    
-    // namespaced events, play nice with possible others
-    NSEvent = function( evt, namespace ) { 
-        var nsevent = [ ( evt || "" ), NAMESPACE ]; 
-        if ( namespace ) nsevent = nsevent.concat( namespace );
-        return nsevent.join( '.' )
     }
 ;
+
 // adapted from https://github.com/jonathantneal/EventListener
 if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListener )
 !function( ){
@@ -583,86 +587,27 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
             return;
         }
     });
-
-    
-    // CustomEvent
-    Object.defineProperty(Window[proto], "CustomEvent", {
-        get: function () {
-            var self = this;
-
-            return function CustomEvent(type, eventInitDict) {
-                var event = self.document.createEventObject(), key;
-
-                event.type = type;
-                eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
-                for (key in eventInitDict) {
-                    if (key == 'cancelable'){
-                        event.returnValue = !eventInitDict.cancelable;
-                    } else if (key == 'bubbles'){
-                        event.cancelBubble = !eventInitDict.bubbles;
-                    } else if (key == 'detail'){
-                        event.detail = eventInitDict.detail;
-                    }
-                }
-                return event;
-            };
-        }
-    });
 }( );
 
-if ( !this.CustomEvent ) 
-!function( ){
-    // CustomEvent for browsers which don't natively support the Constructor method
-    window.CustomEvent = function CustomEvent(type, eventInitDict) {
-        var event;
-        eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
-
-        try {
-            event = document.createEvent('CustomEvent');
-            event.initCustomEvent(type, eventInitDict.bubbles, eventInitDict.cancelable, eventInitDict.detail);
-        } catch (error) {
-            // for browsers which don't support CustomEvent at all, we use a regular event instead
-            event = document.createEvent('Event');
-            event.initEvent(type, eventInitDict.bubbles, eventInitDict.cancelable);
-            event.detail = eventInitDict.detail;
-        }
-
-        return event;
-    };
-}( );
+// namespaced events, play nice with possible others
+function NSEvent( evt, namespace ) 
+{ 
+    var nsevent = [ ( evt || "" ), NAMESPACE ]; 
+    if ( namespace ) nsevent = nsevent.concat( namespace );
+    return nsevent.join( '.' )
+}
 
 // adapted from https://github.com/ftlabs/ftdomdelegate
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'load', 'resize', 'scroll']
 ;
-function captureForType( eventType ) 
-{
-    return -1 < captureEvts.indexOf( eventType );
-}
-function matchesTag( tagName, element ) 
-{
-    return tagName.toLowerCase( ) === element.tagName.toLowerCase( );
-}
+function captureForType( eventType ) { return -1 < captureEvts.indexOf( eventType ); }
+function matchesTag( tagName, element ) { return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
+function matchesId( id, element ) { return id === element.id; }
 function matchesRoot( selector, element ) 
 {
   if ( this.$element === window ) return element === document;
   return this.$element === element;
-}
-function matchesId( id, element ) 
-{
-  return id === element.id;
-}
-function notEmpty( s ){ return s.length > 0; }
-function getNamespace( evt, delim )
-{
-    var ns = evt.split('.'), e = ns[ 0 ];
-    ns = ns.slice( 1 ).filter( notEmpty );
-    return [e, ns.sort( )];
-}
-// adapted from jQuery
-function matchNamespace( namespaces, givenNamespaces )
-{
-    return new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ).test( namespaces );
 }
 
 function DOMEvent( el ) 
@@ -793,7 +738,7 @@ DOMEvent[proto] = {
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
-        eventTypes = eventType.split( /\s+/g ).map( getNamespace );
+        eventTypes = eventType.split( /\s+/g ).map( getNS );
         if ( !eventTypes.length ) return self;
         
         // handler can be passed as
@@ -866,7 +811,7 @@ DOMEvent[proto] = {
     off: function( eventType, selector, handler, useCapture ) {
         var self = this, i, listener, listeners, listenerList, e, c,
             root = self.$element,
-            singleEventType, singleEventNS, eventTypes, allCaptures = false;
+            singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
         // Handler can be passed as
         // the second or third argument
@@ -882,7 +827,7 @@ DOMEvent[proto] = {
         if ( undef === useCapture ) allCaptures = [0, 1];
         else allCaptures = useCapture ? [1] : [0];
 
-        eventTypes = eventType ? eventType.split( /\s+/g ).map( getNamespace ) : [];
+        eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
         
         if ( !eventTypes.length ) 
         {
@@ -898,7 +843,8 @@ DOMEvent[proto] = {
                     for (i=listenerList.length-1; i>=0; i--) 
                     {
                         listener = listenerList[ i ];
-                        if ( (!selector || selector === listener.selector) && (!handler || handler === listener.handler) )
+                        if ( (!selector || selector === listener.selector) && 
+                            (!handler || handler === listener.handler) )
                             listenerList.splice( i, 1 );
                     }
                     // All listeners removed
@@ -920,6 +866,7 @@ DOMEvent[proto] = {
                 {
                     singleEventNS = eventTypes[e][1];
                     singleEventType = eventTypes[e][0];
+                    nsMatcher = getNSMatcher( singleEventNS );
                     if ( singleEventType.length )
                     {
                         listenerList = listeners[ singleEventType ];
@@ -931,7 +878,7 @@ DOMEvent[proto] = {
                             listener = listenerList[ i ];
                             if ( (!selector || selector === listener.selector) && 
                                 (!handler || handler === listener.handler) &&
-                                (!singleEventNS.length || matchNamespace(listener.namespace, singleEventNS))
+                                (!nsMatcher || nsMatcher.test(listener.namespace))
                             )
                                 listenerList.splice( i, 1 );
                         }
@@ -956,7 +903,7 @@ DOMEvent[proto] = {
                                 listener = listenerList[ i ];
                                 if ( (!selector || selector === listener.selector) && 
                                     (!handler || handler === listener.handler) &&
-                                    (!singleEventNS.length || matchNamespace(listener.namespace, singleEventNS))
+                                    (!nsMatcher || nsMatcher.test(listener.namespace))
                                 )
                                     listenerList.splice( i, 1 );
                             }
@@ -976,44 +923,40 @@ DOMEvent[proto] = {
     }
 };//
 // PublishSubscribe (Interface)
-var 
-    CAPTURING_PHASE                = 1,
-    AT_TARGET                      = 2,
-    BUBBLING_PHASE                 = 3;
-var PBEvent = function( evt, target, namespace ) {
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
+var PBEvent = function( evt, target, ns ) {
     var self = this;
-    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, namespace );
+    if ( !(self instanceof PBEvent) ) return new PBEvent( evt, target, ns );
     // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
     self.type = evt;
     self.target = target;
     self.currentTarget = target;
     self.timeStamp = NOW( );
     self.eventPhase = AT_TARGET;
-    self.bubbles = false;
-    self.cancelable = false;
-    self.namespace = namespace || null;
+    self.namespace = ns || null;
 };
 PBEvent[proto] = {
-    constructor: PBEvent,
+    constructor: PBEvent
     
-    type: null,
-    target: null,
-    currentTarget: null,
-    timeStamp: null,
-    eventPhase: AT_TARGET,
-    bubbles: false,
-    cancelable: false,
-    namespace: null,
+    ,type: null
+    ,target: null
+    ,currentTarget: null
+    ,timeStamp: null
+    ,eventPhase: AT_TARGET
+    ,bubbles: false
+    ,cancelable: false
+    ,namespace: null
     
-    stopPropagation: function( ) {
+    ,stopPropagation: function( ) {
         this.bubbles = false;
-    },
-    preventDefault: function( ) {
+    }
+    ,preventDefault: function( ) {
     }
 };
 var PublishSubscribe = {
 
     $PB: null
+    ,namespace: null
     
     ,initPubSub: function( ) {
         var self = this;
@@ -1028,50 +971,112 @@ var PublishSubscribe = {
     }
     
     ,trigger: function( evt, data ) {
-        var self = this, PB = self.$PB, queue, i, l;
+        var self = this, PB = self.$PB, queue, q, i, l, ns;
+        ns = getNS( evt ); evt = ns[ 0 ];
         if ( (queue=PB[evt]) && (l=queue.length) )
         {
-            evt = PBEvent( evt, self );
-            for (i=0; i<l; i++) queue[ i ]( evt, data );
+            q = queue.slice( 0 ); ns = ns[1].join('.');
+            evt = new PBEvent( evt, self, ns );
+            for (i=0; i<l; i++) 
+            {
+                q[ i ][ 3 ] = 1; // handler called
+                if ( false === q[ i ][ 0 ]( evt, data ) ) break;
+            }
+            if ( (queue=PB[evt]) && (l=queue.length) )
+            {
+                // remove any oneOffs that were called this time
+                if ( queue.oneOffs > 0 )
+                {
+                    for (i=l-1; i>=0; i--) 
+                    {
+                        q = queue[ i ];
+                        if ( q[2] && q[3] ) 
+                        {
+                            queue.splice( i, 1 );
+                            queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                        }
+                    }
+                }
+                else
+                {
+                    queue.oneOffs = 0;
+                }
+            }
         }
         return self;
     }
     
-    ,on: function( evt, callback ) {
-        var self = this;
+    ,on: function( evt, callback, oneOff ) {
+        var self = this, PB = self.$PB, ns;
         if ( is_type( callback, T_FUNC ) )
         {
-            if ( !self.$PB[evt] ) self.$PB[evt] = [ ];
-            self.$PB[evt].push( callback );
+            oneOff = !!oneOff;
+            ns = getNS( evt ); evt = ns[ 0 ]; ns = ns[ 1 ].join('.');
+            if ( !PB[evt] ) 
+            {
+                PB[evt] = [ ];
+                PB[evt].oneOffs = 0;
+            }
+            PB[evt].push( [callback, ns, oneOff, 0] );
+            if ( oneOff ) PB[evt].oneOffs++;
         }
         return self;
     }
     
-    ,onTo: function( pubSub, evt, callback ) {
+    ,onTo: function( pubSub, evt, callback, oneOff ) {
         var self = this;
         if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
-        pubSub.on( evt, callback );
+        pubSub.on( evt, callback, oneOff );
         return self;
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, i, l, PB = self.$PB;
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc;
         if ( !evt )
         {
-            for (i in PB) delete PB[evt];
+            for (e in PB) delete PB[ e ];
         }
-        else if ( (queue=PB[evt]) && (l=queue.length) )
+        else 
         {
-            if ( is_type( callback, T_FUNC ) ) 
+            ns = getNS( evt ); evt = ns[ 0 ]; ns = getNSMatcher( ns[ 1 ] );
+            isFunc = is_type( callback, T_FUNC );
+            if ( evt.length )
             {
-                for (i=l-1; i>=0; i--)
+                if ( (queue=PB[evt]) && (l=queue.length) )
                 {
-                    if ( callback === queue[i] ) queue.splice(i, 1);
+                    for (i=l-1; i>=0; i--)
+                    {
+                        q = queue[ i ];
+                        if ( (!isFunc || callback === q[0]) && 
+                            (!ns || ns.test(q[1]))
+                        ) 
+                        {
+                            // oneOff
+                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                            queue.splice( i, 1 );
+                        }
+                    }
                 }
             }
-            else 
+            else
             {
-                PB[evt] = [ ];
+                for (e in PB) 
+                {
+                    queue = PB[ e ];
+                    if ( !queue || !(l=queue.length) ) continue;
+                    for (i=l-1; i>=0; i--)
+                    {
+                        q = queue[ i ];
+                        if ( (!isFunc || callback === q[0]) && 
+                            (!ns || ns.test(q[1]))
+                        ) 
+                        {
+                            // oneOff
+                            if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                            queue.splice( i, 1 );
+                        }
+                    }
+                }
             }
         }
         return self;
@@ -1079,7 +1084,7 @@ var PublishSubscribe = {
     
     ,offFrom: function( pubSub, evt, callback ) {
         var self = this;
-        if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
+        //if ( is_type( callback, T_FUNC ) ) callback = bindF( callback, self );
         pubSub.off( evt, callback );
         return self;
     }
@@ -1606,7 +1611,6 @@ var Model = function( id, data, types, validators, getters, setters ) {
 };
 Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
-    // allow chaining, return this;
     constructor: Model
     
     ,id: null
@@ -1832,7 +1836,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 }
                 
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
@@ -1858,7 +1861,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 {
                     if ( callData ) callData.error = true;
                     model.publish('error', {
-                        model: model, 
                         key: dottedKey, 
                         value: o[k], 
                         $callData: callData
@@ -1873,7 +1875,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 if ( setter( dottedKey, val ) ) 
                 {
                     pub && model.publish('change', {
-                            model: model, 
                             key: dottedKey, 
                             value: val,
                             $callData: callData
@@ -1892,7 +1893,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 o[ k ] = val;
             
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
@@ -1952,7 +1952,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 }
                 
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -1977,7 +1976,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 {
                     if ( callData ) callData.error = true;
                     model.publish('error', {
-                        model: model, 
                         key: dottedKey, 
                         value: /*val*/undef,
                         $callData: callData
@@ -1992,7 +1990,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 if ( setter( dottedKey, val ) ) 
                 {
                     pub && model.publish('change', {
-                            model: model, 
                             key: dottedKey, 
                             value: val,
                             $callData: callData
@@ -2015,7 +2012,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             }
         
             pub && model.publish('change', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -2054,7 +2050,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 val = o.get( k );
                 o.del( k, pub, callData ); 
                 pub && model.publish('remove', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -2076,7 +2071,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             val = o[ k ];
             delete o[ k ]; // not re-arrange indexes
             pub && model.publish('remove', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -2115,7 +2109,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 val = o.get( k );
                 o.rem( k, pub, callData ); 
                 pub && model.publish('remove', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -2140,7 +2133,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
             else if ( T_OBJ == T ) delete o[ k ];
             pub && model.publish('remove', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -2159,7 +2151,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             self.$syncTo[k] = self.$syncTo[k] || [];
             self.$syncTo[k].push([model, fieldsMap[k]]);
         }
-        if ( !self.$syncHandler ) 
+        if ( !self.$syncHandler ) // lazy, only if needed
             self.on('change', self.$syncHandler = syncHandler.bind( self ));
         return self;
     }
@@ -2182,7 +2174,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // shortcut to trigger "model:change" per given key
     ,notify: function( dottedKey, evt, callData ) {
         dottedKey && this.publish(evt||'change', {
-                model: this, 
                 key: dottedKey,
                 /*, value: null*/
                 $callData: callData
@@ -2304,7 +2295,7 @@ var
                 txt = a.nodeValue;  aNodesCached = (txt in aNodes);
                 if ( !aNodesCached ) 
                 {
-                    rest = getTextNode( txt );
+                    rest = get_textnode( txt );
                     aNodes[ txt ] = [[], [ rest ]];
                     do {
                         key = m[1]; 
@@ -2479,7 +2470,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     view.$atts = atts;
     cacheSize = cacheSize || View._CACHE_SIZE;
     refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
-    view.$memoize = new Cache( cacheSize, refreshInterval );
+    view.$memoize = new Cache( cacheSize, INF );
     view.$selectors = new Cache( cacheSize, refreshInterval );
     view.$bind = view.attribute( "bind" );
     view.inlineTplFormat( '$(__KEY__)' ).model( model || new Model( ) ).initPubSub( );
@@ -3205,183 +3196,184 @@ exports['ModelView'] = {
     ModelView.jquery = function( $ ) {
         "use strict";
         
-        if ( $.ModelView ) return;
-        
-        var slice = Function.prototype.call.bind( Array.prototype.slice ),
-            extend = $.extend, View = ModelView.View, Model = ModelView.Model,
-            defaultModel = {
-                id: 'model'
-                ,data: { }
-                ,types: { }
-                ,validators: { }
-                ,getters: { }
-                ,setters: { }
-            },
-            defaultOptions = {
-                
-                viewClass: View
-                ,modelClass: Model
-                
-                ,id: 'view'
-                ,autoSync: true
-                ,autobind: false
-                ,bindbubble: false
-                ,bindAttribute: 'data-bind'
-                ,inlineTplFormat: '$(__KEY__)'
-                ,cacheSize: View._CACHE_SIZE
-                ,refreshInterval: View._REFRESH_INTERVAL
-                
-                ,model: null
-                ,template: null
-                ,events: null
-                ,actions: { }
-                ,handlers: { }
-            }
-        ;
-        
-        // add it to root jQuery object as a jQuery reference
-        $.ModelView = ModelView;
-        
-        // modelview jQuery plugin
-        $.fn.modelview = function( arg0, arg1, arg2 ) {
-            var argslen = arguments.length, 
-                method = argslen ? arg0 : null, 
-                options = arg0,
-                isInit = true, optionsParsed = false,  map = [ ]
+        if ( !$.ModelView )
+        {
+            // add it to root jQuery object as a jQuery reference
+            $.ModelView = ModelView;
+            
+            var slice = Function.prototype.call.bind( Array.prototype.slice ),
+                extend = $.extend, View = ModelView.View, Model = ModelView.Model,
+                defaultModel = {
+                    id: 'model'
+                    ,data: { }
+                    ,types: { }
+                    ,validators: { }
+                    ,getters: { }
+                    ,setters: { }
+                },
+                defaultOptions = {
+                    
+                    viewClass: View
+                    ,modelClass: Model
+                    
+                    ,id: 'view'
+                    ,autoSync: true
+                    ,autobind: false
+                    ,bindbubble: false
+                    ,bindAttribute: 'data-bind'
+                    ,inlineTplFormat: '$(__KEY__)'
+                    ,cacheSize: View._CACHE_SIZE
+                    ,refreshInterval: View._REFRESH_INTERVAL
+                    
+                    ,model: null
+                    ,template: null
+                    ,events: null
+                    ,actions: { }
+                    ,handlers: { }
+                }
             ;
             
-            // apply for each matched element (better use one element per time)
-            this.each(function( ) {
-                
-                var $dom = $(this), model, view, handler;
-                
-                // modelview already set on element
-                if ( $dom.data( 'modelview' ) )
-                {
-                    isInit = false;
-                    
-                    view = $dom.data( 'modelview' );
-                    model = view.$model;
-                    
-                    // methods
-                    if ( 'view' === method ) 
-                    {
-                        map.push( view );
-                    }
-                    else if ( 'model' === method ) 
-                    {
-                        if ( argslen > 1 )
-                        {
-                            view.model( arg1 ); 
-                            return this;
-                        }
-                            
-                        map.push( model );
-                    }
-                    else if ( 'data' === method ) 
-                    {
-                        if ( argslen > 1 )
-                        {
-                            model.data( arg1 ); 
-                            return this;
-                        }
-                            
-                        map.push( model.data( ) );
-                    }
-                    else if ( 'sync' === method ) 
-                    {
-                        view.sync( arg1 );
-                    }
-                    else if ( 'reset' === method ) 
-                    {
-                        view.reset( );
-                    }
-                    else if ( 'dispose' === method ) 
-                    {
-                        $dom.data( 'modelview', null );
-                        view.dispose( );
-                    }
-                    
-                    return this;
-                }
-                
-                if ( !optionsParsed )
-                {
-                    // parse options once
-                    options = extend( {}, defaultOptions, options );
-                    
-                    if ( options.model && !(options.model instanceof Model) )
-                    {
-                        options.model = extend( {}, defaultModel, options.model );
-                    }
-                    
-                    optionsParsed = true;
-                }
-                
-                if ( !options.model ) return this;
-                
-                model = (options.model instanceof Model) 
-                        ? options.model 
-                        : new options.modelClass(
-                            options.model.id, 
-                            options.model.data, 
-                            options.model.types, 
-                            options.model.validators, 
-                            options.model.getters, 
-                            options.model.setters
-                        )
-                    ;
-                
-                view = new options.viewClass(
-                    options.id, model, 
-                    { bind: options.bindAttribute || 'data-bind' },
-                    options.cacheSize, options.refreshInterval
-                );
-                
-                // custom view template renderer
-                if ( options.template )
-                {
-                    view.template( options.template );
-                }
-                // custom view event handlers
-                if ( options.handlers )
-                {
-                    for (var eventname in options.handlers)
-                    {
-                        handler = options.handlers[ eventname ];
-                        if ( handler ) view.event( eventname, handler );
-                    }
-                }
-                // custom view actions
-                if ( options.actions )
-                {
-                    for (var action in options.actions)
-                    {
-                        handler = options.actions[ action ];
-                        if ( handler ) view.action( action, handler );
-                    }
-                }
-                
-                // init view
-                $dom.data( 'modelview', view );
-                view
-                    .inlineTplFormat( options.inlineTplFormat )
-                    .bindbubble( options.bindbubble )
-                    .autobind( options.autobind )
-                    .bind( options.events, $dom[0] )
+            // modelview jQuery plugin
+            $.fn.modelview = function( arg0, arg1, arg2 ) {
+                var argslen = arguments.length, 
+                    method = argslen ? arg0 : null, 
+                    options = arg0,
+                    isInit = true, optionsParsed = false,  map = [ ]
                 ;
-                if ( options.autoSync ) view.sync( );
-            });
-            
-            // chainable or values return
-            return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
-        };
+                
+                // apply for each matched element (better use one element per time)
+                this.each(function( ) {
+                    
+                    var $dom = $(this), model, view, handler;
+                    
+                    // modelview already set on element
+                    if ( $dom.data( 'modelview' ) )
+                    {
+                        isInit = false;
+                        
+                        view = $dom.data( 'modelview' );
+                        model = view.$model;
+                        
+                        // methods
+                        if ( 'view' === method ) 
+                        {
+                            map.push( view );
+                        }
+                        else if ( 'model' === method ) 
+                        {
+                            if ( argslen > 1 )
+                            {
+                                view.model( arg1 ); 
+                                return this;
+                            }
+                                
+                            map.push( model );
+                        }
+                        else if ( 'data' === method ) 
+                        {
+                            if ( argslen > 1 )
+                            {
+                                model.data( arg1 ); 
+                                return this;
+                            }
+                                
+                            map.push( model.data( ) );
+                        }
+                        else if ( 'sync' === method ) 
+                        {
+                            view.sync( arg1 );
+                        }
+                        else if ( 'reset' === method ) 
+                        {
+                            view.reset( );
+                        }
+                        else if ( 'dispose' === method ) 
+                        {
+                            $dom.data( 'modelview', null );
+                            view.dispose( );
+                        }
+                        
+                        return this;
+                    }
+                    
+                    if ( !optionsParsed )
+                    {
+                        // parse options once
+                        options = extend( {}, defaultOptions, options );
+                        
+                        if ( options.model && !(options.model instanceof Model) )
+                        {
+                            options.model = extend( {}, defaultModel, options.model );
+                        }
+                        
+                        optionsParsed = true;
+                    }
+                    
+                    if ( !options.model ) return this;
+                    
+                    model = (options.model instanceof Model) 
+                            ? options.model 
+                            : new options.modelClass(
+                                options.model.id, 
+                                options.model.data, 
+                                options.model.types, 
+                                options.model.validators, 
+                                options.model.getters, 
+                                options.model.setters
+                            )
+                        ;
+                    
+                    view = new options.viewClass(
+                        options.id, model, 
+                        { bind: options.bindAttribute || 'data-bind' },
+                        options.cacheSize, options.refreshInterval
+                    );
+                    
+                    // custom view template renderer
+                    if ( options.template )
+                    {
+                        view.template( options.template );
+                    }
+                    // custom view event handlers
+                    if ( options.handlers )
+                    {
+                        for (var eventname in options.handlers)
+                        {
+                            handler = options.handlers[ eventname ];
+                            if ( handler ) view.event( eventname, handler );
+                        }
+                    }
+                    // custom view actions
+                    if ( options.actions )
+                    {
+                        for (var action in options.actions)
+                        {
+                            handler = options.actions[ action ];
+                            if ( handler ) view.action( action, handler );
+                        }
+                    }
+                    
+                    // init view
+                    view
+                        .inlineTplFormat( options.inlineTplFormat )
+                        .bindbubble( options.bindbubble )
+                        .autobind( options.autobind )
+                        .bind( options.events, $dom[0] )
+                    ;
+                    $dom.data( 'modelview', view );
+                    if ( options.autoSync ) view.sync( );
+                });
+                
+                // chainable or values return
+                return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
+            };
+        }
         
         // add modelview as a jQueryUI widget as well if jQueryuI is loaded
         // to create stateful self-contained MVC widgets (e.g calendar etc..)
-        if ( $.widget )
+        if ( $.widget && !$.fn.ModelViewWidget )
         {
-            $.widget( 'ModelView', {
+            $.widget( 'mvc.ModelViewWidget', {
                 
                 options: { },
                 

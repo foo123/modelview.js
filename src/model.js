@@ -421,7 +421,6 @@ var Model = function( id, data, types, validators, getters, setters ) {
 };
 Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
-    // allow chaining, return this;
     constructor: Model
     
     ,id: null
@@ -647,7 +646,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 }
                 
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
@@ -673,7 +671,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 {
                     if ( callData ) callData.error = true;
                     model.publish('error', {
-                        model: model, 
                         key: dottedKey, 
                         value: o[k], 
                         $callData: callData
@@ -688,7 +685,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 if ( setter( dottedKey, val ) ) 
                 {
                     pub && model.publish('change', {
-                            model: model, 
                             key: dottedKey, 
                             value: val,
                             $callData: callData
@@ -707,7 +703,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 o[ k ] = val;
             
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
@@ -767,7 +762,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 }
                 
                 pub && model.publish('change', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -792,7 +786,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 {
                     if ( callData ) callData.error = true;
                     model.publish('error', {
-                        model: model, 
                         key: dottedKey, 
                         value: /*val*/undef,
                         $callData: callData
@@ -807,7 +800,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 if ( setter( dottedKey, val ) ) 
                 {
                     pub && model.publish('change', {
-                            model: model, 
                             key: dottedKey, 
                             value: val,
                             $callData: callData
@@ -830,7 +822,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             }
         
             pub && model.publish('change', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -869,7 +860,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 val = o.get( k );
                 o.del( k, pub, callData ); 
                 pub && model.publish('remove', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -891,7 +881,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             val = o[ k ];
             delete o[ k ]; // not re-arrange indexes
             pub && model.publish('remove', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -930,7 +919,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 val = o.get( k );
                 o.rem( k, pub, callData ); 
                 pub && model.publish('remove', {
-                        model: model, 
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -955,7 +943,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
             else if ( T_OBJ == T ) delete o[ k ];
             pub && model.publish('remove', {
-                    model: model, 
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -974,7 +961,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             self.$syncTo[k] = self.$syncTo[k] || [];
             self.$syncTo[k].push([model, fieldsMap[k]]);
         }
-        if ( !self.$syncHandler ) 
+        if ( !self.$syncHandler ) // lazy, only if needed
             self.on('change', self.$syncHandler = syncHandler.bind( self ));
         return self;
     }
@@ -997,7 +984,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // shortcut to trigger "model:change" per given key
     ,notify: function( dottedKey, evt, callData ) {
         dottedKey && this.publish(evt||'change', {
-                model: this, 
                 key: dottedKey,
                 /*, value: null*/
                 $callData: callData

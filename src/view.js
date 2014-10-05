@@ -89,7 +89,7 @@ var
                 txt = a.nodeValue;  aNodesCached = (txt in aNodes);
                 if ( !aNodesCached ) 
                 {
-                    rest = getTextNode( txt );
+                    rest = get_textnode( txt );
                     aNodes[ txt ] = [[], [ rest ]];
                     do {
                         key = m[1]; 
@@ -264,7 +264,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     view.$atts = atts;
     cacheSize = cacheSize || View._CACHE_SIZE;
     refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
-    view.$memoize = new Cache( cacheSize, refreshInterval );
+    view.$memoize = new Cache( cacheSize, INF );
     view.$selectors = new Cache( cacheSize, refreshInterval );
     view.$bind = view.attribute( "bind" );
     view.inlineTplFormat( '$(__KEY__)' ).model( model || new Model( ) ).initPubSub( );

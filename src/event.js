@@ -1,3 +1,4 @@
+
 // adapted from https://github.com/jonathantneal/EventListener
 if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListener )
 !function( ){
@@ -88,86 +89,27 @@ if ( this.Element && Element[proto].attachEvent && !Element[proto].addEventListe
             return;
         }
     });
-
-    
-    // CustomEvent
-    Object.defineProperty(Window[proto], "CustomEvent", {
-        get: function () {
-            var self = this;
-
-            return function CustomEvent(type, eventInitDict) {
-                var event = self.document.createEventObject(), key;
-
-                event.type = type;
-                eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
-                for (key in eventInitDict) {
-                    if (key == 'cancelable'){
-                        event.returnValue = !eventInitDict.cancelable;
-                    } else if (key == 'bubbles'){
-                        event.cancelBubble = !eventInitDict.bubbles;
-                    } else if (key == 'detail'){
-                        event.detail = eventInitDict.detail;
-                    }
-                }
-                return event;
-            };
-        }
-    });
 }( );
 
-if ( !this.CustomEvent ) 
-!function( ){
-    // CustomEvent for browsers which don't natively support the Constructor method
-    window.CustomEvent = function CustomEvent(type, eventInitDict) {
-        var event;
-        eventInitDict = eventInitDict || {bubbles: false, cancelable: false, detail: undefined};
-
-        try {
-            event = document.createEvent('CustomEvent');
-            event.initCustomEvent(type, eventInitDict.bubbles, eventInitDict.cancelable, eventInitDict.detail);
-        } catch (error) {
-            // for browsers which don't support CustomEvent at all, we use a regular event instead
-            event = document.createEvent('Event');
-            event.initEvent(type, eventInitDict.bubbles, eventInitDict.cancelable);
-            event.detail = eventInitDict.detail;
-        }
-
-        return event;
-    };
-}( );
+// namespaced events, play nice with possible others
+function NSEvent( evt, namespace ) 
+{ 
+    var nsevent = [ ( evt || "" ), NAMESPACE ]; 
+    if ( namespace ) nsevent = nsevent.concat( namespace );
+    return nsevent.join( '.' )
+}
 
 // adapted from https://github.com/ftlabs/ftdomdelegate
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'load', 'resize', 'scroll']
 ;
-function captureForType( eventType ) 
-{
-    return -1 < captureEvts.indexOf( eventType );
-}
-function matchesTag( tagName, element ) 
-{
-    return tagName.toLowerCase( ) === element.tagName.toLowerCase( );
-}
+function captureForType( eventType ) { return -1 < captureEvts.indexOf( eventType ); }
+function matchesTag( tagName, element ) { return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
+function matchesId( id, element ) { return id === element.id; }
 function matchesRoot( selector, element ) 
 {
   if ( this.$element === window ) return element === document;
   return this.$element === element;
-}
-function matchesId( id, element ) 
-{
-  return id === element.id;
-}
-function notEmpty( s ){ return s.length > 0; }
-function getNamespace( evt, delim )
-{
-    var ns = evt.split('.'), e = ns[ 0 ];
-    ns = ns.slice( 1 ).filter( notEmpty );
-    return [e, ns.sort( )];
-}
-// adapted from jQuery
-function matchNamespace( namespaces, givenNamespaces )
-{
-    return new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ).test( namespaces );
 }
 
 function DOMEvent( el ) 
@@ -298,7 +240,7 @@ DOMEvent[proto] = {
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
-        eventTypes = eventType.split( /\s+/g ).map( getNamespace );
+        eventTypes = eventType.split( /\s+/g ).map( getNS );
         if ( !eventTypes.length ) return self;
         
         // handler can be passed as
@@ -371,7 +313,7 @@ DOMEvent[proto] = {
     off: function( eventType, selector, handler, useCapture ) {
         var self = this, i, listener, listeners, listenerList, e, c,
             root = self.$element,
-            singleEventType, singleEventNS, eventTypes, allCaptures = false;
+            singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
         // Handler can be passed as
         // the second or third argument
@@ -387,7 +329,7 @@ DOMEvent[proto] = {
         if ( undef === useCapture ) allCaptures = [0, 1];
         else allCaptures = useCapture ? [1] : [0];
 
-        eventTypes = eventType ? eventType.split( /\s+/g ).map( getNamespace ) : [];
+        eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
         
         if ( !eventTypes.length ) 
         {
@@ -403,7 +345,8 @@ DOMEvent[proto] = {
                     for (i=listenerList.length-1; i>=0; i--) 
                     {
                         listener = listenerList[ i ];
-                        if ( (!selector || selector === listener.selector) && (!handler || handler === listener.handler) )
+                        if ( (!selector || selector === listener.selector) && 
+                            (!handler || handler === listener.handler) )
                             listenerList.splice( i, 1 );
                     }
                     // All listeners removed
@@ -425,6 +368,7 @@ DOMEvent[proto] = {
                 {
                     singleEventNS = eventTypes[e][1];
                     singleEventType = eventTypes[e][0];
+                    nsMatcher = getNSMatcher( singleEventNS );
                     if ( singleEventType.length )
                     {
                         listenerList = listeners[ singleEventType ];
@@ -436,7 +380,7 @@ DOMEvent[proto] = {
                             listener = listenerList[ i ];
                             if ( (!selector || selector === listener.selector) && 
                                 (!handler || handler === listener.handler) &&
-                                (!singleEventNS.length || matchNamespace(listener.namespace, singleEventNS))
+                                (!nsMatcher || nsMatcher.test(listener.namespace))
                             )
                                 listenerList.splice( i, 1 );
                         }
@@ -461,7 +405,7 @@ DOMEvent[proto] = {
                                 listener = listenerList[ i ];
                                 if ( (!selector || selector === listener.selector) && 
                                     (!handler || handler === listener.handler) &&
-                                    (!singleEventNS.length || matchNamespace(listener.namespace, singleEventNS))
+                                    (!nsMatcher || nsMatcher.test(listener.namespace))
                                 )
                                     listenerList.splice( i, 1 );
                             }

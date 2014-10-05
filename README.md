@@ -1,7 +1,7 @@
 modelview.js
 ============
 
-A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin as well)
+A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
 
 
 **Version 0.40**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
@@ -9,6 +9,7 @@ A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM)
 
 **see also:**  
 
+* [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python
 * [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/JS, PHP and Python
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP and Python
@@ -17,7 +18,7 @@ A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM)
 
 ###Contents
 
-* [Hello World](#hello-world)
+* [Hello Earth](#hello-earth)
 * [Browser Support](#browser-support)
 * [Live Examples](#live-examples)
 * [MV* Patterns and MVVM](#mv-patterns-and-mvvm)
@@ -28,7 +29,7 @@ A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM)
 
 
 
-####Hello World
+####Hello Earth
 
 [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
@@ -48,13 +49,12 @@ A simple / extendable / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM)
 new ModelView.View('view', 
     new ModelView.Model('model', 
     // model data here ..
-    { msg: 'World!' },
+    { msg: 'Earth!' },
     // model data type-casters (if any) here ..
     { msg: ModelView.Type.Cast.STR },
     // model data validators (if any) here ..
     { msg: ModelView.Validation.Validate.NOT_EMPTY }
-    ),
-    {bind: 'data-bind'}
+    )
 )
 .action('alert_msg', function( evt, el, bindData ) {
     alert( this.$model.get('msg') );
@@ -63,6 +63,7 @@ new ModelView.View('view',
     // or even this, if you want the raw data without any processing
     //alert( this.$model.$data.msg );
 })
+.attribute( 'bind', 'data-bind' )
 .autobind( true )
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
 .sync( )
@@ -79,6 +80,7 @@ $('#screen').modelview({
     id: 'view',
     
     autobind: true,
+    autoSync: true,
     bindAttribute: 'data-bind',
     inlineTplFormat: '$(__KEY__)',
     events: [ 'change', 'click' ],
@@ -88,7 +90,7 @@ $('#screen').modelview({
         
         data: {
             // model data here ..
-            msg: 'World!'
+            msg: 'Earth!'
         },
         
         types: {
@@ -117,14 +119,15 @@ $('#screen').modelview({
 
 ####Browser Support
 
+for ModelView <= 0.26 (using jQuery) browser support is same as basic jQuery support
+
+
 for ModelView 0.30+ (using native)
 
 * Firefox 4+
 * Chrome 4+
 * Opera 10+
-* IE 10+
-
-for ModelView <= 0.26 (using jQuery) browser support is same as basic jQuery support
+* IE 9+
 
 
 
@@ -171,14 +174,14 @@ The **C** (controller) part handles the connection and event flow between a view
 In MVC the **view** is usually procedurally generated in code (eg. a Java Swing View), whereas in MVVM the **view** is declaratively built (eg. markup). Thus the MVVM Controller is not an exact counterpart of an MVC Controller (at least in some implementations).
 
 
-The ViewModel controller binds a model to a specific (declarative) view. Which brings the next topic, **Declarative Data Bindings** and MVVM for HTML and JavaScript.
+The ViewModel controller binds a model to a specific (declarative) ui-view. Which brings the next topic, **Declarative Data Bindings** and MVVM for HTML and JavaScript.
 
 
 
 **Declarative Data Bindings**
 
 
-Declarative Data Bindings are a way to define/declare in the ui markup how a specific ui element relates (binds) to the underlying model and logic.
+Declarative Data Bindings are a way to define in the markup how a specific ui element relates (binds) to the underlying model and logic.
 
 
 Ok, so why is it good to mix logic and markup (again) after so much trouble for clean separation of markup and logic??
@@ -190,18 +193,14 @@ This is a good question and will attempt an answer.
 Why is this:
 
 ```html
-
-<div data-bind='{"click": "openPopup"}' class="button"></div>
-
+<div data-bind='{"click":"openPopup"}' class="button"></div>
 ```
 
 
 Better than this:
 
 ```html
-
 <div onclick="openPopup(this)" class="button"></div>
-
 ```
 
 
@@ -215,28 +214,24 @@ and why should a designer (who designs the UI) be involved in this??
 
 2. The first example (although relevant to modelview.js) is more generic than the javascript handler added directly on the element in the second example. The reason is twofold, first more events (even other click events) can still be added to the element unlike the direct handler case. Also there is not actual **javascript** code, just an **identifier** of a behaviour (an action in this case) and when (event type) this should be triggered.
 
-3. A designer has much to say about how the ui/markup element binds and behaves. The simplest answer is that markup elements that are clicked (a behaviour issue) can have different design (css/markup etc..) than markup elements that are just hovered (a design issue). So the designer may be more relevant to define/declare the data-binding for the event type and behaviour identifier (which requires no extra knowledge of the implementation/logic of the behaviour, how the action is going to be implemented). Consider the following:
+3. A designer has much to say about how the markup element binds and behaves. The simplest answer is that markup elements that are clicked (a behaviour issue) can have different design (css/markup etc..) than markup elements that are just hovered (a design issue). So the designer may be more relevant to declare the data-binding for the event type and behaviour identifier (which requires no extra knowledge of the implementation/logic of the behaviour, how the action is going to be implemented). Consider the following:
 
 ```html
-
 <div class="ui-button"></div>
-
 ```
 
 ```javascript
-
-$('.ui-button').button();
-
+$('.ui-button').button( );
 ```
 
 This can be seen as (behavioral) "data-binding", since the "class" assigned to the element, defines how it is going to be rendered and interacted with (it becomes a UIButton in the code logic). The designer need not be concerned about the implementation of the UIButton, but the designer knows that this **is** a button eventually (it is going to be clicked) and is designed with that in mind.
 
 
-Arguably declarative (2-way) data bindings are the closest thing (at present) to dynamic (interactive) markup design. Meaning markup that defines apart from static attributes, dynamic behavioral attributes. *(sth i find conceptually clean)*  see also the readme at [components.css](https://github.com/foo123/components.css) about declarative over procedural separation of concerns and modularity
+Arguably declarative (two-way) data bindings are the closest thing (at present) to dynamic (interactive) markup design. Meaning markup that defines apart from static attributes, dynamic behavioral attributes, (*sth i find conceptually clean*)  see also the readme at [components.css](https://github.com/foo123/components.css) about declarative over procedural separation of concerns and modularity.
 
 
 
-Specificaly for HTML and Javascript, the MVVM pattern has this association related to the MVC pattern
+Specificaly for HTML and Javascript, the MVVM pattern has this association related to the MVC pattern:
 
 
 <table>
@@ -270,7 +265,7 @@ modelview.js uses JSON format for declarative data binding which is relevant to 
 
 Current work is focusing on (model) collections and using the **composite pattern** to define composite models and composite views (which can contain submodels and subviews). This way more complexity (especially collections of objects) can be handled in a more abstract, clean and generic way. Apart from that, current work extends the **type-casting**, **validation** framework in an *algebraic/functional* way, which makes more intuitive and easier to apply types and validation to model data, see examples and updates.
 
-Also focusing on dynamic templates (in an engine-agnostic way) directly inside the markup handled by modelview.js and dynamic data-bind update (this is sth that is already handled using 'data-bind: text' attributes, however it can become cumbersome), see examples and updates.
+Furthermore, focus is on inline dynamic binding and update directly inside the markup handled by modelview.js (this is sth that is already handled using 'data-bind: text' attributes, however it can become cumbersome), see examples and updates.
 
 jQuery DOM/Event dependency has been removed, ModelView can be used a standalone framework, however it provides a plugin (and widget) for jQuery (jQueryUI) for easy integration (see examples).
 
