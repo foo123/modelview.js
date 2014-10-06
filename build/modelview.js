@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.41
+*   @version: 0.42
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.41
+*   @version: 0.42
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -72,6 +72,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     tostr = function( s ){ return Str(s); },
     INF = Infinity, rnd = Math.random, 
+    
+    esc_re = function( s ) { return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); },
+    
+    del = function( o, k, soft ) { 
+        o[k] = undef; if ( !soft ) delete o[k];
+        return o;
+    },
     
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
@@ -120,7 +127,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
         return false
     },
-
+    
     Merge = function(/* var args here.. */) { 
         var args = arguments, argslen, 
             o1, o2, v, p, i, T ;
@@ -186,6 +193,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         );
     }(this.Element ? this.Element[proto] : null)),
 
+    // http://stackoverflow.com/a/11762728/3591273
+    /*get_node_index = function( node ) {
+        var index = 0;
+        while ( (node=node.previousSibling) ) index++;
+        return index;
+    },*/
+    
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
@@ -1540,9 +1554,9 @@ var
         };
     },
 
-    keyLevelUp = function( dottedKey, level ) {
+    /*keyLevelUp = function( dottedKey, level ) {
         return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },
+    },*/
     
     addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
@@ -1608,7 +1622,7 @@ var
         {
             syncedKeys = $syncTo[key];
             for (i=0; i<syncedKeys.length; i++)
-                syncedKeys[i][0].set(syncedKeys[i][1], val, true);
+                syncedKeys[i][0].set(syncedKeys[i][1], val, 1);
         }
     }
 ;
@@ -2186,26 +2200,38 @@ Model[proto].rem = Model[proto].del;
 
 // View utils
 var
-    getInlineTplRE = function( InlineTplFormat ) {
+    getInlineTplRE = function( InlineTplFormat, modelID ) {
         return new Regex(
-            InlineTplFormat
-            .replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
+            esc_re( InlineTplFormat )
+            .replace('__MODEL__', esc_re( modelID || ''))
             .replace('__KEY__', '(\\S+?)')
         ,'');
     },
     
     joinTextNodes = function( nodes ) {
-        var txt = '', i, l = nodes.length;
-        for (i=0; i<l; i++) txt += nodes[i].nodeValue;
+        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
+        if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
         return txt;
     },
     
-    getKeyTextNodes = function( node, re_key, hash ) {
-        hash = hash || [null, null];
-        var matchedNodes, matchedAtts, i, l, m, matched, n, a, key,
-            keyNode, aNodes, aNodesCached, txt, rest, stack, 
-            keyNodes = hash[0] || {}, keyAtts = hash[1] || {};
+    namedKeyProp = "mv_namedkey", nUUID = 'mv_uuid',
+    // use hexadecimal string representation in order to have optimal key distribution in hash (??)
+    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || (++nuuid).toString(16); },
+    
+    removeKeyTextNodes = function( node, hash ) {
+        var nid;
+        if ( hash && (nid=node[nUUID]) && hash[nid] ) del(hash, nid);
+        return hash;
+    },
+    
+    getKeyTextNodes = function( node, re_key, hash, atKeys ) {
+        if ( !re_key ) return hash;
         
+        var matchedNodes, matchedAtts, i, l, m, matched, n, a, key, nid,
+            keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes, keyAtts
+        ;
+        
+        hash = hash || {};
         if ( node )
         {
             // http://www.geeksforgeeks.org/inorder-tree-traversal-without-recursion/
@@ -2225,12 +2251,12 @@ var
                 for (i=0; i<l; i++)
                 {
                     a = n.attributes[ i ];
-                    if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m]);
+                    if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
                 }
             }
             if ( 3 === n.nodeType ) 
             {
-                if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, null]);
+                if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, n[PARENT]]);
             }  
             else if ( n.firstChild )
             {
@@ -2242,13 +2268,13 @@ var
                         for (i=0; i<l; i++)
                         {
                             a = n.attributes[ i ];
-                            if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m]);
+                            if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
                         }
                     }
                     if ( n.firstChild ) stack.push( n=n.firstChild );
                     else 
                     {
-                        if ( 3 === n.nodeType && (m=n.nodeValue.match(re_key)) ) matchedNodes.push([n, m]);
+                        if ( 3 === n.nodeType && (m=n.nodeValue.match(re_key)) ) matchedNodes.push([n, m, n[PARENT]]);
                         n = stack.pop( );
                         while ( stack.length && !n.nextSibling ) n = stack.pop( );
                         if ( n.nextSibling ) stack.push( n=n.nextSibling );
@@ -2259,7 +2285,10 @@ var
             for (i=0,l=matchedNodes.length; i<l; i++)
             {
                 matched = matchedNodes[ i ];
-                rest = matched[0]; m = matched[1];
+                rest = matched[0]; m = matched[1]; n = matched[2];
+                nid = node_uuid( n ); //if ( hash[nid] && hash[nid].keys ) continue;
+                hash[nid] = hash[nid] || { }; 
+                hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
                 do {
                     key = m[1]; 
                     keyNode = rest.splitText( m.index );
@@ -2267,12 +2296,17 @@ var
                     (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
                     m = rest.nodeValue.match( re_key );
                 } while ( m );
+                if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
             aNodes = { };
             for (i=0,l=matchedAtts.length; i<l; i++)
             {
                 matched = matchedAtts[ i ];
-                a = matched[0]; m = matched[1]; 
+                a = matched[0]; m = matched[1]; n = matched[2];
+                nid = node_uuid( n ); //if ( hash[nid] && hash[nid].atts ) continue;
+                hash[nid] = hash[nid] || { }; 
+                hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
+                hash[nid].atts = hash[nid].atts || { }; keyAtts = hash[nid].atts;
                 txt = a.nodeValue;  aNodesCached = (txt in aNodes);
                 if ( !aNodesCached ) 
                 {
@@ -2280,14 +2314,26 @@ var
                     aNodes[ txt ] = [[], [ rest ]];
                     do {
                         key = m[1]; 
-                        keyNode = rest.splitText( m.index );
-                        rest = keyNode.splitText( m[0].length );
-                        aNodes[ txt ][0].push( key );
-                        aNodes[ txt ][1].push( keyNode ); 
-                        aNodes[ txt ][1].push( rest );
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
-                        m = rest.nodeValue.match( re_key );
+                        if ( txt.length > m[0].length )
+                        {
+                            keyNode = rest.splitText( m.index );
+                            rest = keyNode.splitText( m[0].length );
+                            aNodes[ txt ][0].push( key );
+                            aNodes[ txt ][1].push( keyNode ); 
+                            aNodes[ txt ][1].push( rest );
+                            (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            m = rest.nodeValue.match( re_key );
+                        }
+                        else
+                        {
+                            keyNode = rest;
+                            aNodes[ txt ][0].push( key );
+                            //aNodes[ txt ][1].push( keyNode ); 
+                            (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            break;
+                        }
                     } while ( m );
                 }
                 else
@@ -2296,18 +2342,23 @@ var
                     for (m=0; m<aNodes[ txt ][0].length; m++)
                         keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1]] );
                 }
+                if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
         }
-        hash[0] = keyNodes; hash[1] = keyAtts;
         return hash;
     },
     
-    getSelectors = function( bind, autobind, exact ) {
+    getSelectors = function( bind, livebind, autobind ) {
         return [
             bind ? '[' + bind + ']' : null,
             
+            livebind ? '[' + livebind + ']' : null,
+            
             autobind 
-            ? (exact ? 'input[name="' + autobind + '"],textarea[name="' + autobind + '"],select[name="' + autobind + '"]': 'input[name^="' + autobind + '"],textarea[name^="' + autobind + '"],select[name^="' + autobind + '"]') 
+            ? (autobind[1] 
+                /* exact */ ? 'input[name="' + autobind[0] + '"],textarea[name="' + autobind[0] + '"],select[name="' + autobind[0] + '"]'
+                /* prefix */ : 'input[name^="' + autobind[0] + '"],textarea[name^="' + autobind[0] + '"],select[name^="' + autobind[0] + '"]'
+            ) 
             : null
         ];
     },
@@ -2323,40 +2374,50 @@ var
     doAction = function( view, elements, evt, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
-            el, bind, do_action, name, key
+            modelkey = fromModel && fromModel.key ? fromModel.key : null,
+            modelkeyDot = modelkey ? (modelkey+'.') : null,
+            el, bind, do_action, name, key, 
+            isAtom = model.atomic, atom = model.$atom,
+            atomDot = isAtom ? (atom+'.') : null
         ;
             
         for (i=0; i<l; i++)
         {
-            el = elements[i];
+            el = elements[i]; if ( !el ) continue;
             bind = getBindData( event, view.attr(el, 'bind') );
             // during sync, dont do any actions based on (other) events
             if ( !bind || !bind.action ) continue;
             
             do_action = 'do_' + bind.action;
             if ( !is_type( view[ do_action ], T_FUNC ) ) continue;
-            name = el[NAME];
-            key = bind.key || (!!name && model.key(name, 1));
+            
+            name = el[NAME]; key = bind.key;
+            if ( !key )
+            {
+                if  ( !el[namedKeyProp] && !!name ) el[namedKeyProp] = model.key(name, 1);
+                key = el[namedKeyProp];
+            }
             // "model:change" event and element does not reference the (nested) model key
             // OR model atomic operation(s)
-            if ( fromModel && (!key || !startsWith( key, fromModel.key ) || 
-                (model.atomic && startsWith( key, model.$atom ))) ) continue;
+            if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
             
-            view[ do_action ]( evt, el, bind );
+            if ( !modelkey || key === modelkey || startsWith( key, modelkeyDot ) )
+                view[ do_action ]( evt, el, bind );
         }
     },
     
     doAutoBindAction = function( view, elements, evt, fromModel ) {
-        var model = view.$model, cached = { }, isSync = 'sync' == evt.type, 
-            event = isSync ? 'change' : evt.type, i, l = elements.length,
+        var model = view.$model, cached = { }, /*isSync = 'sync' == evt.type,*/ 
+            /*event = isSync ? 'change' : evt.type,*/ i, l = elements.length,
             el, name, key, value
         ;
         
         for (i=0; i<l; i++)
         {
-            el = elements[i]; name = el[NAME];
-            key = !!name ? model.key( name, 1 ) : 0;
-            if ( !key ) continue;
+            el = elements[i];  if ( !el ) continue;
+            name = el[NAME]; key = 0;
+            if ( !el[namedKeyProp] && !!name ) el[namedKeyProp] = model.key( name, 1 );
+            key = el[namedKeyProp]; if ( !key ) continue;
             
             // use already cached key/value
             if ( cached[ key ] )  value = cached[ key ][ 0 ];
@@ -2368,69 +2429,91 @@ var
         }
     },
     
-    doDOMLiveUpdateAction = function( view, key, val ) {
-        var model = view.$model, 
-            keyNodes = view.$keynodes[0], keyAtts = view.$keynodes[1],
-            i, nodes, l, keys, k, kk, kl, keyDot;
+    doDOMLiveUpdateAction = function( view, elements, evt, key, val ) {
+        var model = view.$model, els_len = elements.length, el, e,
+            i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
+            isSync = 'sync' == evt.type, hash = view.$keynodes, nid;
+        
+        if ( !hash ) return;
+        
         if ( key )
         {
-            // text nodes
-            if ( (nodes=keyNodes[key]) )
+            keyDot = key + '.'; val = '' + val;
+            for (e=0; e<els_len; e++)
             {
-                val = '' + val;
-                for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
-            }
-            // element attributes
-            if ( (nodes=keyAtts[key]) )
-            {
-                for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
-            }
-            keyDot = key + '.';
-            // text nodes
-            keys = Keys(keyNodes);
-            for (k=0,kl=keys.length; k<kl; k++)
-            {
-                kk = keys[k];
-                if ( key === kk ) continue;
-                if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
+                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
+                
+                // element live text nodes
+                if ( (keyNodes=hash[nid].keys) )
                 {
-                    val = '' + model.get( kk );
-                    for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
+                    if ( (nodes=keyNodes[key]) )
+                    {
+                        for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
+                    }
+                    keys = Keys(keyNodes);
+                    for (k=0,kl=keys.length; k<kl; k++)
+                    {
+                        kk = keys[k]; if ( key === kk ) continue;
+                        if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
+                        {
+                            v = '' + model.get( kk );
+                            for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
+                        }
+                    }
                 }
-            }
-            // element attributes
-            keys = Keys(keyAtts);
-            for (k=0,kl=keys.length; k<kl; k++)
-            {
-                kk = keys[k];
-                if ( key === kk ) continue;
-                if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
+                
+                // element live attributes
+                if ( (keyAtts=hash[nid].atts) )
                 {
-                    for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                    if ( keyAtts && (nodes=keyAtts[key]) )
+                    {
+                        for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                    }
+                    keys = Keys(keyAtts);
+                    for (k=0,kl=keys.length; k<kl; k++)
+                    {
+                        kk = keys[k]; if ( key === kk ) continue;
+                        if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
+                        {
+                            for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                        }
+                    }
                 }
             }
         }
-        else
+        else if ( isSync )
         {
-            // text nodes
-            keys = Keys(keyNodes);
-            for (k=0,kl=keys.length; k<kl; k++)
+            for (e=0; e<els_len; e++)
             {
-                kk = keys[k];
-                if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
+                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
+                
+                // element live text nodes
+                if ( (keyNodes=hash[nid].keys) )
                 {
-                    val = '' + model.get( kk );
-                    for (i=0; i<l; i++) nodes[i].nodeValue = val;
+                    keys = Keys(keyNodes);
+                    for (k=0,kl=keys.length; k<kl; k++)
+                    {
+                        kk = keys[k];
+                        if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
+                        {
+                            v = '' + model.get( kk );
+                            for (i=0; i<l; i++) nodes[i].nodeValue = v;
+                        }
+                    }
                 }
-            }
-            // element attributes
-            keys = Keys(keyAtts);
-            for (k=0,kl=keys.length; k<kl; k++)
-            {
-                kk = keys[k];
-                if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
+                
+                // element live attributes
+                if ( (keyAtts=hash[nid].atts) )
                 {
-                    for (i=0; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                    keys = Keys(keyAtts);
+                    for (k=0,kl=keys.length; k<kl; k++)
+                    {
+                        kk = keys[k];
+                        if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
+                        {
+                            for (i=0; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                        }
+                    }
                 }
             }
         }
@@ -2447,35 +2530,37 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     
     view.namespace = view.id = id || uuid('View');
     if ( !('bind' in (atts=atts||{})) ) atts['bind'] = "data-bind";
+    if ( !('keys' in atts) ) atts['keys'] = "data-mvkeys" + (++nuuid);
     view.$atts = atts;
     cacheSize = cacheSize || View._CACHE_SIZE;
     refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
     view.$memoize = new Cache( cacheSize, INF );
     view.$selectors = new Cache( cacheSize, refreshInterval );
-    view.$bind = view.attribute( "bind" );
-    view.inlineTplFormat( '$(__KEY__)' ).model( model || new Model( ) ).initPubSub( );
+    view.$atbind = view.attribute( "bind" );
+    view.$atkeys = view.attribute( "keys" );
+    view.model( model || new Model( ) ).initPubSub( );
 };
 // STATIC
-View._CACHE_SIZE = 600;
+View._CACHE_SIZE = 600; // cache size
 View._REFRESH_INTERVAL = INF; // refresh cache interval
 // View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
-    // allow chaining, return this;
     constructor: View
     
     ,id: null
     ,$dom: null
-    ,$bind: null
     ,$model: null
-    ,$bindbubble: false
+    ,$livebind: null
     ,$autobind: false
+    ,$bindbubble: false
     ,$template: null
     ,$atts: null
     ,$memoize: null
     ,$selectors: null
     ,$keynodes: null
-    ,$inlineTplFormat: null
+    ,$atbind: null
+    ,$atkeys: null
     
     ,dispose: function( ) {
         var view = this;
@@ -2483,15 +2568,16 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
-        view.$bind = null;
         view.$template = null;
         view.$atts = null;
         view.$memoize.dispose( );
         view.$memoize = null;
         view.$selectors.dispose( );
         view.$selectors = null;
+        view.$livebind = null;
         view.$keynodes = null;
-        view.$inlineTplFormat = null;
+        view.$atbind = null;
+        view.$atkeys = null;
         return view;
     }
     
@@ -2511,14 +2597,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( arguments.length > 1 )
         {
             view.$atts[ name ] = att;
+            view.$atbind = view.$atts.bind;
+            view.$atkeys = view.$atts.keys;
             return view;
         }
         return name ? (view.$atts[ name ] || undef) : undef;
-    }
-    
-    ,inlineTplFormat: function( format ) {
-        this.$inlineTplFormat = format ? getInlineTplRE( format ) : null;
-        return this;
     }
     
     ,template: function( renderer ) {
@@ -2531,35 +2614,36 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$template;
     }
     
-    ,event: function( name, handler ) {
-        var view = this,
-            evt = name ? ('on_' + name.split(':').join('_')) : null;
-        if ( evt && undef !== handler )
+    ,events: function( events ) {
+        var view = this, k;
+        if ( is_type(events, T_OBJ) )
         {
-            view[ evt ] = is_type( handler, T_FUNC ) ? handler : null;
-            return view;
+            for ( k in events ) 
+                if ( is_type(events[k], T_FUNC) )
+                    view[ 'on_' + k.split(':').join('_') ] = events[k];
         }
-        return evt ? view[ evt ] : undef;
+        return view;
     }
     
-    ,action: function( name, handler ) {
-        var view = this, do_action = name && ('do_'+name);
-        if ( arguments.length > 1 )
+    ,actions: function( actions ) {
+        var view = this, k;
+        if ( is_type(actions, T_OBJ) )
         {
-            view[ do_action ] = is_type( handler, T_FUNC ) ? handler : null;
-            return view;
+            for ( k in actions ) 
+                if ( is_type(actions[k], T_FUNC) )
+                    view[ 'do_' + k ] = actions[k];
         }
-        return do_action && view[ do_action ];
+        return view;
     }
     
-    ,bindbubble: function( enable ) {
+    ,livebind: function( format ) {
         var view = this;
         if ( arguments.length )
         {
-            view.$bindbubble = !!enable;
+            view.$livebind = !!format ? getInlineTplRE( format, view.$model ? view.$model.id : '' ) : null;
             return view;
         }
-        return view.$bindbubble;                        
+        return view.$livebind;
     }
     
     ,autobind: function( enable ) {
@@ -2572,16 +2656,28 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$autobind;                        
     }
     
-    // cache jquery selectors for even faster performance
-    ,get: function( selector, $dom, bypass ) {
+    ,bindbubble: function( enable ) {
+        var view = this;
+        if ( arguments.length )
+        {
+            view.$bindbubble = !!enable;
+            return view;
+        }
+        return view.$bindbubble;                        
+    }
+    
+    // cache selectors for even faster performance
+    ,get: function( selector, $dom, bypass, addRoot ) {
         var view = this, selectorsCache = view.$selectors, elements;
         
         $dom = $dom || view.$dom;
         
-        if ( bypass ) return $sel( selector, $dom );
-        
-        elements = selectorsCache.get( selector );
-        if ( !elements ) selectorsCache.set( selector, elements = $sel( selector, $dom ) );
+        if ( bypass || !(elements=selectorsCache.get( selector )) ) 
+        {
+            elements = $sel( selector, $dom );
+            if ( addRoot && matches.call($dom, selector) ) elements.push( $dom );
+            if ( !bypass ) selectorsCache.set( selector, elements );
+        }
         
         return elements;
     }
@@ -2607,43 +2703,35 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 {
                     attribute.click = attribute.set;
                     attribute.click.action = "set";
-                    attribute.set = undef;
-                    delete attribute.set;
+                    del(attribute, 'set');
                 }
                 
                 if ( attribute.show )
                 {
                     attribute.change = {action:"show", key:attribute.show};
-                    attribute.show = undef;
-                    delete attribute.show;
+                    del(attribute, 'show');
                 }
                 if ( attribute.hide )
                 {
                     attribute.change = {action:"hide", key:attribute.hide};
-                    attribute.hide = undef;
-                    delete attribute.hide;
+                    del(attribute, 'hide');
                 }
                 
                 if ( attribute.html )
                 {
                     attribute.change = {action:"html", key:attribute.html};
-                    attribute.html = undef;
-                    delete attribute.html;
-                    attribute.text = undef;
-                    delete attribute.text;
+                    del(attribute, 'html'); del(attribute, 'text');
                 }
                 else if ( attribute.text )
                 {
                     attribute.change = {action:"html", key:attribute.text, text:1};
-                    attribute.text = undef;
-                    delete attribute.text;
+                    del(attribute, 'text');
                 }
                 
                 if ( attribute.css )
                 {
                     attribute.change = {action:"css", css:attribute.css};
-                    attribute.css = undef;
-                    delete attribute.css;
+                    del(attribute, 'css');
                 }
                 
                 if ( attribute.value )
@@ -2652,8 +2740,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         attribute.change.prop.value = attribute.value;
                     else
                         attribute.change = {action:"prop", prop:{value:attribute.value}};
-                    attribute.value = undef;
-                    delete attribute.value;
+                    del(attribute, 'value');
                 }
                 if ( attribute.checked )
                 {
@@ -2661,8 +2748,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         attribute.change.prop.checked = attribute.checked;
                     else
                         attribute.change = {action:"prop", prop:{checked:attribute.checked}};
-                    attribute.checked = undef;
-                    delete attribute.checked;
+                    del(attribute, 'checked');
                 }
                 if ( attribute.disabled )
                 {
@@ -2670,8 +2756,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         attribute.change.prop.disabled = attribute.disabled;
                     else
                         attribute.change = {action:"prop", prop:{disabled:attribute.disabled}};
-                    attribute.disabled = undef;
-                    delete attribute.disabled;
+                    del(attribute, 'disabled');
                 }
                 if ( attribute.options )
                 {
@@ -2679,8 +2764,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         attribute.change.prop.options = attribute.options;
                     else
                         attribute.change = {action:"prop", prop:{options:attribute.options}};
-                    attribute.options = undef;
-                    delete attribute.options;
+                    del(attribute, 'options');
                 }
                 
                 if ( (attbind=attribute.change) )
@@ -2701,7 +2785,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,getDomRef: function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, true ) : $sel( ref, null, true );
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     }
     
     ,append: function( el, dom ) {  
@@ -2710,34 +2794,47 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             dom = dom || view.$dom;
             dom.appendChild( el );
-            // update/add live DOM bindings
-            view.$keynodes = getKeyTextNodes( el, view.$inlineTplFormat, view.$keynodes );
-            view.sync( dom );
+            if ( view.$livebind )
+                view.$keynodes = getKeyTextNodes( el, view.$livebind, view.$keynodes, view.$atkeys );
+            view.sync( dom, el );
         }
         return view;
     }
     
     ,remove: function( el ) {  
         var view = this;
-        if ( el )
+        if ( el ) 
         {
+            view.$keynodes = removeKeyTextNodes( el, view.$keynodes );
             el.parentNode.removeChild( el );
-            // update/remove live DOM bindings
-            // ??
+            view.$selectors.reset( );
         }
         return view;
     }
     
     ,bind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$bind, model.id+'[' ),
-            bindSelector = sels[ 0 ], autobindSelector = sels[ 1 ],
+            sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
+            bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
             method, evt, namespaced, modelMethodPrefix = /^on_model_/
         ;
         
         events = events || ['change', 'click'];
         view.$dom = dom || document.body;
-         
+        
+        // live update dom nodes
+        if ( view.$livebind )
+            view.$keynodes = getKeyTextNodes( view.$dom, view.$livebind, null, view.$atkeys );
+        
+        // model events
+        for (method in view)
+        {
+            if ( !is_type( view[ method ], T_FUNC ) || !modelMethodPrefix.test( method ) ) continue;
+            
+            evt = method.replace( modelMethodPrefix, '' );
+            evt.length && view.onTo( model, evt, view[ method ] );
+        }
+        
         // view/dom change events
         if ( view.on_view_change && events.length )
         {
@@ -2772,23 +2869,12 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             );
         }
         
-        // model events
-        for (method in view)
-        {
-            if ( !is_type( view[ method ], T_FUNC ) || !modelMethodPrefix.test( method ) ) continue;
-            
-            evt = method.replace( modelMethodPrefix, '' );
-            evt.length && view.onTo( model, evt, view[ method ] );
-        }
-        
-        view.$keynodes = getKeyTextNodes( view.$dom, view.$inlineTplFormat, view.$keynodes );
-        
         return view;
     }
     
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
-            selectors = getSelectors( view.$bind, model.id+'[' ),
+            sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
             namespaced, $dom
         ;
         
@@ -2804,13 +2890,14 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 
                 events && events.length ? events.map( namespaced ).join(' ') : NSEvent('', view.namespace), 
                 
-                [ selectors[ 1 ], selectors[ 0 ] ].join( ',' )
+                [ sels[ 2 ], sels[ 0 ] ].join( ',' )
             );
         }
         
         // model events
         view.offFrom( model );
         
+        // live update dom nodes
         view.$keynodes = null;
         
         return view;
@@ -2826,27 +2913,29 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,sync: function( $dom, el ) {
-        var view = this, selectors = getSelectors( view.$bind, view.$model.id+'[' ), 
-            syncEvent = PBEvent('sync', view), binds, autobinds, doAutobind;
+        var view = this, s = getSelectors( view.$atbind, view.$atkeys, [view.$model.id+'['] ), 
+            syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, autobind, livebind;
         
         $dom = $dom || view.$dom;
-        doAutobind = view.$autobind;
+        autobind = view.$autobind;
+        livebind = !!view.$livebind;
+        view.$selectors.reset( );
         if ( el )
         {
             syncEvent.currentTarget = el;
-            binds = [ el ].concat( view.get( selectors[ 0 ], el, 1 ) );
-            if ( doAutobind )
-                autobinds = [ el ].concat( view.get( selectors[ 1 ], el, 1 ) );
+            binds = view.get( s[ 0 ], el, 1, 1 );
+            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], el, 1, 1 );
         }
         else
         {
-            binds = view.get( selectors[ 0 ], $dom, 1 );
-            if ( doAutobind )
-                autobinds = view.get( selectors[ 1 ], $dom, 1 );
+            binds = view.get( s[ 0 ], $dom, 1 );
+            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 1 );
         }
-        doAction( view, binds, syncEvent );
-        doDOMLiveUpdateAction( view );
-        if ( doAutobind ) doAutoBindAction( view, autobinds, syncEvent );
+        if ( binds.length ) doAction( view, binds, syncEvent );
+        if ( livebind && livebinds.length ) doDOMLiveUpdateAction( view, livebinds, syncEvent );
+        if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
         return view;
     }
     
@@ -2871,7 +2960,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // update model and propagate to other elements of same view (via model publish hook)
         if ( data.isAutoBind && !!(name=el[NAME]) )
         {
-            key = model.key( name, 1 );
+            if ( !el[namedKeyProp] ) el[namedKeyProp] = model.key( name, 1 );
+            key = el[namedKeyProp];
             
             if ( key && model.has( key ) )
             {
@@ -2915,13 +3005,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,on_model_change: function( evt, data ) {
         var view = this, model = view.$model,
-            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
-            bindElements, autoBindElements, autobind = view.$autobind,
+            s = getSelectors( view.$atbind, view.$atkeys, [model.id + bracketed( data.key )] ),
+            bindElements, autoBindElements, liveBindings,  
+            autobind = view.$autobind, livebind = !!view.$livebind, 
             notTriggerElem
         ;
         
-        bindElements = view.get( selectors[ 0 ] );
-        if ( autobind ) autoBindElements = view.get( selectors[ 1 ] );
+        bindElements = view.get( s[ 0 ] );
+        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 0, 1 );
+        if ( autobind ) autoBindElements = view.get( s[ 2 ] );
         
         // bypass element that triggered the "model:change" event
         if ( data.$callData && data.$callData.$trigger )
@@ -2937,26 +3029,25 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view action first
         if ( bindElements.length ) doAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        doDOMLiveUpdateAction( view, data.key, data.value );
+        if ( livebind && liveBindings.length ) doDOMLiveUpdateAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
-            selectors = getSelectors( view.$bind, model.id + bracketed( data.key ) ),
-            bindElements = view.get( selectors[ 0 ] ), 
-            autoBindElements = view.get( selectors[ 1 ] )
+            s = getSelectors( view.$atbind, view.$atkeys, [model.id + bracketed( data.key )] ),
+            bindElements, autoBindElements, liveBindings
         ;
 
         // do actions ..
         
         // do view bind action first
-        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        if ( (bindElements=view.get( s[ 0 ] )).length ) doAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        doDOMLiveUpdateAction( view, data.key, data.value );
+        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 0, 1 )).length ) doDOMLiveUpdateAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( view.$autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( view.$autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
     
     //
@@ -3044,8 +3135,18 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // update/set a model field with a given value
     ,do_set: function( evt, el, data ) {
-        var view = this, model = view.$model, 
-            key = data.key || model.key(el[NAME], 1), val;
+        var view = this, model = view.$model, key = null, val;
+        
+        if ( data.key ) 
+        {
+            key = data.key;
+        }
+        else if ( el[NAME] )
+        {
+            if ( !el[namedKeyProp] ) el[namedKeyProp] = model.key( el[NAME], 1 );
+            key = el[namedKeyProp];
+        }
+        
         if ( !!key ) 
         {
             if ( "value" in data ) 
@@ -3176,7 +3277,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.41"
+    VERSION: "0.42"
     
     ,UUID: uuid
     
@@ -3197,7 +3298,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.41
+*   @version: 0.42
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -3230,17 +3331,17 @@ exports['ModelView'] = {
                     ,modelClass: Model
                     
                     ,id: 'view'
-                    ,autoSync: true
+                    ,bindAttribute: 'data-bind' // default
+                    ,livebind: null
                     ,autobind: false
                     ,bindbubble: false
-                    ,bindAttribute: 'data-bind'
-                    ,inlineTplFormat: '$(__KEY__)'
+                    ,events: null
+                    ,autoSync: true
                     ,cacheSize: View._CACHE_SIZE
                     ,refreshInterval: View._REFRESH_INTERVAL
                     
                     ,model: null
                     ,template: null
-                    ,events: null
                     ,actions: { }
                     ,handlers: { }
                 }
@@ -3249,15 +3350,14 @@ exports['ModelView'] = {
             // modelview jQuery plugin
             $.fn.modelview = function( arg0, arg1, arg2 ) {
                 var argslen = arguments.length, 
-                    method = argslen ? arg0 : null, 
-                    options = arg0,
+                    method = argslen ? arg0 : null, options = arg0,
                     isInit = true, optionsParsed = false,  map = [ ]
                 ;
                 
                 // apply for each matched element (better use one element per time)
                 this.each(function( ) {
                     
-                    var $dom = $(this), model, view, handler;
+                    var $dom = $(this), model, view;
                     
                     // modelview already set on element
                     if ( $dom.data( 'modelview' ) )
@@ -3340,38 +3440,18 @@ exports['ModelView'] = {
                         options.id, model, 
                         { bind: options.bindAttribute || 'data-bind' },
                         options.cacheSize, options.refreshInterval
-                    );
-                    
+                    )
                     // custom view template renderer
-                    if ( options.template )
-                    {
-                        view.template( options.template );
-                    }
+                    .template( options.template )
                     // custom view event handlers
-                    if ( options.handlers )
-                    {
-                        for (var eventname in options.handlers)
-                        {
-                            handler = options.handlers[ eventname ];
-                            if ( handler ) view.event( eventname, handler );
-                        }
-                    }
+                    .events( options.handlers )
                     // custom view actions
-                    if ( options.actions )
-                    {
-                        for (var action in options.actions)
-                        {
-                            handler = options.actions[ action ];
-                            if ( handler ) view.action( action, handler );
-                        }
-                    }
-                    
+                    .actions( options.actions )
                     // init view
-                    view
-                        .inlineTplFormat( options.inlineTplFormat )
-                        .bindbubble( options.bindbubble )
-                        .autobind( options.autobind )
-                        .bind( options.events, $dom[0] )
+                    .livebind( options.livebind )
+                    .autobind( options.autobind )
+                    .bindbubble( options.bindbubble )
+                    .bind( options.events, $dom[0] )
                     ;
                     $dom.data( 'modelview', view );
                     if ( options.autoSync ) view.sync( );

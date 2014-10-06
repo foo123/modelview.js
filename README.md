@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
 
 
-**Version 0.41**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.42**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
@@ -36,10 +36,10 @@ A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gz
 
 ```html
 <div id="screen">
-    Hello $(msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+    Hello $(model.msg) &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
+    <button class="button" title="$(model.msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
     <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
     <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
 </div>
@@ -48,27 +48,34 @@ A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gz
 ```javascript
 // standalone
 
-new ModelView.View('view', 
-    new ModelView.Model('model', 
-    // model data here ..
-    { msg: 'Earth!' },
-    // model data type-casters (if any) here ..
-    { msg: ModelView.Type.Cast.STR },
-    // model data validators (if any) here ..
-    { msg: ModelView.Validation.Validate.NOT_EMPTY }
+new ModelView.View(
+    'view', 
+    new ModelView.Model(
+        'model', 
+        // model data here ..
+        { msg: 'Earth!' }
     )
+    // model data type-casters (if any) here ..
+    .types({ msg: ModelView.Type.Cast.STR })
+    // model data validators (if any) here ..
+    .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
-.action('alert_msg', function( evt, el, bindData ) {
-    alert( this.$model.get('msg') );
-    // this also works
-    //alert( this.model().get('msg') );
-    // or even this, if you want the raw data without any processing
-    //alert( this.$model.$data.msg );
+.actions({
+    // custom view actions (if any) here ..
+    alert_msg: function( evt, el, bindData ) {
+        alert( this.$model.get('msg') );
+        // this also works
+        //alert( this.model().get('msg') );
+        // or even this, if you want the raw data without any processing
+        //alert( this.$model.$data.msg );
+    },
+    hello_world: function( evt, el, bindData ) {
+        // set msg to "World" and publish the change
+        this.$model.set('msg', "World", true);
+    }
 })
-.action('hello_world', function( evt, el, bindData ) {
-    this.$model.set('msg', "World", true);
-})
-.attribute( 'bind', 'data-bind' )
+.attribute( 'bind', 'data-bind' ) // default
+.livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
 .sync( )
@@ -80,15 +87,14 @@ new ModelView.View('view',
 
 // make sure the modelview jQuery plugin is added if not already
 if ( ModelView.jquery ) ModelView.jquery( $ );
-
 $('#screen').modelview({
     id: 'view',
     
+    bindAttribute: 'data-bind', // default
+    events: [ 'change', 'click' ], // default
+    livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
-    autoSync: true,
-    bindAttribute: 'data-bind',
-    inlineTplFormat: '$(__KEY__)',
-    events: [ 'change', 'click' ],
+    autoSync: true, // default
     
     model: {
         id: 'model',
@@ -119,6 +125,7 @@ $('#screen').modelview({
             //alert( this.$model.$data.msg );
         },
         hello_world: function( evt, el, bindData ) {
+            // set msg to "World" and publish the change
             this.$model.set('msg', "World", true);
         }
     }

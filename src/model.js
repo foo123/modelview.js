@@ -195,9 +195,9 @@ var
         };
     },
 
-    keyLevelUp = function( dottedKey, level ) {
+    /*keyLevelUp = function( dottedKey, level ) {
         return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },
+    },*/
     
     addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
@@ -263,7 +263,7 @@ var
         {
             syncedKeys = $syncTo[key];
             for (i=0; i<syncedKeys.length; i++)
-                syncedKeys[i][0].set(syncedKeys[i][1], val, true);
+                syncedKeys[i][0].set(syncedKeys[i][1], val, 1);
         }
     }
 ;

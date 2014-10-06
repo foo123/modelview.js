@@ -1,9 +1,18 @@
-####ModelView API
+###ModelView API
 
-**Version 0.41**
+**Version 0.42**
+
+###Contents
+
+* [Model](#model)
+* [View](#view)
+* [View Actions](#view-actions)
+* [Types](#types)
+* [Validators](#validators)
+* [Examples](#examples)
 
 
-**Model**
+####Model
 
 ```javascript
 // modelview.js model methods
@@ -26,10 +35,10 @@ model.get( dottedKey [, RAW=false ] );
 // model set key to val
 model.set( dottedKey, val [, publish=false] );
 
-// model append val to key (if key is array-like)
+// model add/append val to key (if key is array-like)
 model.[add|append]( dottedKey, val [, publish=false] );
 
-// model delete key (with or without re-arranging array indexes)
+// model delete/remove key (with or without re-arranging array indexes)
 model.[del|rem]( dottedKey [, reArrangeIndexes=false , publish=false] );
 
 // shortcut to model publich change event for key (and nested keys)
@@ -69,7 +78,7 @@ model.dispose( );
 
 
 
-**View**
+####View
 
 ```javascript
 // modelview.js view methods
@@ -80,29 +89,39 @@ var view = new ModelView.View( [id=UUID, model=new Model(), viewAttributes={bind
 // get / set view model
 view.model( [model] );
 
-// add a custom view named action 
-view.action( name, handler );
+// add custom view named actions in {actionName: handler} format
+view.actions( actions );
 
-// add a custom view event handler
-view.event( name, handler );
+// add custom view event handlers in {eventName: handler} format
+view.events( events );
 
-// get / set autobind, autobind automatically binds change events to input elements that refer to model data (via name attribute)
+// get / set livebind, 
+// livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
+// e.g <span>model.key is $(model.key)</span>
+view.livebind( [format | false] );
+
+// get / set autobind, 
+// autobind automatically binds (2-way) input elements to model keys via name attribute 
+// e.g <input name="model[key]" />, <select name="model[key]"></select>
 view.autobind( [bool] );
 
-// get/set the name of view-specific attribute (e.g "bind" : "data-bind" )
+// get/set the name of view-specific attribute (e.g "bind": "data-bind" )
 view.attribute( name [, att] );
 
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( events=['change', 'click'] [, dom=document.body] );
+view.bind( [events=['change', 'click'], dom=document.body] );
 
-// synchronize view.dom to model
-view.sync( [dom=view.dom] );
+// unbind view from dom listening to events or all events (if no events given)
+view.unbind( [events=null, dom=view.$dom] );
+
+// reset view caches and re-bind to dom UI
+view.rebind( [events=['change', 'click'], dom=document.body] );
 
 // reset view caches only
 view.reset( );
 
-// reset view caches and re-bind to UI
-view.rebind( events [, dom=document] );
+// synchronize dom (or part of it) to underlying model
+view.sync( [dom=view.$dom] );
 
 // dispose view (and model)
 view.dispose( );
@@ -110,8 +129,10 @@ view.dispose( );
 ```
 
 
+####View Actions
 
-**Default View Actions (inherited by sub-views)**
+Default View Actions (inherited by sub-views)
+
 
 <table>
 <thead>
@@ -149,7 +170,8 @@ view.dispose( );
 
 
 
-**Types (used with Models)**
+####Types 
+**(used with Models)**
 
 ```javascript
 // modelview.js type casters
@@ -208,7 +230,8 @@ ModelView.Type.del( name );
 
 
 
-**Validators (used with Models)**
+####Validators 
+**(used with Models)**
 
 ```javascript
 // modelview.js validators
@@ -342,17 +365,19 @@ $dom.modelview({
 
 
 
-**simple example** [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+####Examples 
+
+[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
 
 **markup**
 
 ```html
 <div id="screen">
-    Hello $(msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+    Hello $(model.msg) &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" title="$(msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
+    <button class="button" title="$(model.msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
     <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
     <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
 </div>
@@ -362,27 +387,34 @@ $dom.modelview({
 ```javascript
 // standalone
 
-new ModelView.View('view', 
-    new ModelView.Model('model', 
-    // model data here ..
-    { msg: 'Earth!' },
-    // model data type-casters (if any) here ..
-    { msg: ModelView.Type.Cast.STR },
-    // model data validators (if any) here ..
-    { msg: ModelView.Validation.Validate.NOT_EMPTY }
+new ModelView.View(
+    'view', 
+    new ModelView.Model(
+        'model', 
+        // model data here ..
+        { msg: 'Earth!' }
     )
+    // model data type-casters (if any) here ..
+    .types({ msg: ModelView.Type.Cast.STR })
+    // model data validators (if any) here ..
+    .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
-.action('alert_msg', function( evt, el, bindData ) {
-    alert( this.$model.get('msg') );
-    // this also works
-    //alert( this.model().get('msg') );
-    // or even this, if you want the raw data without any processing
-    //alert( this.$model.$data.msg );
+.actions({
+    // custom view actions (if any) here ..
+    alert_msg: function( evt, el, bindData ) {
+        alert( this.$model.get('msg') );
+        // this also works
+        //alert( this.model().get('msg') );
+        // or even this, if you want the raw data without any processing
+        //alert( this.$model.$data.msg );
+    },
+    hello_world: function( evt, el, bindData ) {
+        // set msg to "World" and publish the change
+        this.$model.set('msg', "World", true);
+    }
 })
-.action('hello_world', function( evt, el, bindData ) {
-    this.$model.set('msg', "World", true);
-})
-.attribute( 'bind', 'data-bind' )
+.attribute( 'bind', 'data-bind' ) // default
+.livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
 .sync( )
@@ -395,15 +427,14 @@ new ModelView.View('view',
 
 // make sure the modelview jQuery plugin is added if not already
 if ( ModelView.jquery ) ModelView.jquery( $ );
-
 $('#screen').modelview({
     id: 'view',
     
+    bindAttribute: 'data-bind', // default
+    events: [ 'change', 'click' ], // default
+    livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
-    autoSync: true,
-    bindAttribute: 'data-bind',
-    inlineTplFormat: '$(__KEY__)',
-    events: [ 'change', 'click' ],
+    autoSync: true, // default
     
     model: {
         id: 'model',
@@ -434,6 +465,7 @@ $('#screen').modelview({
             //alert( this.$model.$data.msg );
         },
         hello_world: function( evt, el, bindData ) {
+            // set msg to "World" and publish the change
             this.$model.set('msg', "World", true);
         }
     }

@@ -34,17 +34,17 @@
                     ,modelClass: Model
                     
                     ,id: 'view'
-                    ,autoSync: true
+                    ,bindAttribute: 'data-bind' // default
+                    ,livebind: null
                     ,autobind: false
                     ,bindbubble: false
-                    ,bindAttribute: 'data-bind'
-                    ,inlineTplFormat: '$(__KEY__)'
+                    ,events: null
+                    ,autoSync: true
                     ,cacheSize: View._CACHE_SIZE
                     ,refreshInterval: View._REFRESH_INTERVAL
                     
                     ,model: null
                     ,template: null
-                    ,events: null
                     ,actions: { }
                     ,handlers: { }
                 }
@@ -53,15 +53,14 @@
             // modelview jQuery plugin
             $.fn.modelview = function( arg0, arg1, arg2 ) {
                 var argslen = arguments.length, 
-                    method = argslen ? arg0 : null, 
-                    options = arg0,
+                    method = argslen ? arg0 : null, options = arg0,
                     isInit = true, optionsParsed = false,  map = [ ]
                 ;
                 
                 // apply for each matched element (better use one element per time)
                 this.each(function( ) {
                     
-                    var $dom = $(this), model, view, handler;
+                    var $dom = $(this), model, view;
                     
                     // modelview already set on element
                     if ( $dom.data( 'modelview' ) )
@@ -144,38 +143,18 @@
                         options.id, model, 
                         { bind: options.bindAttribute || 'data-bind' },
                         options.cacheSize, options.refreshInterval
-                    );
-                    
+                    )
                     // custom view template renderer
-                    if ( options.template )
-                    {
-                        view.template( options.template );
-                    }
+                    .template( options.template )
                     // custom view event handlers
-                    if ( options.handlers )
-                    {
-                        for (var eventname in options.handlers)
-                        {
-                            handler = options.handlers[ eventname ];
-                            if ( handler ) view.event( eventname, handler );
-                        }
-                    }
+                    .events( options.handlers )
                     // custom view actions
-                    if ( options.actions )
-                    {
-                        for (var action in options.actions)
-                        {
-                            handler = options.actions[ action ];
-                            if ( handler ) view.action( action, handler );
-                        }
-                    }
-                    
+                    .actions( options.actions )
                     // init view
-                    view
-                        .inlineTplFormat( options.inlineTplFormat )
-                        .bindbubble( options.bindbubble )
-                        .autobind( options.autobind )
-                        .bind( options.events, $dom[0] )
+                    .livebind( options.livebind )
+                    .autobind( options.autobind )
+                    .bindbubble( options.bindbubble )
+                    .bind( options.events, $dom[0] )
                     ;
                     $dom.data( 'modelview', view );
                     if ( options.autoSync ) view.sync( );

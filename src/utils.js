@@ -19,6 +19,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     tostr = function( s ){ return Str(s); },
     INF = Infinity, rnd = Math.random, 
     
+    esc_re = function( s ) { return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); },
+    
+    del = function( o, k, soft ) { 
+        o[k] = undef; if ( !soft ) delete o[k];
+        return o;
+    },
+    
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
     T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
@@ -66,7 +73,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
         return false
     },
-
+    
     Merge = function(/* var args here.. */) { 
         var args = arguments, argslen, 
             o1, o2, v, p, i, T ;
@@ -132,6 +139,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         );
     }(this.Element ? this.Element[proto] : null)),
 
+    // http://stackoverflow.com/a/11762728/3591273
+    /*get_node_index = function( node ) {
+        var index = 0;
+        while ( (node=node.previousSibling) ) index++;
+        return index;
+    },*/
+    
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
