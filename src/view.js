@@ -172,7 +172,7 @@ var
         }
     },
     
-    doAction = function( view, elements, evt, fromModel ) {
+    doBindAction = function( view, elements, evt, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
@@ -208,8 +208,7 @@ var
     },
     
     doAutoBindAction = function( view, elements, evt, fromModel ) {
-        var model = view.$model, cached = { }, /*isSync = 'sync' == evt.type,*/ 
-            /*event = isSync ? 'change' : evt.type,*/ i, l = elements.length,
+        var model = view.$model, cached = { }, i, l = elements.length,
             el, name, key, value
         ;
         
@@ -230,10 +229,11 @@ var
         }
     },
     
-    doDOMLiveUpdateAction = function( view, elements, evt, key, val ) {
+    doLiveBindAction = function( view, elements, evt, key, val ) {
         var model = view.$model, els_len = elements.length, el, e,
             i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
-            isSync = 'sync' == evt.type, hash = view.$keynodes, nid;
+            isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
+        ;
         
         if ( !hash ) return;
         
@@ -257,7 +257,9 @@ var
                         kk = keys[k]; if ( key === kk ) continue;
                         if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
                         {
-                            v = '' + model.get( kk );
+                            // use already cached key/value
+                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
+                            else cached[ kk ] = [ v='' + model.get( kk ) ];
                             for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -297,7 +299,9 @@ var
                         kk = keys[k];
                         if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
                         {
-                            v = '' + model.get( kk );
+                            // use already cached key/value
+                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
+                            else cached[ kk ] = [ v='' + model.get( kk ) ];
                             for (i=0; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -734,8 +738,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, 1 );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 1 );
         }
-        if ( binds.length ) doAction( view, binds, syncEvent );
-        if ( livebind && livebinds.length ) doDOMLiveUpdateAction( view, livebinds, syncEvent );
+        if ( binds.length ) doBindAction( view, binds, syncEvent );
+        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
         return view;
     }
@@ -798,7 +802,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // if not model update error and element is bind element
         // do view action
-        if ( !modeldata.error && data.isBind ) doAction( view, [el], evt/*, data*/ );
+        if ( !modeldata.error && data.isBind ) doBindAction( view, [el], evt/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -828,9 +832,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do actions ..
         
         // do view action first
-        if ( bindElements.length ) doAction( view, bindElements, evt, data );
+        if ( bindElements.length ) doBindAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) doDOMLiveUpdateAction( view, liveBindings, evt, data.key, data.value );
+        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
@@ -844,9 +848,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do actions ..
         
         // do view bind action first
-        if ( (bindElements=view.get( s[ 0 ] )).length ) doAction( view, bindElements, evt, data );
+        if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 0, 1 )).length ) doDOMLiveUpdateAction( view, liveBindings, evt, data.key, data.value );
+        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( view.$autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
     }

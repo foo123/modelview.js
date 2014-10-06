@@ -257,13 +257,29 @@ var
     },
     
     syncHandler = function( evt, data ) {
-        var self = this, $syncTo = self.$syncTo, 
-            key = data.key, val = data.value, syncedKeys;
+        var model = this, $syncTo = model.$syncTo, 
+            key = data.key, val = data.value, 
+            otherkey, othermodel, 
+            syncedKeys, i, l, doAtomic
+        ;
         if ( key && (key in $syncTo) )
         {
+            // make this current key an atom, so as to avoid any loop of updates on same keys
+            if ( (doAtomic=!model.atomic) )
+            {
+                model.atomic = true; model.$atom = key;
+            }
             syncedKeys = $syncTo[key];
-            for (i=0; i<syncedKeys.length; i++)
-                syncedKeys[i][0].set(syncedKeys[i][1], val, 1);
+            for (i=0,l=syncedKeys.length; i<l; i++)
+            {
+                othermodel = syncedKeys[i][0]; 
+                otherkey = syncedKeys[i][1];
+                othermodel.set( otherkey, val, 1 );
+            }
+            if ( doAtomic )
+            {
+                model.$atom = null; model.atomic = false;
+            }
         }
     }
 ;
@@ -803,10 +819,10 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     // shortcut to trigger "model:change" per given key
-    ,notify: function( dottedKey, evt, callData ) {
+    ,notify: function( dottedKey, val, evt, callData ) {
         dottedKey && this.publish(evt||'change', {
                 key: dottedKey,
-                /*, value: null*/
+                value: val,
                 $callData: callData
             });
         return this;
