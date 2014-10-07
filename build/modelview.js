@@ -1621,26 +1621,20 @@ var
         var model = this, $syncTo = model.$syncTo, 
             key = data.key, val = data.value, 
             otherkey, othermodel, 
-            syncedKeys, i, l, doAtomic, prev_atom
+            syncedKeys, i, l, prev_atomic, prev_atom
         ;
         if ( key && (key in $syncTo) )
         {
             // make this current key an atom, so as to avoid any circular-loop of updates on same keys
-            if ( (doAtomic=!model.atomic) )
-            {
-                prev_atom = model.$atom;
-                model.atomic = true; model.$atom = key;
-            }
+            prev_atomic = model.atomic; prev_atom = model.$atom;
+            model.atomic = true; model.$atom = key;
             syncedKeys = $syncTo[key];
             for (i=0,l=syncedKeys.length; i<l; i++)
             {
                 othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                 othermodel.set( otherkey, val, 1 );
             }
-            if ( doAtomic )
-            {
-                model.$atom = prev_atom; model.atomic = false;
-            }
+            model.$atom = prev_atom; model.atomic = prev_atomic;
         }
     }
 ;
@@ -2307,13 +2301,22 @@ var
                 nid = node_uuid( n ); //if ( hash[nid] && hash[nid].keys ) continue;
                 hash[nid] = hash[nid] || { }; 
                 hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
-                do {
-                    key = m[1]; 
-                    keyNode = rest.splitText( m.index );
-                    rest = keyNode.splitText( m[0].length );
+                txt = rest.nodeValue;  
+                if ( txt.length > m[0].length )
+                {
+                    // node contains more text than just the $(key) ref
+                    do {
+                        key = m[1]; keyNode = rest.splitText( m.index );
+                        rest = keyNode.splitText( m[0].length );
+                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                        m = rest.nodeValue.match( re_key );
+                    } while ( m );
+                }
+                else
+                {
+                    key = m[1]; keyNode = rest;
                     (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                    m = rest.nodeValue.match( re_key );
-                } while ( m );
+                }
                 if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
             aNodes = { };
@@ -2328,12 +2331,12 @@ var
                 txt = a.nodeValue;  aNodesCached = (txt in aNodes);
                 if ( !aNodesCached ) 
                 {
-                    rest = get_textnode( txt );
-                    aNodes[ txt ] = [[], [ rest ]];
-                    do {
-                        key = m[1]; 
-                        if ( txt.length > m[0].length )
-                        {
+                    rest = get_textnode( txt ); aNodes[ txt ] = [[], [ rest ]];
+                    if ( txt.length > m[0].length )
+                    {
+                        // attr contains more text than just the $(key) ref
+                        do {
+                            key = m[1]; 
                             keyNode = rest.splitText( m.index );
                             rest = keyNode.splitText( m[0].length );
                             aNodes[ txt ][0].push( key );
@@ -2342,17 +2345,15 @@ var
                             (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
                             (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
                             m = rest.nodeValue.match( re_key );
-                        }
-                        else
-                        {
-                            keyNode = rest;
-                            aNodes[ txt ][0].push( key );
-                            //aNodes[ txt ][1].push( keyNode ); 
-                            (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
-                            break;
-                        }
-                    } while ( m );
+                        } while ( m );
+                    }
+                    else
+                    {
+                        keyNode = rest;
+                        aNodes[ txt ][0].push( key );
+                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
+                    }
                 }
                 else
                 {
@@ -2824,26 +2825,23 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     }
     
-    ,append: function( el, dom ) {  
+    ,add: function( el, and_sync ) {  
         var view = this;
         if ( el )
         {
-            dom = dom || view.$dom;
-            dom.appendChild( el );
-            if ( view.$livebind )
+            if ( !!view.$livebind )
                 view.$keynodes = getKeyTextNodes( el, view.$livebind, view.$keynodes, view.$atkeys );
-            view.sync( dom, el );
+            if ( false !== and_sync ) view.sync( null, el );
         }
         return view;
     }
     
-    ,remove: function( el ) {  
+    ,remove: function( el, and_reset ) {  
         var view = this;
         if ( el ) 
         {
             view.$keynodes = removeKeyTextNodes( el, view.$keynodes );
-            el.parentNode.removeChild( el );
-            view.$selectors.reset( );
+            if ( false !== and_reset ) view.$selectors.reset( );
         }
         return view;
     }
@@ -2852,14 +2850,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
             bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
-            method, evt, namespaced, modelMethodPrefix = /^on_model_/
+            method, evt, namespaced, modelMethodPrefix = /^on_model_/,
+            autobind = view.$autobind, livebind = !!view.$livebind
         ;
         
         events = events || ['change', 'click'];
         view.$dom = dom || document.body;
         
         // live update dom nodes
-        if ( view.$livebind )
+        if ( livebind )
             view.$keynodes = getKeyTextNodes( view.$dom, view.$livebind, null, view.$atkeys );
         
         // model events
@@ -2881,7 +2880,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             DOMEvent( view.$dom ).on( 
                 events.map( namespaced ).join( ' ' ), 
                 
-                [ autobindSelector, bindSelector ].join( ',' ),
+                autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector,
                 
                 function( evt ) {
                     // avoid "ghosting" events on other elements which may be inside a bind element
@@ -2896,7 +2895,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                         // view/dom change events
                         isBind = view.$bindbubble ? !!bind : matches.call( el, bindSelector );
                         // view change autobind events
-                        isAutoBind = view.$autobind && "change" == evt.type && matches.call( el, autobindSelector );
+                        isAutoBind = autobind && "change" == evt.type && matches.call( el, autobindSelector );
                         if ( isBind || isAutoBind ) 
                             view.on_view_change( evt, {el:el, isBind:isBind, isAutoBind:isAutoBind} );
                     }
@@ -2911,7 +2910,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
-            namespaced, $dom
+            namespaced, $dom,
+            autobind = view.$autobind, livebind = !!view.$livebind
         ;
         
         events = events || null;
@@ -2926,7 +2926,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 
                 events && events.length ? events.map( namespaced ).join(' ') : NSEvent('', view.namespace), 
                 
-                [ sels[ 2 ], sels[ 0 ] ].join( ',' )
+                autobind ? [ sels[ 2 ], sels[ 0 ] ].join( ',' ) : sels[ 0 ]
             );
         }
         
@@ -2950,11 +2950,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,sync: function( $dom, el ) {
         var view = this, s = getSelectors( view.$atbind, view.$atkeys, [view.$model.id+'['] ), 
-            syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, autobind, livebind;
+            syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
+            autobind = view.$autobind, livebind = !!view.$livebind, andCache;
         
-        $dom = $dom || view.$dom;
-        autobind = view.$autobind;
-        livebind = !!view.$livebind;
         view.$selectors.reset( );
         if ( el )
         {
@@ -2965,9 +2963,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         }
         else
         {
-            binds = view.get( s[ 0 ], $dom, 0, 1 );
-            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, 1 );
+            $dom = $dom || view.$dom; andCache = !($dom === view.$dom);
+            binds = view.get( s[ 0 ], $dom, 0, andCache );
+            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
+            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );

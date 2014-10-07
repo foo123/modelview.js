@@ -260,26 +260,20 @@ var
         var model = this, $syncTo = model.$syncTo, 
             key = data.key, val = data.value, 
             otherkey, othermodel, 
-            syncedKeys, i, l, doAtomic, prev_atom
+            syncedKeys, i, l, prev_atomic, prev_atom
         ;
         if ( key && (key in $syncTo) )
         {
             // make this current key an atom, so as to avoid any circular-loop of updates on same keys
-            if ( (doAtomic=!model.atomic) )
-            {
-                prev_atom = model.$atom;
-                model.atomic = true; model.$atom = key;
-            }
+            prev_atomic = model.atomic; prev_atom = model.$atom;
+            model.atomic = true; model.$atom = key;
             syncedKeys = $syncTo[key];
             for (i=0,l=syncedKeys.length; i<l; i++)
             {
                 othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                 othermodel.set( otherkey, val, 1 );
             }
-            if ( doAtomic )
-            {
-                model.$atom = prev_atom; model.atomic = false;
-            }
+            model.$atom = prev_atom; model.atomic = prev_atomic;
         }
     }
 ;
