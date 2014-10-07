@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.42**
+**Version 0.42.1**
 
 ###Contents
 

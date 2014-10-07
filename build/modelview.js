@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42
+*   @version: 0.42.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42
+*   @version: 0.42.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -582,6 +582,8 @@ DOMEvent[proto] = {
     on: function( eventType, selector, handler, useCapture ) {
         var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture;
 
+        root = self.$element; if ( !root ) return self;
+        
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
@@ -600,8 +602,6 @@ DOMEvent[proto] = {
         if ( 'function' !== typeof handler )
             throw new TypeError('Handler must be a type of Function');
 
-        root = self.$element;
-        
         // Add master handler for type if not created yet
         for (i=0,l=eventTypes.length; i<l; i++)
         {
@@ -660,6 +660,8 @@ DOMEvent[proto] = {
             root = self.$element,
             singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
+        if ( !root ) return self;
+        
         // Handler can be passed as
         // the second or third argument
         if ( 'function' === typeof selector ) 
@@ -734,7 +736,7 @@ DOMEvent[proto] = {
                         {
                             delete listeners[ singleEventType ];
                             // Remove the main handler
-                            root.$element.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                            root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
                         }
                     }
                     else
@@ -759,7 +761,7 @@ DOMEvent[proto] = {
                             {
                                 delete listeners[ singleEventType ];
                                 // Remove the main handler
-                                root.$element.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                                root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
                             }
                         }
                     }
@@ -1619,25 +1621,25 @@ var
         var model = this, $syncTo = model.$syncTo, 
             key = data.key, val = data.value, 
             otherkey, othermodel, 
-            syncedKeys, i, l, doAtomic
+            syncedKeys, i, l, doAtomic, prev_atom
         ;
         if ( key && (key in $syncTo) )
         {
-            // make this current key an atom, so as to avoid any loop of updates on same keys
+            // make this current key an atom, so as to avoid any circular-loop of updates on same keys
             if ( (doAtomic=!model.atomic) )
             {
+                prev_atom = model.$atom;
                 model.atomic = true; model.$atom = key;
             }
             syncedKeys = $syncTo[key];
             for (i=0,l=syncedKeys.length; i<l; i++)
             {
-                othermodel = syncedKeys[i][0]; 
-                otherkey = syncedKeys[i][1];
+                othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                 othermodel.set( otherkey, val, 1 );
             }
             if ( doAtomic )
             {
-                model.$atom = null; model.atomic = false;
+                model.$atom = prev_atom; model.atomic = false;
             }
         }
     }
@@ -2338,7 +2340,7 @@ var
                             aNodes[ txt ][1].push( keyNode ); 
                             aNodes[ txt ][1].push( rest );
                             (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
                             m = rest.nodeValue.match( re_key );
                         }
                         else
@@ -2347,7 +2349,7 @@ var
                             aNodes[ txt ][0].push( key );
                             //aNodes[ txt ][1].push( keyNode ); 
                             (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
                             break;
                         }
                     } while ( m );
@@ -2356,7 +2358,7 @@ var
                 {
                     // share txt nodes between same (value) attributes
                     for (m=0; m<aNodes[ txt ][0].length; m++)
-                        keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1]] );
+                        keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
                 }
                 if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
@@ -2445,7 +2447,7 @@ var
     },
     
     doLiveBindAction = function( view, elements, evt, key, val ) {
-        var model = view.$model, els_len = elements.length, el, e,
+        var model = view.$model, els_len = elements.length, el, e, att,
             i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
             isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
         ;
@@ -2493,7 +2495,14 @@ var
                         kk = keys[k]; if ( key === kk ) continue;
                         if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
                         {
-                            for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                            for (i=0,l=nodes.length; i<l; i++) 
+                            {
+                                att = nodes[i];
+                                // use already cached key/value
+                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
+                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                att[0].nodeValue = v;
+                            }
                         }
                     }
                 }
@@ -2531,7 +2540,14 @@ var
                         kk = keys[k];
                         if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
                         {
-                            for (i=0; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                            for (i=0; i<l; i++) 
+                            {
+                                att = nodes[i];
+                                // use already cached key/value
+                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
+                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                att[0].nodeValue = v;
+                            }
                         }
                     }
                 }
@@ -2687,7 +2703,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     // cache selectors for even faster performance
-    ,get: function( selector, $dom, bypass, addRoot ) {
+    ,get: function( selector, $dom, addRoot, bypass ) {
         var view = this, selectorsCache = view.$selectors, elements;
         
         $dom = $dom || view.$dom;
@@ -2943,15 +2959,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( el )
         {
             syncEvent.currentTarget = el;
-            binds = view.get( s[ 0 ], el, 1, 1 );
+            binds = view.get( s[ 0 ], el, 0, 1 );
             if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], el, 1, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
         }
         else
         {
-            binds = view.get( s[ 0 ], $dom, 1 );
+            binds = view.get( s[ 0 ], $dom, 0, 1 );
             if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, 1 );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
@@ -3032,7 +3048,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         bindElements = view.get( s[ 0 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 0, 1 );
+        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         if ( autobind ) autoBindElements = view.get( s[ 2 ] );
         
         // bypass element that triggered the "model:change" event
@@ -3065,7 +3081,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view bind action first
         if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
+        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( view.$autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
@@ -3297,7 +3313,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.42"
+    VERSION: "0.42.1"
     
     ,UUID: uuid
     
@@ -3318,7 +3334,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.42
+*   @version: 0.42.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -3502,7 +3518,7 @@ exports['ModelView'] = {
                     var self = this;
                     if ( 1 < arguments.length ) 
                     {
-                        self.$view.$model.set( k, v, true );
+                        self.$view.$model.set( k, v, 1 );
                         return self.element;
                     }
                     return self.$view.$model.get( k );

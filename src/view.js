@@ -123,7 +123,7 @@ var
                             aNodes[ txt ][1].push( keyNode ); 
                             aNodes[ txt ][1].push( rest );
                             (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
                             m = rest.nodeValue.match( re_key );
                         }
                         else
@@ -132,7 +132,7 @@ var
                             aNodes[ txt ][0].push( key );
                             //aNodes[ txt ][1].push( keyNode ); 
                             (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1]] );
+                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
                             break;
                         }
                     } while ( m );
@@ -141,7 +141,7 @@ var
                 {
                     // share txt nodes between same (value) attributes
                     for (m=0; m<aNodes[ txt ][0].length; m++)
-                        keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1]] );
+                        keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
                 }
                 if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
@@ -230,7 +230,7 @@ var
     },
     
     doLiveBindAction = function( view, elements, evt, key, val ) {
-        var model = view.$model, els_len = elements.length, el, e,
+        var model = view.$model, els_len = elements.length, el, e, att,
             i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
             isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
         ;
@@ -278,7 +278,14 @@ var
                         kk = keys[k]; if ( key === kk ) continue;
                         if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
                         {
-                            for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                            for (i=0,l=nodes.length; i<l; i++) 
+                            {
+                                att = nodes[i];
+                                // use already cached key/value
+                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
+                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                att[0].nodeValue = v;
+                            }
                         }
                     }
                 }
@@ -316,7 +323,14 @@ var
                         kk = keys[k];
                         if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
                         {
-                            for (i=0; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
+                            for (i=0; i<l; i++) 
+                            {
+                                att = nodes[i];
+                                // use already cached key/value
+                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
+                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                att[0].nodeValue = v;
+                            }
                         }
                     }
                 }
@@ -472,7 +486,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     // cache selectors for even faster performance
-    ,get: function( selector, $dom, bypass, addRoot ) {
+    ,get: function( selector, $dom, addRoot, bypass ) {
         var view = this, selectorsCache = view.$selectors, elements;
         
         $dom = $dom || view.$dom;
@@ -728,15 +742,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( el )
         {
             syncEvent.currentTarget = el;
-            binds = view.get( s[ 0 ], el, 1, 1 );
+            binds = view.get( s[ 0 ], el, 0, 1 );
             if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], el, 1, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
         }
         else
         {
-            binds = view.get( s[ 0 ], $dom, 1 );
+            binds = view.get( s[ 0 ], $dom, 0, 1 );
             if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 1 );
+            if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, 1 );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
@@ -817,7 +831,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         bindElements = view.get( s[ 0 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 0, 1 );
+        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         if ( autobind ) autoBindElements = view.get( s[ 2 ] );
         
         // bypass element that triggered the "model:change" event
@@ -850,7 +864,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view bind action first
         if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
+        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( view.$autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
     }

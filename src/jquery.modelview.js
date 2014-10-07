@@ -185,7 +185,7 @@
                     var self = this;
                     if ( 1 < arguments.length ) 
                     {
-                        self.$view.$model.set( k, v, true );
+                        self.$view.$model.set( k, v, 1 );
                         return self.element;
                     }
                     return self.$view.$model.get( k );

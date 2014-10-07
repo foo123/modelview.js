@@ -47,7 +47,7 @@ REPLACE =[{}]
     "@@ROOT@@" = "this"
     "@@EXPORTS@@" = "exports"
     "@@MODULE_NAME@@" = "ModelView"
-    "@@VERSION@@" = "0.42"
+    "@@VERSION@@" = "0.42.1"
     
 @ # end block
 

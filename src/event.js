@@ -240,6 +240,8 @@ DOMEvent[proto] = {
     on: function( eventType, selector, handler, useCapture ) {
         var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture;
 
+        root = self.$element; if ( !root ) return self;
+        
         if ( !eventType )
             throw new TypeError('Invalid event type: ' + eventType);
         
@@ -258,8 +260,6 @@ DOMEvent[proto] = {
         if ( 'function' !== typeof handler )
             throw new TypeError('Handler must be a type of Function');
 
-        root = self.$element;
-        
         // Add master handler for type if not created yet
         for (i=0,l=eventTypes.length; i<l; i++)
         {
@@ -318,6 +318,8 @@ DOMEvent[proto] = {
             root = self.$element,
             singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
+        if ( !root ) return self;
+        
         // Handler can be passed as
         // the second or third argument
         if ( 'function' === typeof selector ) 
@@ -392,7 +394,7 @@ DOMEvent[proto] = {
                         {
                             delete listeners[ singleEventType ];
                             // Remove the main handler
-                            root.$element.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                            root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
                         }
                     }
                     else
@@ -417,7 +419,7 @@ DOMEvent[proto] = {
                             {
                                 delete listeners[ singleEventType ];
                                 // Remove the main handler
-                                root.$element.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                                root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
                             }
                         }
                     }
