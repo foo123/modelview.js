@@ -2457,7 +2457,7 @@ var
         
         if ( key )
         {
-            keyDot = key + '.'; val = '' + val;
+            keyDot = key + '.'; val = '' + model.get(key); //val;
             for (e=0; e<els_len; e++)
             {
                 el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
