@@ -446,7 +446,7 @@ function NSEvent( evt, namespace )
 
 // adapted from https://github.com/ftlabs/ftdomdelegate
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
-    captureEvts = ['blur', 'error', 'focus', 'load', 'resize', 'scroll']
+    captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
 function captureForType( eventType ) { return -1 < captureEvts.indexOf( eventType ); }
 function matchesTag( tagName, element ) { return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
