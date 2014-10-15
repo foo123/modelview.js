@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.42.1**
+**Version 0.42.2**
 
 ###Contents
 
@@ -42,7 +42,7 @@ model.[add|append]( dottedKey, val [, publish=false] );
 model.[del|rem]( dottedKey [, reArrangeIndexes=false , publish=false] );
 
 // shortcut to model publich change event for key (and nested keys)
-model.notify( dottedKey );
+model.notify( dottedKey [, value=undefined, event="change"] );
 
 // (experimental) shortcut to synchronise specific fields of this model to other fields of another model
 model.sync( otherModel, fieldsMap );
@@ -69,7 +69,7 @@ model.serialize( );
 model.toJSON( [dottedKey] );
 
 // set data from JSON string format
-model.fromJSON( jsonData [, dottedKey] );
+model.fromJSON( jsonData [, dottedKey, publish=false] );
 
 // dispose model
 model.dispose( );
@@ -137,33 +137,33 @@ Default View Actions (inherited by sub-views)
 <table>
 <thead>
     <tr>
-        <td>Declarative Binding</td><td>Method Name</td><td>Description</td>
+        <td>Declarative Binding</td><td>Method Name</td><td>Bind Example</td><td>Description</td>
     </tr>
 </thead>
 <tbody>
     <tr>
-        <td>prop</td><td>view.do_prop</td><td>set element prop(s) based on model data</td>
+        <td>prop</td><td>view.do_prop</td><td>&lt;div data-bind='{"prop":"key"}'&gt;</td><td>set element prop(s) based on model data</td>
     </tr>
     <tr>
-        <td>html</td><td>view.do_html</td><td>set element html/text property based on model data</td>
+        <td>html</td><td>view.do_html</td><td>&lt;div data-bind='{"html":"key"}'&gt;</td><td>set element html/text property based on model data</td>
     </tr>
     <tr>
-        <td>css</td><td>view.do_css</td><td>set element css style(s) based on model data</td>
+        <td>css</td><td>view.do_css</td><td>&lt;div data-bind='{"css":{"color":"key1","background":"key2"}}'&gt;</td><td>set element css style(s) based on model data</td>
     </tr>
     <tr>
-        <td>show</td><td>view.do_show</td><td>show/hide element based on model data</td>
+        <td>show</td><td>view.do_show</td><td>&lt;div data-bind='{"show":"key"}'&gt;</td><td>show/hide element based on model data</td>
     </tr>
     <tr>
-        <td>hide</td><td>view.do_hide</td><td>hide/show element based on model data</td>
+        <td>hide</td><td>view.do_hide</td><td>&lt;div data-bind='{"hide":"key"}'&gt;</td><td>hide/show element based on model data</td>
     </tr>
     <tr>
-        <td>tpl</td><td>view.do_tpl</td><td>element render a template based on model data</td>
+        <td>tpl</td><td>view.do_tpl</td><td>&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"akey"}}'&gt;</td><td>element render a template based on model data</td>
     </tr>
     <tr>
-        <td>set</td><td>view.do_set</td><td>element set/update model data based on given value(s)</td>
+        <td>set</td><td>view.do_set</td><td>&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'&gt;</td><td>element set/update model data based on given value(s)</td>
     </tr>
     <tr>
-        <td>bind</td><td>view.do_bind</td><td>element default autobind action (automaticaly update value based on changed model data)</td>
+        <td>bind</td><td>view.do_bind</td><td>&lt;input name="model[key]" &gt;</td><td>element default autobind action (automaticaly update value on (input) elements based on changed model data)</td>
     </tr>
 </tbody>
 </table>

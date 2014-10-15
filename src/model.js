@@ -421,31 +421,31 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return json;
     }
     
-    ,fromJSON: function( dataJson, dottedKey ) {
+    ,fromJSON: function( dataJson, dottedKey, pub ) {
         var model = this, data, e;
         if ( dataJson )
         {
             try { data = fromJSON( dataJson ); } 
             catch( e ) { throw e; return; }
             
-            if ( dottedKey ) model.set( dottedKey, data );
+            if ( dottedKey ) model.set( dottedKey, data, true === pub );
             else model.data( data );
         }
         return model;
     }
     
     ,has: function( dottedKey, RAW ) {
-        var model = this, r;
+        var model = this, getters = model.$getters, r;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.v) ) )
+        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) ) )
         {
             // handle single key fast
             return true;
         }
-        else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
+        else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
         {
             return (true === r) ? true : r[1].has(r[2].join('.'));
         }
@@ -453,7 +453,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,get: function( dottedKey, RAW ) {
-        var model = this, r, p;
+        var model = this, getters = model.$getters, r, p;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -461,10 +461,10 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( 0 > dottedKey.indexOf('.') )
         {
             // handle single key fast
-            if ( !RAW && (r=model.$getters[dottedKey]) && r.v ) return r.v( dottedKey );
+            if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v( dottedKey );
             return model.$data[ dottedKey ];
         }
-        else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
+        else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
         {
             // nested sub-model
             if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);

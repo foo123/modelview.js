@@ -4,15 +4,15 @@ modelview.js
 A simple / extendable / umd-compatible / light-weight (~35 kB minified, ~12kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
 
 
-**Version 0.42.1**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.42.2**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  
 
 * [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
-* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python
-* [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/JS, PHP and Python
-* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP and Python
+* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP, Python, ActionScript
+* [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/JS, PHP, Python, ActionScript
+* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP, Python, ActionScript
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
 
 

@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.1
+*   @version: 0.42.2
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.1
+*   @version: 0.42.2
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1782,31 +1782,31 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return json;
     }
     
-    ,fromJSON: function( dataJson, dottedKey ) {
+    ,fromJSON: function( dataJson, dottedKey, pub ) {
         var model = this, data, e;
         if ( dataJson )
         {
             try { data = fromJSON( dataJson ); } 
             catch( e ) { throw e; return; }
             
-            if ( dottedKey ) model.set( dottedKey, data );
+            if ( dottedKey ) model.set( dottedKey, data, true === pub );
             else model.data( data );
         }
         return model;
     }
     
     ,has: function( dottedKey, RAW ) {
-        var model = this, r;
+        var model = this, getters = model.$getters, r;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=model.$getters[dottedKey]) && r.v) ) )
+        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) ) )
         {
             // handle single key fast
             return true;
         }
-        else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
+        else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
         {
             return (true === r) ? true : r[1].has(r[2].join('.'));
         }
@@ -1814,7 +1814,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,get: function( dottedKey, RAW ) {
-        var model = this, r, p;
+        var model = this, getters = model.$getters, r, p;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -1822,10 +1822,10 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( 0 > dottedKey.indexOf('.') )
         {
             // handle single key fast
-            if ( !RAW && (r=model.$getters[dottedKey]) && r.v ) return r.v( dottedKey );
+            if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v( dottedKey );
             return model.$data[ dottedKey ];
         }
-        else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : model.$getters, Model )) )
+        else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
         {
             // nested sub-model
             if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -2230,16 +2230,17 @@ var
     // use hexadecimal string representation in order to have optimal key distribution in hash (??)
     nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || (++nuuid).toString(16); },
     
-    removeKeyTextNodes = function( node, hash ) {
+    removeKeyTextNodes = function( node, hash, atKeys ) {
         var nid;
         if ( hash && (nid=node[nUUID]) && hash[nid] ) del(hash, nid);
+        if ( node[ATTR](atKeys) ) node.removeAttribute( atKeys );
         return hash;
     },
     
     getKeyTextNodes = function( node, re_key, hash, atKeys ) {
         if ( !re_key ) return hash;
         
-        var matchedNodes, matchedAtts, i, l, m, matched, n, a, key, nid,
+        var matchedNodes, matchedAtts, i, l, m, matched, n, a, key, nid, atnodes,
             keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes, keyAtts
         ;
         
@@ -2293,13 +2294,13 @@ var
                     }
                 }
             }
-            
+            atnodes = { };
             for (i=0,l=matchedNodes.length; i<l; i++)
             {
                 matched = matchedNodes[ i ];
                 rest = matched[0]; m = matched[1]; n = matched[2];
                 nid = node_uuid( n ); //if ( hash[nid] && hash[nid].keys ) continue;
-                hash[nid] = hash[nid] || { }; 
+                hash[nid] = hash[nid] || { }; atnodes[nid] = n;
                 hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
                 txt = rest.nodeValue;  
                 if ( txt.length > m[0].length )
@@ -2317,7 +2318,7 @@ var
                     key = m[1]; keyNode = rest;
                     (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
                 }
-                if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
+                //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
             }
             aNodes = { };
             for (i=0,l=matchedAtts.length; i<l; i++)
@@ -2325,7 +2326,7 @@ var
                 matched = matchedAtts[ i ];
                 a = matched[0]; m = matched[1]; n = matched[2];
                 nid = node_uuid( n ); //if ( hash[nid] && hash[nid].atts ) continue;
-                hash[nid] = hash[nid] || { }; 
+                hash[nid] = hash[nid] || { }; atnodes[nid] = n;
                 hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
                 hash[nid].atts = hash[nid].atts || { }; keyAtts = hash[nid].atts;
                 txt = a.nodeValue;  aNodesCached = (txt in aNodes);
@@ -2361,7 +2362,13 @@ var
                     for (m=0; m<aNodes[ txt ][0].length; m++)
                         keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
                 }
-                if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
+                //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
+            }
+            key = Keys( atnodes );
+            for (m=0; m<key.length; m++)
+            {
+                n = atnodes[ nid=key[m] ];
+                n[SET_ATTR](atKeys, '|'+Keys(hash[nid].keys).join('|'));
             }
         }
         return hash;
@@ -2371,7 +2378,9 @@ var
         return [
             bind ? '[' + bind + ']' : null,
             
-            livebind ? '[' + livebind + ']' : null,
+            livebind 
+            ? (livebind[1] ? '[' + livebind[0] + '*="|'+livebind[1]+'"]' : '[' + livebind[0] + ']')
+            : null,
             
             autobind 
             ? (autobind[1] 
@@ -2840,7 +2849,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var view = this;
         if ( el ) 
         {
-            view.$keynodes = removeKeyTextNodes( el, view.$keynodes );
+            view.$keynodes = removeKeyTextNodes( el, view.$keynodes, view.$atkeys );
             if ( false !== and_reset ) view.$selectors.reset( );
         }
         return view;
@@ -2848,7 +2857,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,bind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
+            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
             bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
             method, evt, namespaced, modelMethodPrefix = /^on_model_/,
             autobind = view.$autobind, livebind = !!view.$livebind
@@ -2909,7 +2918,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, view.$atkeys, [model.id+'['] ),
+            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
             namespaced, $dom,
             autobind = view.$autobind, livebind = !!view.$livebind
         ;
@@ -2949,7 +2958,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,sync: function( $dom, el ) {
-        var view = this, s = getSelectors( view.$atbind, view.$atkeys, [view.$model.id+'['] ), 
+        var view = this, s = getSelectors( view.$atbind, [view.$atkeys], [view.$model.id+'['] ), 
             syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
             autobind = view.$autobind, livebind = !!view.$livebind, andCache;
         
@@ -3040,7 +3049,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,on_model_change: function( evt, data ) {
         var view = this, model = view.$model,
-            s = getSelectors( view.$atbind, view.$atkeys, [model.id + bracketed( data.key )] ),
+            s = getSelectors( view.$atbind, [view.$atkeys, data.key], [model.id + bracketed( data.key )] ),
             bindElements, autoBindElements, liveBindings,  
             autobind = view.$autobind, livebind = !!view.$livebind, 
             notTriggerElem
@@ -3071,7 +3080,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
-            s = getSelectors( view.$atbind, view.$atkeys, [model.id + bracketed( data.key )] ),
+            s = getSelectors( view.$atbind, [view.$atkeys, data.key], [model.id + bracketed( data.key )] ),
             bindElements, autoBindElements, liveBindings
         ;
 
@@ -3312,7 +3321,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.42.1"
+    VERSION: "0.42.2"
     
     ,UUID: uuid
     
@@ -3333,7 +3342,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.42.1
+*   @version: 0.42.2
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
