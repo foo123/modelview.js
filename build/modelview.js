@@ -3049,9 +3049,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,on_model_change: function( evt, data ) {
         var view = this, model = view.$model,
-            s = getSelectors( view.$atbind, [view.$atkeys, data.key], [model.id + bracketed( data.key )] ),
-            bindElements, autoBindElements, liveBindings,  
             autobind = view.$autobind, livebind = !!view.$livebind, 
+            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            bindElements, autoBindElements, liveBindings,  
             notTriggerElem
         ;
         
@@ -3080,7 +3080,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
-            s = getSelectors( view.$atbind, [view.$atkeys, data.key], [model.id + bracketed( data.key )] ),
+            autobind = view.$autobind, livebind = !!view.$livebind, 
+            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
             bindElements, autoBindElements, liveBindings
         ;
 
@@ -3089,9 +3090,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view bind action first
         if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
         // do view live DOM bindings update action
-        if ( view.$livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( view.$autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
     }
     
     //
