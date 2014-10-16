@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.2
+*   @version: 0.42.3
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.2
+*   @version: 0.42.3
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens 
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1925,7 +1925,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val ) ) 
+                if ( setter( dottedKey, val, pub ) ) 
                 {
                     pub && model.publish('change', {
                             key: dottedKey, 
@@ -2040,7 +2040,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val ) ) 
+                if ( setter( dottedKey, val, pub ) ) 
                 {
                     pub && model.publish('change', {
                             key: dottedKey, 
@@ -2173,14 +2173,31 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return self;
     }
     
-    // shortcut to trigger "model:change" per given key
+    // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, val, evt, callData ) {
-        dottedKey && this.publish(evt||'change', {
-                key: dottedKey,
-                value: val,
-                $callData: callData
-            });
-        return this;
+        var self = this, k, l, d, t;
+        if ( dottedKey )
+        {
+            t = get_type( dottedKey );
+            evt = evt || 'change';  
+            
+            if ( T_STR === t )
+            {
+                self.publish( evt, {key: dottedKey, value: val, $callData: callData} );
+            }
+            else if ( T_ARRAY === t )
+            {
+                // notify multiple keys
+                d = {key: '', value: val, $callData: callData};
+                l = dottedKey.length;
+                for (k=0; k<l; k++)
+                {
+                    d.key = dottedKey[ k ];
+                    self.publish( evt, d );
+                }
+            }
+        }
+        return self;
     }
     
     // atomic (update) operation(s) by key
@@ -3322,7 +3339,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.42.2"
+    VERSION: "0.42.3"
     
     ,UUID: uuid
     
@@ -3343,7 +3360,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.42.2
+*   @version: 0.42.3
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -3514,13 +3531,11 @@ exports['ModelView'] = {
             $.widget( 'mvc.ModelViewWidget', {
                 
                 options: { },
-                
                 $view: null,
                 
                 _create: function() {
                     var self = this;
-                    self.element.modelview( self.options );
-                    self.$view = self.element.modelview( 'view' );
+                    self.$view = self.element.modelview( self.options ).modelview( 'view' );
                 },
                 
                 value: function( k, v ) {
@@ -3531,6 +3546,14 @@ exports['ModelView'] = {
                         return self.element;
                     }
                     return self.$view.$model.get( k );
+                },
+                
+                view: function( ) {
+                    return this.$view;
+                },
+                
+                model: function( ) {
+                    return this.$view.$model;
                 },
                 
                 _destroy: function() {

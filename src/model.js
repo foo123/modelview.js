@@ -564,7 +564,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val ) ) 
+                if ( setter( dottedKey, val, pub ) ) 
                 {
                     pub && model.publish('change', {
                             key: dottedKey, 
@@ -679,7 +679,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val ) ) 
+                if ( setter( dottedKey, val, pub ) ) 
                 {
                     pub && model.publish('change', {
                             key: dottedKey, 
@@ -812,14 +812,31 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return self;
     }
     
-    // shortcut to trigger "model:change" per given key
+    // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, val, evt, callData ) {
-        dottedKey && this.publish(evt||'change', {
-                key: dottedKey,
-                value: val,
-                $callData: callData
-            });
-        return this;
+        var self = this, k, l, d, t;
+        if ( dottedKey )
+        {
+            t = get_type( dottedKey );
+            evt = evt || 'change';  
+            
+            if ( T_STR === t )
+            {
+                self.publish( evt, {key: dottedKey, value: val, $callData: callData} );
+            }
+            else if ( T_ARRAY === t )
+            {
+                // notify multiple keys
+                d = {key: '', value: val, $callData: callData};
+                l = dottedKey.length;
+                for (k=0; k<l; k++)
+                {
+                    d.key = dottedKey[ k ];
+                    self.publish( evt, d );
+                }
+            }
+        }
+        return self;
     }
     
     // atomic (update) operation(s) by key

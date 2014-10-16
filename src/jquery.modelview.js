@@ -172,13 +172,11 @@
             $.widget( 'mvc.ModelViewWidget', {
                 
                 options: { },
-                
                 $view: null,
                 
                 _create: function() {
                     var self = this;
-                    self.element.modelview( self.options );
-                    self.$view = self.element.modelview( 'view' );
+                    self.$view = self.element.modelview( self.options ).modelview( 'view' );
                 },
                 
                 value: function( k, v ) {
@@ -189,6 +187,14 @@
                         return self.element;
                     }
                     return self.$view.$model.get( k );
+                },
+                
+                view: function( ) {
+                    return this.$view;
+                },
+                
+                model: function( ) {
+                    return this.$view.$model;
                 },
                 
                 _destroy: function() {
