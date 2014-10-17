@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.42.2**
+**Version 0.42.3**
 
 ###Contents
 
@@ -39,15 +39,15 @@ model.set( dottedKey, val [, publish=false] );
 model.[add|append]( dottedKey, val [, publish=false] );
 
 // model delete/remove key (with or without re-arranging array indexes)
-model.[del|rem]( dottedKey [, reArrangeIndexes=false , publish=false] );
+model.[del|rem]( dottedKey [, reArrangeIndexes=false, publish=false] );
 
-// shortcut to model publich change event for key (and nested keys)
-model.notify( dottedKey [, value=undefined, event="change"] );
+// shortcut to model publich change event for key(s) (and nested keys)
+model.notify( dottedKeys [, event="change", calldata=null] );
 
-// (experimental) shortcut to synchronise specific fields of this model to other fields of another model
+// shortcut to synchronise specific fields of this model to other fields of another model
 model.sync( otherModel, fieldsMap );
 
-// (experimental) shortcut to un-synchronise any fields of this model to other fields of another model
+// shortcut to un-synchronise any fields of this model to other fields of another model
 model.unsync( otherModel );
 
 // add typecasters given in {dottedKey: typecaster} format
@@ -56,7 +56,7 @@ model.types( typeCasters );
 // add validators given in {dottedKey: validator} format
 model.validators( validators );
 
-// add custom getters (i.e custom observables) given in {dottedKey: getter} format
+// add custom getters (i.e custom/computed/virtual observables) given in {dottedKey: getter} format
 model.getters( getters );
 
 // add custom setters given in {dottedKey: setter} format

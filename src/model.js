@@ -205,9 +205,10 @@ var
         if ( T_FUNC & t )
         {
             isCollectionEach = is_instance( typeOrValidator, CollectionEach );
+            // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
             // each wrapper
-            if ( isCollectionEach ) typeOrValidator = bindF( typeOrValidator.f, model );
-            else typeOrValidator = bindF( typeOrValidator, model );
+            if ( isCollectionEach ) typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
+            //else typeOrValidator = bindF( typeOrValidator, model );
             // bind the typeOrValidator handler to 'this model'
             walkadd( typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach );
         }
@@ -223,8 +224,9 @@ var
         t = get_type( getterOrSetter );
         if ( T_FUNC & t )
         {
+            // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
             // bind the getterOrSetter handler to 'this model'
-            walkadd( bindF( getterOrSetter, model ), -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters );
+            walkadd( getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters );
         }
         else if ( T_ARRAY_OR_OBJ & t )
         {
@@ -257,8 +259,8 @@ var
     },
     
     syncHandler = function( evt, data ) {
-        var model = this, $syncTo = model.$syncTo, 
-            key = data.key, val = data.value, 
+        var model = evt.target, $syncTo = model.$syncTo, 
+            key = data.key, val, 
             otherkey, othermodel, 
             syncedKeys, i, l, prev_atomic, prev_atom
         ;
@@ -267,6 +269,7 @@ var
             // make this current key an atom, so as to avoid any circular-loop of updates on same keys
             prev_atomic = model.atomic; prev_atom = model.$atom;
             model.atomic = true; model.$atom = key;
+            val = ('value' in data) ? data.value : model.get( key );
             syncedKeys = $syncTo[key];
             for (i=0,l=syncedKeys.length; i<l; i++)
             {
@@ -461,7 +464,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( 0 > dottedKey.indexOf('.') )
         {
             // handle single key fast
-            if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v( dottedKey );
+            if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v.call( model, dottedKey );
             return model.$data[ dottedKey ];
         }
         else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
@@ -469,7 +472,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // nested sub-model
             if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
             // custom getter
-            else if ( false === r[ 0 ] ) return r[ 1 ]( dottedKey );
+            else if ( false === r[ 0 ] ) return r[ 1 ].call( model, dottedKey );
             // model field
             return r[ 1 ];
         }
@@ -546,8 +549,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         if ( canSet )
         {
-            if ( type ) val = type( val, dottedKey );
-            if ( validator && !validator( val, dottedKey ) )
+            if ( type ) val = type.call( model, val, dottedKey );
+            if ( validator && !validator.call( model, val, dottedKey ) )
             {
                 if ( pub )
                 {
@@ -564,7 +567,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val, pub ) ) 
+                if ( setter.call( model, dottedKey, val, pub ) ) 
                 {
                     pub && model.publish('change', {
                             key: dottedKey, 
@@ -636,14 +639,14 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 if ( k.length ) 
                 {
                     k = k.join('.');
-                    o.append( k, val, pub, callData ); 
+                    o.add( k, val, pub, callData ); 
                 }
                 else 
                 {
                     o.data( val );
                 }
                 
-                pub && model.publish('change', {
+                pub && model.publish('append', {
                         key: dottedKey, 
                         value: val,
                         $callData: callData
@@ -661,8 +664,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         if ( canSet )
         {
-            if ( type ) val = type( val, dottedKey );
-            if ( validator && !validator( val, dottedKey ) )
+            if ( type ) val = type.call( model, val, dottedKey );
+            if ( validator && !validator.call( model, val, dottedKey ) )
             {
                 if ( pub )
                 {
@@ -679,9 +682,9 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter( dottedKey, val, pub ) ) 
+                if ( setter.call( model, dottedKey, val, pub ) ) 
                 {
-                    pub && model.publish('change', {
+                    pub && model.publish('append', {
                             key: dottedKey, 
                             value: val,
                             $callData: callData
@@ -703,7 +706,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 o[ k ] = val;
             }
         
-            pub && model.publish('change', {
+            pub && model.publish('append', {
                     key: dottedKey, 
                     value: val,
                     $callData: callData
@@ -784,36 +787,44 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    // synchronize fields with other model(s)
-    ,sync: function( model, fieldsMap ) {
-        var self = this, k;
-        for ( k in fieldsMap )
+    // synchronize fields to other model(s)
+    ,sync: function( otherModel, fieldsMap ) {
+        var self = this, key, otherKey, list, i, l, addIt;
+        for (key in fieldsMap)
         {
-            self.$syncTo[k] = self.$syncTo[k] || [];
-            self.$syncTo[k].push([model, fieldsMap[k]]);
+            otherKey = fieldsMap[key]; self.$syncTo[key] = self.$syncTo[key] || [];
+            list = self.$syncTo[key]; addIt = 1;
+            for (i=0,l=list.length; i<l; i++)
+            {
+                if ( otherModel === list[i][0] && otherKey === list[i][1] )
+                {
+                    addIt = 0; break;
+                }
+            }
+            // add it if not already added
+            if ( addIt ) list.push([otherModel, otherKey]);
         }
         if ( !self.$syncHandler ) // lazy, only if needed
-            self.on('change', self.$syncHandler = syncHandler.bind( self ));
+            self.on('change', self.$syncHandler = syncHandler/*.bind( self )*/);
         return self;
     }
     
-    // un-synchronize fields with other model(s)
-    ,unsync: function( model ) {
-        var self = this, k, syncTo = self.$syncTo, list, i;
-        for ( k in syncTo )
+    // un-synchronize fields off other model(s)
+    ,unsync: function( otherModel ) {
+        var self = this, key, syncTo = self.$syncTo, list, i;
+        for (key in syncTo)
         {
-            list = syncTo[ k ];
-            if ( !list.length ) continue;
+            if ( !(list=syncTo[ key ]) || !list.length ) continue;
             for (i=list.length-1; i>=0; i--)
             {
-                if ( model === list[i][0] ) list.splice(i, 1);
+                if ( otherModel === list[i][0] ) list.splice(i, 1);
             }
         }
         return self;
     }
     
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
-    ,notify: function( dottedKey, val, evt, callData ) {
+    ,notify: function( dottedKey, evt, data ) {
         var self = this, k, l, d, t;
         if ( dottedKey )
         {
@@ -822,12 +833,23 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             
             if ( T_STR === t )
             {
-                self.publish( evt, {key: dottedKey, value: val, $callData: callData} );
+                d = {key: dottedKey};
+                if ( data )
+                {
+                    if ( 'value' in data ) d.value = data.value;
+                    if ( '$callData' in data ) d.$callData = data.$callData;
+                }
+                self.publish( evt, d );
             }
             else if ( T_ARRAY === t )
             {
                 // notify multiple keys
-                d = {key: '', value: val, $callData: callData};
+                d = {key: ''};
+                if ( data )
+                {
+                    if ( 'value' in data ) d.value = data.value;
+                    if ( '$callData' in data ) d.$callData = data.$callData;
+                }
                 l = dottedKey.length;
                 for (k=0; k<l; k++)
                 {

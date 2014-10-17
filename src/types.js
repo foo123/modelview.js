@@ -12,26 +12,27 @@ var
         this.f = f || null;
     },
     
-    bindFieldsToModel = function( model, fields ) {
+    bindFieldsToModel = function( /*model,*/ fields ) {
+        // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
         var p, t;
         for ( p in fields )
         {
             t = fields[ p ];
             if ( is_instance( t, CollectionEach ) )
             {
-                fields[ p ] = bindF( t.f, model );
-                fields[ p ].fEach = true;
+                fields[ p ] = t.f;//bindF( t.f, model );
+                fields[ p ].fEach = 1;
             }
             else
             {
-                fields[ p ] = bindF( t, model );
+                fields[ p ] = t;//bindF( t, model );
             }
         }
         return fields;
     },
     
     // Type Compositor
-    TC = function( T ) {
+    TC = function TC( T ) {
         
         T.BEFORE = function( T2 ) {
             return TC(function( v, k ) { 
@@ -50,7 +51,7 @@ var
     },
         
     // Validator Compositor
-    VC = function( V ) {
+    VC = function VC( V ) {
         
         V.NOT = function( ) { 
             return VC(function( v, k ) { 
@@ -93,23 +94,24 @@ var
             
             // type caster for each specific field of an object
             FIELDS: function( typesPerField ) {
-                var notbinded = true;
-                typesPerField = Merge( {}, typesPerField || {} );
+                //var notbinded = true;
+                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+                typesPerField = bindFieldsToModel( Merge( {}, typesPerField || {} ) );
                 return TC(function( v ) { 
-                    var field, type, val, l, i;
-                    if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
+                    var self = this, field, type, val, l, i;
+                    //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
                     {
                         type = typesPerField[ field ]; val = v[ field ];
                         if ( type.fEach && is_type(val, T_ARRAY) )
                         {
                            l = val.length;
-                           for (i=0; i<l; i++) val[ i ] = type( val[ i ] );
+                           for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
                            v[ field ] = val;
                         }
                         else
                         {
-                            v[ field ] = type( val );
+                            v[ field ] = type.call( self, val );
                         }
                     }
                     return v;
@@ -158,7 +160,8 @@ var
         }
         
         ,add: function( type, handler ) {
-            if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) Type.Cast[ type ] = TC( handler );
+            if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) 
+                Type.Cast[ type ] = is_type( handler.AFTER, T_FUNC ) ? handler : TC( handler );
             return Type;
         }
         
@@ -183,22 +186,23 @@ var
             
             // validator for each specific field of an object
             FIELDS: function( validatorsPerField ) {
-                var notbinded = true;
-                validatorsPerField = Merge( {}, validatorsPerField || {} );
+                //var notbinded = true;
+                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+                validatorsPerField = bindFieldsToModel( Merge( {}, validatorsPerField || {} ) );
                 return VC(function( v ) { 
-                    var field, validator, val, l, i;
-                    if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
+                    var self = this, field, validator, val, l, i;
+                    //if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
                     for ( field in validatorsPerField )
                     {
                         validator = validatorsPerField[ field ]; val = v[ field ];
                         if ( validator.fEach && is_type(val, T_ARRAY) )
                         {
                            l = val.length;
-                           for (i=0; i<l; i++) if ( !validator( val[ i ] ) )  return false;
+                           for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
                         }
                         else
                         {
-                            if ( !validator( val ) ) return false;
+                            if ( !validator.call( self, val ) ) return false;
                         }
                     }
                     return true;
@@ -292,7 +296,8 @@ var
         }
         
         ,add: function( type, handler ) {
-            if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) Validation.Validate[ type ] = VC( handler );
+            if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) 
+                Validation.Validate[ type ] = is_type( handler.XOR, T_FUNC ) ? handler : VC( handler );
             return Validation;
         }
         

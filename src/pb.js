@@ -86,7 +86,7 @@ var PublishSubscribe = {
         return self;
     }
     
-    ,on: function( evt, callback, oneOff ) {
+    ,on: function( evt, callback, oneOff/*, thisRef*/ ) {
         var self = this, PB = self.$PB, ns, evts, i, l;
         if ( evt && evt.length && is_type( callback, T_FUNC ) )
         {
@@ -101,7 +101,7 @@ var PublishSubscribe = {
                     PB[evt] = [ ];
                     PB[evt].oneOffs = 0;
                 }
-                PB[evt].push( [callback, ns, oneOff, 0] );
+                PB[evt].push( [callback, ns, oneOff, 0/*, thisRef||null*/] );
                 if ( oneOff ) PB[evt].oneOffs++;
             }
         }
