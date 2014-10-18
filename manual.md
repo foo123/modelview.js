@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.42.3**
+**Version 0.42.4**
 
 ###Contents
 
@@ -56,7 +56,7 @@ model.types( typeCasters );
 // add validators given in {dottedKey: validator} format
 model.validators( validators );
 
-// add custom getters (i.e custom/computed/virtual observables) given in {dottedKey: getter} format
+// add custom getters (i.e computed/virtual observables) given in {dottedKey: getter} format
 model.getters( getters );
 
 // add custom setters given in {dottedKey: setter} format
@@ -134,37 +134,115 @@ view.dispose( );
 Default View Actions (inherited by sub-views)
 
 
+The declarative view binding format is like:
+
+```html
+<element bind-attr="JSON"></element>
+
+<!-- for example -->
+<div data-bind='{"event_name":{"action":"action_name","key":"a.model.key","anotherparam":"anotherparamvalue"}}'></div>
+
+<!-- for some actions there are shorthand formats (see below) e.g -->
+<div data-bind='{"hide":"a.model.key"}'></div>
+
+<!-- is shorthand for -->
+<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
+
+<!-- or -->
+<div data-bind='{"event_name":"action_name"}'></div>
+
+<!-- is shorthand for -->
+<div data-bind='{"event_name":{"action":"action_name"}}'></div>
+```
+
 <table>
 <thead>
-    <tr>
-        <td>Declarative Binding</td><td>Method Name</td><td>Bind Example</td><td>Description</td>
-    </tr>
+<tr>
+    <td>Declarative Binding</td>
+    <td>Method Name</td>
+    <td>Bind Example</td>
+    <td>Description</td>
+</tr>
 </thead>
 <tbody>
-    <tr>
-        <td>prop</td><td>view.do_prop</td><td>&lt;div data-bind='{"prop":"key"}'&gt;</td><td>set element prop(s) based on model data</td>
-    </tr>
-    <tr>
-        <td>html</td><td>view.do_html</td><td>&lt;div data-bind='{"html":"key"}'&gt;</td><td>set element html/text property based on model data</td>
-    </tr>
-    <tr>
-        <td>css</td><td>view.do_css</td><td>&lt;div data-bind='{"css":{"color":"key1","background":"key2"}}'&gt;</td><td>set element css style(s) based on model data</td>
-    </tr>
-    <tr>
-        <td>show</td><td>view.do_show</td><td>&lt;div data-bind='{"show":"key"}'&gt;</td><td>show/hide element based on model data</td>
-    </tr>
-    <tr>
-        <td>hide</td><td>view.do_hide</td><td>&lt;div data-bind='{"hide":"key"}'&gt;</td><td>hide/show element based on model data</td>
-    </tr>
-    <tr>
-        <td>tpl</td><td>view.do_tpl</td><td>&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"akey"}}'&gt;</td><td>element render a template based on model data</td>
-    </tr>
-    <tr>
-        <td>set</td><td>view.do_set</td><td>&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'&gt;</td><td>element set/update model data based on given value(s)</td>
-    </tr>
-    <tr>
-        <td>bind</td><td>view.do_bind</td><td>&lt;input name="model[key]" &gt;</td><td>element default autobind action (automaticaly update value on (input) elements based on changed model data)</td>
-    </tr>
+<tr>
+    <td>prop</td>
+    <td>view.do_prop</td>
+    <td>
+&lt;div data-bind='{"prop":"a.model.key"}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"change":{"action":"prop","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>set element properties based on model data keys</td>
+</tr>
+<tr>
+    <td>html</td>
+    <td>view.do_html</td>
+    <td>
+&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>set element html/text property based on model data key</td>
+</tr>
+<tr>
+    <td>css</td>
+    <td>view.do_css</td>
+    <td>
+&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
+    </td>
+    <td>set element css style(s) based on model data key(s)</td>
+</tr>
+<tr>
+    <td>show</td>
+    <td>view.do_show</td>
+    <td>
+&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
+</tr>
+<tr>
+    <td>hide</td>
+    <td>view.do_hide</td>
+    <td>
+&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
+</tr>
+<tr>
+    <td>tpl</td>
+    <td>view.do_tpl</td>
+    <td>
+&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>element render a template based on model data key</td>
+</tr>
+<tr>
+    <td>set</td>
+    <td>view.do_set</td>
+    <td>
+&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
+<br />*shorthand of*:<br />
+&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
+    </td>
+    <td>set/update model data key with given value on a UI event (default "click")</td>
+</tr>
+<tr>
+    <td>bind</td>
+    <td>view.do_bind</td>
+    <td>
+&lt;input name="model[a][model][key]" /> <br />
+&lt;select name="model[another][model][key]">&lt;/select>
+
+    </td>
+    <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
+</tr>
 </tbody>
 </table>
 

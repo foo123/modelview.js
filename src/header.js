@@ -3,7 +3,7 @@
 *   ModelView.js
 *   @version: @@VERSION@@
 *
-*   A micro-MV* (MVVM) framework for complex (UI) screens 
+*   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *

@@ -1,9 +1,9 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.3
+*   @version: 0.42.4
 *
-*   A micro-MV* (MVVM) framework for complex (UI) screens 
+*   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *
@@ -37,9 +37,9 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.42.3
+*   @version: 0.42.4
 *
-*   A micro-MV* (MVVM) framework for complex (UI) screens 
+*   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *
@@ -1626,21 +1626,31 @@ var
     
     syncHandler = function( evt, data ) {
         var model = evt.target, $syncTo = model.$syncTo, 
-            key = data.key, val, 
-            otherkey, othermodel, 
+            key = data.key, val, keyDot, allKeys, allKeyslen,
+            otherkey, othermodel, callback, k, skey,
             syncedKeys, i, l, prev_atomic, prev_atom
         ;
-        if ( key && (key in $syncTo) )
+        if ( key )
         {
             // make this current key an atom, so as to avoid any circular-loop of updates on same keys
+            keyDot = key + '.';
+            allKeys = Keys( $syncTo ); allKeyslen = allKeys.length;
             prev_atomic = model.atomic; prev_atom = model.$atom;
             model.atomic = true; model.$atom = key;
-            val = ('value' in data) ? data.value : model.get( key );
-            syncedKeys = $syncTo[key];
-            for (i=0,l=syncedKeys.length; i<l; i++)
+            //val = data.hasOwnProperty('value') ? data.value : model.get( key );
+            for (k=0; k<allKeyslen; k++)
             {
-                othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
-                othermodel.set( otherkey, val, 1 );
+                skey = allKeys[ k ];
+                if ( skey === key || startsWith(skey, keyDot) )
+                {
+                    syncedKeys = $syncTo[skey]; val = model.get( skey );
+                    for (i=0,l=syncedKeys.length; i<l; i++)
+                    {
+                        othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
+                        if ( (callback=syncedKeys[i][2]) ) callback.call( othermodel, otherkey, val, skey, model );
+                        else othermodel.set( otherkey, val, 1 );
+                    }
+                }
             }
             model.$atom = prev_atom; model.atomic = prev_atomic;
         }
@@ -2155,20 +2165,28 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // synchronize fields to other model(s)
     ,sync: function( otherModel, fieldsMap ) {
-        var self = this, key, otherKey, list, i, l, addIt;
+        var self = this, key, otherKey, callback, list, i, l, addIt;
         for (key in fieldsMap)
         {
             otherKey = fieldsMap[key]; self.$syncTo[key] = self.$syncTo[key] || [];
+            callback = null;
+            if ( T_ARRAY === get_type(otherKey) )
+            {
+                callback = otherKey[1] || null;
+                otherKey = otherKey[0];
+            }
             list = self.$syncTo[key]; addIt = 1;
-            for (i=0,l=list.length; i<l; i++)
+            for (i=list.length-1; i>=0; i--)
             {
                 if ( otherModel === list[i][0] && otherKey === list[i][1] )
                 {
-                    addIt = 0; break;
+                    list[i][2] = callback;
+                    addIt = 0; 
+                    break;
                 }
             }
             // add it if not already added
-            if ( addIt ) list.push([otherModel, otherKey]);
+            if ( addIt ) list.push([otherModel, otherKey, callback]);
         }
         if ( !self.$syncHandler ) // lazy, only if needed
             self.on('change', self.$syncHandler = syncHandler/*.bind( self )*/);
@@ -2202,8 +2220,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 d = {key: dottedKey};
                 if ( data )
                 {
-                    if ( 'value' in data ) d.value = data.value;
-                    if ( '$callData' in data ) d.$callData = data.$callData;
+                    if ( data.hasOwnProperty('value') ) d.value = data.value;
+                    if ( data.hasOwnProperty('$callData') ) d.$callData = data.$callData;
                 }
                 self.publish( evt, d );
             }
@@ -2213,8 +2231,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 d = {key: ''};
                 if ( data )
                 {
-                    if ( 'value' in data ) d.value = data.value;
-                    if ( '$callData' in data ) d.$callData = data.$callData;
+                    if ( data.hasOwnProperty('value') ) d.value = data.value;
+                    if ( data.hasOwnProperty('$callData') ) d.$callData = data.$callData;
                 }
                 l = dottedKey.length;
                 for (k=0; k<l; k++)
@@ -3366,7 +3384,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.42.3"
+    VERSION: "0.42.4"
     
     ,UUID: uuid
     
@@ -3387,7 +3405,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.42.3
+*   @version: 0.42.4
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
