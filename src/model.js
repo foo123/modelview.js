@@ -156,6 +156,12 @@ var
                         a3 = getNext( a3, k );
                     }
                 }
+                // fixed, it bypassed setters which had multiple virtual levels
+                else if ( all3 && a3 && (a3 = getNext( a3, k )) )
+                {
+                    a1 = getNext( a1, k );
+                    a2 = getNext( a2, k );
+                }
                 else
                 {
                     return [false, o, k, p, null, null, null];
@@ -262,7 +268,7 @@ var
         var model = evt.target, $syncTo = model.$syncTo, 
             key = data.key, val, keyDot, allKeys, allKeyslen,
             otherkey, othermodel, callback, k, skey,
-            syncedKeys, i, l, prev_atomic, prev_atom
+            syncedKeys, i, l, prev_atomic, prev_atom, __syncing
         ;
         if ( key )
         {
@@ -281,8 +287,17 @@ var
                     for (i=0,l=syncedKeys.length; i<l; i++)
                     {
                         othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
-                        if ( (callback=syncedKeys[i][2]) ) callback.call( othermodel, otherkey, val, skey, model );
-                        else othermodel.set( otherkey, val, 1 );
+                        // fixed, too much recursion, when keys notified other keys, which then were re-synced
+                        model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
+                        __syncing = model.__syncing[othermodel.$id];
+                        if ( 0 > __syncing.indexOf( otherkey ) )
+                        {
+                            __syncing.push( otherkey );
+                            if ( (callback=syncedKeys[i][2]) ) callback.call( othermodel, otherkey, val, skey, model );
+                            else othermodel.set( otherkey, val, 1 );
+                            __syncing.pop( );
+                        }
+                        //model.__syncing[othermodel.$id].__syncing = null;
                     }
                 }
             }
@@ -299,7 +314,8 @@ var Model = function( id, data, types, validators, getters, setters ) {
     // constructor-factory pattern
     if ( !(model instanceof Model) ) return new Model( id, data, types, validators, getters, setters );
     
-    model.namespace = model.id = id || uuid('Model');
+    model.$id = uuid('Model');
+    model.namespace = model.id = id || model.$id;
     model.key = removePrefix( model.id );
     
     model.$view = null;
@@ -329,6 +345,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     constructor: Model
     
     ,id: null
+    ,$id: null
     ,$view: null
     ,$data: null
     ,$types: null
@@ -339,6 +356,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$atom: null
     ,$syncTo: null
     ,$syncHandler: null
+    ,__syncing: null
     
     ,dispose: function( ) {
         var model = this;
@@ -353,6 +371,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         model.key = null;
         model.$syncTo = null;
         model.$syncHandler = null;
+        model.__syncing = null;
         return model;
     }
     
@@ -799,17 +818,17 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // synchronize fields to other model(s)
     ,sync: function( otherModel, fieldsMap ) {
-        var self = this, key, otherKey, callback, list, i, l, addIt;
+        var model = this, key, otherKey, callback, list, i, l, addIt;
         for (key in fieldsMap)
         {
-            otherKey = fieldsMap[key]; self.$syncTo[key] = self.$syncTo[key] || [];
+            otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
             callback = null;
             if ( T_ARRAY === get_type(otherKey) )
             {
                 callback = otherKey[1] || null;
                 otherKey = otherKey[0];
             }
-            list = self.$syncTo[key]; addIt = 1;
+            list = model.$syncTo[key]; addIt = 1;
             for (i=list.length-1; i>=0; i--)
             {
                 if ( otherModel === list[i][0] && otherKey === list[i][1] )
@@ -822,23 +841,31 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // add it if not already added
             if ( addIt ) list.push([otherModel, otherKey, callback]);
         }
-        if ( !self.$syncHandler ) // lazy, only if needed
-            self.on('change', self.$syncHandler = syncHandler/*.bind( self )*/);
-        return self;
+        if ( !model.$syncHandler ) // lazy, only if needed
+        {
+            // fixed, too much recursion, when keys notified other keys, which then were re-synced
+            model.__syncing = model.__syncing || { };
+            model.on('change', model.$syncHandler = syncHandler/*.bind( model )*/);
+        }
+        return model;
     }
     
     // un-synchronize fields off other model(s)
     ,unsync: function( otherModel ) {
-        var self = this, key, syncTo = self.$syncTo, list, i;
+        var model = this, key, syncTo = model.$syncTo, list, i;
         for (key in syncTo)
         {
             if ( !(list=syncTo[ key ]) || !list.length ) continue;
             for (i=list.length-1; i>=0; i--)
             {
-                if ( otherModel === list[i][0] ) list.splice(i, 1);
+                if ( otherModel === list[i][0] ) 
+                {
+                    if ( model.__syncing && model.__syncing[otherModel.$id] ) del(model.__syncing, otherModel.$id);
+                    list.splice(i, 1);
+                }
             }
         }
-        return self;
+        return model;
     }
     
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
