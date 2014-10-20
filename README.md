@@ -308,6 +308,6 @@ Results before and after below:
 [![jsperf-model-getset](/screenshots/jsperf-model-getset-3.png)](http://jsperf.com/js-mvc-frameworks/16)
 
 
-**live DOM and model watch/subscribe** (AngularJS, KnockoutJS, ModelViewJS 0.42.2)
+**live DOM and model (multiple )watch/subscribeers** (AngularJS, KnockoutJS, ModelViewJS 0.43)
 
-[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/58)
+[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview043.png)](http://jsperf.com/angularjs-vs-knockoutjs/62)
