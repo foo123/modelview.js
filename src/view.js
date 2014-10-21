@@ -747,28 +747,30 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,sync: function( $dom, el ) {
-        var view = this, s = getSelectors( view.$atbind, [view.$atkeys], [view.$model.id+'['] ), 
+        var view = this, 
+            autobind = view.$autobind, livebind = !!view.$livebind, 
+            s = getSelectors( view.$atbind, livebind ? [view.$atkeys] : 0, autobind ? [view.$model.id+'['] : 0 ),
             syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
-            autobind = view.$autobind, livebind = !!view.$livebind, andCache;
+            andCache;
         
         view.$selectors.reset( );
         if ( el )
         {
             syncEvent.currentTarget = el;
             binds = view.get( s[ 0 ], el, 0, 1 );
-            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
             if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
+            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
         }
         else
         {
             $dom = $dom || view.$dom; andCache = !($dom === view.$dom);
             binds = view.get( s[ 0 ], $dom, 0, andCache );
-            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
+            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
-        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
+        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
         return view;
     }
     
@@ -845,8 +847,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         bindElements = view.get( s[ 0 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         if ( autobind ) autoBindElements = view.get( s[ 2 ] );
+        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         
         // bypass element that triggered the "model:change" event
         if ( data.$callData && data.$callData.$trigger )
@@ -861,10 +863,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // do view action first
         if ( bindElements.length ) doBindAction( view, bindElements, evt, data );
-        // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
+        // do view live DOM bindings update action
+        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
     }
 
     ,on_model_error: function( evt, data ) {
@@ -878,10 +880,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // do view bind action first
         if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
-        // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
+        // do view live DOM bindings update action
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
     }
     
     //

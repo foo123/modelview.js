@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.43**
+**Version 0.44**
 
 ###Contents
 
@@ -63,7 +63,14 @@ model.getters( getters );
 model.setters( setters );
 
 // get model data in plain JS Object format
+// handles nested composite models automaticaly
 model.serialize( );
+
+// validate model for given key or all data with any attached model validators
+// (return on first not valid value if  breakOnFirstError is true )
+// handles nested composite models automaticaly
+// returns: { isValid: [true|false], errors:[Array of (nested) model keys which are not valid] }
+model.validate( [breakOnFirstError=false, dottedKey=undefined] );
 
 // get data in JSON string format
 model.toJSON( [dottedKey] );

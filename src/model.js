@@ -104,8 +104,7 @@ var
         var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
         while ( i < l ) 
         {
-            k = p[i++];
-            to = get_type( o );
+            k = p[i++]; to = get_type( o );
             if ( i < l )
             {
                 if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
@@ -125,6 +124,36 @@ var
                 if ( a && (a = getValue( a, k )) ) return [false, a];
                 else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
                 else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    walk2v = function( p, obj, aux, C ) {
+        var o = obj, a = aux, k, to, i = 0, l = p.length;
+        while ( i < l ) 
+        {
+            k = p[i++]; to = get_type( o );
+            if ( i < l )
+            {
+                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                {
+                    o = o[ k ];
+                    // nested sub-composite class
+                    if ( o instanceof C ) return [C, o, p.slice(i)];
+                    else if ( !a || !(a = getNext( a, k )) ) return false;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // nested sub-composite class
+                if ( o[k] instanceof C ) return [C, o[k], p.slice(i)];
+                else if ( a /*&& getValue( a, k )*/ ) return [true, o, k, a];
                 return false;
             }
         }
@@ -205,7 +234,7 @@ var
         return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
     },*/
     
-    addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
+    addModelTypeValidator = function addModelTypeValidator( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
         t = get_type( typeOrValidator );
         if ( T_FUNC & t )
@@ -225,7 +254,7 @@ var
         }
     },
     
-    addModelGetterSetter = function( model, dottedKey, getterOrSetter, modelGettersSetters ) {
+    addModelGetterSetter = function addModelGetterSetter( model, dottedKey, getterOrSetter, modelGettersSetters ) {
         var k, t;
         t = get_type( getterOrSetter );
         if ( T_FUNC & t )
@@ -242,7 +271,7 @@ var
     },
     
     // handle sub-composite models as data, via walking the data
-    serializeModel = function( modelClass, data, dataType ) {
+    serializeModel = function serializeModel( modelClass, data, dataType ) {
         var key, type;
         
         while ( data instanceof modelClass ) { data = data.data( ); }
@@ -262,6 +291,84 @@ var
         }
         
         return data;
+    },
+    
+    // handle sub-composite models via walking the data and any attached validators
+    validateModel = function validateModel( modelClass, model, breakOnError, dottedKey, data, validators ) {
+        var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
+            result = {isValid: true, errors: [ ]}
+        ;
+        //breakOnError = !!breakOnError;
+        data = data || model.$data;
+        validators = validators || [model.$validators];
+        
+        if ( validators && validators.length )
+        {
+            if ( !!dottedKey )
+            {
+                fixKey = function( k ){ return !!nestedKey ? (nestedKey + '.' + k) : k; };
+                
+                if ( (r = walk2v( splitKey=dottedKey.split('.'), o=data, validators, modelClass )) )
+                {
+                    o = r[ 1 ]; key = r[ 2 ];
+                    
+                    if ( modelClass === r[ 0 ]  ) 
+                    {
+                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                        
+                        // nested sub-model
+                        res = validateModel( modelClass, o, breakOnError, key.length ? key.join('.') : null );
+                        if ( !res.isValid )
+                        {
+                            result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                            result.isValid = false;
+                        }
+                        if ( !result.isValid && breakOnError ) return result;
+                    }
+                    else
+                    {
+                        nestedKey = splitKey.slice(0, -1).join('.');
+                        
+                        val = o[ key ]; validator = getValue( r[3], key );
+                        if ( validator && !validator.call( model, val, dottedKey ) ) 
+                        {
+                            result.errors.push( dottedKey/*fixKey( key )*/ );
+                            result.isValid = false;
+                            if ( breakOnError ) return result;
+                        }
+                        if ( (T_ARRAY_OR_OBJ & get_type( val )) && (validators=getNext( r[3], key )) && validators.length )
+                        {
+                            nestedKey += !!nestedKey ? ('.' + key) : key;
+                            
+                            for (key in val)
+                            {
+                                res = validateModel( modelClass, model, breakOnError, key, val, validators );
+                                if ( !res.isValid )
+                                {
+                                    result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                                    result.isValid = false;
+                                }
+                                if ( !result.isValid && breakOnError ) return result;
+                            }
+                        }
+                    }
+                }
+            }
+            else if ( T_ARRAY_OR_OBJ & get_type( data ) )
+            {
+                for (key in data)
+                {
+                    res = validateModel( modelClass, model, breakOnError, key, data, validators );
+                    if ( !res.isValid )
+                    {
+                        result.errors = result.errors.concat( res.errors );
+                        result.isValid = false;
+                    }
+                    if ( !result.isValid && breakOnError ) return result;
+                }
+            }
+        }
+        return result;
     },
     
     syncHandler = function( evt, data ) {
@@ -375,11 +482,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    ,isValid: function( ) {
-        // todo
-        return true;
-    }
-    
     ,view: function( v ) {
         var model = this;
         if ( arguments.length )
@@ -439,6 +541,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // handle sub-composite models as data, via walking the data
     ,serialize: function( ) {
         return serializeModel( Model, this.$data );
+    }
+    
+    // handle sub-composite models via walking the data and any attached validators
+    ,validate: function( breakOnFirstError, dottedKey ) {
+        return validateModel( Model, this, !!breakOnFirstError, dottedKey );
     }
     
     ,toJSON: function( dottedKey ) {

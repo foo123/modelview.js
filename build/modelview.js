@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.43
+*   @version: 0.44
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.43
+*   @version: 0.44
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1470,8 +1470,7 @@ var
         var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
         while ( i < l ) 
         {
-            k = p[i++];
-            to = get_type( o );
+            k = p[i++]; to = get_type( o );
             if ( i < l )
             {
                 if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
@@ -1491,6 +1490,36 @@ var
                 if ( a && (a = getValue( a, k )) ) return [false, a];
                 else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
                 else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    walk2v = function( p, obj, aux, C ) {
+        var o = obj, a = aux, k, to, i = 0, l = p.length;
+        while ( i < l ) 
+        {
+            k = p[i++]; to = get_type( o );
+            if ( i < l )
+            {
+                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                {
+                    o = o[ k ];
+                    // nested sub-composite class
+                    if ( o instanceof C ) return [C, o, p.slice(i)];
+                    else if ( !a || !(a = getNext( a, k )) ) return false;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // nested sub-composite class
+                if ( o[k] instanceof C ) return [C, o[k], p.slice(i)];
+                else if ( a /*&& getValue( a, k )*/ ) return [true, o, k, a];
                 return false;
             }
         }
@@ -1571,7 +1600,7 @@ var
         return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
     },*/
     
-    addModelTypeValidator = function( model, dottedKey, typeOrValidator, modelTypesValidators ) {
+    addModelTypeValidator = function addModelTypeValidator( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
         t = get_type( typeOrValidator );
         if ( T_FUNC & t )
@@ -1591,7 +1620,7 @@ var
         }
     },
     
-    addModelGetterSetter = function( model, dottedKey, getterOrSetter, modelGettersSetters ) {
+    addModelGetterSetter = function addModelGetterSetter( model, dottedKey, getterOrSetter, modelGettersSetters ) {
         var k, t;
         t = get_type( getterOrSetter );
         if ( T_FUNC & t )
@@ -1608,7 +1637,7 @@ var
     },
     
     // handle sub-composite models as data, via walking the data
-    serializeModel = function( modelClass, data, dataType ) {
+    serializeModel = function serializeModel( modelClass, data, dataType ) {
         var key, type;
         
         while ( data instanceof modelClass ) { data = data.data( ); }
@@ -1628,6 +1657,84 @@ var
         }
         
         return data;
+    },
+    
+    // handle sub-composite models via walking the data and any attached validators
+    validateModel = function validateModel( modelClass, model, breakOnError, dottedKey, data, validators ) {
+        var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
+            result = {isValid: true, errors: [ ]}
+        ;
+        //breakOnError = !!breakOnError;
+        data = data || model.$data;
+        validators = validators || [model.$validators];
+        
+        if ( validators && validators.length )
+        {
+            if ( !!dottedKey )
+            {
+                fixKey = function( k ){ return !!nestedKey ? (nestedKey + '.' + k) : k; };
+                
+                if ( (r = walk2v( splitKey=dottedKey.split('.'), o=data, validators, modelClass )) )
+                {
+                    o = r[ 1 ]; key = r[ 2 ];
+                    
+                    if ( modelClass === r[ 0 ]  ) 
+                    {
+                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                        
+                        // nested sub-model
+                        res = validateModel( modelClass, o, breakOnError, key.length ? key.join('.') : null );
+                        if ( !res.isValid )
+                        {
+                            result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                            result.isValid = false;
+                        }
+                        if ( !result.isValid && breakOnError ) return result;
+                    }
+                    else
+                    {
+                        nestedKey = splitKey.slice(0, -1).join('.');
+                        
+                        val = o[ key ]; validator = getValue( r[3], key );
+                        if ( validator && !validator.call( model, val, dottedKey ) ) 
+                        {
+                            result.errors.push( dottedKey/*fixKey( key )*/ );
+                            result.isValid = false;
+                            if ( breakOnError ) return result;
+                        }
+                        if ( (T_ARRAY_OR_OBJ & get_type( val )) && (validators=getNext( r[3], key )) && validators.length )
+                        {
+                            nestedKey += !!nestedKey ? ('.' + key) : key;
+                            
+                            for (key in val)
+                            {
+                                res = validateModel( modelClass, model, breakOnError, key, val, validators );
+                                if ( !res.isValid )
+                                {
+                                    result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                                    result.isValid = false;
+                                }
+                                if ( !result.isValid && breakOnError ) return result;
+                            }
+                        }
+                    }
+                }
+            }
+            else if ( T_ARRAY_OR_OBJ & get_type( data ) )
+            {
+                for (key in data)
+                {
+                    res = validateModel( modelClass, model, breakOnError, key, data, validators );
+                    if ( !res.isValid )
+                    {
+                        result.errors = result.errors.concat( res.errors );
+                        result.isValid = false;
+                    }
+                    if ( !result.isValid && breakOnError ) return result;
+                }
+            }
+        }
+        return result;
     },
     
     syncHandler = function( evt, data ) {
@@ -1741,11 +1848,6 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
-    ,isValid: function( ) {
-        // todo
-        return true;
-    }
-    
     ,view: function( v ) {
         var model = this;
         if ( arguments.length )
@@ -1805,6 +1907,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // handle sub-composite models as data, via walking the data
     ,serialize: function( ) {
         return serializeModel( Model, this.$data );
+    }
+    
+    // handle sub-composite models via walking the data and any attached validators
+    ,validate: function( breakOnFirstError, dottedKey ) {
+        return validateModel( Model, this, !!breakOnFirstError, dottedKey );
     }
     
     ,toJSON: function( dottedKey ) {
@@ -3047,28 +3154,30 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,sync: function( $dom, el ) {
-        var view = this, s = getSelectors( view.$atbind, [view.$atkeys], [view.$model.id+'['] ), 
+        var view = this, 
+            autobind = view.$autobind, livebind = !!view.$livebind, 
+            s = getSelectors( view.$atbind, livebind ? [view.$atkeys] : 0, autobind ? [view.$model.id+'['] : 0 ),
             syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
-            autobind = view.$autobind, livebind = !!view.$livebind, andCache;
+            andCache;
         
         view.$selectors.reset( );
         if ( el )
         {
             syncEvent.currentTarget = el;
             binds = view.get( s[ 0 ], el, 0, 1 );
-            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
             if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
+            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
         }
         else
         {
             $dom = $dom || view.$dom; andCache = !($dom === view.$dom);
             binds = view.get( s[ 0 ], $dom, 0, andCache );
-            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
+            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
-        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
+        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
         return view;
     }
     
@@ -3145,8 +3254,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         ;
         
         bindElements = view.get( s[ 0 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         if ( autobind ) autoBindElements = view.get( s[ 2 ] );
+        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
         
         // bypass element that triggered the "model:change" event
         if ( data.$callData && data.$callData.$trigger )
@@ -3161,10 +3270,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // do view action first
         if ( bindElements.length ) doBindAction( view, bindElements, evt, data );
-        // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
+        // do view live DOM bindings update action
+        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
     }
 
     ,on_model_error: function( evt, data ) {
@@ -3178,10 +3287,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // do view bind action first
         if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
-        // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
+        // do view live DOM bindings update action
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
     }
     
     //
@@ -3411,7 +3520,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.43"
+    VERSION: "0.44"
     
     ,UUID: uuid
     
@@ -3432,7 +3541,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.43
+*   @version: 0.44
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
