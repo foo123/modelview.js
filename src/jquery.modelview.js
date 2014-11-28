@@ -38,6 +38,7 @@
                     ,livebind: null
                     ,autobind: false
                     ,bindbubble: false
+                    ,autovalidate: true
                     ,events: null
                     ,autoSync: true
                     ,cacheSize: View._CACHE_SIZE
@@ -154,6 +155,7 @@
                     .livebind( options.livebind )
                     .autobind( options.autobind )
                     .bindbubble( options.bindbubble )
+                    .autovalidate( options.autovalidate )
                     .bind( options.events, $dom[0] )
                     ;
                     $dom.data( 'modelview', view );

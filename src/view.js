@@ -364,8 +364,8 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     if ( !(view instanceof View) ) return new View( id, model, atts, cacheSize, refreshInterval );
     
     view.namespace = view.id = id || uuid('View');
-    if ( !('bind' in (atts=atts||{})) ) atts['bind'] = "data-bind";
-    if ( !('keys' in atts) ) atts['keys'] = "data-mvkeys" + (++nuuid);
+    if ( !(atts=atts||{})[HAS]('bind') ) atts['bind'] = "data-bind";
+    if ( !atts[HAS]('keys') ) atts['keys'] = "data-mvkeys" + (++nuuid);
     view.$atts = atts;
     cacheSize = cacheSize || View._CACHE_SIZE;
     refreshInterval = refreshInterval || View._REFRESH_INTERVAL;
@@ -471,6 +471,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+    ,autovalidate: function( enabled ) {
+        if ( arguments.length )
+        {
+            this.$model.autovalidate( enabled );
+            return this;
+        }
+        return this.$model.autovalidate( );
+    }
+    
     ,livebind: function( format ) {
         var view = this;
         if ( arguments.length )
@@ -499,6 +508,13 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             return view;
         }
         return view.$bindbubble;                        
+    }
+    
+    // http://stackoverflow.com/a/11762728/3591273
+    ,index: function( node ) {
+        var index = 0;
+        while ( (node=node.previousSibling) ) index++;
+        return index;
     }
     
     // cache selectors for even faster performance
@@ -985,7 +1001,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         if ( !!key ) 
         {
-            if ( "value" in data ) 
+            if ( data[HAS]("value") ) 
             {
                 val = data.value;
             }
@@ -1023,7 +1039,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
-        if ( 'value' in data )
+        if ( data[HAS]('value') )
         {
             // show if data[key] is value, else hide
             if ( data.value === model.get( key ) ) show(el);
@@ -1043,7 +1059,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
-        if ( 'value' in data )
+        if ( data[HAS]('value') )
         {
             // hide if data[key] is value, else show
             if ( data.value === model.get( key ) ) hide(el);

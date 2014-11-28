@@ -12,7 +12,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
-    hasProp = bindF(FPCall, OP.hasOwnProperty), toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
+    /*hasProp = bindF(FPCall, OP.hasOwnProperty),*/ toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
     newFunc = function( args, code ){ return new Func(args, code); },
     is_instance = function( o, T ){ return o instanceof T; },
     
@@ -106,6 +106,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return o1; 
     },
 
+    HAS = 'hasOwnProperty',
     ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
@@ -139,13 +140,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         );
     }(this.Element ? this.Element[proto] : null)),
 
-    // http://stackoverflow.com/a/11762728/3591273
-    /*get_node_index = function( node ) {
-        var index = 0;
-        while ( (node=node.previousSibling) ) index++;
-        return index;
-    },*/
-    
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273

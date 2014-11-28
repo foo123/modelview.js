@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.44**
+**Version 0.44.1**
 
 ###Contents
 
@@ -55,6 +55,9 @@ model.types( typeCasters );
 
 // add validators given in {dottedKey: validator} format
 model.validators( validators );
+
+// get/set model auto-validate flag, if TRUE validates each field that has attached validators live as it changes
+model.autovalidate( [enabled] );
 
 // add custom getters (i.e computed/virtual observables) given in {dottedKey: getter} format
 model.getters( getters );
@@ -111,6 +114,9 @@ view.livebind( [format | false] );
 // autobind automatically binds (2-way) input elements to model keys via name attribute 
 // e.g <input name="model[key]" />, <select name="model[key]"></select>
 view.autobind( [bool] );
+
+// get/set associated model auto-validate flag
+view.autovalidate( [enabled] );
 
 // get/set the name of view-specific attribute (e.g "bind": "data-bind" )
 view.attribute( name [, att] );
@@ -514,6 +520,7 @@ new ModelView.View(
 .livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
+.autovalidate( true ) // default
 .sync( )
 ;
 ```
@@ -531,6 +538,7 @@ $('#screen').modelview({
     events: [ 'change', 'click' ], // default
     livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
+    autovalidate: true, // default
     autoSync: true, // default
     
     model: {
@@ -568,3 +576,4 @@ $('#screen').modelview({
     }
 });
 ```
+

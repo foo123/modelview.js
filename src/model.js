@@ -47,7 +47,7 @@ var
         while ( i < l )
         {
             k = p[i++];
-            if ( !(k in o) ) o[ k ] = new Node( );
+            if ( !o[HAS](k) ) o[ k ] = new Node( );
             o = o[ k ];
             if ( i < l ) 
             {
@@ -57,7 +57,7 @@ var
             {
                 if ( isCollectionEach )
                 {
-                    if ( !(WILDCARD in o.n) ) o.n[ WILDCARD ] = new Node( );
+                    if ( !o.n[HAS](WILDCARD) ) o.n[ WILDCARD ] = new Node( );
                     o.n[ WILDCARD ].v = v;
                 }
                 else
@@ -77,7 +77,7 @@ var
             to = get_type( o );
             if ( i < l )
             {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) )
                 {
                     o = o[ k ];
                     // nested sub-composite class
@@ -92,7 +92,7 @@ var
             else
             {
                 if ( a && getValue( a, k ) ) return true;
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return true;
+                else if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return true;
                 else if ( T_OBJ === to && 'length' == k ) return true;
                 return false;
             }
@@ -107,7 +107,7 @@ var
             k = p[i++]; to = get_type( o );
             if ( i < l )
             {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) )
                 {
                     o = o[ k ];
                     // nested sub-composite class
@@ -122,7 +122,7 @@ var
             else
             {
                 if ( a && (a = getValue( a, k )) ) return [false, a];
-                else if ( (to&T_ARRAY_OR_OBJ) && (k in o) ) return [true, o[k]];
+                else if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return [true, o[k]];
                 else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
                 return false;
             }
@@ -137,7 +137,7 @@ var
             k = p[i++]; to = get_type( o );
             if ( i < l )
             {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) )
                 {
                     o = o[ k ];
                     // nested sub-composite class
@@ -153,7 +153,7 @@ var
             {
                 // nested sub-composite class
                 if ( o[k] instanceof C ) return [C, o[k], p.slice(i)];
-                else if ( a /*&& getValue( a, k )*/ ) return [true, o, k, a];
+                else if ( a /*&& getValue( a, k )*/ && (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return [true, o, k, a];
                 return false;
             }
         }
@@ -173,7 +173,7 @@ var
             to = get_type( o );
             if ( i < l )
             {
-                if ( (to&T_ARRAY_OR_OBJ) && (k in o) )
+                if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) )
                 {
                     o = o[ k ];
                     // nested sub-composite class
@@ -202,7 +202,7 @@ var
                 // nested sub-composite class
                 if ( o[ k ] instanceof C )
                     return [C, o[k], p.slice(i), 0, null, null, null];
-                else if ((k in o) /*|| (to === T_OBJ && "length" === k)*/) 
+                else if ( o[HAS](k) /*|| (to === T_OBJ && "length" === k)*/) 
                     return [true, o, k, p.slice(i), a1, a2, a3];
                 return [false, o, k, p.slice(i), a1, a2, a3];
             }
@@ -384,7 +384,7 @@ var
             allKeys = Keys( $syncTo ); allKeyslen = allKeys.length;
             prev_atomic = model.atomic; prev_atom = model.$atom;
             model.atomic = true; model.$atom = key;
-            //val = data.hasOwnProperty('value') ? data.value : model.get( key );
+            //val = data[HAS]('value') ? data.value : model.get( key );
             for (k=0; k<allKeyslen; k++)
             {
                 skey = allKeys[ k ];
@@ -427,6 +427,7 @@ var Model = function( id, data, types, validators, getters, setters ) {
     
     model.$view = null;
     model.atomic = false;  model.$atom = null;
+    model.$autovalidate = true;
     model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
     model.$syncTo = { };
     model.data( data || { } )
@@ -461,6 +462,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$setters: null
     ,atomic: false
     ,$atom: null
+    ,$autovalidate: true
     ,$syncTo: null
     ,$syncHandler: null
     ,__syncing: null
@@ -476,6 +478,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         model.atomic = false;
         model.$atom = null;
         model.key = null;
+        model.$autovalidate = false;
         model.$syncTo = null;
         model.$syncHandler = null;
         model.__syncing = null;
@@ -548,6 +551,15 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return validateModel( Model, this, !!breakOnFirstError, dottedKey );
     }
     
+    ,autovalidate: function( enabled ) {
+        if ( arguments.length )
+        {
+            this.$autovalidate = !!enabled;
+            return this;
+        }
+        return this.$autovalidate;
+    }
+    
     ,toJSON: function( dottedKey ) {
         var model = this, json, data, T, e;
         
@@ -574,17 +586,17 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,has: function( dottedKey, RAW ) {
-        var model = this, getters = model.$getters, r;
+        var model = this, data = model.$data, getters = model.$getters, r;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if ( 0 > dottedKey.indexOf('.') && ( (dottedKey in model.$data) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) ) )
+        if ( 0 > dottedKey.indexOf('.') && ( data[HAS](dottedKey) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) ) )
         {
             // handle single key fast
             return true;
         }
-        else if ( (r = walkcheck( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
+        else if ( (r = walkcheck( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
         {
             return (true === r) ? true : r[1].has(r[2].join('.'));
         }
@@ -592,7 +604,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,get: function( dottedKey, RAW ) {
-        var model = this, getters = model.$getters, r, p;
+        var model = this, data = model.$data, getters = model.$getters, r;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -601,9 +613,9 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             // handle single key fast
             if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v.call( model, dottedKey );
-            return model.$data[ dottedKey ];
+            return data[ dottedKey ];
         }
-        else if ( (r = walk2( dottedKey.split('.'), model.$data, RAW ? null : getters, Model )) )
+        else if ( (r = walk2( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
         {
             // nested sub-model
             if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -620,7 +632,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, r, o, k, p,
             type, validator, setter,
             types, validators, setters,
-            prevval, canSet = false
+            prevval, canSet = false,
+            autovalidate = model.$autovalidate
         ;
         
         if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
@@ -639,10 +652,10 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             k = dottedKey;
             setter = (r=setters[k]) ? r.v : null;
             type = (r=types[k] || types[WILDCARD]) ? r.v : null;
-            validator = (r=validators[k] || validators[WILDCARD]) ? r.v : null;
+            validator = autovalidate && (r=validators[k] || validators[WILDCARD]) ? r.v : null;
             canSet = true;
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
+        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
             type = getValue( r[4], k );
@@ -740,7 +753,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,add: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
             type, validator, setter,
-            canSet = false
+            canSet = false,
+            autovalidate = model.$autovalidate
         ;
         
         if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
@@ -759,10 +773,10 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             k = dottedKey;
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
-            validator = (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             canSet = true;
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, types, validators, setters, Model )) )
+        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
             type = getValue( getNext( r[4], k ), WILDCARD );
@@ -988,8 +1002,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 d = {key: dottedKey};
                 if ( data )
                 {
-                    if ( data.hasOwnProperty('value') ) d.value = data.value;
-                    if ( data.hasOwnProperty('$callData') ) d.$callData = data.$callData;
+                    if ( data[HAS]('value') ) d.value = data.value;
+                    if ( data[HAS]('$callData') ) d.$callData = data.$callData;
                 }
                 self.publish( evt, d );
             }
@@ -999,8 +1013,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 d = {key: ''};
                 if ( data )
                 {
-                    if ( data.hasOwnProperty('value') ) d.value = data.value;
-                    if ( data.hasOwnProperty('$callData') ) d.$callData = data.$callData;
+                    if ( data[HAS]('value') ) d.value = data.value;
+                    if ( data[HAS]('$callData') ) d.$callData = data.$callData;
                 }
                 l = dottedKey.length;
                 for (k=0; k<l; k++)
