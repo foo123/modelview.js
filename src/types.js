@@ -292,6 +292,28 @@ var
                 return VC(function( v ) { 
                     return ( 0 > vals.indexOf( v ) ); 
                 }); 
+            },
+            MIN_ITEMS: function( limit, item_filter ) {
+                limit = parseInt(limit, 10);
+                if ( T_FUNC === get_type(item_filter) )
+                    return VC(function( v ) {
+                        return v.length >= limit && v.filter( item_filter ).length >= limit;
+                    });
+                else
+                    return VC(function( v ) {
+                        return v.length >= limit;
+                    });
+            },
+            MAX_ITEMS: function( limit, item_filter ) {
+                limit = parseInt(limit, 10);
+                if ( T_FUNC === get_type(item_filter) )
+                    return VC(function( v ) {
+                        return v.filter( item_filter ).length <= limit;
+                    });
+                else
+                    return VC(function( v ) {
+                        return v.length <= limit;
+                    });
             }
         }
         

@@ -27,6 +27,7 @@
                     ,validators: { }
                     ,getters: { }
                     ,setters: { }
+                    ,dependencies: { }
                 },
                 defaultOptions = {
                     
@@ -136,7 +137,8 @@
                                 options.model.types, 
                                 options.model.validators, 
                                 options.model.getters, 
-                                options.model.setters
+                                options.model.setters,
+                                options.model.dependencies
                             )
                         ;
                     

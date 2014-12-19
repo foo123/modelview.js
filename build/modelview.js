@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.44.1
+*   @version: 0.50
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.44.1
+*   @version: 0.50
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1339,6 +1339,28 @@ var
                 return VC(function( v ) { 
                     return ( 0 > vals.indexOf( v ) ); 
                 }); 
+            },
+            MIN_ITEMS: function( limit, item_filter ) {
+                limit = parseInt(limit, 10);
+                if ( T_FUNC === get_type(item_filter) )
+                    return VC(function( v ) {
+                        return v.length >= limit && v.filter( item_filter ).length >= limit;
+                    });
+                else
+                    return VC(function( v ) {
+                        return v.length >= limit;
+                    });
+            },
+            MAX_ITEMS: function( limit, item_filter ) {
+                limit = parseInt(limit, 10);
+                if ( T_FUNC === get_type(item_filter) )
+                    return VC(function( v ) {
+                        return v.filter( item_filter ).length <= limit;
+                    });
+                else
+                    return VC(function( v ) {
+                        return v.length <= limit;
+                    });
             }
         }
         
@@ -1631,10 +1653,11 @@ var
     },
     
     // handle sub-composite models as data, via walking the data
-    serializeModel = function serializeModel( modelClass, data, dataType ) {
+    serializeModel = function serializeModel( model_instance, model_class, data, dataType ) {
         var key, type;
+        if ( arguments.length < 3 ) data = model_instance.$data;
         
-        while ( data instanceof modelClass ) { data = data.data( ); }
+        while ( data instanceof model_class ) { data = data.data( ); }
         
         type = dataType || get_type( data );
         data = (T_OBJ & type) ? Merge({}, data) : ((T_ARRAY & type) ? data.slice(0) : data);
@@ -1643,10 +1666,10 @@ var
         {
             for (key in data)
             {
-                if ( data[ key ] instanceof modelClass )
-                    data[ key ] = serializeModel( modelClass, Merge( {}, data[ key ].data( ) ) );
+                if ( data[ key ] instanceof model_class )
+                    data[ key ] = serializeModel( data[ key ], model_class, Merge( {}, data[ key ].data( ) ) );
                 else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
-                    data[ key ] = serializeModel( modelClass, data[ key ], type );
+                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
             }
         }
         
@@ -1654,7 +1677,7 @@ var
     },
     
     // handle sub-composite models via walking the data and any attached validators
-    validateModel = function validateModel( modelClass, model, breakOnError, dottedKey, data, validators ) {
+    validateModel = function validateModel( model, modelClass, breakOnError, dottedKey, data, validators ) {
         var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
             result = {isValid: true, errors: [ ]}
         ;
@@ -1677,7 +1700,7 @@ var
                         nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
                         
                         // nested sub-model
-                        res = validateModel( modelClass, o, breakOnError, key.length ? key.join('.') : null );
+                        res = validateModel( o, modelClass, breakOnError, key.length ? key.join('.') : null );
                         if ( !res.isValid )
                         {
                             result.errors = result.errors.concat( res.errors.map( fixKey ) );
@@ -1702,7 +1725,7 @@ var
                             
                             for (key in val)
                             {
-                                res = validateModel( modelClass, model, breakOnError, key, val, validators );
+                                res = validateModel( model, modelClass, breakOnError, key, val, validators );
                                 if ( !res.isValid )
                                 {
                                     result.errors = result.errors.concat( res.errors.map( fixKey ) );
@@ -1718,7 +1741,7 @@ var
             {
                 for (key in data)
                 {
-                    res = validateModel( modelClass, model, breakOnError, key, data, validators );
+                    res = validateModel( model, modelClass, breakOnError, key, data, validators );
                     if ( !res.isValid )
                     {
                         result.errors = result.errors.concat( res.errors );
@@ -1775,11 +1798,11 @@ var
 
 //
 // Model Class
-var Model = function( id, data, types, validators, getters, setters ) {
+var Model = function( id, data, types, validators, getters, setters, dependencies ) {
     var model = this;
     
     // constructor-factory pattern
-    if ( !(model instanceof Model) ) return new Model( id, data, types, validators, getters, setters );
+    if ( !(model instanceof Model) ) return new Model( id, data, types, validators, getters, setters, dependencies );
     
     model.$id = uuid('Model');
     model.namespace = model.id = id || model.$id;
@@ -1789,10 +1812,11 @@ var Model = function( id, data, types, validators, getters, setters ) {
     model.atomic = false;  model.$atom = null;
     model.$autovalidate = true;
     model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
-    model.$syncTo = { };
+    model.$idependencies = { }; model.$syncTo = { };
     model.data( data || { } )
         .types( types ).validators( validators )
         .getters( getters ).setters( setters )
+        .dependencies( dependencies )
         .initPubSub( )
     ;
 };
@@ -1817,6 +1841,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$view: null
     ,$data: null
     ,$types: null
+    ,$idependencies: null
     ,$validators: null
     ,$getters: null
     ,$setters: null
@@ -1832,6 +1857,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         model.disposePubSub( ).$view = null;
         model.$data = null;
         model.$types = null;
+        model.$idependencies = null;
         model.$validators = null;
         model.$getters = null;
         model.$setters = null;
@@ -1863,6 +1889,33 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             return model;
         }
         return model.$data;
+    }
+    
+    ,dependencies: function( deps ) {
+        var model = this, k, dependencies = model.$idependencies, d, i, dk, kk, j;
+        if ( is_type(deps, T_OBJ) )
+        {
+            for (k in deps) 
+            {
+                // inverse dependencies, used by model
+                d = deps[ k ] ? [].concat( deps[ k ] ) : [];
+                for (i=0; i<d.length; i++)
+                {
+                    // add hierarchical/dotted key, all levels
+                    kk = d[i].split('.');
+                    dk = kk[0];
+                    if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
+                    if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                    for (j=1; j<kk.length; j++)
+                    {
+                        dk += '.' + kk[j];
+                        if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
+                        if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                    }
+                }
+            }
+        }
+        return model;
     }
     
     ,types: function( types ) {
@@ -1903,12 +1956,12 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // handle sub-composite models as data, via walking the data
     ,serialize: function( ) {
-        return serializeModel( Model, this.$data );
+        return serializeModel( this, Model );
     }
     
     // handle sub-composite models via walking the data and any attached validators
     ,validate: function( breakOnFirstError, dottedKey ) {
-        return validateModel( Model, this, !!breakOnFirstError, dottedKey );
+        return validateModel( this, Model, !!breakOnFirstError, dottedKey );
     }
     
     ,autovalidate: function( enabled ) {
@@ -1926,7 +1979,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( arguments.length ) data = model.get( dottedKey );
         else data = model.data( );
         
-        try { json = toJSON( serializeModel( Model, data ) ); } 
+        try { json = toJSON( serializeModel( model, Model ) ); } 
         catch( e ) { throw e; return; }
         
         return json;
@@ -1991,7 +2044,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,set: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
             type, validator, setter,
-            types, validators, setters,
+            types, validators, setters, ideps,
             prevval, canSet = false,
             autovalidate = model.$autovalidate
         ;
@@ -2002,6 +2055,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         types = model.$types; 
         validators = model.$validators; 
         setters = model.$setters;
+        ideps = model.$idependencies;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -2039,13 +2093,18 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     else  pub = false;
                 }
                 
-                pub && model.publish('change', {
+                if ( pub )
+                {
+                    model.publish('change', {
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
                         $callData: callData
                     });
-                
+                    
+                    // notify any dependencies as well
+                    if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                }
                 return model;
             }
             else if ( !setter  && (false === r[0] && r[3].length) )
@@ -2078,12 +2137,17 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             {
                 if ( setter.call( model, dottedKey, val, pub ) ) 
                 {
-                    pub && model.publish('change', {
+                    if ( pub )
+                    {
+                        model.publish('change', {
                             key: dottedKey, 
                             value: val,
                             $callData: callData
                         });
-                    
+                        
+                        // notify any dependencies as well
+                        if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                    }
                     if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                 }
                 return model;
@@ -2096,12 +2160,18 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 // modify or add final node here
                 o[ k ] = val;
             
-                pub && model.publish('change', {
+                if ( pub )
+                {
+                    model.publish('change', {
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
                         $callData: callData
                     });
+                    
+                    // notify any dependencies as well
+                    if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                }
                 
                 if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
             }
@@ -2113,6 +2183,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,add: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
             type, validator, setter,
+            types, validators, setters, ideps,
             canSet = false,
             autovalidate = model.$autovalidate
         ;
@@ -2123,6 +2194,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         types = model.$types; 
         validators = model.$validators; 
         setters = model.$setters;
+        ideps = model.$idependencies;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -2156,12 +2228,17 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     o.data( val );
                 }
                 
-                pub && model.publish('append', {
+                if ( pub )
+                {
+                    model.publish('append', {
                         key: dottedKey, 
                         value: val,
                         $callData: callData
                     });
-                
+                    
+                    // notify any dependencies as well
+                    if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                }
                 return model;
             }
             else if ( !setter && (false === r[0] && r[3].length) )
@@ -2194,12 +2271,17 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             {
                 if ( setter.call( model, dottedKey, val, pub ) ) 
                 {
-                    pub && model.publish('append', {
+                    if ( pub )
+                    {
+                        model.publish('append', {
                             key: dottedKey, 
                             value: val,
                             $callData: callData
                         });
-                    
+                        
+                        // notify any dependencies as well
+                        if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                    }
                     if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                 }
                 return model;
@@ -2216,19 +2298,24 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 o[ k ] = val;
             }
         
-            pub && model.publish('append', {
+            if ( pub )
+            {
+                model.publish('append', {
                     key: dottedKey, 
                     value: val,
                     $callData: callData
                 });
-            
+                
+                // notify any dependencies as well
+                if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+            }
             if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
         }
         return model;
     }
     
     // delete/remove, with or without re-arranging (array) indexes
-    ,del: function( dottedKey, reArrangeIndexes, pub, callData ) {
+    ,del: function( dottedKey, pub, reArrangeIndexes, callData ) {
         var model = this, r, o, k, p, val, canDel = false;
         
         if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
@@ -2351,40 +2438,57 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, evt, data ) {
-        var self = this, k, l, d, t;
+        var model = this, ideps = model.$idependencies, 
+            k, l, d, dk, t, deps = [], keys = {};
         if ( dottedKey )
         {
             t = get_type( dottedKey );
             evt = evt || 'change';  
+            d = {key: ''};
+            if ( data )
+            {
+                if ( data[HAS]('value') ) d.value = data.value;
+                if ( data[HAS]('$callData') ) d.$callData = data.$callData;
+            }
             
             if ( T_STR === t )
             {
-                d = {key: dottedKey};
-                if ( data )
-                {
-                    if ( data[HAS]('value') ) d.value = data.value;
-                    if ( data[HAS]('$callData') ) d.$callData = data.$callData;
-                }
-                self.publish( evt, d );
+                d.key = dottedKey;
+                // notify any dependencies as well
+                keys[dottedKey] = 1;
+                if ( ideps[HAS](dottedKey) ) deps = deps.concat( ideps[dottedKey] );
+                model.publish( evt, d );
             }
             else if ( T_ARRAY === t )
             {
                 // notify multiple keys
-                d = {key: ''};
-                if ( data )
-                {
-                    if ( data[HAS]('value') ) d.value = data.value;
-                    if ( data[HAS]('$callData') ) d.$callData = data.$callData;
-                }
                 l = dottedKey.length;
                 for (k=0; k<l; k++)
                 {
-                    d.key = dottedKey[ k ];
-                    self.publish( evt, d );
+                    d.key = dk = dottedKey[ k ];
+                    // notify any dependencies as well
+                    keys[dk] = 1;
+                    if ( ideps[HAS](dk) ) deps = deps.concat( ideps[dk] );
+                    model.publish( evt, d );
+                }
+            }
+            
+            if ( l = deps.length )
+            {
+                // notify any dependencies as well
+                d = {key: ''};
+                for (k=0; k<l; k++)
+                {
+                    dk = deps[ k ];
+                    // avoid already notified keys previously
+                    if ( keys[HAS](dk) ) continue;
+                    keys[dk] = 1;
+                    d.key = dk;
+                    model.publish( "change", d );
                 }
             }
         }
-        return self;
+        return model;
     }
     
     // atomic (update) operation(s) by key
@@ -3544,7 +3648,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.44.1"
+    VERSION: "0.50"
     
     ,UUID: uuid
     
@@ -3565,7 +3669,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.44.1
+*   @version: 0.50
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -3591,6 +3695,7 @@ exports['ModelView'] = {
                     ,validators: { }
                     ,getters: { }
                     ,setters: { }
+                    ,dependencies: { }
                 },
                 defaultOptions = {
                     
@@ -3700,7 +3805,8 @@ exports['ModelView'] = {
                                 options.model.types, 
                                 options.model.validators, 
                                 options.model.getters, 
-                                options.model.setters
+                                options.model.setters,
+                                options.model.dependencies
                             )
                         ;
                     

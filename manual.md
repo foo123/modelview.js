@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.44.1**
+**Version 0.50**
 
 ###Contents
 
@@ -17,53 +17,58 @@
 ```javascript
 // modelview.js model methods
 
-var model = new ModelView.Model( [id=UUID, data={}, types=null, validators=null, getters=null, setters=null] );
+var model = new ModelView.Model( [String id=UUID, Object data={}, Object types=null, Object validators=null, Object getters=null, Object setters=null, Object dependencies=null] );
 
 
 // get / set model data
-model.data( [data] );
+model.data( [Object data] );
 
 // whether model has given key (bypass custom model getters if RAW is true)
-model.has( dottedKey [, RAW=false ] );
+model.has( String dottedKey [, Boolean RAW=false ] );
 
 // model enable / disable atomic operations, do next update operations on key (and nested keys) as one atom
-model.atom( dottedKey | false );
+model.atom( String dottedKey | Boolean false );
 
 // model get given key (bypass custom model getters if RAW is true)
-model.get( dottedKey [, RAW=false ] );
+model.get( String dottedKey [, Boolean RAW=false ] );
 
 // model set key to val
-model.set( dottedKey, val [, publish=false] );
+model.set( String dottedKey, * val [, Boolean publish=false] );
 
 // model add/append val to key (if key is array-like)
-model.[add|append]( dottedKey, val [, publish=false] );
+model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 // model delete/remove key (with or without re-arranging array indexes)
-model.[del|rem]( dottedKey [, reArrangeIndexes=false, publish=false] );
+model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=false] );
 
 // shortcut to model publich change event for key(s) (and nested keys)
-model.notify( dottedKeys [, event="change", calldata=null] );
+model.notify( String | Array dottedKeys [, String event="change", Object calldata=null] );
 
 // shortcut to synchronise specific fields of this model to other fields of another model
-model.sync( otherModel, fieldsMap );
+model.sync( Model otherModel, Object fieldsMap );
 
 // shortcut to un-synchronise any fields of this model to other fields of another model
-model.unsync( otherModel );
+model.unsync( Model otherModel );
 
 // add typecasters given in {dottedKey: typecaster} format
-model.types( typeCasters );
+model.types( Object typeCasters );
 
 // add validators given in {dottedKey: validator} format
-model.validators( validators );
+model.validators( Object validators );
 
 // get/set model auto-validate flag, if TRUE validates each field that has attached validators live as it changes
-model.autovalidate( [enabled] );
+model.autovalidate( [Boolean enabled] );
 
 // add custom getters (i.e computed/virtual observables) given in {dottedKey: getter} format
-model.getters( getters );
+model.getters( Object getters );
 
 // add custom setters given in {dottedKey: setter} format
-model.setters( setters );
+model.setters( Object setters );
+
+// add model field (inter-)dependencies in {model.key: [array of model.keys it depends on]} format
+// when a model.key (model field) changes or updates, it will notify any other fields that depend on it automaticaly
+// NOTE: (inter-)dependencies can also be handled by custom model getters/setters as well
+model.dependencies( Object dependencies );
 
 // get model data in plain JS Object format
 // handles nested composite models automaticaly
@@ -73,13 +78,13 @@ model.serialize( );
 // (return on first not valid value if  breakOnFirstError is true )
 // handles nested composite models automaticaly
 // returns: { isValid: [true|false], errors:[Array of (nested) model keys which are not valid] }
-model.validate( [breakOnFirstError=false, dottedKey=undefined] );
+model.validate( [Boolean breakOnFirstError=false, String dottedKey=undefined] );
 
 // get data in JSON string format
-model.toJSON( [dottedKey] );
+model.toJSON( [String dottedKey] );
 
 // set data from JSON string format
-model.fromJSON( jsonData [, dottedKey, publish=false] );
+model.fromJSON( String jsonData [, String dottedKey, Boolean publish=false] );
 
 // dispose model
 model.dispose( );
@@ -93,48 +98,48 @@ model.dispose( );
 ```javascript
 // modelview.js view methods
 
-var view = new ModelView.View( [id=UUID, model=new Model(), viewAttributes={bind:"data-bind"}, cacheSize=View._CACHE_SIZE, refreshInterval=View._REFRESH_INTERVAL] );
+var view = new ModelView.View( [String id=UUID, Model model=new Model(), Object viewAttributes={bind:"data-bind"}, Integer cacheSize=View._CACHE_SIZE, Integer refreshInterval=View._REFRESH_INTERVAL] );
 
 
 // get / set view model
-view.model( [model] );
+view.model( [Model model] );
 
 // add custom view named actions in {actionName: handler} format
-view.actions( actions );
+view.actions( Object actions );
 
 // add custom view event handlers in {eventName: handler} format
-view.events( events );
+view.events( Object events );
 
 // get / set livebind, 
 // livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
 // e.g <span>model.key is $(model.key)</span>
-view.livebind( [format | false] );
+view.livebind( [String format | Boolean false] );
 
 // get / set autobind, 
 // autobind automatically binds (2-way) input elements to model keys via name attribute 
 // e.g <input name="model[key]" />, <select name="model[key]"></select>
-view.autobind( [bool] );
+view.autobind( [Boolean bool] );
 
 // get/set associated model auto-validate flag
-view.autovalidate( [enabled] );
+view.autovalidate( [Boolean enabled] );
 
 // get/set the name of view-specific attribute (e.g "bind": "data-bind" )
-view.attribute( name [, att] );
+view.attribute( String name [, String att] );
 
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( [events=['change', 'click'], dom=document.body] );
+view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
 
 // unbind view from dom listening to events or all events (if no events given)
-view.unbind( [events=null, dom=view.$dom] );
+view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
 // reset view caches and re-bind to dom UI
-view.rebind( [events=['change', 'click'], dom=document.body] );
+view.rebind( [Array events=['change', 'click'], DOMNOde dom=document.body] );
 
 // reset view caches only
 view.reset( );
 
 // synchronize dom (or part of it) to underlying model
-view.sync( [dom=view.$dom] );
+view.sync( [DOMNode dom=view.$dom] );
 
 // dispose view (and model)
 view.dispose( );
@@ -381,6 +386,12 @@ ModelView.Validation.Validate.IN( v1, v2 [, ...] );
 // validate value is not one of v1, v2, ...
 ModelView.Validation.Validate.NOT_IN( v1, v2 [, ...] );
 
+// validate array/collection of items contains at least 'limit' items (use optional item_filter to only filtered items)
+ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
+
+// validate array/collection of items contains at maximum 'limit' items (use optional item_filter to only filtered items)
+ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
+
 // validate each element in a collection using "eachValidator"
 ModelView.Validation.Validate.EACH( eachValidator );
 
@@ -423,7 +434,7 @@ $dom.modelview({
             // model data here ..
             
             mode: 'all',
-            
+            user: 'foo',
             collection: [ ]
         },
         
@@ -431,6 +442,7 @@ $dom.modelview({
             // data type-casters here ..
             
             mode: $.ModelView.Type.Cast.STR,
+            user: $.ModelView.Type.Cast.STR,
             
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
@@ -455,11 +467,18 @@ $dom.modelview({
                 
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
             })
+        },
+        
+        dependencies: {
+            // data inter-dependencies (if any) here..
+            
+            // 'mode' field value depends on 'user' field value, e.g by a custom getter
+            mode: ['user']
         }
     },
     
     actions: { 
-        // custom view actions here ..
+        // custom view actions (if any) here ..
     }
 });
 
