@@ -51,9 +51,9 @@ var PublishSubscribe = {
     }
     
     ,trigger: function( evt, data ) {
-        var self = this, PB = self.$PB, queue, q, i, l, ns;
-        ns = getNS( evt ); evt = ns[ 0 ];
-        if ( (queue=PB[evt]) && (l=queue.length) )
+        var self = this, PB = self.$PB, queue, q, i, l, ns, ns_evt;
+        ns = getNS( evt ); evt = ns[ 0 ]; ns_evt = 'evt_' + evt;
+        if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
         {
             q = queue.slice( 0 ); ns = ns[1].join('.');
             evt = new PBEvent( evt, self, ns );
@@ -62,7 +62,7 @@ var PublishSubscribe = {
                 q[ i ][ 3 ] = 1; // handler called
                 if ( false === q[ i ][ 0 ]( evt, data ) ) break;
             }
-            if ( (queue=PB[evt]) && (l=queue.length) )
+            if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
             {
                 // remove any oneOffs that were called this time
                 if ( queue.oneOffs > 0 )
@@ -87,7 +87,7 @@ var PublishSubscribe = {
     }
     
     ,on: function( evt, callback, oneOff/*, thisRef*/ ) {
-        var self = this, PB = self.$PB, ns, evts, i, l;
+        var self = this, PB = self.$PB, ns, evts, ns_evt, i, l;
         if ( evt && evt.length && is_type( callback, T_FUNC ) )
         {
             oneOff = !!oneOff;
@@ -96,13 +96,14 @@ var PublishSubscribe = {
             for (i=0; i<l; i++)
             {
                 evt = evts[ i ][ 0 ]; ns = evts[ i ][ 1 ].join('.');
-                if ( !PB[evt] ) 
+                ns_evt = 'evt_' + evt;
+                if ( !PB[HAS](ns_evt) ) 
                 {
-                    PB[evt] = [ ];
-                    PB[evt].oneOffs = 0;
+                    PB[ns_evt] = [ ];
+                    PB[ns_evt].oneOffs = 0;
                 }
-                PB[evt].push( [callback, ns, oneOff, 0/*, thisRef||null*/] );
-                if ( oneOff ) PB[evt].oneOffs++;
+                PB[ns_evt].push( [callback, ns, oneOff, 0/*, thisRef||null*/] );
+                if ( oneOff ) PB[ns_evt].oneOffs++;
             }
         }
         return self;
@@ -116,10 +117,13 @@ var PublishSubscribe = {
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl;
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl, ns_evt;
         if ( !evt || !evt.length )
         {
-            for (e in PB) delete PB[ e ];
+            for (e in PB) 
+            {
+                if ( PB[HAS](e) ) delete PB[ e ];
+            }
         }
         else 
         {
@@ -130,7 +134,8 @@ var PublishSubscribe = {
                 evt = evts[ j ][ 0 ]; ns = getNSMatcher( evts[ j ][ 1 ] );
                 if ( evt.length )
                 {
-                    if ( (queue=PB[evt]) && (l=queue.length) )
+                    ns_evt = 'evt_' + evt;
+                    if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
                     {
                         for (i=l-1; i>=0; i--)
                         {
@@ -150,18 +155,21 @@ var PublishSubscribe = {
                 {
                     for (e in PB) 
                     {
-                        queue = PB[ e ];
-                        if ( !queue || !(l=queue.length) ) continue;
-                        for (i=l-1; i>=0; i--)
+                        if ( PB[HAS](e) )
                         {
-                            q = queue[ i ];
-                            if ( (!isFunc || callback === q[0]) && 
-                                (!ns || ns.test(q[1]))
-                            ) 
+                            queue = PB[ e ];
+                            if ( !queue || !(l=queue.length) ) continue;
+                            for (i=l-1; i>=0; i--)
                             {
-                                // oneOff
-                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                                queue.splice( i, 1 );
+                                q = queue[ i ];
+                                if ( (!isFunc || callback === q[0]) && 
+                                    (!ns || ns.test(q[1]))
+                                ) 
+                                {
+                                    // oneOff
+                                    if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                    queue.splice( i, 1 );
+                                }
                             }
                         }
                     }

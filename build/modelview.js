@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.50
+*   @version: 0.51
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.50
+*   @version: 0.51
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -818,9 +818,9 @@ var PublishSubscribe = {
     }
     
     ,trigger: function( evt, data ) {
-        var self = this, PB = self.$PB, queue, q, i, l, ns;
-        ns = getNS( evt ); evt = ns[ 0 ];
-        if ( (queue=PB[evt]) && (l=queue.length) )
+        var self = this, PB = self.$PB, queue, q, i, l, ns, ns_evt;
+        ns = getNS( evt ); evt = ns[ 0 ]; ns_evt = 'evt_' + evt;
+        if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
         {
             q = queue.slice( 0 ); ns = ns[1].join('.');
             evt = new PBEvent( evt, self, ns );
@@ -829,7 +829,7 @@ var PublishSubscribe = {
                 q[ i ][ 3 ] = 1; // handler called
                 if ( false === q[ i ][ 0 ]( evt, data ) ) break;
             }
-            if ( (queue=PB[evt]) && (l=queue.length) )
+            if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
             {
                 // remove any oneOffs that were called this time
                 if ( queue.oneOffs > 0 )
@@ -854,7 +854,7 @@ var PublishSubscribe = {
     }
     
     ,on: function( evt, callback, oneOff/*, thisRef*/ ) {
-        var self = this, PB = self.$PB, ns, evts, i, l;
+        var self = this, PB = self.$PB, ns, evts, ns_evt, i, l;
         if ( evt && evt.length && is_type( callback, T_FUNC ) )
         {
             oneOff = !!oneOff;
@@ -863,13 +863,14 @@ var PublishSubscribe = {
             for (i=0; i<l; i++)
             {
                 evt = evts[ i ][ 0 ]; ns = evts[ i ][ 1 ].join('.');
-                if ( !PB[evt] ) 
+                ns_evt = 'evt_' + evt;
+                if ( !PB[HAS](ns_evt) ) 
                 {
-                    PB[evt] = [ ];
-                    PB[evt].oneOffs = 0;
+                    PB[ns_evt] = [ ];
+                    PB[ns_evt].oneOffs = 0;
                 }
-                PB[evt].push( [callback, ns, oneOff, 0/*, thisRef||null*/] );
-                if ( oneOff ) PB[evt].oneOffs++;
+                PB[ns_evt].push( [callback, ns, oneOff, 0/*, thisRef||null*/] );
+                if ( oneOff ) PB[ns_evt].oneOffs++;
             }
         }
         return self;
@@ -883,10 +884,13 @@ var PublishSubscribe = {
     }
     
     ,off: function( evt, callback ) {
-        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl;
+        var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl, ns_evt;
         if ( !evt || !evt.length )
         {
-            for (e in PB) delete PB[ e ];
+            for (e in PB) 
+            {
+                if ( PB[HAS](e) ) delete PB[ e ];
+            }
         }
         else 
         {
@@ -897,7 +901,8 @@ var PublishSubscribe = {
                 evt = evts[ j ][ 0 ]; ns = getNSMatcher( evts[ j ][ 1 ] );
                 if ( evt.length )
                 {
-                    if ( (queue=PB[evt]) && (l=queue.length) )
+                    ns_evt = 'evt_' + evt;
+                    if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
                     {
                         for (i=l-1; i>=0; i--)
                         {
@@ -917,18 +922,21 @@ var PublishSubscribe = {
                 {
                     for (e in PB) 
                     {
-                        queue = PB[ e ];
-                        if ( !queue || !(l=queue.length) ) continue;
-                        for (i=l-1; i>=0; i--)
+                        if ( PB[HAS](e) )
                         {
-                            q = queue[ i ];
-                            if ( (!isFunc || callback === q[0]) && 
-                                (!ns || ns.test(q[1]))
-                            ) 
+                            queue = PB[ e ];
+                            if ( !queue || !(l=queue.length) ) continue;
+                            for (i=l-1; i>=0; i--)
                             {
-                                // oneOff
-                                if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
-                                queue.splice( i, 1 );
+                                q = queue[ i ];
+                                if ( (!isFunc || callback === q[0]) && 
+                                    (!ns || ns.test(q[1]))
+                                ) 
+                                {
+                                    // oneOff
+                                    if ( q[ 2 ] ) queue.oneOffs = queue.oneOffs > 0 ? (queue.oneOffs-1) : 0;
+                                    queue.splice( i, 1 );
+                                }
                             }
                         }
                     }
@@ -998,19 +1006,20 @@ Cache[proto] = {
     }
     
     ,has: function( key ) {
-        var self = this, sk = key ? self.$store[ key ] : null;
+        var self = this, sk = key ? self.$store[ '_'+key ] : null;
         return !!(sk && ( NOW( ) - sk.time ) <= self.$interval);
     }
     
     ,get: function( key ) {
         if ( key )
         {
-            var self = this, sk = self.$store[ key ];
-            if ( sk )
+            var self = this, store = self.$store, k = '_'+key, sk;
+            if ( store[HAS]( k ) )
             {
+                sk = store[ k ];
                 if ( ( NOW( ) - sk.time ) > self.$interval )
                 {
-                    delete self.$store[ key ];
+                    delete store[ k ];
                     return undef;
                 }
                 else
@@ -1023,21 +1032,23 @@ Cache[proto] = {
     }
     
     ,set: function( key, val ) {
-        var self = this, store, size, storekeys;
+        var self = this, store, size, storekeys, k;
         if ( key )
         {
+            k = '_'+key;
             store = self.$store; size = self.$size; storekeys = Keys( store );
             // assuming js hash-keys maintain order in which they were added
             // then this same order is also chronological
             // and can remove top-k elements which should be the k-outdated also
             while ( storekeys.length >= size ) delete store[ storekeys.shift( ) ];
-            store[ key ] = { data: val, time: NOW( ) };
+            store[ k ] = { key: key, data: val, time: NOW( ) };
         }
         return self;
     }
     
     ,del: function( key ) {
-        if ( key && this.$store[ key ] ) delete this.$store[ key ];
+        var k = key ? ('_'+key) : null;
+        if ( k && this.$store[HAS]( k ) ) delete this.$store[ k ];
         return this;
     }
 
@@ -1064,15 +1075,18 @@ var
         var p, t;
         for ( p in fields )
         {
-            t = fields[ p ];
-            if ( is_instance( t, CollectionEach ) )
+            if ( fields[HAS](p) )
             {
-                fields[ p ] = t.f;//bindF( t.f, model );
-                fields[ p ].fEach = 1;
-            }
-            else
-            {
-                fields[ p ] = t;//bindF( t, model );
+                t = fields[ p ];
+                if ( is_instance( t, CollectionEach ) )
+                {
+                    fields[ p ] = t.f;//bindF( t.f, model );
+                    fields[ p ].fEach = 1;
+                }
+                else
+                {
+                    fields[ p ] = t;//bindF( t, model );
+                }
             }
         }
         return fields;
@@ -1149,16 +1163,19 @@ var
                     //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
                     {
-                        type = typesPerField[ field ]; val = v[ field ];
-                        if ( type.fEach && is_type(val, T_ARRAY) )
+                        if ( typesPerField[HAS](field) )
                         {
-                           l = val.length;
-                           for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
-                           v[ field ] = val;
-                        }
-                        else
-                        {
-                            v[ field ] = type.call( self, val );
+                            type = typesPerField[ field ]; val = v[ field ];
+                            if ( type.fEach && is_type(val, T_ARRAY) )
+                            {
+                               l = val.length;
+                               for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
+                               v[ field ] = val;
+                            }
+                            else
+                            {
+                                v[ field ] = type.call( self, val );
+                            }
                         }
                     }
                     return v;
@@ -1213,7 +1230,7 @@ var
         }
         
         ,del: function( type ) {
-            if ( is_type( type, T_STR ) && Type.Cast[ type ] ) delete Type.Cast[ type ];
+            if ( is_type( type, T_STR ) && Type.Cast[HAS]( type ) ) delete Type.Cast[ type ];
             return Type;
         }
     
@@ -1241,15 +1258,18 @@ var
                     //if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
                     for ( field in validatorsPerField )
                     {
-                        validator = validatorsPerField[ field ]; val = v[ field ];
-                        if ( validator.fEach && is_type(val, T_ARRAY) )
+                        if ( validatorsPerField[HAS](field) )
                         {
-                           l = val.length;
-                           for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
-                        }
-                        else
-                        {
-                            if ( !validator.call( self, val ) ) return false;
+                            validator = validatorsPerField[ field ]; val = v[ field ];
+                            if ( validator.fEach && is_type(val, T_ARRAY) )
+                            {
+                               l = val.length;
+                               for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
+                            }
+                            else
+                            {
+                                if ( !validator.call( self, val ) ) return false;
+                            }
                         }
                     }
                     return true;
@@ -1371,7 +1391,7 @@ var
         }
         
         ,del: function( type ) {
-            if ( is_type( type, T_STR ) && Validation.Validate[ type ] ) delete Validation.Validate[ type ];
+            if ( is_type( type, T_STR ) && Validation.Validate[HAS]( type ) ) delete Validation.Validate[ type ];
             return Validation;
         }
     
@@ -1391,8 +1411,8 @@ var
             ai = a[ i ];
             if ( ai )
             {
-                if ( ai[ k ] ) b.push( ai[ k ].n );
-                if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].n );
+                if ( ai[HAS]( k ) ) b.push( ai[ k ].n );
+                if ( ai[HAS]( WILDCARD ) ) b.push( ai[ WILDCARD ].n );
             }
         }
         return b.length ? b : null;
@@ -1408,8 +1428,8 @@ var
                 ai = a[ i ];
                 if ( ai )
                 {
-                    if ( ai[ k ] && ai[ k ].v ) return ai[ k ].v;
-                    if ( ai[ WILDCARD ] && ai[ WILDCARD ].v ) return ai[ WILDCARD ].v;
+                    if ( ai[HAS]( k ) && ai[ k ].v ) return ai[ k ].v;
+                    if ( ai[HAS]( WILDCARD ) && ai[ WILDCARD ].v ) return ai[ WILDCARD ].v;
                 }
             }
         }
@@ -1418,7 +1438,7 @@ var
             for (i=0; i<l; i++)
             {
                 ai = a[ i ];
-                if ( ai && ai.v )  return ai.v;
+                if ( ai && ai.v ) return ai.v;
             }
         }
         return null;
@@ -1632,7 +1652,11 @@ var
         else if ( T_ARRAY_OR_OBJ & t )
         {
             // nested keys given, recurse
-            for ( k in typeOrValidator ) addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+            for ( k in typeOrValidator ) 
+            {
+                if ( typeOrValidator[HAS](k) )
+                    addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+            }
         }
     },
     
@@ -1648,7 +1672,11 @@ var
         else if ( T_ARRAY_OR_OBJ & t )
         {
             // nested keys given, recurse
-            for ( k in getterOrSetter ) addModelGetterSetter( model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+            for ( k in getterOrSetter ) 
+            {
+                if ( getterOrSetter[HAS](k) )
+                    addModelGetterSetter( model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+            }
         }
     },
     
@@ -1666,10 +1694,13 @@ var
         {
             for (key in data)
             {
-                if ( data[ key ] instanceof model_class )
-                    data[ key ] = serializeModel( data[ key ], model_class, Merge( {}, data[ key ].data( ) ) );
-                else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
-                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                if ( data[HAS](key) )
+                {
+                    if ( data[ key ] instanceof model_class )
+                        data[ key ] = serializeModel( data[ key ], model_class, Merge( {}, data[ key ].data( ) ) );
+                    else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
+                        data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                }
             }
         }
         
@@ -1725,13 +1756,16 @@ var
                             
                             for (key in val)
                             {
-                                res = validateModel( model, modelClass, breakOnError, key, val, validators );
-                                if ( !res.isValid )
+                                if ( val[HAS](key) )
                                 {
-                                    result.errors = result.errors.concat( res.errors.map( fixKey ) );
-                                    result.isValid = false;
+                                    res = validateModel( model, modelClass, breakOnError, key, val, validators );
+                                    if ( !res.isValid )
+                                    {
+                                        result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                                        result.isValid = false;
+                                    }
+                                    if ( breakOnError && !result.isValid  ) return result;
                                 }
-                                if ( !result.isValid && breakOnError ) return result;
                             }
                         }
                     }
@@ -1741,13 +1775,16 @@ var
             {
                 for (key in data)
                 {
-                    res = validateModel( model, modelClass, breakOnError, key, data, validators );
-                    if ( !res.isValid )
+                    if ( data[HAS](key) )
                     {
-                        result.errors = result.errors.concat( res.errors );
-                        result.isValid = false;
+                        res = validateModel( model, modelClass, breakOnError, key, data, validators );
+                        if ( !res.isValid )
+                        {
+                            result.errors = result.errors.concat( res.errors );
+                            result.isValid = false;
+                        }
+                        if ( breakOnError && !result.isValid ) return result;
                     }
-                    if ( !result.isValid && breakOnError ) return result;
                 }
             }
         }
@@ -1897,20 +1934,23 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             for (k in deps) 
             {
-                // inverse dependencies, used by model
-                d = deps[ k ] ? [].concat( deps[ k ] ) : [];
-                for (i=0; i<d.length; i++)
+                if ( deps[HAS](k) )
                 {
-                    // add hierarchical/dotted key, all levels
-                    kk = d[i].split('.');
-                    dk = kk[0];
-                    if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
-                    if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
-                    for (j=1; j<kk.length; j++)
+                    // inverse dependencies, used by model
+                    d = deps[ k ] ? [].concat( deps[ k ] ) : [];
+                    for (i=0; i<d.length; i++)
                     {
-                        dk += '.' + kk[j];
+                        // add hierarchical/dotted key, all levels
+                        kk = d[i].split('.');
+                        dk = kk[0];
                         if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
                         if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                        for (j=1; j<kk.length; j++)
+                        {
+                            dk += '.' + kk[j];
+                            if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
+                            if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                        }
                     }
                 }
             }
@@ -1922,7 +1962,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(types, T_OBJ) )
         {
-            for (k in types) addModelTypeValidator( model, k, types[ k ], model.$types );
+            for (k in types) 
+            {
+                if ( types[HAS](k) )
+                    addModelTypeValidator( model, k, types[ k ], model.$types );
+            }
         }
         return model;
     }
@@ -1931,7 +1975,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(validators, T_OBJ) )
         {
-            for (k in validators) addModelTypeValidator( model, k, validators[ k ], model.$validators );
+            for (k in validators) 
+            {
+                if ( validators[HAS](k) )
+                    addModelTypeValidator( model, k, validators[ k ], model.$validators );
+            }
         }
         return model;
     }
@@ -1940,7 +1988,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(getters, T_OBJ) )
         {
-            for (k in getters) addModelGetterSetter( model, k, getters[ k ], model.$getters );
+            for (k in getters) 
+            {
+                if ( getters[HAS](k) )
+                    addModelGetterSetter( model, k, getters[ k ], model.$getters );
+            }
         }
         return model;
     }
@@ -1949,7 +2001,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(setters, T_OBJ) )
         {
-            for (k in setters) addModelGetterSetter( model, k, setters[ k ], model.$setters );
+            for (k in setters) 
+            {
+                if ( setters[HAS](k) )
+                    addModelGetterSetter( model, k, setters[ k ], model.$setters );
+            }
         }
         return model;
     }
@@ -2389,25 +2445,28 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, key, otherKey, callback, list, i, l, addIt;
         for (key in fieldsMap)
         {
-            otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
-            callback = null;
-            if ( T_ARRAY === get_type(otherKey) )
+            if ( fieldsMap[HAS](key) )
             {
-                callback = otherKey[1] || null;
-                otherKey = otherKey[0];
-            }
-            list = model.$syncTo[key]; addIt = 1;
-            for (i=list.length-1; i>=0; i--)
-            {
-                if ( otherModel === list[i][0] && otherKey === list[i][1] )
+                otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
+                callback = null;
+                if ( T_ARRAY === get_type(otherKey) )
                 {
-                    list[i][2] = callback;
-                    addIt = 0; 
-                    break;
+                    callback = otherKey[1] || null;
+                    otherKey = otherKey[0];
                 }
+                list = model.$syncTo[key]; addIt = 1;
+                for (i=list.length-1; i>=0; i--)
+                {
+                    if ( otherModel === list[i][0] && otherKey === list[i][1] )
+                    {
+                        list[i][2] = callback;
+                        addIt = 0; 
+                        break;
+                    }
+                }
+                // add it if not already added
+                if ( addIt ) list.push([otherModel, otherKey, callback]);
             }
-            // add it if not already added
-            if ( addIt ) list.push([otherModel, otherKey, callback]);
         }
         if ( !model.$syncHandler ) // lazy, only if needed
         {
@@ -2423,13 +2482,16 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, key, syncTo = model.$syncTo, list, i;
         for (key in syncTo)
         {
-            if ( !(list=syncTo[ key ]) || !list.length ) continue;
-            for (i=list.length-1; i>=0; i--)
+            if ( syncTo[HAS](key) )
             {
-                if ( otherModel === list[i][0] ) 
+                if ( !(list=syncTo[ key ]) || !list.length ) continue;
+                for (i=list.length-1; i>=0; i--)
                 {
-                    if ( model.__syncing && model.__syncing[otherModel.$id] ) del(model.__syncing, otherModel.$id);
-                    list.splice(i, 1);
+                    if ( otherModel === list[i][0] ) 
+                    {
+                        if ( model.__syncing && model.__syncing[otherModel.$id] ) del(model.__syncing, otherModel.$id);
+                        list.splice(i, 1);
+                    }
                 }
             }
         }
@@ -2439,7 +2501,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, evt, data ) {
         var model = this, ideps = model.$idependencies, 
-            k, l, d, dk, t, deps = [], keys = {};
+            k, l, d, dk, t, deps = [], deps2, keys = {};
         if ( dottedKey )
         {
             t = get_type( dottedKey );
@@ -2455,7 +2517,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             {
                 d.key = dottedKey;
                 // notify any dependencies as well
-                keys[dottedKey] = 1;
+                keys['_'+dottedKey] = 1;
                 if ( ideps[HAS](dottedKey) ) deps = deps.concat( ideps[dottedKey] );
                 model.publish( evt, d );
             }
@@ -2466,26 +2528,30 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 for (k=0; k<l; k++)
                 {
                     d.key = dk = dottedKey[ k ];
+                    if ( keys[HAS]('_'+dk) ) continue;
                     // notify any dependencies as well
-                    keys[dk] = 1;
+                    keys['_'+dk] = 1;
                     if ( ideps[HAS](dk) ) deps = deps.concat( ideps[dk] );
                     model.publish( evt, d );
                 }
             }
             
-            if ( l = deps.length )
+            while ( l = deps.length )
             {
                 // notify any dependencies as well
+                deps2 = [];
                 d = {key: ''};
                 for (k=0; k<l; k++)
                 {
                     dk = deps[ k ];
                     // avoid already notified keys previously
-                    if ( keys[HAS](dk) ) continue;
-                    keys[dk] = 1;
+                    if ( keys[HAS]('_'+dk) ) continue;
+                    keys['_'+dk] = 1;
+                    if ( ideps[HAS](dk) ) deps2 = deps2.concat( ideps[dk] );
                     d.key = dk;
                     model.publish( "change", d );
                 }
+                deps = deps2;
             }
         }
         return model;
@@ -2536,11 +2602,11 @@ var
     
     namedKeyProp = "mv_namedkey", nUUID = 'mv_uuid',
     // use hexadecimal string representation in order to have optimal key distribution in hash (??)
-    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || (++nuuid).toString(16); },
+    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || ('_'+(++nuuid).toString(16)); },
     
     removeKeyTextNodes = function( node, hash, atKeys ) {
         var nid;
-        if ( hash && (nid=node[nUUID]) && hash[nid] ) del(hash, nid);
+        if ( hash && (nid=node[nUUID]) && hash[HAS](nid) ) del(hash, nid);
         if ( node[ATTR](atKeys) ) node.removeAttribute( atKeys );
         return hash;
     },
@@ -2711,6 +2777,7 @@ var
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
+            notmodelkey = !modelkey,
             modelkeyDot = modelkey ? (modelkey+'.') : null,
             el, bind, do_action, name, key, 
             isAtom = model.atomic, atom = model.$atom,
@@ -2722,7 +2789,7 @@ var
             el = elements[i]; if ( !el ) continue;
             bind = getBindData( event, view.attr(el, 'bind') );
             // during sync, dont do any actions based on (other) events
-            if ( !bind || !bind.action ) continue;
+            if ( !bind || !bind[HAS]("action") ) continue;
             
             do_action = 'do_' + bind.action;
             if ( !is_type( view[ do_action ], T_FUNC ) ) continue;
@@ -2737,14 +2804,14 @@ var
             // OR model atomic operation(s)
             if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
             
-            if ( !modelkey || key === modelkey || startsWith( key, modelkeyDot ) )
+            if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) )
                 view[ do_action ]( evt, el, bind );
         }
     },
     
     doAutoBindAction = function( view, elements, evt, fromModel ) {
         var model = view.$model, cached = { }, i, l = elements.length,
-            el, name, key, value
+            el, name, key, ns_key, value
         ;
         
         for (i=0; i<l; i++)
@@ -2755,8 +2822,9 @@ var
             key = el[namedKeyProp]; if ( !key ) continue;
             
             // use already cached key/value
-            if ( cached[ key ] )  value = cached[ key ][ 0 ];
-            else if ( model.has( key ) ) cached[ key ] = [ value=model.get( key ) ];
+            ns_key = '_'+key;
+            if ( cached[HAS]( ns_key ) )  value = cached[ ns_key ][ 0 ];
+            else if ( model.has( key ) ) cached[ ns_key ] = [ value=model.get( key ) ];
             else continue;  // nothing to do here
             
             // call default action (ie: live update)
@@ -2766,7 +2834,7 @@ var
     
     doLiveBindAction = function( view, elements, evt, key, val ) {
         var model = view.$model, els_len = elements.length, el, e, att,
-            i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
+            i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
             isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
         ;
         
@@ -2777,13 +2845,14 @@ var
             keyDot = key + '.'; val = '' + model.get(key); //val;
             for (e=0; e<els_len; e++)
             {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
+                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[HAS](nid) ) continue;
                 
                 // element live text nodes
                 if ( (keyNodes=hash[nid].keys) )
                 {
-                    if ( (nodes=keyNodes[key]) )
+                    if ( keyNodes[HAS](key) )
                     {
+                        nodes=keyNodes[key];
                         for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
                     }
                     keys = Keys(keyNodes);
@@ -2793,8 +2862,9 @@ var
                         if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
                         {
                             // use already cached key/value
-                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
-                            else cached[ kk ] = [ v='' + model.get( kk ) ];
+                            nkk = '_' + kk;
+                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
                             for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -2803,8 +2873,9 @@ var
                 // element live attributes
                 if ( (keyAtts=hash[nid].atts) )
                 {
-                    if ( keyAtts && (nodes=keyAtts[key]) )
+                    if ( keyAtts && keyAtts[HAS](key) )
                     {
+                        nodes=keyAtts[key];
                         for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
                     }
                     keys = Keys(keyAtts);
@@ -2817,8 +2888,9 @@ var
                             {
                                 att = nodes[i];
                                 // use already cached key/value
-                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
-                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                nkk = '_' + att[2];
+                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
                                 att[0].nodeValue = v;
                             }
                         }
@@ -2842,8 +2914,9 @@ var
                         if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
                         {
                             // use already cached key/value
-                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
-                            else cached[ kk ] = [ v='' + model.get( kk ) ];
+                            nkk = '_' + kk;
+                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
                             for (i=0; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -2862,8 +2935,9 @@ var
                             {
                                 att = nodes[i];
                                 // use already cached key/value
-                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
-                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                nkk = '_' + att[2];
+                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
                                 att[0].nodeValue = v;
                             }
                         }
@@ -2973,7 +3047,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( is_type(events, T_OBJ) )
         {
             for ( k in events ) 
-                if ( is_type(events[k], T_FUNC) )
+                if ( events[HAS](k) && is_type(events[k], T_FUNC) )
                     view[ 'on_' + k.split(':').join('_') ] = events[k];
         }
         return view;
@@ -2984,7 +3058,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( is_type(actions, T_OBJ) )
         {
             for ( k in actions ) 
-                if ( is_type(actions[k], T_FUNC) )
+                if ( actions[HAS](k) && is_type(actions[k], T_FUNC) )
                     view[ 'do_' + k ] = actions[k];
         }
         return view;
@@ -3441,42 +3515,45 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             
         for (p in prop)
         {
-            k = prop[ p ];
-            if ( !model.has( k ) ) continue;
-            v = model.get( k ); vT = get_type( v );
-            switch( p )
+            if ( prop[HAS](p) )
             {
-                case 'value':
-                    set_val(el, v);
-                    break;
-                
-                case 'checked': case 'disabled':
-                    el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
-                    break;
-                
-                case 'options':
-                    if ( 'select' === el[TAG] && (T_ARRAY === vT) )
-                    {
-                        var sel, ii, vl = v.length,
-                            _options = '', group = $tag( 'optgroup', el );
-                        sel = select_get( el ); // get selected value
-                        group = group.length ? group[ 0 ] : el;
-                        $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
-                        for (ii=0; ii<vl; ii++)
+                k = prop[ p ];
+                if ( !model.has( k ) ) continue;
+                v = model.get( k ); vT = get_type( v );
+                switch( p )
+                {
+                    case 'value':
+                        set_val(el, v);
+                        break;
+                    
+                    case 'checked': case 'disabled':
+                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
+                        break;
+                    
+                    case 'options':
+                        if ( 'select' === el[TAG] && (T_ARRAY === vT) )
                         {
-                            if ( v[ii] && v[ii].label )
-                                _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
-                            else
-                                _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                            var sel, ii, vl = v.length,
+                                _options = '', group = $tag( 'optgroup', el );
+                            sel = select_get( el ); // get selected value
+                            group = group.length ? group[ 0 ] : el;
+                            $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                            for (ii=0; ii<vl; ii++)
+                            {
+                                if ( v[ii] && v[ii].label )
+                                    _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
+                                else
+                                    _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                            }
+                            group[HTML] = _options;
+                            select_set( el, sel ); // select the appropriate option
                         }
-                        group[HTML] = _options;
-                        select_set( el, sel ); // select the appropriate option
-                    }
-                    break;
-                
-                default:
-                    el[SET_ATTR](p, v);
-                    break;
+                        break;
+                    
+                    default:
+                        el[SET_ATTR](p, v);
+                        break;
+                }
             }
         }
     }
@@ -3499,8 +3576,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // css attributes
         for ( p in css )
         {
-            k = css[ p ]; v = model.get( k );
-            if ( /*model.has( k )*/v ) el.style[ p ] = v;
+            if ( css[HAS](p) )
+            {
+                k = css[ p ]; v = model.get( k );
+                if ( /*model.has( k )*/v ) el.style[ p ] = v;
+            }
         }
     }
     
@@ -3648,7 +3728,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.50"
+    VERSION: "0.51"
     
     ,UUID: uuid
     
@@ -3669,7 +3749,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.50
+*   @version: 0.51
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

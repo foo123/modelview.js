@@ -49,19 +49,20 @@ Cache[proto] = {
     }
     
     ,has: function( key ) {
-        var self = this, sk = key ? self.$store[ key ] : null;
+        var self = this, sk = key ? self.$store[ '_'+key ] : null;
         return !!(sk && ( NOW( ) - sk.time ) <= self.$interval);
     }
     
     ,get: function( key ) {
         if ( key )
         {
-            var self = this, sk = self.$store[ key ];
-            if ( sk )
+            var self = this, store = self.$store, k = '_'+key, sk;
+            if ( store[HAS]( k ) )
             {
+                sk = store[ k ];
                 if ( ( NOW( ) - sk.time ) > self.$interval )
                 {
-                    delete self.$store[ key ];
+                    delete store[ k ];
                     return undef;
                 }
                 else
@@ -74,21 +75,23 @@ Cache[proto] = {
     }
     
     ,set: function( key, val ) {
-        var self = this, store, size, storekeys;
+        var self = this, store, size, storekeys, k;
         if ( key )
         {
+            k = '_'+key;
             store = self.$store; size = self.$size; storekeys = Keys( store );
             // assuming js hash-keys maintain order in which they were added
             // then this same order is also chronological
             // and can remove top-k elements which should be the k-outdated also
             while ( storekeys.length >= size ) delete store[ storekeys.shift( ) ];
-            store[ key ] = { data: val, time: NOW( ) };
+            store[ k ] = { key: key, data: val, time: NOW( ) };
         }
         return self;
     }
     
     ,del: function( key ) {
-        if ( key && this.$store[ key ] ) delete this.$store[ key ];
+        var k = key ? ('_'+key) : null;
+        if ( k && this.$store[HAS]( k ) ) delete this.$store[ k ];
         return this;
     }
 

@@ -9,8 +9,8 @@ var
             ai = a[ i ];
             if ( ai )
             {
-                if ( ai[ k ] ) b.push( ai[ k ].n );
-                if ( ai[ WILDCARD ] ) b.push( ai[ WILDCARD ].n );
+                if ( ai[HAS]( k ) ) b.push( ai[ k ].n );
+                if ( ai[HAS]( WILDCARD ) ) b.push( ai[ WILDCARD ].n );
             }
         }
         return b.length ? b : null;
@@ -26,8 +26,8 @@ var
                 ai = a[ i ];
                 if ( ai )
                 {
-                    if ( ai[ k ] && ai[ k ].v ) return ai[ k ].v;
-                    if ( ai[ WILDCARD ] && ai[ WILDCARD ].v ) return ai[ WILDCARD ].v;
+                    if ( ai[HAS]( k ) && ai[ k ].v ) return ai[ k ].v;
+                    if ( ai[HAS]( WILDCARD ) && ai[ WILDCARD ].v ) return ai[ WILDCARD ].v;
                 }
             }
         }
@@ -36,7 +36,7 @@ var
             for (i=0; i<l; i++)
             {
                 ai = a[ i ];
-                if ( ai && ai.v )  return ai.v;
+                if ( ai && ai.v ) return ai.v;
             }
         }
         return null;
@@ -250,7 +250,11 @@ var
         else if ( T_ARRAY_OR_OBJ & t )
         {
             // nested keys given, recurse
-            for ( k in typeOrValidator ) addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+            for ( k in typeOrValidator ) 
+            {
+                if ( typeOrValidator[HAS](k) )
+                    addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+            }
         }
     },
     
@@ -266,7 +270,11 @@ var
         else if ( T_ARRAY_OR_OBJ & t )
         {
             // nested keys given, recurse
-            for ( k in getterOrSetter ) addModelGetterSetter( model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+            for ( k in getterOrSetter ) 
+            {
+                if ( getterOrSetter[HAS](k) )
+                    addModelGetterSetter( model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters );
+            }
         }
     },
     
@@ -284,10 +292,13 @@ var
         {
             for (key in data)
             {
-                if ( data[ key ] instanceof model_class )
-                    data[ key ] = serializeModel( data[ key ], model_class, Merge( {}, data[ key ].data( ) ) );
-                else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
-                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                if ( data[HAS](key) )
+                {
+                    if ( data[ key ] instanceof model_class )
+                        data[ key ] = serializeModel( data[ key ], model_class, Merge( {}, data[ key ].data( ) ) );
+                    else if ( T_ARRAY_OR_OBJ & (type=get_type(data[ key ])) )
+                        data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                }
             }
         }
         
@@ -343,13 +354,16 @@ var
                             
                             for (key in val)
                             {
-                                res = validateModel( model, modelClass, breakOnError, key, val, validators );
-                                if ( !res.isValid )
+                                if ( val[HAS](key) )
                                 {
-                                    result.errors = result.errors.concat( res.errors.map( fixKey ) );
-                                    result.isValid = false;
+                                    res = validateModel( model, modelClass, breakOnError, key, val, validators );
+                                    if ( !res.isValid )
+                                    {
+                                        result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                                        result.isValid = false;
+                                    }
+                                    if ( breakOnError && !result.isValid  ) return result;
                                 }
-                                if ( !result.isValid && breakOnError ) return result;
                             }
                         }
                     }
@@ -359,13 +373,16 @@ var
             {
                 for (key in data)
                 {
-                    res = validateModel( model, modelClass, breakOnError, key, data, validators );
-                    if ( !res.isValid )
+                    if ( data[HAS](key) )
                     {
-                        result.errors = result.errors.concat( res.errors );
-                        result.isValid = false;
+                        res = validateModel( model, modelClass, breakOnError, key, data, validators );
+                        if ( !res.isValid )
+                        {
+                            result.errors = result.errors.concat( res.errors );
+                            result.isValid = false;
+                        }
+                        if ( breakOnError && !result.isValid ) return result;
                     }
-                    if ( !result.isValid && breakOnError ) return result;
                 }
             }
         }
@@ -515,20 +532,23 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         {
             for (k in deps) 
             {
-                // inverse dependencies, used by model
-                d = deps[ k ] ? [].concat( deps[ k ] ) : [];
-                for (i=0; i<d.length; i++)
+                if ( deps[HAS](k) )
                 {
-                    // add hierarchical/dotted key, all levels
-                    kk = d[i].split('.');
-                    dk = kk[0];
-                    if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
-                    if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
-                    for (j=1; j<kk.length; j++)
+                    // inverse dependencies, used by model
+                    d = deps[ k ] ? [].concat( deps[ k ] ) : [];
+                    for (i=0; i<d.length; i++)
                     {
-                        dk += '.' + kk[j];
+                        // add hierarchical/dotted key, all levels
+                        kk = d[i].split('.');
+                        dk = kk[0];
                         if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
                         if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                        for (j=1; j<kk.length; j++)
+                        {
+                            dk += '.' + kk[j];
+                            if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
+                            if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
+                        }
                     }
                 }
             }
@@ -540,7 +560,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(types, T_OBJ) )
         {
-            for (k in types) addModelTypeValidator( model, k, types[ k ], model.$types );
+            for (k in types) 
+            {
+                if ( types[HAS](k) )
+                    addModelTypeValidator( model, k, types[ k ], model.$types );
+            }
         }
         return model;
     }
@@ -549,7 +573,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(validators, T_OBJ) )
         {
-            for (k in validators) addModelTypeValidator( model, k, validators[ k ], model.$validators );
+            for (k in validators) 
+            {
+                if ( validators[HAS](k) )
+                    addModelTypeValidator( model, k, validators[ k ], model.$validators );
+            }
         }
         return model;
     }
@@ -558,7 +586,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(getters, T_OBJ) )
         {
-            for (k in getters) addModelGetterSetter( model, k, getters[ k ], model.$getters );
+            for (k in getters) 
+            {
+                if ( getters[HAS](k) )
+                    addModelGetterSetter( model, k, getters[ k ], model.$getters );
+            }
         }
         return model;
     }
@@ -567,7 +599,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, k;
         if ( is_type(setters, T_OBJ) )
         {
-            for (k in setters) addModelGetterSetter( model, k, setters[ k ], model.$setters );
+            for (k in setters) 
+            {
+                if ( setters[HAS](k) )
+                    addModelGetterSetter( model, k, setters[ k ], model.$setters );
+            }
         }
         return model;
     }
@@ -1007,25 +1043,28 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, key, otherKey, callback, list, i, l, addIt;
         for (key in fieldsMap)
         {
-            otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
-            callback = null;
-            if ( T_ARRAY === get_type(otherKey) )
+            if ( fieldsMap[HAS](key) )
             {
-                callback = otherKey[1] || null;
-                otherKey = otherKey[0];
-            }
-            list = model.$syncTo[key]; addIt = 1;
-            for (i=list.length-1; i>=0; i--)
-            {
-                if ( otherModel === list[i][0] && otherKey === list[i][1] )
+                otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
+                callback = null;
+                if ( T_ARRAY === get_type(otherKey) )
                 {
-                    list[i][2] = callback;
-                    addIt = 0; 
-                    break;
+                    callback = otherKey[1] || null;
+                    otherKey = otherKey[0];
                 }
+                list = model.$syncTo[key]; addIt = 1;
+                for (i=list.length-1; i>=0; i--)
+                {
+                    if ( otherModel === list[i][0] && otherKey === list[i][1] )
+                    {
+                        list[i][2] = callback;
+                        addIt = 0; 
+                        break;
+                    }
+                }
+                // add it if not already added
+                if ( addIt ) list.push([otherModel, otherKey, callback]);
             }
-            // add it if not already added
-            if ( addIt ) list.push([otherModel, otherKey, callback]);
         }
         if ( !model.$syncHandler ) // lazy, only if needed
         {
@@ -1041,13 +1080,16 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var model = this, key, syncTo = model.$syncTo, list, i;
         for (key in syncTo)
         {
-            if ( !(list=syncTo[ key ]) || !list.length ) continue;
-            for (i=list.length-1; i>=0; i--)
+            if ( syncTo[HAS](key) )
             {
-                if ( otherModel === list[i][0] ) 
+                if ( !(list=syncTo[ key ]) || !list.length ) continue;
+                for (i=list.length-1; i>=0; i--)
                 {
-                    if ( model.__syncing && model.__syncing[otherModel.$id] ) del(model.__syncing, otherModel.$id);
-                    list.splice(i, 1);
+                    if ( otherModel === list[i][0] ) 
+                    {
+                        if ( model.__syncing && model.__syncing[otherModel.$id] ) del(model.__syncing, otherModel.$id);
+                        list.splice(i, 1);
+                    }
                 }
             }
         }
@@ -1057,7 +1099,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, evt, data ) {
         var model = this, ideps = model.$idependencies, 
-            k, l, d, dk, t, deps = [], keys = {};
+            k, l, d, dk, t, deps = [], deps2, keys = {};
         if ( dottedKey )
         {
             t = get_type( dottedKey );
@@ -1073,7 +1115,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             {
                 d.key = dottedKey;
                 // notify any dependencies as well
-                keys[dottedKey] = 1;
+                keys['_'+dottedKey] = 1;
                 if ( ideps[HAS](dottedKey) ) deps = deps.concat( ideps[dottedKey] );
                 model.publish( evt, d );
             }
@@ -1084,26 +1126,30 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                 for (k=0; k<l; k++)
                 {
                     d.key = dk = dottedKey[ k ];
+                    if ( keys[HAS]('_'+dk) ) continue;
                     // notify any dependencies as well
-                    keys[dk] = 1;
+                    keys['_'+dk] = 1;
                     if ( ideps[HAS](dk) ) deps = deps.concat( ideps[dk] );
                     model.publish( evt, d );
                 }
             }
             
-            if ( l = deps.length )
+            while ( l = deps.length )
             {
                 // notify any dependencies as well
+                deps2 = [];
                 d = {key: ''};
                 for (k=0; k<l; k++)
                 {
                     dk = deps[ k ];
                     // avoid already notified keys previously
-                    if ( keys[HAS](dk) ) continue;
-                    keys[dk] = 1;
+                    if ( keys[HAS]('_'+dk) ) continue;
+                    keys['_'+dk] = 1;
+                    if ( ideps[HAS](dk) ) deps2 = deps2.concat( ideps[dk] );
                     d.key = dk;
                     model.publish( "change", d );
                 }
+                deps = deps2;
             }
         }
         return model;

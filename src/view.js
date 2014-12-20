@@ -17,11 +17,11 @@ var
     
     namedKeyProp = "mv_namedkey", nUUID = 'mv_uuid',
     // use hexadecimal string representation in order to have optimal key distribution in hash (??)
-    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || (++nuuid).toString(16); },
+    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || ('_'+(++nuuid).toString(16)); },
     
     removeKeyTextNodes = function( node, hash, atKeys ) {
         var nid;
-        if ( hash && (nid=node[nUUID]) && hash[nid] ) del(hash, nid);
+        if ( hash && (nid=node[nUUID]) && hash[HAS](nid) ) del(hash, nid);
         if ( node[ATTR](atKeys) ) node.removeAttribute( atKeys );
         return hash;
     },
@@ -192,6 +192,7 @@ var
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
+            notmodelkey = !modelkey,
             modelkeyDot = modelkey ? (modelkey+'.') : null,
             el, bind, do_action, name, key, 
             isAtom = model.atomic, atom = model.$atom,
@@ -203,7 +204,7 @@ var
             el = elements[i]; if ( !el ) continue;
             bind = getBindData( event, view.attr(el, 'bind') );
             // during sync, dont do any actions based on (other) events
-            if ( !bind || !bind.action ) continue;
+            if ( !bind || !bind[HAS]("action") ) continue;
             
             do_action = 'do_' + bind.action;
             if ( !is_type( view[ do_action ], T_FUNC ) ) continue;
@@ -218,14 +219,14 @@ var
             // OR model atomic operation(s)
             if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
             
-            if ( !modelkey || key === modelkey || startsWith( key, modelkeyDot ) )
+            if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) )
                 view[ do_action ]( evt, el, bind );
         }
     },
     
     doAutoBindAction = function( view, elements, evt, fromModel ) {
         var model = view.$model, cached = { }, i, l = elements.length,
-            el, name, key, value
+            el, name, key, ns_key, value
         ;
         
         for (i=0; i<l; i++)
@@ -236,8 +237,9 @@ var
             key = el[namedKeyProp]; if ( !key ) continue;
             
             // use already cached key/value
-            if ( cached[ key ] )  value = cached[ key ][ 0 ];
-            else if ( model.has( key ) ) cached[ key ] = [ value=model.get( key ) ];
+            ns_key = '_'+key;
+            if ( cached[HAS]( ns_key ) )  value = cached[ ns_key ][ 0 ];
+            else if ( model.has( key ) ) cached[ ns_key ] = [ value=model.get( key ) ];
             else continue;  // nothing to do here
             
             // call default action (ie: live update)
@@ -247,7 +249,7 @@ var
     
     doLiveBindAction = function( view, elements, evt, key, val ) {
         var model = view.$model, els_len = elements.length, el, e, att,
-            i, nodes, l, keys, k, kk, kl, v, keyDot, keyNodes, keyAtts,
+            i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
             isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
         ;
         
@@ -258,13 +260,14 @@ var
             keyDot = key + '.'; val = '' + model.get(key); //val;
             for (e=0; e<els_len; e++)
             {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
+                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[HAS](nid) ) continue;
                 
                 // element live text nodes
                 if ( (keyNodes=hash[nid].keys) )
                 {
-                    if ( (nodes=keyNodes[key]) )
+                    if ( keyNodes[HAS](key) )
                     {
+                        nodes=keyNodes[key];
                         for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
                     }
                     keys = Keys(keyNodes);
@@ -274,8 +277,9 @@ var
                         if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
                         {
                             // use already cached key/value
-                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
-                            else cached[ kk ] = [ v='' + model.get( kk ) ];
+                            nkk = '_' + kk;
+                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
                             for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -284,8 +288,9 @@ var
                 // element live attributes
                 if ( (keyAtts=hash[nid].atts) )
                 {
-                    if ( keyAtts && (nodes=keyAtts[key]) )
+                    if ( keyAtts && keyAtts[HAS](key) )
                     {
+                        nodes=keyAtts[key];
                         for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
                     }
                     keys = Keys(keyAtts);
@@ -298,8 +303,9 @@ var
                             {
                                 att = nodes[i];
                                 // use already cached key/value
-                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
-                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                nkk = '_' + att[2];
+                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
                                 att[0].nodeValue = v;
                             }
                         }
@@ -323,8 +329,9 @@ var
                         if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
                         {
                             // use already cached key/value
-                            if ( cached[ kk ] ) v = cached[ kk ][ 0 ];
-                            else cached[ kk ] = [ v='' + model.get( kk ) ];
+                            nkk = '_' + kk;
+                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
                             for (i=0; i<l; i++) nodes[i].nodeValue = v;
                         }
                     }
@@ -343,8 +350,9 @@ var
                             {
                                 att = nodes[i];
                                 // use already cached key/value
-                                if ( cached[ att[2] ] ) v = cached[ att[2] ][ 0 ];
-                                else cached[ att[2] ] = [ v=joinTextNodes( att[1] ) ];
+                                nkk = '_' + att[2];
+                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
+                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
                                 att[0].nodeValue = v;
                             }
                         }
@@ -454,7 +462,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( is_type(events, T_OBJ) )
         {
             for ( k in events ) 
-                if ( is_type(events[k], T_FUNC) )
+                if ( events[HAS](k) && is_type(events[k], T_FUNC) )
                     view[ 'on_' + k.split(':').join('_') ] = events[k];
         }
         return view;
@@ -465,7 +473,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( is_type(actions, T_OBJ) )
         {
             for ( k in actions ) 
-                if ( is_type(actions[k], T_FUNC) )
+                if ( actions[HAS](k) && is_type(actions[k], T_FUNC) )
                     view[ 'do_' + k ] = actions[k];
         }
         return view;
@@ -922,42 +930,45 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             
         for (p in prop)
         {
-            k = prop[ p ];
-            if ( !model.has( k ) ) continue;
-            v = model.get( k ); vT = get_type( v );
-            switch( p )
+            if ( prop[HAS](p) )
             {
-                case 'value':
-                    set_val(el, v);
-                    break;
-                
-                case 'checked': case 'disabled':
-                    el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
-                    break;
-                
-                case 'options':
-                    if ( 'select' === el[TAG] && (T_ARRAY === vT) )
-                    {
-                        var sel, ii, vl = v.length,
-                            _options = '', group = $tag( 'optgroup', el );
-                        sel = select_get( el ); // get selected value
-                        group = group.length ? group[ 0 ] : el;
-                        $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
-                        for (ii=0; ii<vl; ii++)
+                k = prop[ p ];
+                if ( !model.has( k ) ) continue;
+                v = model.get( k ); vT = get_type( v );
+                switch( p )
+                {
+                    case 'value':
+                        set_val(el, v);
+                        break;
+                    
+                    case 'checked': case 'disabled':
+                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
+                        break;
+                    
+                    case 'options':
+                        if ( 'select' === el[TAG] && (T_ARRAY === vT) )
                         {
-                            if ( v[ii] && v[ii].label )
-                                _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
-                            else
-                                _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                            var sel, ii, vl = v.length,
+                                _options = '', group = $tag( 'optgroup', el );
+                            sel = select_get( el ); // get selected value
+                            group = group.length ? group[ 0 ] : el;
+                            $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                            for (ii=0; ii<vl; ii++)
+                            {
+                                if ( v[ii] && v[ii].label )
+                                    _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
+                                else
+                                    _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                            }
+                            group[HTML] = _options;
+                            select_set( el, sel ); // select the appropriate option
                         }
-                        group[HTML] = _options;
-                        select_set( el, sel ); // select the appropriate option
-                    }
-                    break;
-                
-                default:
-                    el[SET_ATTR](p, v);
-                    break;
+                        break;
+                    
+                    default:
+                        el[SET_ATTR](p, v);
+                        break;
+                }
             }
         }
     }
@@ -980,8 +991,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // css attributes
         for ( p in css )
         {
-            k = css[ p ]; v = model.get( k );
-            if ( /*model.has( k )*/v ) el.style[ p ] = v;
+            if ( css[HAS](p) )
+            {
+                k = css[ p ]; v = model.get( k );
+                if ( /*model.has( k )*/v ) el.style[ p ] = v;
+            }
         }
     }
     

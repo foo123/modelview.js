@@ -17,15 +17,18 @@ var
         var p, t;
         for ( p in fields )
         {
-            t = fields[ p ];
-            if ( is_instance( t, CollectionEach ) )
+            if ( fields[HAS](p) )
             {
-                fields[ p ] = t.f;//bindF( t.f, model );
-                fields[ p ].fEach = 1;
-            }
-            else
-            {
-                fields[ p ] = t;//bindF( t, model );
+                t = fields[ p ];
+                if ( is_instance( t, CollectionEach ) )
+                {
+                    fields[ p ] = t.f;//bindF( t.f, model );
+                    fields[ p ].fEach = 1;
+                }
+                else
+                {
+                    fields[ p ] = t;//bindF( t, model );
+                }
             }
         }
         return fields;
@@ -102,16 +105,19 @@ var
                     //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
                     {
-                        type = typesPerField[ field ]; val = v[ field ];
-                        if ( type.fEach && is_type(val, T_ARRAY) )
+                        if ( typesPerField[HAS](field) )
                         {
-                           l = val.length;
-                           for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
-                           v[ field ] = val;
-                        }
-                        else
-                        {
-                            v[ field ] = type.call( self, val );
+                            type = typesPerField[ field ]; val = v[ field ];
+                            if ( type.fEach && is_type(val, T_ARRAY) )
+                            {
+                               l = val.length;
+                               for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
+                               v[ field ] = val;
+                            }
+                            else
+                            {
+                                v[ field ] = type.call( self, val );
+                            }
                         }
                     }
                     return v;
@@ -166,7 +172,7 @@ var
         }
         
         ,del: function( type ) {
-            if ( is_type( type, T_STR ) && Type.Cast[ type ] ) delete Type.Cast[ type ];
+            if ( is_type( type, T_STR ) && Type.Cast[HAS]( type ) ) delete Type.Cast[ type ];
             return Type;
         }
     
@@ -194,15 +200,18 @@ var
                     //if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
                     for ( field in validatorsPerField )
                     {
-                        validator = validatorsPerField[ field ]; val = v[ field ];
-                        if ( validator.fEach && is_type(val, T_ARRAY) )
+                        if ( validatorsPerField[HAS](field) )
                         {
-                           l = val.length;
-                           for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
-                        }
-                        else
-                        {
-                            if ( !validator.call( self, val ) ) return false;
+                            validator = validatorsPerField[ field ]; val = v[ field ];
+                            if ( validator.fEach && is_type(val, T_ARRAY) )
+                            {
+                               l = val.length;
+                               for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
+                            }
+                            else
+                            {
+                                if ( !validator.call( self, val ) ) return false;
+                            }
                         }
                     }
                     return true;
@@ -324,7 +333,7 @@ var
         }
         
         ,del: function( type ) {
-            if ( is_type( type, T_STR ) && Validation.Validate[ type ] ) delete Validation.Validate[ type ];
+            if ( is_type( type, T_STR ) && Validation.Validate[HAS]( type ) ) delete Validation.Validate[ type ];
             return Validation;
         }
     
