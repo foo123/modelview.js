@@ -83,6 +83,20 @@ var
             }); 
         };
         
+        V.EQ = function( V2 ) { 
+            return VC(function( v, k ) { 
+                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+                return r1 == r2;
+            }); 
+        };
+        
+        V.NEQ = function( V2 ) { 
+            return VC(function( v, k ) { 
+                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+                return r1 != r2;
+            }); 
+        };
+        
         return V;
     },
     
