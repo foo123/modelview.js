@@ -291,27 +291,21 @@ jQuery DOM/Event dependency has been removed, ModelView can be used a standalone
 
 ####Performance
 
-Some tests on jsperf with ModelView [0.24](http://jsperf.com/js-mvc-frameworks/11) and [0.25](http://jsperf.com/js-mvc-frameworks/12), [0.26.1](http://jsperf.com/js-mvc-frameworks/16) (after some optimisations for single keys and typo fixes), latest backbonejs, knockoutjs and emberJS (on models get/set).
+Some tests on jsperf with ModelView, latest backbonejs, knockoutjs and emberJS (on models get/set).
 
-Some notes. The frameworks tested solve different problems so the comparison is only illustrative. The tests use two **get** operations and one **set** operation on a **single key**. ModelView get/set operations are complex operations supporting nested keys (which Ember, Backbone and Knockout do not support by default), custom getters/setters, type-casting and validation. Moreover, modelview set operation, is in general faster than other approaches, while get operation was slowest. To fix this, some minor optimisations were made for get (and set) when just single key is used and the final performance was greatly increased (mostly for get operation which was slower, while get is trivial in other approaches). 
+Some notes. The frameworks tested solve different problems so the comparison is only illustrative. The tests use two **get** operations and one **set** operation on a **single key**. ModelView get/set operations are complex operations supporting nested keys (which Ember, Backbone and Knockout do not support by default), custom getters/setters, type-casting and validation. Moreover, modelview set operation, is in general faster than other approaches, while get operation was slowest. To fix this, some minor optimisations were made (see changelog) for get (and set) when just single key is used and the final performance was greatly increased (mostly for get operation which was slower, while get is trivial in other approaches). 
 
+Previous tests are here [jsperf/0.24](http://jsperf.com/js-mvc-frameworks/11), [jsperf/0.25](http://jsperf.com/js-mvc-frameworks/12), [jsperf/0.26](http://jsperf.com/js-mvc-frameworks/13), [jsperf/0.26 rev2](http://jsperf.com/js-mvc-frameworks/14),[jsperf/0.26.1](http://jsperf.com/js-mvc-frameworks/16), [jsperf/0.43](http://jsperf.com/js-mvc-frameworks/17), [jsperf/0.51](http://jsperf.com/js-mvc-frameworks/18)
 
-ModelView 0.26.1 (0.25, 0.26) is 1st place on Firefox, Opera and 2nd place on Chrome, IE, having consistent ops/sec measure on all browsers (even when using type-caster).
+ModelView 0.51 is (consistently) 2nd place (near 1st place) on all browsers (even when using type-caster).
 
-
-Results before and after below:
-
-
-**with ModelView 0.24**
-
-[![jsperf-model-getset](/screenshots/jsperf-model-getset.png)](http://jsperf.com/js-mvc-frameworks/11)
+[![jsperf-model-getset](/screenshots/jsperf-model-getset.png)](http://jsperf.com/js-mvc-frameworks/18)
 
 
-**with ModelView 0.26.1**
+Some tests on jsperf with ModelView, latest Angular and Knockout on live DOM update and (multiple) watchers/subscribers.
 
-[![jsperf-model-getset](/screenshots/jsperf-model-getset-3.png)](http://jsperf.com/js-mvc-frameworks/16)
+Previous tests are here [jsperf/0.42.2](http://jsperf.com/angularjs-vs-knockoutjs/58), [jsperf/0.42.2 variation](http://jsperf.com/angularjs-vs-knockoutjs/59), [jsperf/0.43](http://jsperf.com/angularjs-vs-knockoutjs/62), [jsperf/0.51](http://jsperf.com/angularjs-vs-knockoutjs/68)
 
+ModelView 0.51 is (consistently) 1st place on almost all browsers.
 
-**live DOM and model (multiple) watchers/subscribers** (AngularJS, KnockoutJS, ModelViewJS 0.43)
-
-[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview043.png)](http://jsperf.com/angularjs-vs-knockoutjs/62)
+[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/68)
