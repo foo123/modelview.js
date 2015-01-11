@@ -1,0 +1,91 @@
+###################################################
+#
+#   The buildtools repository is at:
+#   https://github.com/foo123/Beeld
+#
+###################################################
+
+#define 2 tasks to execute in order
+tasks =[{}]
+    
+    # 1. make_js: makes the .js file
+    make_js ={} 
+        src =[]
+            !tpl:umd-header-single.tpl.js  # include a umd-header template
+            
+            ### modelview.js, main framework ###
+            ./src/header.js
+            ./src/utils.js
+            ./src/event.js
+            ./src/pb.js
+            ./src/cache.js
+            ./src/types.js
+            ./src/model.js
+            ./src/view.js
+            ./src/footer.js
+            
+            ### jquery.modelview.js, jQuery/jQueryUI plugin/widget (optional) ###
+            ./src/jquery.modelview.js
+            
+            !tpl:umd-footer.tpl.js  # include a umd-footer template
+        @ # end block
+
+        # extract header from this file
+        header = ./src/header.js
+
+        replace =[{}]
+        "@@ROOT@@" = "this"
+        "@@EXPORTS@@" = "exports"
+        "@@MODULE_NAME@@" = "ModelView"
+        "@@VERSION@@" = "0.51"
+        @ # end block
+
+        # allow some pre-process to take place (shell scripting)
+        #preprocess =[]
+        #type $infile > $outfile & echo ^/^/ preprocessed >> $outfile
+        #type $infile > $outfile & echo ^/^/ preprocessed2 >> $outfile
+        #@ # block end
+
+        # allow some post-process to take place (shell scripting)
+        #postprocess =[]
+        #type $infile > $outfile & echo ^/^/ postprocessed >> $outfile
+        #type $infile > $outfile & echo ^/^/ postprocessed2 >> $outfile
+        #@ # block end
+
+        out = ./build/modelview.js    
+    @ # end block
+    
+    # 2. make_min: makes the .min.js file
+    make_min ={}
+        src =[]
+            ./build/modelview.js
+        @ # end block
+
+        # Minify the Package (map of lists)
+        minify ={}
+            # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
+            "uglifyjs" =[]
+                -m -c
+            @ # end block
+
+            # Options for Java Closure Compiler (if used)
+            "closure" =[]
+                --language_in=ECMASCRIPT5_STRICT
+            @ # end block
+
+            # Options for Java YUI Compressor Compiler (if used)
+            "yui" =[]
+                --preserve-semi
+            @ # end block
+        @ # end block
+
+        # allow some post-process to take place (shell scripting)
+        #postprocess =[]
+        #type $infile > $outfile & echo ^/^/ postprocessed >> $outfile
+        #type $infile > $outfile & echo ^/^/ postprocessed2 >> $outfile
+        #@ # block end
+        
+        out = ./build/modelview.min.js    
+    @ # end block
+    
+@ # end block
