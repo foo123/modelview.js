@@ -7,7 +7,8 @@
 
 tasks =[{}]
     
-    build ={} 
+    build =[{}]
+        
         src =[]
             !tpl:umd-header-single.tpl.js  # include a umd-header template
             
@@ -26,45 +27,46 @@ tasks =[{}]
             ./src/jquery.modelview.js
             
             !tpl:umd-footer.tpl.js  # include a umd-footer template
-        @ # end block
+        @
 
         # extract header from this file
         header = ./src/header.js
 
         replace =[{}]
-        "@@ROOT@@" = "this"
-        "@@EXPORTS@@" = "exports"
-        "@@MODULE_NAME@@" = "ModelView"
-        "@@VERSION@@" = "0.51"
-        @ # end block
+            "@@ROOT@@" = "this"
+            "@@EXPORTS@@" = "exports"
+            "@@MODULE_NAME@@" = "ModelView"
+            "@@VERSION@@" = "0.51"
+        @
 
         out = ./build/modelview.js    
-    @ # end block
+    @
     
-    minify ={}
+    minify =[{}]
+    
         src =[]
             ./build/modelview.js
-        @ # end block
+        @
 
         # Minify the Package (map of lists)
         minify ={}
             # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
             uglifyjs =[]
                 -m -c
-            @ # end block
+            @
 
             # Options for Java Closure Compiler (if used)
             closure =[]
                 "--language_in=ECMASCRIPT5_STRICT"
-            @ # end block
+            @
 
             # Options for Java YUI Compressor Compiler (if used)
             yui =[]
                 --preserve-semi
-            @ # end block
-        @ # end block
+            @
+        @
 
         out = ./build/modelview.min.js    
-    @ # end block
+    @
     
-@ # end block
+@
