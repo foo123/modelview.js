@@ -619,12 +619,13 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     }
     
     ,autovalidate: function( enabled ) {
+        var model = this;
         if ( arguments.length )
         {
-            this.$autovalidate = !!enabled;
-            return this;
+            model.$autovalidate = !!enabled;
+            return model;
         }
-        return this.$autovalidate;
+        return model.$autovalidate;
     }
     
     ,toJSON: function( dottedKey ) {
@@ -789,7 +790,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter.call( model, dottedKey, val, pub ) ) 
+                if ( false !== setter.call( model, dottedKey, val, pub ) ) 
                 {
                     if ( pub )
                     {
@@ -923,7 +924,7 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             // custom setter
             if ( setter ) 
             {
-                if ( setter.call( model, dottedKey, val, pub ) ) 
+                if ( false !== setter.call( model, dottedKey, val, pub ) ) 
                 {
                     if ( pub )
                     {

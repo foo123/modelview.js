@@ -36,7 +36,7 @@ tasks =[{}]
             "@@ROOT@@" = "this"
             "@@EXPORTS@@" = "exports"
             "@@MODULE_NAME@@" = "ModelView"
-            "@@VERSION@@" = "0.51"
+            "@@VERSION@@" = "0.52"
         @
 
         out = ./build/modelview.js    

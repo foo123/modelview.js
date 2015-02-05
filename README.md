@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / umd-compatible / light-weight (~40 kB minified, ~13kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
 
 
-**Version 0.51**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.52**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **see also:**  

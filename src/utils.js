@@ -31,30 +31,33 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
     T_NULL = 256, T_UNDEF = 512, T_UNKNOWN = 1024, 
     T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
-    
+    TO_STRING = {
+        "[object Array]"    : T_ARRAY,
+        "[object RegExp]"   : T_REGEX,
+        "[object Number]"   : T_NUM,
+        "[object String]"   : T_STR,
+        "[object Function]" : T_FUNC,
+        "[object Object]"   : T_OBJ
+    },
     get_type = function( v ) {
-        var type_of, to_string;
+        var /*type_of,*/ to_string;
         
         if (null === v)  return T_NULL;
-        
         else if (true === v || false === v)  return T_BOOL;
+        else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
         
-        type_of = typeof(v); to_string = toStr(v);
+        //type_of = typeOf(v);
+        to_string = toString.call( v );
+        //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
+        to_string = TO_STRING[to_string] || T_UNKNOWN;
         
-        if (undef === v || "undefined" === type_of)  return T_UNDEF;
-        
-        else if (v instanceof Num || "number" === type_of)  return isNaN(v) ? T_NAN : T_NUM;
-        
-        else if (v instanceof Str || "string" === type_of) return (1 === v.length) ? T_CHAR : T_STR;
-        
-        else if (v instanceof Arr || "[object Array]" === to_string)  return T_ARRAY;
-        
-        else if (v instanceof Regex || "[object RegExp]" === to_string)  return T_REGEX;
-        
-        else if (v instanceof Func || ("function" === type_of && "[object Function]" === to_string))  return T_FUNC;
-        
-        else if ("[object Object]" === to_string)  return T_OBJ;
-        
+        //if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
+        if (T_NUM === to_string || v instanceof Num)  return isNaN(v) ? T_NAN : T_NUM;
+        else if (T_STR === to_string || v instanceof Str) return (1 === v.length) ? T_CHAR : T_STR;
+        else if (T_ARRAY === to_string || v instanceof Arr)  return T_ARRAY;
+        else if (T_REGEX === to_string || v instanceof Regex)  return T_REGEX;
+        else if (T_FUNC === to_string || v instanceof Func)  return T_FUNC;
+        else if (T_OBJ === to_string)  return T_OBJ;
         // unkown type
         return T_UNKNOWN;
     },
@@ -258,8 +261,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     startsWith = SP.startsWith 
-            ? function( s, prefix, pos ){ return s.startsWith(prefix, pos); } 
-            : function( s, prefix, pos ){ pos=pos||0; return ( prefix === s.substr(pos, prefix.length+pos) ); },
+            ? function( str, pre, pos ){ return str.startsWith(pre, pos||0); } 
+            : function( str, pre, pos ){ return ( pre === str.slice(pos||0, pre.length) ); },
     
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
     NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
