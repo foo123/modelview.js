@@ -3048,6 +3048,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     view.$atbind = view.attribute( "bind" );
     view.$atkeys = view.attribute( "keys" );
     view.$shortcuts = { };
+    view.$num_shortcuts = 0;
     view.model( model || new Model( ) ).initPubSub( );
 };
 // STATIC
@@ -3072,6 +3073,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$atbind: null
     ,$atkeys: null
     ,$shortcuts: null
+    ,$num_shortcuts: null
     
     ,dispose: function( ) {
         var view = this;
@@ -3090,6 +3092,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         view.$atbind = null;
         view.$atkeys = null;
         view.$shortcuts = null;
+        view.$num_shortcuts = null;
         return view;
     }
     
@@ -3160,10 +3163,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     
                     if ( false === shortcuts[k] )
                     {
-                        if ( view_shortcuts[HAS](key) ) delete view_shortcuts[ key ];
+                        if ( view_shortcuts[HAS](key) ) 
+                        {
+                            del(view_shortcuts, key);
+                            view.$num_shortcuts--;
+                        }
                     }
                     else
                     {
+                        if ( !view_shortcuts[HAS](key) ) view.$num_shortcuts++;
                         view_shortcuts[ key ] = shortcuts[ k ];
                     }
                 }
@@ -3603,7 +3611,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // adapted from shortcuts.js, http://www.openjs.com/scripts/events/keyboard_shortcuts/
         //
         // no hotkeys assigned or text input element is the target, bypass
-        if ( 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName || !Keys(view_shortcuts).length ) return;
+        if ( !view.$num_shortcuts || 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName ) return;
         
         // find which key is pressed
         code = evt.keyCode || evt.which; 
@@ -3638,7 +3646,10 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             {
                 // view action id given
                 if ( is_type(view['do_' + callback], T_FUNC) )
-                    ret = view['do_' + callback](evt, el, {});
+                {
+                    /*ret = */view['do_' + callback](evt, el, {});
+                    ret = false;
+                }
             }
             else
             {
