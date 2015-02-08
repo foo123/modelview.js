@@ -131,16 +131,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     // http://youmightnotneedjquery.com/
-    matches = (function( P ) {
-        if ( !P ) return;
-        return (
-            P.matches || 
-            P.matchesSelector || 
-            P.webkitMatchesSelector || 
-            P.mozMatchesSelector || 
-            P.msMatchesSelector || 
-            P.oMatchesSelector
-        );
+    MATCHES = (function( P ) {
+        if ( !P || P.matches ) return 'matches';
+        else if ( P.matchesSelector ) return 'matchesSelector';
+        else if ( P.webkitMatchesSelector ) return 'webkitMatchesSelector';
+        else if ( P.mozMatchesSelector ) return 'mozMatchesSelector';
+        else if ( P.msMatchesSelector ) return 'msMatchesSelector';
+        else if ( P.oMatchesSelector ) return 'oMatchesSelector';
     }(this.Element ? this.Element[proto] : null)),
 
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },

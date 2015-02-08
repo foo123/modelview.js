@@ -3,7 +3,7 @@
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].addEventListener )
+if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto].addEventListener )
 !function( ){
     
     function addToPrototype( name, method ) 
@@ -20,7 +20,7 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
 
         // if no events exist, attach the listener
         if (!typeListeners.length) {
-            target.attachEvent("on" + type, typeListeners.event = function (event) {
+            typeListeners.event = function (event) {
                 var documentElement = target.document && target.document.documentElement || target.documentElement || { scrollLeft: 0, scrollTop: 0 };
 
                 // polyfill w3c properties and methods
@@ -45,7 +45,9 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
                         }
                     }
                 }
-            });
+            };
+            if ( target.attachEvent ) target.attachEvent("on" + type, typeListeners.event);
+            else target["on" + type] = typeListeners.event;
         }
 
         // add the event to the master event list
@@ -70,7 +72,8 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
 
         // if no events exist, detach the listener
         if (!typeListeners.length && typeListeners.event) {
-            target.detachEvent("on" + type, typeListeners.event);
+            if ( target.detachEvent ) target.detachEvent("on" + type, typeListeners.event);
+            else target["on" + type] = false;
         }
     });
 
@@ -106,14 +109,11 @@ function NSEvent( evt, namespace )
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
-function captureForType( eventType ) { return -1 < captureEvts.indexOf( eventType ); }
-function matchesTag( tagName, element ) { return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
-function matchesId( id, element ) { return id === element.id; }
-function matchesRoot( selector, element ) 
-{
-  if ( this.$element === window ) return element === document;
-  return this.$element === element;
-}
+function captureForType( eventType ){ return -1 < captureEvts.indexOf( eventType ); }
+function matchesRoot( root, element ){ return root === element; }
+function matchesTag( tagName, element ){ return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
+function matchesId( id, element ){ return id === element.id; }
+function matchesSelector( selector, element ){ return element[MATCHES](selector); }
 
 function DOMEvent( el ) 
 {
@@ -126,7 +126,7 @@ DOMEvent.Handler = function( event ) {
     if ( event[EVENTSTOPPED] ) return;
     
     var self = this, i, l, listeners,
-        type = event.type, target = event.target, 
+        type = event.type, target = event.target/*?event.target:event.srcElement*/, 
         root, phase, listener, returned, listenerList = [ ];
 
     // Hardcode value of Node.TEXT_NODE
@@ -164,7 +164,7 @@ DOMEvent.Handler = function( event ) {
             listener = listenerList[i];
             if ( !listener ) break;
 
-            if ( listener.matcher.call( target, listener.matcherParam, target ) ) 
+            if ( listener.matcher( listener.matcherParam, target ) ) 
             {
                 returned = listener.handler.call( target, event, target );
             }
@@ -279,10 +279,8 @@ DOMEvent[proto] = {
 
             if ( !selector ) 
             {
-                matcherParam = null;
-                // COMPLEX - matchesRoot needs to have access to
-                // this.rootElement, so bind the function to this.
-                matcher = matchesRoot.bind( self );
+                matcherParam = root;
+                matcher = matchesRoot;
             } 
             else if ( /^[a-z]+$/i.test( selector ) ) 
             {
@@ -298,7 +296,7 @@ DOMEvent[proto] = {
             else 
             {
                 matcherParam = selector;
-                matcher = matches;
+                matcher = matchesSelector;
             }
 
             // Add to the list of listeners

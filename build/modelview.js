@@ -1,7 +1,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.52
+*   @version: 0.53
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +37,7 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.52
+*   @version: 0.53
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -185,16 +185,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     // http://youmightnotneedjquery.com/
-    matches = (function( P ) {
-        if ( !P ) return;
-        return (
-            P.matches || 
-            P.matchesSelector || 
-            P.webkitMatchesSelector || 
-            P.mozMatchesSelector || 
-            P.msMatchesSelector || 
-            P.oMatchesSelector
-        );
+    MATCHES = (function( P ) {
+        if ( !P || P.matches ) return 'matches';
+        else if ( P.matchesSelector ) return 'matchesSelector';
+        else if ( P.webkitMatchesSelector ) return 'webkitMatchesSelector';
+        else if ( P.mozMatchesSelector ) return 'mozMatchesSelector';
+        else if ( P.msMatchesSelector ) return 'msMatchesSelector';
+        else if ( P.oMatchesSelector ) return 'oMatchesSelector';
     }(this.Element ? this.Element[proto] : null)),
 
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
@@ -342,7 +339,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].addEventListener )
+if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto].addEventListener )
 !function( ){
     
     function addToPrototype( name, method ) 
@@ -359,7 +356,7 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
 
         // if no events exist, attach the listener
         if (!typeListeners.length) {
-            target.attachEvent("on" + type, typeListeners.event = function (event) {
+            typeListeners.event = function (event) {
                 var documentElement = target.document && target.document.documentElement || target.documentElement || { scrollLeft: 0, scrollTop: 0 };
 
                 // polyfill w3c properties and methods
@@ -384,7 +381,9 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
                         }
                     }
                 }
-            });
+            };
+            if ( target.attachEvent ) target.attachEvent("on" + type, typeListeners.event);
+            else target["on" + type] = typeListeners.event;
         }
 
         // add the event to the master event list
@@ -409,7 +408,8 @@ if ( this.Element && this.Element[proto].attachEvent && !this.Element[proto].add
 
         // if no events exist, detach the listener
         if (!typeListeners.length && typeListeners.event) {
-            target.detachEvent("on" + type, typeListeners.event);
+            if ( target.detachEvent ) target.detachEvent("on" + type, typeListeners.event);
+            else target["on" + type] = false;
         }
     });
 
@@ -445,14 +445,11 @@ function NSEvent( evt, namespace )
 var EVENTSTOPPED = "DOMEVENT_STOPPED", 
     captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
-function captureForType( eventType ) { return -1 < captureEvts.indexOf( eventType ); }
-function matchesTag( tagName, element ) { return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
-function matchesId( id, element ) { return id === element.id; }
-function matchesRoot( selector, element ) 
-{
-  if ( this.$element === window ) return element === document;
-  return this.$element === element;
-}
+function captureForType( eventType ){ return -1 < captureEvts.indexOf( eventType ); }
+function matchesRoot( root, element ){ return root === element; }
+function matchesTag( tagName, element ){ return tagName.toLowerCase( ) === element.tagName.toLowerCase( ); }
+function matchesId( id, element ){ return id === element.id; }
+function matchesSelector( selector, element ){ return element[MATCHES](selector); }
 
 function DOMEvent( el ) 
 {
@@ -465,7 +462,7 @@ DOMEvent.Handler = function( event ) {
     if ( event[EVENTSTOPPED] ) return;
     
     var self = this, i, l, listeners,
-        type = event.type, target = event.target, 
+        type = event.type, target = event.target/*?event.target:event.srcElement*/, 
         root, phase, listener, returned, listenerList = [ ];
 
     // Hardcode value of Node.TEXT_NODE
@@ -503,7 +500,7 @@ DOMEvent.Handler = function( event ) {
             listener = listenerList[i];
             if ( !listener ) break;
 
-            if ( listener.matcher.call( target, listener.matcherParam, target ) ) 
+            if ( listener.matcher( listener.matcherParam, target ) ) 
             {
                 returned = listener.handler.call( target, event, target );
             }
@@ -618,10 +615,8 @@ DOMEvent[proto] = {
 
             if ( !selector ) 
             {
-                matcherParam = null;
-                // COMPLEX - matchesRoot needs to have access to
-                // this.rootElement, so bind the function to this.
-                matcher = matchesRoot.bind( self );
+                matcherParam = root;
+                matcher = matchesRoot;
             } 
             else if ( /^[a-z]+$/i.test( selector ) ) 
             {
@@ -637,7 +632,7 @@ DOMEvent[proto] = {
             else 
             {
                 matcherParam = selector;
-                matcher = matches;
+                matcher = matchesSelector;
             }
 
             // Add to the list of listeners
@@ -2963,6 +2958,74 @@ var
                 }
             }
         }
+    },
+    
+    //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
+    shift_nums = {
+     "~" : "`"
+    ,"!" : "1"
+    ,"@" : "2"
+    ,"#" : "3"
+    ,"$" : "4"
+    ,"%" : "5"
+    ,"^" : "6"
+    ,"&" : "7"
+    ,"*" : "8"
+    ,"(" : "9"
+    ,")" : "0"
+    ,"_" : "-"
+    ,"+" : "="
+    ,":" : ";"
+    ,"\"": "'"
+    ,"<" : ","
+    ,">" : "."
+    ,"?" : "/"
+    ,"|" : "\\"
+    },
+    //Special Keys - and their codes
+    special_keys = {
+     27 : 'escape'
+    ,9  : 'tab'
+    ,32 : 'space'
+    ,13 : 'enter'
+    ,8  : 'backspace'
+
+    ,145 : 'scrolllock'
+    ,20  : 'capslock'
+    ,144 : 'numlock'
+    
+    ,19 : 'pause'
+    //,19 : 'break'
+    
+    ,45 : 'insert'
+    ,36 : 'home'
+    ,46 : 'delete'
+    ,35 : 'end'
+    
+    ,33 : 'pageup'
+    ,34 : 'pagedown'
+
+    ,37 : 'left'
+    ,38 : 'up'
+    ,39 : 'right'
+    ,40 : 'down'
+
+    ,112 : 'f1'
+    ,113 : 'f2'
+    ,114 : 'f3'
+    ,115 : 'f4'
+    ,116 : 'f5'
+    ,117 : 'f6'
+    ,118 : 'f7'
+    ,119 : 'f8'
+    ,120 : 'f9'
+    ,121 : 'f10'
+    ,122 : 'f11'
+    ,123 : 'f12'
+    },
+    
+    viewHandler = function( view, method ) {
+        return function(evt){return view[method](evt, {el:this});};
     }
 ;
 
@@ -2984,6 +3047,7 @@ var View = function( id, model, atts, cacheSize, refreshInterval ) {
     view.$selectors = new Cache( cacheSize, refreshInterval );
     view.$atbind = view.attribute( "bind" );
     view.$atkeys = view.attribute( "keys" );
+    view.$shortcuts = { };
     view.model( model || new Model( ) ).initPubSub( );
 };
 // STATIC
@@ -3007,6 +3071,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$keynodes: null
     ,$atbind: null
     ,$atkeys: null
+    ,$shortcuts: null
     
     ,dispose: function( ) {
         var view = this;
@@ -3024,6 +3089,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         view.$keynodes = null;
         view.$atbind = null;
         view.$atkeys = null;
+        view.$shortcuts = null;
         return view;
     }
     
@@ -3067,6 +3133,41 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             for ( k in events ) 
                 if ( events[HAS](k) && is_type(events[k], T_FUNC) )
                     view[ 'on_' + k.split(':').join('_') ] = events[k];
+        }
+        return view;
+    }
+    
+    ,shortcuts: function( shortcuts ) {
+        var view = this, k, key, keys, modifiers, i, view_shortcuts = view.$shortcuts;
+        if ( is_type(shortcuts, T_OBJ) )
+        {
+            for ( k in shortcuts ) 
+            {
+                if ( shortcuts[HAS](k) )
+                {
+                    modifiers = [];
+                    keys = k.toLowerCase().split('+').map(trim);
+                    for (i=keys.length-1; i>=0; i--)
+                    {
+                        key = keys[ i ];
+                        if ( 'alt' === key || 'ctrl' === key || 'shift' === key || 'meta' === key )
+                        {
+                            modifiers.push( key );
+                            keys.splice(i, 1);
+                        }
+                    }
+                    key = modifiers.sort().concat(keys).join('+');
+                    
+                    if ( false === shortcuts[k] )
+                    {
+                        if ( view_shortcuts[HAS](key) ) delete view_shortcuts[ key ];
+                    }
+                    else
+                    {
+                        view_shortcuts[ key ] = shortcuts[ k ];
+                    }
+                }
+            }
         }
         return view;
     }
@@ -3137,7 +3238,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         if ( bypass || !(elements=selectorsCache.get( selector )) ) 
         {
             elements = $sel( selector, $dom );
-            if ( addRoot && matches.call($dom, selector) ) elements.push( $dom );
+            if ( addRoot && $dom[MATCHES](selector) ) elements.push( $dom );
             if ( !bypass ) selectorsCache.set( selector, elements );
         }
         
@@ -3275,31 +3376,22 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
             bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
-            method, evt, namespaced, modelMethodPrefix = /^on_model_/,
+            method, evt, namespaced, 
             autobind = view.$autobind, livebind = !!view.$livebind
         ;
         
         events = events || ['change', 'click'];
         view.$dom = dom || document.body;
         
+        namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
+        
         // live update dom nodes
         if ( livebind )
             view.$keynodes = getKeyTextNodes( view.$dom, view.$livebind, null, view.$atkeys );
         
-        // model events
-        for (method in view)
-        {
-            if ( !is_type( view[ method ], T_FUNC ) || !modelMethodPrefix.test( method ) ) continue;
-            
-            evt = method.replace( modelMethodPrefix, '' );
-            evt.length && view.onTo( model, evt, view[ method ] );
-        }
-        
-        // view/dom change events
+        // default view/dom binding events
         if ( view.on_view_change && events.length )
         {
-            namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
-            
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
             DOMEvent( view.$dom ).on( 
@@ -3318,9 +3410,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
                     if ( (evt.target === el) || (bind && bind.bubble) )
                     {
                         // view/dom change events
-                        isBind = view.$bindbubble ? !!bind : matches.call( el, bindSelector );
+                        isBind = view.$bindbubble ? !!bind : el[MATCHES](bindSelector);
                         // view change autobind events
-                        isAutoBind = autobind && "change" == evt.type && matches.call( el, autobindSelector );
+                        isAutoBind = autobind && "change" == evt.type && el[MATCHES](autobindSelector);
                         if ( isBind || isAutoBind ) 
                             view.on_view_change( evt, {el:el, isBind:isBind, isAutoBind:isAutoBind} );
                     }
@@ -3329,27 +3421,64 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
             );
         }
         
+        // bind model/view/dom/document (custom) event handlers
+        for (method in view)
+        {
+            if ( !is_type( view[ method ], T_FUNC ) ) continue;
+            
+            if ( startsWith( method, 'on_document_' ) )
+            {
+                evt = method.slice(12);
+                evt.length && DOMEvent( document.body ).on( 
+                    namespaced(evt), 
+                    viewHandler( view, method )
+                );
+            }
+            else if ( startsWith( method, 'on_model_' ) )
+            {
+                evt = method.slice(9);
+                evt.length && view.onTo( model, evt, view[ method ] );
+            }
+            else if ( startsWith( method, 'on_view_' ) && 'on_view_change' !== method )
+            {
+                evt = method.slice(8);
+                evt.length && DOMEvent( view.$dom ).on( 
+                    namespaced(evt), 
+                    autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector, 
+                    viewHandler( view, method )
+                );
+            }
+            else if ( startsWith( method, 'on_dom_' ) )
+            {
+                evt = method.slice(7);
+                evt.length && DOMEvent( view.$dom ).on( 
+                    namespaced(evt), 
+                    viewHandler( view, method )
+                );
+            }
+        }
+        
         return view;
     }
     
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
-            namespaced, $dom,
+            namespaced, $dom, viewEvent = NSEvent('', view.namespace),
             autobind = view.$autobind, livebind = !!view.$livebind
         ;
         
         events = events || null;
         $dom = dom || view.$dom;
+        
+        namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
          
         // view/dom change events
         if ( view.on_view_change )
         {
-            namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
-            
             DOMEvent( $dom ).off( 
                 
-                events && events.length ? events.map( namespaced ).join(' ') : NSEvent('', view.namespace), 
+                events && events.length ? events.map( namespaced ).join(' ') : viewEvent, 
                 
                 autobind ? [ sels[ 2 ], sels[ 0 ] ].join( ',' ) : sels[ 0 ]
             );
@@ -3357,7 +3486,8 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // model events
         view.offFrom( model );
-        
+        DOMEvent( $dom ).off( viewEvent );
+        DOMEvent( document.body ).off( viewEvent );
         // live update dom nodes
         view.$keynodes = null;
         
@@ -3463,6 +3593,66 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
+    }
+    
+    ,on_document_keydown: function( evt, data ) {
+        var view = this, view_shortcuts = view.$shortcuts, 
+            el = data.el, callback, ret,
+            key, code, character, modifiers;
+        
+        // adapted from shortcuts.js, http://www.openjs.com/scripts/events/keyboard_shortcuts/
+        //
+        // no hotkeys assigned or text input element is the target, bypass
+        if ( 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName || !Keys(view_shortcuts).length ) return;
+        
+        // find which key is pressed
+        code = evt.keyCode || evt.which; 
+
+        // key modifiers (in alphabetical order)
+        modifiers = [];
+        if ( !!evt.altKey ) modifiers.push('alt');
+        if ( !!evt.ctrlKey ) modifiers.push('ctrl');
+        if ( !!evt.metaKey ) modifiers.push('meta');	// meta is Mac specific
+        if ( !!evt.shiftKey ) modifiers.push('shift');
+        
+        // if it is a special key
+        if ( special_keys[HAS]( code ) ) 
+        {
+            key = special_keys[ code ];
+        }
+        else
+        {
+            if ( 188 === code )         character = ","; //If the user presses , when the type is onkeydown
+            else if ( 190 === code )    character = "."; //If the user presses , when the type is onkeydown
+            else                        character = Str.fromCharCode(code).toLowerCase( );
+            // stupid Shift key bug created by using lowercase
+            if ( !!evt.shiftKey && shift_nums[HAS](character) ) character = shift_nums[character];
+            key = character;
+            //if ( '+' === key ) key = 'plus';
+        }
+        key = modifiers.concat(key).join('+');
+        if ( !!key && view_shortcuts[HAS](key) && view_shortcuts[key] ) 
+        {
+            callback = view_shortcuts[key]; ret = true;
+            if ( callback.substr )
+            {
+                // view action id given
+                if ( is_type(view['do_' + callback], T_FUNC) )
+                    ret = view['do_' + callback](evt, el, {});
+            }
+            else
+            {
+                // actual function handler given
+                ret = callback.call(view, evt, el, {});
+            }
+            if ( false === ret ) 
+            { 
+                // stop the event
+                evt.stopPropagation( );
+                evt.preventDefault( );
+                return false;
+            }
+        }
     }
     
     ,on_model_change: function( evt, data ) {
@@ -3746,7 +3936,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.52"
+    VERSION: "0.53"
     
     ,UUID: uuid
     
@@ -3767,7 +3957,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.52
+*   @version: 0.53
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -3785,38 +3975,7 @@ exports['ModelView'] = {
             $.ModelView = ModelView;
             
             var slice = Function.prototype.call.bind( Array.prototype.slice ),
-                extend = $.extend, View = ModelView.View, Model = ModelView.Model,
-                defaultModel = {
-                    id: 'model'
-                    ,data: { }
-                    ,types: { }
-                    ,validators: { }
-                    ,getters: { }
-                    ,setters: { }
-                    ,dependencies: { }
-                },
-                defaultOptions = {
-                    
-                    viewClass: View
-                    ,modelClass: Model
-                    
-                    ,id: 'view'
-                    ,bindAttribute: 'data-bind' // default
-                    ,livebind: null
-                    ,autobind: false
-                    ,bindbubble: false
-                    ,autovalidate: true
-                    ,events: null
-                    ,autoSync: true
-                    ,cacheSize: View._CACHE_SIZE
-                    ,refreshInterval: View._REFRESH_INTERVAL
-                    
-                    ,model: null
-                    ,template: null
-                    ,actions: { }
-                    ,handlers: { }
-                }
-            ;
+                extend = $.extend, View = ModelView.View, Model = ModelView.Model;
             
             // modelview jQuery plugin
             $.fn.modelview = function( arg0, arg1, arg2 ) {
@@ -3828,7 +3987,7 @@ exports['ModelView'] = {
                 // apply for each matched element (better use one element per time)
                 this.each(function( ) {
                     
-                    var $dom = $(this), model, view;
+                    var $dom = $(this), model, view, defaultModel, defaultOptions;
                     
                     // modelview already set on element
                     if ( $dom.data( 'modelview' ) )
@@ -3882,6 +4041,37 @@ exports['ModelView'] = {
                     
                     if ( !optionsParsed )
                     {
+                        defaultModel = {
+                            id: 'model'
+                            ,data: { }
+                            ,types: { }
+                            ,validators: { }
+                            ,getters: { }
+                            ,setters: { }
+                            ,dependencies: { }
+                        };
+                        defaultOptions = {
+                            
+                            viewClass: View
+                            ,modelClass: Model
+                            
+                            ,id: 'view'
+                            ,bindAttribute: 'data-bind' // default
+                            ,livebind: null
+                            ,autobind: false
+                            ,bindbubble: false
+                            ,autovalidate: true
+                            ,events: null
+                            ,autoSync: true
+                            ,cacheSize: View._CACHE_SIZE
+                            ,refreshInterval: View._REFRESH_INTERVAL
+                            
+                            ,model: null
+                            ,template: null
+                            ,actions: { }
+                            ,handlers: { }
+                            ,shortcuts: { }
+                        };
                         // parse options once
                         options = extend( {}, defaultOptions, options );
                         
@@ -3917,6 +4107,8 @@ exports['ModelView'] = {
                     .template( options.template )
                     // custom view event handlers
                     .events( options.handlers )
+                    // custom view hotkeys/keyboard shortcuts
+                    .shortcuts( options.shortcuts )
                     // custom view actions
                     .actions( options.actions )
                     // init view

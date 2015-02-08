@@ -19,38 +19,7 @@
             $.ModelView = ModelView;
             
             var slice = Function.prototype.call.bind( Array.prototype.slice ),
-                extend = $.extend, View = ModelView.View, Model = ModelView.Model,
-                defaultModel = {
-                    id: 'model'
-                    ,data: { }
-                    ,types: { }
-                    ,validators: { }
-                    ,getters: { }
-                    ,setters: { }
-                    ,dependencies: { }
-                },
-                defaultOptions = {
-                    
-                    viewClass: View
-                    ,modelClass: Model
-                    
-                    ,id: 'view'
-                    ,bindAttribute: 'data-bind' // default
-                    ,livebind: null
-                    ,autobind: false
-                    ,bindbubble: false
-                    ,autovalidate: true
-                    ,events: null
-                    ,autoSync: true
-                    ,cacheSize: View._CACHE_SIZE
-                    ,refreshInterval: View._REFRESH_INTERVAL
-                    
-                    ,model: null
-                    ,template: null
-                    ,actions: { }
-                    ,handlers: { }
-                }
-            ;
+                extend = $.extend, View = ModelView.View, Model = ModelView.Model;
             
             // modelview jQuery plugin
             $.fn.modelview = function( arg0, arg1, arg2 ) {
@@ -62,7 +31,7 @@
                 // apply for each matched element (better use one element per time)
                 this.each(function( ) {
                     
-                    var $dom = $(this), model, view;
+                    var $dom = $(this), model, view, defaultModel, defaultOptions;
                     
                     // modelview already set on element
                     if ( $dom.data( 'modelview' ) )
@@ -116,6 +85,37 @@
                     
                     if ( !optionsParsed )
                     {
+                        defaultModel = {
+                            id: 'model'
+                            ,data: { }
+                            ,types: { }
+                            ,validators: { }
+                            ,getters: { }
+                            ,setters: { }
+                            ,dependencies: { }
+                        };
+                        defaultOptions = {
+                            
+                            viewClass: View
+                            ,modelClass: Model
+                            
+                            ,id: 'view'
+                            ,bindAttribute: 'data-bind' // default
+                            ,livebind: null
+                            ,autobind: false
+                            ,bindbubble: false
+                            ,autovalidate: true
+                            ,events: null
+                            ,autoSync: true
+                            ,cacheSize: View._CACHE_SIZE
+                            ,refreshInterval: View._REFRESH_INTERVAL
+                            
+                            ,model: null
+                            ,template: null
+                            ,actions: { }
+                            ,handlers: { }
+                            ,shortcuts: { }
+                        };
                         // parse options once
                         options = extend( {}, defaultOptions, options );
                         
@@ -151,6 +151,8 @@
                     .template( options.template )
                     // custom view event handlers
                     .events( options.handlers )
+                    // custom view hotkeys/keyboard shortcuts
+                    .shortcuts( options.shortcuts )
                     // custom view actions
                     .actions( options.actions )
                     // init view

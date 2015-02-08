@@ -1,6 +1,6 @@
 ###ModelView API
 
-**Version 0.52**
+**Version 0.53**
 
 ###Contents
 
@@ -107,8 +107,11 @@ view.model( [Model model] );
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
 
-// add custom view event handlers in {eventName: handler} format
+// add custom view event handlers for model/view/dom/document in {"target:eventName": handler} format
 view.events( Object events );
+
+// add/remove custom view keyboard shortcuts/hotkeys in {"key+combination": actionName|handler|false} format
+view.shortcuts( Object shortcuts );
 
 // get / set livebind, 
 // livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
