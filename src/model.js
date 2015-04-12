@@ -230,9 +230,9 @@ var
         };
     },
 
-    /*keyLevelUp = function( dottedKey, level ) {
+    keyLevelUp = function( dottedKey, level ) {
         return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },*/
+    },
     
     addModelTypeValidator = function addModelTypeValidator( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
@@ -431,9 +431,18 @@ var
     }
 ;
 
+/**[DOC_MARKDOWN]
+####Model
+
+```javascript
+// modelview.js model methods
+
+var model = new ModelView.Model( [String id=UUID, Object data={}, Object types=null, Object validators=null, Object getters=null, Object setters=null, Object dependencies=null] );
+
+[/DOC_MARKDOWN]**/
 //
 // Model Class
-var Model = function( id, data, types, validators, getters, setters, dependencies ) {
+var Model = function Model( id, data, types, validators, getters, setters, dependencies ) {
     var model = this;
     
     // constructor-factory pattern
@@ -465,6 +474,7 @@ Model.count = function( o ) {
     else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
     return 0;
 };
+Model.Field = ModelField;
 
 // Model implements PublishSubscribe pattern
 Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
@@ -487,6 +497,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$syncHandler: null
     ,__syncing: null
     
+/**[DOC_MARKDOWN]
+// dispose model
+model.dispose( );
+
+[/DOC_MARKDOWN]**/
     ,dispose: function( ) {
         var model = this;
         model.disposePubSub( ).$view = null;
@@ -516,6 +531,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model.$view;
     }
     
+/**[DOC_MARKDOWN]
+// get / set model data
+model.data( [Object data] );
+
+[/DOC_MARKDOWN]**/
     ,data: function( d ) {
         var model = this;
         if ( arguments.length )
@@ -526,6 +546,13 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model.$data;
     }
     
+/**[DOC_MARKDOWN]
+// add model field (inter-)dependencies in {model.key: [array of model.keys it depends on]} format
+// when a model.key (model field) changes or updates, it will notify any other fields that depend on it automaticaly
+// NOTE: (inter-)dependencies can also be handled by custom model getters/setters as well
+model.dependencies( Object dependencies );
+
+[/DOC_MARKDOWN]**/
     ,dependencies: function( deps ) {
         var model = this, k, dependencies = model.$idependencies, d, i, dk, kk, j;
         if ( is_type(deps, T_OBJ) )
@@ -556,6 +583,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// add typecasters given in {dottedKey: typecaster} format
+model.types( Object typeCasters );
+
+[/DOC_MARKDOWN]**/
     ,types: function( types ) {
         var model = this, k;
         if ( is_type(types, T_OBJ) )
@@ -569,6 +601,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// add validators given in {dottedKey: validator} format
+model.validators( Object validators );
+
+[/DOC_MARKDOWN]**/
     ,validators: function( validators ) {
         var model = this, k;
         if ( is_type(validators, T_OBJ) )
@@ -582,6 +619,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// add custom getters (i.e computed/virtual observables) given in {dottedKey: getter} format
+model.getters( Object getters );
+
+[/DOC_MARKDOWN]**/
     ,getters: function( getters ) {
         var model = this, k;
         if ( is_type(getters, T_OBJ) )
@@ -595,6 +637,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// add custom setters given in {dottedKey: setter} format
+model.setters( Object setters );
+
+[/DOC_MARKDOWN]**/
     ,setters: function( setters ) {
         var model = this, k;
         if ( is_type(setters, T_OBJ) )
@@ -608,16 +655,35 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// get model data in plain JS Object format
+// handles nested composite models automaticaly
+model.serialize( );
+
+[/DOC_MARKDOWN]**/
     // handle sub-composite models as data, via walking the data
     ,serialize: function( ) {
         return serializeModel( this, Model );
     }
     
+/**[DOC_MARKDOWN]
+// validate model for given key or all data with any attached model validators
+// (return on first not valid value if  breakOnFirstError is true )
+// handles nested composite models automaticaly
+// returns: { isValid: [true|false], errors:[Array of (nested) model keys which are not valid] }
+model.validate( [Boolean breakOnFirstError=false, String dottedKey=undefined] );
+
+[/DOC_MARKDOWN]**/
     // handle sub-composite models via walking the data and any attached validators
     ,validate: function( breakOnFirstError, dottedKey ) {
         return validateModel( this, Model, !!breakOnFirstError, dottedKey );
     }
     
+/**[DOC_MARKDOWN]
+// get/set model auto-validate flag, if TRUE validates each field that has attached validators live as it changes
+model.autovalidate( [Boolean enabled] );
+
+[/DOC_MARKDOWN]**/
     ,autovalidate: function( enabled ) {
         var model = this;
         if ( arguments.length )
@@ -628,6 +694,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model.$autovalidate;
     }
     
+/**[DOC_MARKDOWN]
+// get data in JSON string format
+model.toJSON( [String dottedKey] );
+
+[/DOC_MARKDOWN]**/
     ,toJSON: function( dottedKey ) {
         var model = this, json, data, T, e;
         
@@ -640,6 +711,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return json;
     }
     
+/**[DOC_MARKDOWN]
+// set data from JSON string format
+model.fromJSON( String jsonData [, String dottedKey, Boolean publish=false] );
+
+[/DOC_MARKDOWN]**/
     ,fromJSON: function( dataJson, dottedKey, pub ) {
         var model = this, data, e;
         if ( dataJson )
@@ -653,6 +729,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// whether model has given key (bypass custom model getters if RAW is true)
+model.has( String dottedKey [, Boolean RAW=false ] );
+
+[/DOC_MARKDOWN]**/
     ,has: function( dottedKey, RAW ) {
         var model = this, data = model.$data, getters = model.$getters, r;
         
@@ -671,6 +752,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return false;
     }
     
+/**[DOC_MARKDOWN]
+// model get given key (bypass custom model getters if RAW is true)
+model.get( String dottedKey [, Boolean RAW=false ] );
+
+[/DOC_MARKDOWN]**/
     ,get: function( dottedKey, RAW ) {
         var model = this, data = model.$data, getters = model.$getters, r;
         
@@ -695,6 +781,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return undef;
     }
     
+/**[DOC_MARKDOWN]
+// model set key to val
+model.set( String dottedKey, * val [, Boolean publish=false] );
+
+[/DOC_MARKDOWN]**/
     // set/add, it can add last node also if not there
     ,set: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
@@ -834,6 +925,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// model add/append val to key (if key is array-like)
+model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
+
+[/DOC_MARKDOWN]**/
     // add/append value (for arrays like structures)
     ,add: function ( dottedKey, val, pub, callData ) {
         var model = this, r, o, k, p,
@@ -969,6 +1065,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// model delete/remove key (with or without re-arranging array indexes)
+model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=false] );
+
+[/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function( dottedKey, pub, reArrangeIndexes, callData ) {
         var model = this, r, o, k, p, val, canDel = false;
@@ -1039,6 +1140,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// shortcut to synchronise specific fields of this model to other fields of another model
+model.sync( Model otherModel, Object fieldsMap );
+
+[/DOC_MARKDOWN]**/
     // synchronize fields to other model(s)
     ,sync: function( otherModel, fieldsMap ) {
         var model = this, key, otherKey, callback, list, i, l, addIt;
@@ -1076,6 +1182,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// shortcut to un-synchronise any fields of this model to other fields of another model
+model.unsync( Model otherModel );
+
+[/DOC_MARKDOWN]**/
     // un-synchronize fields off other model(s)
     ,unsync: function( otherModel ) {
         var model = this, key, syncTo = model.$syncTo, list, i;
@@ -1097,6 +1208,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// shortcut to model publich change event for key(s) (and nested keys)
+model.notify( String | Array dottedKeys [, String event="change", Object calldata=null] );
+
+[/DOC_MARKDOWN]**/
     // shortcut to trigger "model:change" per given key(s) (given as string or array)
     ,notify: function( dottedKey, evt, data ) {
         var model = this, ideps = model.$idependencies, 
@@ -1156,6 +1272,11 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return model;
     }
     
+/**[DOC_MARKDOWN]
+// model enable / disable atomic operations, do next update operations on key (and nested keys) as one atom
+model.atom( String dottedKey | Boolean false );
+
+[/DOC_MARKDOWN]**/
     // atomic (update) operation(s) by key
     ,atom: function( dottedKey ) {
         var model = this;
@@ -1182,3 +1303,8 @@ Model[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
 // aliases
 Model[proto].append = Model[proto].add;
 Model[proto].rem = Model[proto].del;
+/**[DOC_MARKDOWN]
+
+```
+
+[/DOC_MARKDOWN]**/

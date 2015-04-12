@@ -9,160 +9,6 @@ var
         ,'');
     },
     
-    joinTextNodes = function( nodes ) {
-        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
-        if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
-        return txt;
-    },
-    
-    namedKeyProp = "mv_namedkey", nUUID = 'mv_uuid',
-    // use hexadecimal string representation in order to have optimal key distribution in hash (??)
-    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || ('_'+(++nuuid).toString(16)); },
-    
-    removeKeyTextNodes = function( node, hash, atKeys ) {
-        var nid;
-        if ( hash && (nid=node[nUUID]) && hash[HAS](nid) ) del(hash, nid);
-        if ( node[ATTR](atKeys) ) node.removeAttribute( atKeys );
-        return hash;
-    },
-    
-    getKeyTextNodes = function( node, re_key, hash, atKeys ) {
-        if ( !re_key ) return hash;
-        
-        var matchedNodes, matchedAtts, i, l, m, matched, n, a, key, nid, atnodes,
-            keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes, keyAtts
-        ;
-        
-        hash = hash || {};
-        if ( node )
-        {
-            // http://www.geeksforgeeks.org/inorder-tree-traversal-without-recursion/
-            /*
-            1) Create an empty stack S.
-            2) Initialize current node as root
-            3) Push the current node to S and set current = current->left until current is NULL
-            4) If current is NULL and stack is not empty then 
-                 a) Pop the top item from stack.
-                 b) Print the popped item, set current = current->right 
-                 c) Go to step 3.
-            5) If current is NULL and stack is empty then we are done.            
-            */
-            matchedNodes = [ ]; matchedAtts = [ ]; n = node;
-            if ( n.attributes && (l=n.attributes.length) ) 
-            {
-                for (i=0; i<l; i++)
-                {
-                    a = n.attributes[ i ];
-                    if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
-                }
-            }
-            if ( 3 === n.nodeType ) 
-            {
-                if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, n[PARENT]]);
-            }  
-            else if ( n.firstChild )
-            {
-                stack = [ n=n.firstChild ];
-                while ( stack.length ) 
-                {
-                    if ( n.attributes && (l=n.attributes.length) ) 
-                    {
-                        for (i=0; i<l; i++)
-                        {
-                            a = n.attributes[ i ];
-                            if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
-                        }
-                    }
-                    if ( n.firstChild ) stack.push( n=n.firstChild );
-                    else 
-                    {
-                        if ( 3 === n.nodeType && (m=n.nodeValue.match(re_key)) ) matchedNodes.push([n, m, n[PARENT]]);
-                        n = stack.pop( );
-                        while ( stack.length && !n.nextSibling ) n = stack.pop( );
-                        if ( n.nextSibling ) stack.push( n=n.nextSibling );
-                    }
-                }
-            }
-            atnodes = { };
-            for (i=0,l=matchedNodes.length; i<l; i++)
-            {
-                matched = matchedNodes[ i ];
-                rest = matched[0]; m = matched[1]; n = matched[2];
-                nid = node_uuid( n ); //if ( hash[nid] && hash[nid].keys ) continue;
-                hash[nid] = hash[nid] || { }; atnodes[nid] = n;
-                hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
-                txt = rest.nodeValue;  
-                if ( txt.length > m[0].length )
-                {
-                    // node contains more text than just the $(key) ref
-                    do {
-                        key = m[1]; keyNode = rest.splitText( m.index );
-                        rest = keyNode.splitText( m[0].length );
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        m = rest.nodeValue.match( re_key );
-                    } while ( m );
-                }
-                else
-                {
-                    key = m[1]; keyNode = rest;
-                    (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                }
-                //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
-            }
-            aNodes = { };
-            for (i=0,l=matchedAtts.length; i<l; i++)
-            {
-                matched = matchedAtts[ i ];
-                a = matched[0]; m = matched[1]; n = matched[2];
-                nid = node_uuid( n ); //if ( hash[nid] && hash[nid].atts ) continue;
-                hash[nid] = hash[nid] || { }; atnodes[nid] = n;
-                hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
-                hash[nid].atts = hash[nid].atts || { }; keyAtts = hash[nid].atts;
-                txt = a.nodeValue;  aNodesCached = (txt in aNodes);
-                if ( !aNodesCached ) 
-                {
-                    rest = get_textnode( txt ); aNodes[ txt ] = [[], [ rest ]];
-                    if ( txt.length > m[0].length )
-                    {
-                        // attr contains more text than just the $(key) ref
-                        do {
-                            key = m[1]; 
-                            keyNode = rest.splitText( m.index );
-                            rest = keyNode.splitText( m[0].length );
-                            aNodes[ txt ][0].push( key );
-                            aNodes[ txt ][1].push( keyNode ); 
-                            aNodes[ txt ][1].push( rest );
-                            (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                            (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
-                            m = rest.nodeValue.match( re_key );
-                        } while ( m );
-                    }
-                    else
-                    {
-                        keyNode = rest;
-                        aNodes[ txt ][0].push( key );
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
-                    }
-                }
-                else
-                {
-                    // share txt nodes between same (value) attributes
-                    for (m=0; m<aNodes[ txt ][0].length; m++)
-                        keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
-                }
-                //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
-            }
-            key = Keys( atnodes );
-            for (m=0; m<key.length; m++)
-            {
-                n = atnodes[ nid=key[m] ];
-                n[SET_ATTR](atKeys, '|'+Keys(hash[nid].keys).join('|'));
-            }
-        }
-        return hash;
-    },
-    
     getSelectors = function( bind, livebind, autobind ) {
         return [
             bind ? '[' + bind + ']' : null,
@@ -247,121 +93,6 @@ var
         }
     },
     
-    doLiveBindAction = function( view, elements, evt, key, val ) {
-        var model = view.$model, els_len = elements.length, el, e, att,
-            i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
-            isSync = 'sync' == evt.type, hash = view.$keynodes, cached = { }, nid
-        ;
-        
-        if ( !hash ) return;
-        
-        if ( key )
-        {
-            keyDot = key + '.'; val = '' + model.get(key); //val;
-            for (e=0; e<els_len; e++)
-            {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[HAS](nid) ) continue;
-                
-                // element live text nodes
-                if ( (keyNodes=hash[nid].keys) )
-                {
-                    if ( keyNodes[HAS](key) )
-                    {
-                        nodes=keyNodes[key];
-                        for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
-                    }
-                    keys = Keys(keyNodes);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k]; if ( key === kk ) continue;
-                        if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
-                        {
-                            // use already cached key/value
-                            nkk = '_' + kk;
-                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
-                            for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
-                        }
-                    }
-                }
-                
-                // element live attributes
-                if ( (keyAtts=hash[nid].atts) )
-                {
-                    if ( keyAtts && keyAtts[HAS](key) )
-                    {
-                        nodes=keyAtts[key];
-                        for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = joinTextNodes( nodes[i][1] );
-                    }
-                    keys = Keys(keyAtts);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k]; if ( key === kk ) continue;
-                        if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
-                        {
-                            for (i=0,l=nodes.length; i<l; i++) 
-                            {
-                                att = nodes[i];
-                                // use already cached key/value
-                                nkk = '_' + att[2];
-                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
-                                att[0].nodeValue = v;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else if ( isSync )
-        {
-            for (e=0; e<els_len; e++)
-            {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
-                
-                // element live text nodes
-                if ( (keyNodes=hash[nid].keys) )
-                {
-                    keys = Keys(keyNodes);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k];
-                        if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
-                        {
-                            // use already cached key/value
-                            nkk = '_' + kk;
-                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
-                            for (i=0; i<l; i++) nodes[i].nodeValue = v;
-                        }
-                    }
-                }
-                
-                // element live attributes
-                if ( (keyAtts=hash[nid].atts) )
-                {
-                    keys = Keys(keyAtts);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k];
-                        if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
-                        {
-                            for (i=0; i<l; i++) 
-                            {
-                                att = nodes[i];
-                                // use already cached key/value
-                                nkk = '_' + att[2];
-                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                                else cached[ nkk ] = [ v=joinTextNodes( att[1] ) ];
-                                att[0].nodeValue = v;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    },
-    
     //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
     shift_nums = {
      "~" : "`"
@@ -431,9 +162,18 @@ var
     }
 ;
 
+/**[DOC_MARKDOWN]
+####View
+
+```javascript
+// modelview.js view methods
+
+var view = new ModelView.View( [String id=UUID, Model model=new Model(), Object viewAttributes={bind:"data-bind"}, Integer cacheSize=View._CACHE_SIZE, Integer refreshInterval=View._REFRESH_INTERVAL] );
+
+[/DOC_MARKDOWN]**/
 //
 // View Class
-var View = function( id, model, atts, cacheSize, refreshInterval ) {
+var View = function View( id, model, atts, cacheSize, refreshInterval ) {
     var view = this;
     
     // constructor-factory pattern
@@ -463,6 +203,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,id: null
     ,$dom: null
+    ,$dom_tpl: null
     ,$model: null
     ,$livebind: null
     ,$autobind: false
@@ -471,18 +212,24 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,$atts: null
     ,$memoize: null
     ,$selectors: null
-    ,$keynodes: null
     ,$atbind: null
     ,$atkeys: null
     ,$shortcuts: null
     ,$num_shortcuts: null
     
+/**[DOC_MARKDOWN]
+// dispose view (and model)
+view.dispose( );
+
+[/DOC_MARKDOWN]**/
     ,dispose: function( ) {
         var view = this;
         view.unbind( ).disposePubSub( );
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
+        if ( view.$dom_tpl ) view.$dom_tpl.dispose();
+        view.$dom_tpl = null;
         view.$template = null;
         view.$atts = null;
         view.$memoize.dispose( );
@@ -490,7 +237,6 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         view.$selectors.dispose( );
         view.$selectors = null;
         view.$livebind = null;
-        view.$keynodes = null;
         view.$atbind = null;
         view.$atkeys = null;
         view.$shortcuts = null;
@@ -498,6 +244,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// get / set view model
+view.model( [Model model] );
+
+[/DOC_MARKDOWN]**/
     ,model: function( model ) {
         var view = this;
         if ( arguments.length )
@@ -509,6 +260,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$model;
     }
     
+/**[DOC_MARKDOWN]
+// get/set the name of view-specific attribute (e.g "bind": "data-bind" )
+view.attribute( String name [, String att] );
+
+[/DOC_MARKDOWN]**/
     ,attribute: function( name, att ) {
         var view = this;
         if ( arguments.length > 1 )
@@ -531,6 +287,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$template;
     }
     
+/**[DOC_MARKDOWN]
+// add custom view event handlers for model/view/dom/document in {"target:eventName": handler} format
+view.events( Object events );
+
+[/DOC_MARKDOWN]**/
     ,events: function( events ) {
         var view = this, k;
         if ( is_type(events, T_OBJ) )
@@ -542,6 +303,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// add/remove custom view keyboard shortcuts/hotkeys in {"key+combination": actionName|handler|false} format
+view.shortcuts( Object shortcuts );
+
+[/DOC_MARKDOWN]**/
     ,shortcuts: function( shortcuts ) {
         var view = this, k, key, keys, modifiers, i, view_shortcuts = view.$shortcuts;
         if ( is_type(shortcuts, T_OBJ) )
@@ -582,6 +348,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// add custom view named actions in {actionName: handler} format
+view.actions( Object actions );
+
+[/DOC_MARKDOWN]**/
     ,actions: function( actions ) {
         var view = this, k;
         if ( is_type(actions, T_OBJ) )
@@ -593,6 +364,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// get/set associated model auto-validate flag
+view.autovalidate( [Boolean enabled] );
+
+[/DOC_MARKDOWN]**/
     ,autovalidate: function( enabled ) {
         if ( arguments.length )
         {
@@ -602,6 +378,13 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return this.$model.autovalidate( );
     }
     
+/**[DOC_MARKDOWN]
+// get / set livebind, 
+// livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
+// e.g <span>model.key is $(model.key)</span>
+view.livebind( [String format | Boolean false] );
+
+[/DOC_MARKDOWN]**/
     ,livebind: function( format ) {
         var view = this;
         if ( arguments.length )
@@ -612,6 +395,13 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.$livebind;
     }
     
+/**[DOC_MARKDOWN]
+// get / set autobind, 
+// autobind automatically binds (2-way) input elements to model keys via name attribute 
+// e.g <input name="model[key]" />, <select name="model[key]"></select>
+view.autobind( [Boolean bool] );
+
+[/DOC_MARKDOWN]**/
     ,autobind: function( enable ) {
         var view = this;
         if ( arguments.length )
@@ -765,8 +555,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var view = this;
         if ( el )
         {
-            if ( !!view.$livebind )
-                view.$keynodes = getKeyTextNodes( el, view.$livebind, view.$keynodes, view.$atkeys );
+            if ( view.$dom_tpl ) view.$dom_tpl.bind( el );
             if ( false !== and_sync ) view.sync( null, el );
         }
         return view;
@@ -776,12 +565,17 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         var view = this;
         if ( el ) 
         {
-            view.$keynodes = removeKeyTextNodes( el, view.$keynodes, view.$atkeys );
+            if ( view.$dom_tpl ) view.$dom_tpl.free( el );
             if ( false !== and_reset ) view.$selectors.reset( );
         }
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// bind view to dom listening given events (default: ['change', 'click'])
+view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
+
+[/DOC_MARKDOWN]**/
     ,bind: function( events, dom ) {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
@@ -795,9 +589,9 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         
         namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
         
-        // live update dom nodes
+        // live update dom nodes via special isomorphic Tpl live dom class
         if ( livebind )
-            view.$keynodes = getKeyTextNodes( view.$dom, view.$livebind, null, view.$atkeys );
+            view.$dom_tpl = Tpl().dom( view.$dom, view.$livebind, view.$atkeys );
         
         // default view/dom binding events
         if ( view.on_view_change && events.length )
@@ -871,6 +665,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// unbind view from dom listening to events or all events (if no events given)
+view.unbind( [Array events=null, DOMNode dom=view.$dom] );
+
+[/DOC_MARKDOWN]**/
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
             sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
@@ -899,11 +698,20 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         DOMEvent( $dom ).off( viewEvent );
         DOMEvent( document.body ).off( viewEvent );
         // live update dom nodes
-        view.$keynodes = null;
+        if ( view.$dom_tpl )
+        {
+            view.$dom_tpl.dispose();
+            view.$dom_tpl = null;
+        }
         
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// reset view caches and re-bind to dom UI
+view.rebind( [Array events=['change', 'click'], DOMNOde dom=document.body] );
+
+[/DOC_MARKDOWN]**/
     ,rebind: function( events, $dom ) {
         var view = this;
         // refresh caches
@@ -913,6 +721,11 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return view.unbind( ).bind( events, $dom );
     }
     
+/**[DOC_MARKDOWN]
+// synchronize dom (or part of it) to underlying model
+view.sync( [DOMNode dom=view.$dom] );
+
+[/DOC_MARKDOWN]**/
     ,sync: function( $dom, el ) {
         var view = this, 
             autobind = view.$autobind, livebind = !!view.$livebind, 
@@ -937,10 +750,15 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
-        if ( livebind && livebinds.length ) doLiveBindAction( view, livebinds, syncEvent );
+        if ( livebind && livebinds.length ) view.$dom_tpl.render({elements: livebinds, model: view.$model, key: null, val: null, evt: syncEvent, isSync: true});
         return view;
     }
     
+/**[DOC_MARKDOWN]
+// reset view caches only
+view.reset( );
+
+[/DOC_MARKDOWN]**/
     ,reset: function( ) {
         var view = this;
         // refresh caches
@@ -1096,7 +914,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
+        if ( livebind && liveBindings.length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
     }
 
     ,on_model_error: function( evt, data ) {
@@ -1113,7 +931,7 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) doLiveBindAction( view, liveBindings, evt, data.key, data.value );
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
     }
     
     //
@@ -1344,3 +1162,140 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
         return '[ModelView.View id: '+this.id+']';
     }
 });
+/**[DOC_MARKDOWN]
+
+```
+
+[/DOC_MARKDOWN]**/
+/**[DOC_MARKDOWN]
+
+####View Actions
+
+Default View Actions (inherited by sub-views)
+
+
+The declarative view binding format is like:
+
+```html
+<element bind-attr="JSON"></element>
+
+<!-- for example -->
+<div data-bind='{"event_name":{"action":"action_name","key":"a.model.key","anotherparam":"anotherparamvalue"}}'></div>
+
+<!-- for some actions there are shorthand formats (see below) e.g -->
+<div data-bind='{"hide":"a.model.key"}'></div>
+
+<!-- is shorthand for -->
+<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
+
+<!-- or -->
+<div data-bind='{"event_name":"action_name"}'></div>
+
+<!-- is shorthand for -->
+<div data-bind='{"event_name":{"action":"action_name"}}'></div>
+```
+
+<table>
+<thead>
+<tr>
+    <td>Declarative Binding</td>
+    <td>Method Name</td>
+    <td>Bind Example</td>
+    <td>Description</td>
+</tr>
+</thead>
+<tbody>
+<tr>
+    <td>prop</td>
+    <td>view.do_prop</td>
+    <td>
+&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
+<br /><br />
+&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
+<br /><br />
+&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
+<br /><br />
+&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+    </td>
+    <td>set element properties based on model data keys</td>
+</tr>
+<tr>
+    <td>html</td>
+    <td>view.do_html</td>
+    <td>
+&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>set element html/text property based on model data key</td>
+</tr>
+<tr>
+    <td>css</td>
+    <td>view.do_css</td>
+    <td>
+&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
+    </td>
+    <td>set element css style(s) based on model data key(s)</td>
+</tr>
+<tr>
+    <td>show</td>
+    <td>view.do_show</td>
+    <td>
+&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
+</tr>
+<tr>
+    <td>hide</td>
+    <td>view.do_hide</td>
+    <td>
+&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
+</tr>
+<tr>
+    <td>tpl</td>
+    <td>view.do_tpl</td>
+    <td>
+&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
+    </td>
+    <td>element render a template based on model data key</td>
+</tr>
+<tr>
+    <td>set</td>
+    <td>view.do_set</td>
+    <td>
+&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
+<br />shorthand of:<br />
+&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
+    </td>
+    <td>set/update model data key with given value on a UI event (default "click")</td>
+</tr>
+<tr>
+    <td>bind</td>
+    <td>view.do_bind</td>
+    <td>
+&lt;input name="model[a][model][key]" /> <br />
+&lt;select name="model[another][model][key]">&lt;/select>
+
+    </td>
+    <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
+</tr>
+</tbody>
+</table>
+
+[/DOC_MARKDOWN]**/
