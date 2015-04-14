@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-14 10:03:29
+*   @built on 2015-04-14 12:44:02
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-14 10:03:29
+*   @built on 2015-04-14 12:44:02
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -320,6 +320,31 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
         return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     },
+    
+    // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
+    str2dom = function( str ) {
+        var d = document, n, 
+            a = d.createElement("div"),
+            b = d.createDocumentFragment();
+        a.innerHTML = str;
+        while ( n = a.firstChild ) b.appendChild( n );
+        return b;
+    },
+    
+    // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
+    dom2str = (function() {
+        var DIV = document.createElement("div");
+
+        if ( 'outerHTML' in DIV )
+            return function(node) { return node.outerHTML; };
+
+        return function(node) {
+            var div = DIV.cloneNode();
+            div.appendChild( node.cloneNode(true) );
+            return div.innerHTML;
+        };
+
+    })(),
     
     // http://youmightnotneedjquery.com/
     MATCHES = (function( P ) {
@@ -3227,6 +3252,8 @@ var Tpl = function Tpl( id ) {
     tpl.initPubSub( );
 };
 Tpl.joinTextNodes = join_text_nodes;
+Tpl.string2Dom = str2dom;
+Tpl.dom2String = dom2str;
 Tpl.multisplit = function multisplit( tpl, reps, as_array ) {
     var r, sr, s, i, j, a, b, c, al, bl;
     as_array = !!as_array;
@@ -4146,6 +4173,12 @@ view.autobind( [Boolean bool] );
                     del(attribute, 'set');
                 }
                 
+                if ( attribute.each )
+                {
+                    attribute.change = {action:"each", key:attribute.each};
+                    del(attribute, 'each');
+                }
+                
                 if ( attribute.show )
                 {
                     attribute.change = {action:"show", key:attribute.show};
@@ -4613,6 +4646,11 @@ view.reset( );
     // NOP action
     ,do_nop: null
     
+    // update element each nodes dependiong on a model collection key
+    ,do_each: function( evt, el, data ) {
+        // in progress
+    }
+    
     // set element(s) attributes/properties according to binding
     ,do_prop: function( evt, el, data ) {
         if ( !is_type(data.prop, T_OBJ) ) return;
@@ -4877,6 +4915,16 @@ The declarative view binding format is like:
 </tr>
 </thead>
 <tbody>
+<tr>
+    <td>each</td>
+    <td>view.do_each</td>
+    <td>
+&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+    </td>
+    <td>update element each child node depending on model collection key (IN PROGRESS)</td>
+</tr>
 <tr>
     <td>prop</td>
     <td>view.do_prop</td>

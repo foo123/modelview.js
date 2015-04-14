@@ -27,6 +27,8 @@ var Tpl = function Tpl( id ) {
     tpl.initPubSub( );
 };
 Tpl.joinTextNodes = join_text_nodes;
+Tpl.string2Dom = str2dom;
+Tpl.dom2String = dom2str;
 Tpl.multisplit = function multisplit( tpl, reps, as_array ) {
     var r, sr, s, i, j, a, b, c, al, bl;
     as_array = !!as_array;

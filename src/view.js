@@ -466,6 +466,12 @@ view.autobind( [Boolean bool] );
                     del(attribute, 'set');
                 }
                 
+                if ( attribute.each )
+                {
+                    attribute.change = {action:"each", key:attribute.each};
+                    del(attribute, 'each');
+                }
+                
                 if ( attribute.show )
                 {
                     attribute.change = {action:"show", key:attribute.show};
@@ -933,6 +939,11 @@ view.reset( );
     // NOP action
     ,do_nop: null
     
+    // update element each nodes dependiong on a model collection key
+    ,do_each: function( evt, el, data ) {
+        // in progress
+    }
+    
     // set element(s) attributes/properties according to binding
     ,do_prop: function( evt, el, data ) {
         if ( !is_type(data.prop, T_OBJ) ) return;
@@ -1197,6 +1208,16 @@ The declarative view binding format is like:
 </tr>
 </thead>
 <tbody>
+<tr>
+    <td>each</td>
+    <td>view.do_each</td>
+    <td>
+&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+    </td>
+    <td>update element each child node depending on model collection key (IN PROGRESS)</td>
+</tr>
 <tr>
     <td>prop</td>
     <td>view.do_prop</td>

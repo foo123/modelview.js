@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.54**
+**Version 0.60**
 
 ###Contents
 
@@ -88,6 +88,12 @@ cache.del( key );
 
 ```javascript
 // modelview.js type casters
+
+
+
+
+// functionaly compose typeCasters, i.e final TypeCaster = TypeCaster1(TypeCaster2(...(value)))
+ModelView.Type.Cast.COMPOSITE( TypeCaster1, TypeCaster2 [, ...] );
 
 
 
@@ -366,9 +372,9 @@ $dom.modelview({
             
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
-                // type casters  can be composed (using BEFORE/AFTER) in an algebraic/functional way..
+                // type casters can be composed in an algebraic/functional way..
                 
-                'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STR ),
+                'field1': $.ModelView.Type.Cast.COMPOSITE($.ModelView.Type.Cast.DEFAULT( "default" ), $.ModelView.Type.Cast.STR),
                 
                 'field2': $.ModelView.Type.Cast.BOOL
             })
@@ -754,6 +760,16 @@ The declarative view binding format is like:
 </tr>
 </thead>
 <tbody>
+<tr>
+    <td>each</td>
+    <td>view.do_each</td>
+    <td>
+&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
+<br />shorthand of:<br />
+&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+    </td>
+    <td>update element each child node depending on model collection key (IN PROGRESS)</td>
+</tr>
 <tr>
     <td>prop</td>
     <td>view.do_prop</td>
