@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-14 12:44:02
+*   @built on 2015-04-14 18:24:27
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-14 12:44:02
+*   @built on 2015-04-14 18:24:27
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -52,7 +52,8 @@
 *   uses concepts from various MV* frameworks like:
 *       knockoutjs 
 *       agility.js
-*       backbone.js 
+*       backbone.js
+*       http://stackoverflow.com/questions/16483560/how-to-implement-dom-data-binding-in-javascript/23618763#23618763 
 **/
 
 /**[DOC_MARKDOWN]
@@ -189,6 +190,22 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
+    // use native methods and abbreviation aliases if available
+    fromJSON = JSON.parse, toJSON = JSON.stringify, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    trim = SP.trim 
+            ? function( s ){ return s.trim( ); } 
+            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    startsWith = SP.startsWith 
+            ? function( str, pre, pos ){ return str.startsWith(pre, pos||0); } 
+            : function( str, pre, pos ){ return ( pre === str.slice(pos||0, pre.length) ); },
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
+    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
+    
     // Array multi - sorter utility
     // returns a sorter that can (sub-)sort by multiple (nested) fields 
     // each ascending or descending independantly
@@ -273,7 +290,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     node_closest_index = function( node, root ) {
         var closest = node;
-        if ( root ) while ( closest.parentNode && closest.parentNode !== root ) closest = closest.parentNode;
+        if ( root ) while ( closest[PARENT] && closest[PARENT] !== root ) closest = closest[PARENT];
         return node_index( closest );
     },
     
@@ -318,7 +335,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     get_dom_ref = function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el/*, true*/ ) : $sel( ref, null/*, true*/ );
     },
     
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
@@ -399,7 +416,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if ( ( opt[SELECTED] || i === sel_index ) &&
                 // Don't return options that are disabled or in a disabled optgroup
                 ( !opt[DISABLED] ) &&
-                ( !opt[PARENT][DISABLED] || "optgroup" !== opt[PARENT][TAG] ) 
+                ( !opt[PARENT][DISABLED] || "OPTGROUP" !== opt[PARENT][TAG] ) 
             ) 
             {
                 // Get the specific value for the option
@@ -429,20 +446,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     get_val = function( el ) {
         if ( !el ) return;
-        switch( el[TAG].toLowerCase( ) )
+        switch( el[TAG] )
         {
-            case 'textarea':case 'input': return el[VAL];
-            case 'select': return select_get( el );
+            case 'TEXTAREA':case 'INPUT': return el[VAL];
+            case 'SELECT': return select_get( el );
             default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
         }
     },
     
     set_val = function( el, v ) {
         if ( !el ) return;
-        switch( el[TAG].toLowerCase( ) )
+        switch( el[TAG] )
         {
-            case 'textarea':case 'input': el[VAL] = Str(v); break;
-            case 'select': select_set( el, v ); break;
+            case 'TEXTAREA':case 'INPUT': el[VAL] = Str(v); break;
+            case 'SELECT': select_set( el, v ); break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
                 else el[TEXT] = Str(v);
@@ -463,22 +480,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ) 
             : false;
     },
-    
-    // use native methods and abbreviation aliases if available
-    fromJSON = JSON.parse, toJSON = JSON.stringify, 
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-    trim = SP.trim 
-            ? function( s ){ return s.trim( ); } 
-            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
-    startsWith = SP.startsWith 
-            ? function( str, pre, pos ){ return str.startsWith(pre, pos||0); } 
-            : function( str, pre, pos ){ return ( pre === str.slice(pos||0, pre.length) ); },
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
-    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
     
     Node = function( val, next ) {
         this.v = val || null;
@@ -2759,6 +2760,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('change', {
                         key: dottedKey, 
                         value: val, 
+                        action: 'set',
                         valuePrev: prevval,
                         $callData: callData
                     });
@@ -2787,6 +2789,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey, 
                         value: o[k], 
+                        action: 'set',
                         $callData: callData
                     });
                 }
@@ -2803,6 +2806,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         model.publish('change', {
                             key: dottedKey, 
                             value: val,
+                            action: 'set',
                             $callData: callData
                         });
                         
@@ -2827,6 +2831,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
+                        action: 'set',
                         $callData: callData
                     });
                     
@@ -2846,8 +2851,8 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
     // add/append value (for arrays like structures)
-    ,add: function ( dottedKey, val, pub, callData ) {
-        var model = this, r, o, k, p,
+    ,append: function ( dottedKey, val, pub, callData ) {
+        var model = this, r, o, k, p, index = -1,
             type, validator, setter,
             types, validators, setters, ideps,
             canSet = false,
@@ -2891,14 +2896,17 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 }
                 else 
                 {
+                    index = 0;
                     o.data( val );
                 }
                 
                 if ( pub )
                 {
-                    model.publish('append', {
+                    model.publish('change', {
                         key: dottedKey, 
                         value: val,
+                        action: 'append',
+                        index: index,
                         $callData: callData
                     });
                     
@@ -2926,6 +2934,8 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey, 
                         value: /*val*/undef,
+                        action: 'append',
+                        index: -1,
                         $callData: callData
                     });
                 }
@@ -2939,9 +2949,15 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 {
                     if ( pub )
                     {
-                        model.publish('append', {
+                        if ( T_ARRAY === get_type( o[ k ] ) )
+                        {
+                            index = o[ k ].length;
+                        }
+                        model.publish('change', {
                             key: dottedKey, 
                             value: val,
+                            action: 'append',
+                            index: index,
                             $callData: callData
                         });
                         
@@ -2956,19 +2972,173 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
             if ( T_ARRAY === get_type( o[ k ] ) )
             {
                 // append node here
+                index = o[ k ].length;
                 o[ k ].push( val );
             }
             else
             {
                 // not array-like, do a set operation, in case
+                index = -1;
                 o[ k ] = val;
             }
         
             if ( pub )
             {
-                model.publish('append', {
+                model.publish('change', {
                     key: dottedKey, 
                     value: val,
+                    action: 'append',
+                    index: index,
+                    $callData: callData
+                });
+                
+                // notify any dependencies as well
+                if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+            }
+            if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+        }
+        return model;
+    }
+    
+/**[DOC_MARKDOWN]
+// model insert val to key (if key is array-like) at specified position/index
+model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
+
+[/DOC_MARKDOWN]**/
+    // insert value at index (for arrays like structures)
+    ,insert: function ( dottedKey, val, index, pub, callData ) {
+        var model = this, r, o, k, p,
+            type, validator, setter,
+            types, validators, setters, ideps,
+            canSet = false,
+            autovalidate = model.$autovalidate
+        ;
+        
+        if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
+        
+        o = model.$data;
+        types = model.$types; 
+        validators = model.$validators; 
+        setters = model.$setters;
+        ideps = model.$idependencies;
+        
+        // http://jsperf.com/regex-vs-indexof-with-and-without-char
+        // http://jsperf.com/split-vs-test-and-split
+        // test and split (if needed) is fastest
+        if ( 0 > dottedKey.indexOf('.') )
+        {
+            // handle single key fast
+            k = dottedKey;
+            setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            canSet = true;
+        }
+        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
+        {
+            o = r[ 1 ]; k = r[ 2 ];
+            type = getValue( getNext( r[4], k ), WILDCARD );
+            validator = getValue( getNext( r[5], k ), WILDCARD );
+            setter = getValue( getNext( r[6], k ), WILDCARD );
+            
+            if ( Model === r[ 0 ]  ) 
+            {
+                // nested sub-model
+                if ( k.length ) 
+                {
+                    k = k.join('.');
+                    o.insert( k, val, index, pub, callData ); 
+                }
+                else 
+                {
+                    //index = 0;
+                    o.data( val );
+                }
+                
+                if ( pub )
+                {
+                    model.publish('change', {
+                        key: dottedKey, 
+                        value: val,
+                        action: 'insert',
+                        index: index,
+                        $callData: callData
+                    });
+                    
+                    // notify any dependencies as well
+                    if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                }
+                return model;
+            }
+            else if ( !setter && (false === r[0] && r[3].length) )
+            {
+                // cannot add intermediate values or not array
+                return model;
+            }
+            canSet = true;
+        }
+        
+        if ( canSet )
+        {
+            if ( type ) val = type.call( model, val, dottedKey );
+            if ( validator && !validator.call( model, val, dottedKey ) )
+            {
+                if ( pub )
+                {
+                    if ( callData ) callData.error = true;
+                    model.publish('error', {
+                        key: dottedKey, 
+                        value: /*val*/undef,
+                        action: 'append',
+                        index: -1,
+                        $callData: callData
+                    });
+                }
+                return model;
+            }
+            
+            // custom setter
+            if ( setter ) 
+            {
+                if ( false !== setter.call( model, dottedKey, val, pub ) ) 
+                {
+                    if ( pub )
+                    {
+                        model.publish('change', {
+                            key: dottedKey, 
+                            value: val,
+                            action: 'insert',
+                            index: index,
+                            $callData: callData
+                        });
+                        
+                        // notify any dependencies as well
+                        if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                    }
+                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+                }
+                return model;
+            }
+            
+            if ( T_ARRAY === get_type( o[ k ] ) )
+            {
+                // insert node here
+                o[ k ].splice( index, 0, val );
+            }
+            else
+            {
+                // not array-like, do a set operation, in case
+                index = -1;
+                o[ k ] = val;
+            }
+        
+            if ( pub )
+            {
+                model.publish('change', {
+                    key: dottedKey, 
+                    value: val,
+                    action: 'insert',
+                    index: index,
                     $callData: callData
                 });
                 
@@ -2987,11 +3157,11 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function( dottedKey, pub, reArrangeIndexes, callData ) {
-        var model = this, r, o, k, p, val, canDel = false;
+        var model = this, r, o, k, p, val, index = -1, canDel = false;
         
         if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
         
-        reArrangeIndexes = !!reArrangeIndexes;
+        reArrangeIndexes = false !== reArrangeIndexes;
         o = model.$data;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
@@ -3013,9 +3183,12 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
                 k = k.join('.');
                 val = o.get( k );
                 o.del( k, reArrangeIndexes, pub, callData ); 
-                pub && model.publish('delete', {
+                pub && model.publish('change', {
                         key: dottedKey, 
                         value: val,
+                        action: 'delete',
+                        index: index,
+                        rearrange: reArrangeIndexes,
                         $callData: callData
                     });
                 
@@ -3037,16 +3210,19 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
             {
                 o[ k ] = undef; T = get_type( o );
                  // re-arrange indexes
-                if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
+                if ( T_ARRAY == T && is_array_index( k ) ) {index = +k; o.splice( index, 1 );}
                 else if ( T_OBJ == T ) delete o[ k ];
             }
             else
             {
                 delete o[ k ]; // not re-arrange indexes
             }
-            pub && model.publish('delete', {
+            pub && model.publish('change', {
                     key: dottedKey, 
                     value: val,
+                    action: 'delete',
+                    index: index,
+                    rearrange: reArrangeIndexes,
                     $callData: callData
                 });
             
@@ -3136,10 +3312,13 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
         {
             t = get_type( dottedKey );
             evt = evt || 'change';  
-            d = {key: ''};
+            d = {key: '', action: 'set'};
             if ( data )
             {
                 if ( data[HAS]('value') ) d.value = data.value;
+                if ( data[HAS]('action') ) d.action = data.action;
+                if ( data[HAS]('index') ) d.index = data.index;
+                if ( data[HAS]('rearrange') ) d.rearrange = data.rearrange;
                 if ( data[HAS]('$callData') ) d.$callData = data.$callData;
             }
             
@@ -3170,7 +3349,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             {
                 // notify any dependencies as well
                 deps2 = [];
-                d = {key: ''};
+                d = {key: '', action: 'set'};
                 for (k=0; k<l; k++)
                 {
                     dk = deps[ k ];
@@ -3178,7 +3357,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     if ( keys[HAS]('_'+dk) ) continue;
                     keys['_'+dk] = 1;
                     if ( ideps[HAS](dk) ) deps2 = deps2.concat( ideps[dk] );
-                    d.key = dk;
+                    d.key = dk; 
                     model.publish( "change", d );
                 }
                 deps = deps2;
@@ -3216,7 +3395,8 @@ model.atom( String dottedKey | Boolean false );
     }
 });
 // aliases
-Model[proto].append = Model[proto].add;
+Model[proto].add = Model[proto].append;
+Model[proto].ins = Model[proto].insert;
 Model[proto].rem = Model[proto].del;
 /**[DOC_MARKDOWN]
 
@@ -4680,7 +4860,7 @@ view.reset( );
                         break;
                     
                     case 'options':
-                        if ( 'select' === el[TAG] && (T_ARRAY === vT) )
+                        if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
                         {
                             var sel, ii, vl = v.length,
                                 _options = '', group = $tag( 'optgroup', el );
@@ -4921,7 +5101,7 @@ The declarative view binding format is like:
     <td>
 &lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
 <br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
     </td>
     <td>update element each child node depending on model collection key (IN PROGRESS)</td>
 </tr>

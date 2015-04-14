@@ -846,6 +846,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('change', {
                         key: dottedKey, 
                         value: val, 
+                        action: 'set',
                         valuePrev: prevval,
                         $callData: callData
                     });
@@ -874,6 +875,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey, 
                         value: o[k], 
+                        action: 'set',
                         $callData: callData
                     });
                 }
@@ -890,6 +892,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         model.publish('change', {
                             key: dottedKey, 
                             value: val,
+                            action: 'set',
                             $callData: callData
                         });
                         
@@ -914,6 +917,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         key: dottedKey, 
                         value: val, 
                         valuePrev: prevval,
+                        action: 'set',
                         $callData: callData
                     });
                     
@@ -933,8 +937,8 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
     // add/append value (for arrays like structures)
-    ,add: function ( dottedKey, val, pub, callData ) {
-        var model = this, r, o, k, p,
+    ,append: function ( dottedKey, val, pub, callData ) {
+        var model = this, r, o, k, p, index = -1,
             type, validator, setter,
             types, validators, setters, ideps,
             canSet = false,
@@ -978,14 +982,17 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 }
                 else 
                 {
+                    index = 0;
                     o.data( val );
                 }
                 
                 if ( pub )
                 {
-                    model.publish('append', {
+                    model.publish('change', {
                         key: dottedKey, 
                         value: val,
+                        action: 'append',
+                        index: index,
                         $callData: callData
                     });
                     
@@ -1013,6 +1020,8 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey, 
                         value: /*val*/undef,
+                        action: 'append',
+                        index: -1,
                         $callData: callData
                     });
                 }
@@ -1026,9 +1035,15 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 {
                     if ( pub )
                     {
-                        model.publish('append', {
+                        if ( T_ARRAY === get_type( o[ k ] ) )
+                        {
+                            index = o[ k ].length;
+                        }
+                        model.publish('change', {
                             key: dottedKey, 
                             value: val,
+                            action: 'append',
+                            index: index,
                             $callData: callData
                         });
                         
@@ -1043,19 +1058,173 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
             if ( T_ARRAY === get_type( o[ k ] ) )
             {
                 // append node here
+                index = o[ k ].length;
                 o[ k ].push( val );
             }
             else
             {
                 // not array-like, do a set operation, in case
+                index = -1;
                 o[ k ] = val;
             }
         
             if ( pub )
             {
-                model.publish('append', {
+                model.publish('change', {
                     key: dottedKey, 
                     value: val,
+                    action: 'append',
+                    index: index,
+                    $callData: callData
+                });
+                
+                // notify any dependencies as well
+                if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+            }
+            if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+        }
+        return model;
+    }
+    
+/**[DOC_MARKDOWN]
+// model insert val to key (if key is array-like) at specified position/index
+model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
+
+[/DOC_MARKDOWN]**/
+    // insert value at index (for arrays like structures)
+    ,insert: function ( dottedKey, val, index, pub, callData ) {
+        var model = this, r, o, k, p,
+            type, validator, setter,
+            types, validators, setters, ideps,
+            canSet = false,
+            autovalidate = model.$autovalidate
+        ;
+        
+        if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
+        
+        o = model.$data;
+        types = model.$types; 
+        validators = model.$validators; 
+        setters = model.$setters;
+        ideps = model.$idependencies;
+        
+        // http://jsperf.com/regex-vs-indexof-with-and-without-char
+        // http://jsperf.com/split-vs-test-and-split
+        // test and split (if needed) is fastest
+        if ( 0 > dottedKey.indexOf('.') )
+        {
+            // handle single key fast
+            k = dottedKey;
+            setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            canSet = true;
+        }
+        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
+        {
+            o = r[ 1 ]; k = r[ 2 ];
+            type = getValue( getNext( r[4], k ), WILDCARD );
+            validator = getValue( getNext( r[5], k ), WILDCARD );
+            setter = getValue( getNext( r[6], k ), WILDCARD );
+            
+            if ( Model === r[ 0 ]  ) 
+            {
+                // nested sub-model
+                if ( k.length ) 
+                {
+                    k = k.join('.');
+                    o.insert( k, val, index, pub, callData ); 
+                }
+                else 
+                {
+                    //index = 0;
+                    o.data( val );
+                }
+                
+                if ( pub )
+                {
+                    model.publish('change', {
+                        key: dottedKey, 
+                        value: val,
+                        action: 'insert',
+                        index: index,
+                        $callData: callData
+                    });
+                    
+                    // notify any dependencies as well
+                    if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                }
+                return model;
+            }
+            else if ( !setter && (false === r[0] && r[3].length) )
+            {
+                // cannot add intermediate values or not array
+                return model;
+            }
+            canSet = true;
+        }
+        
+        if ( canSet )
+        {
+            if ( type ) val = type.call( model, val, dottedKey );
+            if ( validator && !validator.call( model, val, dottedKey ) )
+            {
+                if ( pub )
+                {
+                    if ( callData ) callData.error = true;
+                    model.publish('error', {
+                        key: dottedKey, 
+                        value: /*val*/undef,
+                        action: 'append',
+                        index: -1,
+                        $callData: callData
+                    });
+                }
+                return model;
+            }
+            
+            // custom setter
+            if ( setter ) 
+            {
+                if ( false !== setter.call( model, dottedKey, val, pub ) ) 
+                {
+                    if ( pub )
+                    {
+                        model.publish('change', {
+                            key: dottedKey, 
+                            value: val,
+                            action: 'insert',
+                            index: index,
+                            $callData: callData
+                        });
+                        
+                        // notify any dependencies as well
+                        if ( ideps[HAS](dottedKey) ) model.notify( ideps[dottedKey] );
+                    }
+                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+                }
+                return model;
+            }
+            
+            if ( T_ARRAY === get_type( o[ k ] ) )
+            {
+                // insert node here
+                o[ k ].splice( index, 0, val );
+            }
+            else
+            {
+                // not array-like, do a set operation, in case
+                index = -1;
+                o[ k ] = val;
+            }
+        
+            if ( pub )
+            {
+                model.publish('change', {
+                    key: dottedKey, 
+                    value: val,
+                    action: 'insert',
+                    index: index,
                     $callData: callData
                 });
                 
@@ -1074,11 +1243,11 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function( dottedKey, pub, reArrangeIndexes, callData ) {
-        var model = this, r, o, k, p, val, canDel = false;
+        var model = this, r, o, k, p, val, index = -1, canDel = false;
         
         if ( model.atomic && startsWith( dottedKey, model.$atom ) ) return model;
         
-        reArrangeIndexes = !!reArrangeIndexes;
+        reArrangeIndexes = false !== reArrangeIndexes;
         o = model.$data;
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
@@ -1100,9 +1269,12 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
                 k = k.join('.');
                 val = o.get( k );
                 o.del( k, reArrangeIndexes, pub, callData ); 
-                pub && model.publish('delete', {
+                pub && model.publish('change', {
                         key: dottedKey, 
                         value: val,
+                        action: 'delete',
+                        index: index,
+                        rearrange: reArrangeIndexes,
                         $callData: callData
                     });
                 
@@ -1124,16 +1296,19 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
             {
                 o[ k ] = undef; T = get_type( o );
                  // re-arrange indexes
-                if ( T_ARRAY == T && is_array_index( k ) ) o.splice( +k, 1 );
+                if ( T_ARRAY == T && is_array_index( k ) ) {index = +k; o.splice( index, 1 );}
                 else if ( T_OBJ == T ) delete o[ k ];
             }
             else
             {
                 delete o[ k ]; // not re-arrange indexes
             }
-            pub && model.publish('delete', {
+            pub && model.publish('change', {
                     key: dottedKey, 
                     value: val,
+                    action: 'delete',
+                    index: index,
+                    rearrange: reArrangeIndexes,
                     $callData: callData
                 });
             
@@ -1223,10 +1398,13 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
         {
             t = get_type( dottedKey );
             evt = evt || 'change';  
-            d = {key: ''};
+            d = {key: '', action: 'set'};
             if ( data )
             {
                 if ( data[HAS]('value') ) d.value = data.value;
+                if ( data[HAS]('action') ) d.action = data.action;
+                if ( data[HAS]('index') ) d.index = data.index;
+                if ( data[HAS]('rearrange') ) d.rearrange = data.rearrange;
                 if ( data[HAS]('$callData') ) d.$callData = data.$callData;
             }
             
@@ -1257,7 +1435,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             {
                 // notify any dependencies as well
                 deps2 = [];
-                d = {key: ''};
+                d = {key: '', action: 'set'};
                 for (k=0; k<l; k++)
                 {
                     dk = deps[ k ];
@@ -1265,7 +1443,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     if ( keys[HAS]('_'+dk) ) continue;
                     keys['_'+dk] = 1;
                     if ( ideps[HAS](dk) ) deps2 = deps2.concat( ideps[dk] );
-                    d.key = dk;
+                    d.key = dk; 
                     model.publish( "change", d );
                 }
                 deps = deps2;
@@ -1303,7 +1481,8 @@ model.atom( String dottedKey | Boolean false );
     }
 });
 // aliases
-Model[proto].append = Model[proto].add;
+Model[proto].add = Model[proto].append;
+Model[proto].ins = Model[proto].insert;
 Model[proto].rem = Model[proto].del;
 /**[DOC_MARKDOWN]
 

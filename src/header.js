@@ -15,7 +15,8 @@
 *   uses concepts from various MV* frameworks like:
 *       knockoutjs 
 *       agility.js
-*       backbone.js 
+*       backbone.js
+*       http://stackoverflow.com/questions/16483560/how-to-implement-dom-data-binding-in-javascript/23618763#23618763 
 **/
 
 /**[DOC_MARKDOWN]

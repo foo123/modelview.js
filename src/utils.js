@@ -116,6 +116,22 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
+    // use native methods and abbreviation aliases if available
+    fromJSON = JSON.parse, toJSON = JSON.stringify, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    trim = SP.trim 
+            ? function( s ){ return s.trim( ); } 
+            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+    startsWith = SP.startsWith 
+            ? function( str, pre, pos ){ return str.startsWith(pre, pos||0); } 
+            : function( str, pre, pos ){ return ( pre === str.slice(pos||0, pre.length) ); },
+    
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
+    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
+    
     // Array multi - sorter utility
     // returns a sorter that can (sub-)sort by multiple (nested) fields 
     // each ascending or descending independantly
@@ -200,7 +216,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     node_closest_index = function( node, root ) {
         var closest = node;
-        if ( root ) while ( closest.parentNode && closest.parentNode !== root ) closest = closest.parentNode;
+        if ( root ) while ( closest[PARENT] && closest[PARENT] !== root ) closest = closest[PARENT];
         return node_index( closest );
     },
     
@@ -245,7 +261,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     get_dom_ref = function( el, ref ) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el/*, true*/ ) : $sel( ref, null/*, true*/ );
     },
     
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
@@ -326,7 +342,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if ( ( opt[SELECTED] || i === sel_index ) &&
                 // Don't return options that are disabled or in a disabled optgroup
                 ( !opt[DISABLED] ) &&
-                ( !opt[PARENT][DISABLED] || "optgroup" !== opt[PARENT][TAG] ) 
+                ( !opt[PARENT][DISABLED] || "OPTGROUP" !== opt[PARENT][TAG] ) 
             ) 
             {
                 // Get the specific value for the option
@@ -356,20 +372,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     get_val = function( el ) {
         if ( !el ) return;
-        switch( el[TAG].toLowerCase( ) )
+        switch( el[TAG] )
         {
-            case 'textarea':case 'input': return el[VAL];
-            case 'select': return select_get( el );
+            case 'TEXTAREA':case 'INPUT': return el[VAL];
+            case 'SELECT': return select_get( el );
             default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
         }
     },
     
     set_val = function( el, v ) {
         if ( !el ) return;
-        switch( el[TAG].toLowerCase( ) )
+        switch( el[TAG] )
         {
-            case 'textarea':case 'input': el[VAL] = Str(v); break;
-            case 'select': select_set( el, v ); break;
+            case 'TEXTAREA':case 'INPUT': el[VAL] = Str(v); break;
+            case 'SELECT': select_set( el, v ); break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
                 else el[TEXT] = Str(v);
@@ -390,22 +406,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" ) 
             : false;
     },
-    
-    // use native methods and abbreviation aliases if available
-    fromJSON = JSON.parse, toJSON = JSON.stringify, 
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-    trim = SP.trim 
-            ? function( s ){ return s.trim( ); } 
-            : function( s ){ return s.replace(/^\s+|\s+$/g, ''); }, 
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
-    startsWith = SP.startsWith 
-            ? function( str, pre, pos ){ return str.startsWith(pre, pos||0); } 
-            : function( str, pre, pos ){ return ( pre === str.slice(pos||0, pre.length) ); },
-    
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
-    NOW = Date.now ? Date.now : function( ) { return new Date( ).getTime( ); },
     
     Node = function( val, next ) {
         this.v = val || null;

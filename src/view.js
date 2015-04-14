@@ -973,7 +973,7 @@ view.reset( );
                         break;
                     
                     case 'options':
-                        if ( 'select' === el[TAG] && (T_ARRAY === vT) )
+                        if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
                         {
                             var sel, ii, vl = v.length,
                                 _options = '', group = $tag( 'optgroup', el );
@@ -1214,7 +1214,7 @@ The declarative view binding format is like:
     <td>
 &lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
 <br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
     </td>
     <td>update element each child node depending on model collection key (IN PROGRESS)</td>
 </tr>

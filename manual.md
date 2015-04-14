@@ -525,6 +525,12 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 
 
+// model insert val to key (if key is array-like) at specified position/index
+model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
+
+
+
+
 // model delete/remove key (with or without re-arranging array indexes)
 model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=false] );
 
@@ -766,7 +772,7 @@ The declarative view binding format is like:
     <td>
 &lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
 <br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/div>
+&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
     </td>
     <td>update element each child node depending on model collection key (IN PROGRESS)</td>
 </tr>
