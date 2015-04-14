@@ -26,8 +26,9 @@ var Tpl = function Tpl( id ) {
     tpl.id = id || uuid('Tpl');
     tpl.initPubSub( );
 };
+Tpl.joinTextNodes = join_text_nodes;
 Tpl.multisplit = function multisplit( tpl, reps, as_array ) {
-    var r, sr, s, i, j, a, b, c, al, bl/*, as_array = is_array(reps)*/;
+    var r, sr, s, i, j, a, b, c, al, bl;
     as_array = !!as_array;
     a = [ [1, tpl] ];
     for ( r in reps )
@@ -70,18 +71,6 @@ Tpl.multisplit_re = function multisplit_re( tpl, re ) {
     }
     a.push([1, tpl.slice(i)]);
     return a;
-};
-Tpl.render = function render( tpl, args ) {
-    var l = tpl.length,
-        i, notIsSub, s, out = ''
-    ;
-    args = args || [ ];
-    for (i=0; i<l; i++)
-    {
-        notIsSub = tpl[ i ][ 0 ]; s = tpl[ i ][ 1 ];
-        out += (notIsSub ? s : args[ s ]);
-    }
-    return out;
 };
 Tpl.compile = function compile( tpl ) {
     var l = tpl.length, 
@@ -232,34 +221,24 @@ Tpl.multisplit_dom = function multisplit_dom( node, re_key, hash, atKeys ) {
     }
     return hash;
 };
-Tpl.joinTextNodes = function joinTextNodes( nodes ) {
-    var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
-    if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
-    return txt;
-};
-Tpl.findNode = function findNode( root, node_type, node_index ) {
-    var ndList = root.childNodes, len = ndList.length, 
-        n, node = null, i = 0, node_ith = 0;
-    node_index = node_index || 1;
-    // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
-    // TEXT_NODE = 3, COMMENT_NODE = 8
-    // return node.nodeValue
-    while ( i < len )
+Tpl.render_str = function render( tpl, args ) {
+    var l = tpl.length,
+        i, notIsSub, s, out = ''
+    ;
+    for (i=0; i<l; i++)
     {
-        n = ndList[i++];
-        if ( node_type === n.nodeType )
-        {
-            node = n;
-            if (++node_ith === node_index) break;
-        }
+        notIsSub = tpl[ i ][ 0 ]; s = tpl[ i ][ 1 ];
+        out += (notIsSub ? s : String(args[ s ]));
     }
-    return node;
+    return out;
 };
-Tpl.renderDom = function renderDom( tpl, data ) {
-    var model = data.model, elements = data.elements, els_len = elements.length, el, e, att,
-        key = data.key, val = data.val, evt = data.evt,
+Tpl.render_dom = function render( tpl, args ) {
+    // todo
+};
+Tpl.render_view = function( tpl, view, model, evt, elements, key, val, isSync ) {
+    var els_len = elements.length, el, e, att,
         i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
-        isSync = data.isSync, hash = tpl.$keynodes, cached = { }, nid
+        hash = tpl.$keynodes, cached = { }, nid
     ;
     if ( !hash ) return;
 
@@ -461,6 +440,13 @@ tpl.free( Node el );
         return tpl;
     }
     
+    ,renderView: function( view, model, evt, elements, key, val, isSync ) {
+        var tpl = this;
+        
+        if ( tpl.$dom ) Tpl.render_view( tpl, view, model, evt, elements, key, val, isSync );
+        return tpl;
+    }
+    
 /**[DOC_MARKDOWN]
 // render the template with given data (either update DOM Node or return the replaced string template)
 tpl.render( Object|Array data );
@@ -472,14 +458,14 @@ tpl.render( Object|Array data );
         if ( tpl.$dom )
         {
             data = data || {};
-            Tpl.renderDom( tpl, data );
+            Tpl.render_dom( tpl, data );
             return tpl;
         }
         else if ( tpl.$tpl )
         {
             data = data || [];
             if ( tpl.$renderer ) return tpl.$renderer( data );
-            else return Tpl.render( tpl.$tpl, data );
+            else return Tpl.render_str( tpl.$tpl, data );
         }
     }
     

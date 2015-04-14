@@ -196,6 +196,10 @@ var View = function View( id, model, atts, cacheSize, refreshInterval ) {
 // STATIC
 View._CACHE_SIZE = 600; // cache size
 View._REFRESH_INTERVAL = INF; // refresh cache interval
+View.node = find_node;
+View.index = node_index;
+View.indexClosest = node_closest_index;
+View.getDomRef = get_dom_ref;
 // View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
@@ -422,13 +426,6 @@ view.autobind( [Boolean bool] );
         return view.$bindbubble;                        
     }
     
-    // http://stackoverflow.com/a/11762728/3591273
-    ,index: function( node ) {
-        var index = 0;
-        while ( (node=node.previousSibling) ) index++;
-        return index;
-    }
-    
     // cache selectors for even faster performance
     ,get: function( selector, $dom, addRoot, bypass ) {
         var view = this, selectorsCache = view.$selectors, elements;
@@ -544,11 +541,6 @@ view.autobind( [Boolean bool] );
         }
         
         return undef;
-    }
-    
-    ,getDomRef: function( el, ref ) {
-        // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     }
     
     ,add: function( el, and_sync ) {  
@@ -750,7 +742,7 @@ view.sync( [DOMNode dom=view.$dom] );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
-        if ( livebind && livebinds.length ) view.$dom_tpl.render({elements: livebinds, model: view.$model, key: null, val: null, evt: syncEvent, isSync: true});
+        if ( livebind && livebinds.length ) view.$dom_tpl.renderView(view, view.$model, syncEvent, livebinds, null, null, true);
         return view;
     }
     
@@ -914,7 +906,7 @@ view.reset( );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
+        if ( livebind && liveBindings.length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
     }
 
     ,on_model_error: function( evt, data ) {
@@ -931,7 +923,7 @@ view.reset( );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
     }
     
     //
@@ -949,7 +941,7 @@ view.reset( );
             prop = data.prop, p, k, v, vT
         ;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el ) return;
             
         for (p in prop)
@@ -1001,7 +993,7 @@ view.reset( );
     ,do_html: function( evt, el, data ) {
         if ( !data.key ) return;
         var view = this, model = view.$model, key = data.key;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key || !model.has( key ) ) return;
         el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
     }
@@ -1010,7 +1002,7 @@ view.reset( );
     ,do_css: function( evt, el, data ) {
         if ( !is_type(data.css, T_OBJ) ) return;
         var view = this, model = view.$model, css = data.css, k, p, v;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[ 0 ];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[ 0 ];
         if ( !el ) return;
         // css attributes
         for ( p in css )
@@ -1045,7 +1037,7 @@ view.reset( );
             }
             else
             {
-                if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+                if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
                 val = get_val( el );
             }
             model.set( key, val, 1 );
@@ -1059,7 +1051,7 @@ view.reset( );
             mode, html
         ;
         if ( !view.$template || !key || !tplID ) return;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el ) return;
         
         model = view.$model;
@@ -1075,7 +1067,7 @@ view.reset( );
     ,do_show: function( evt, el, data ) {
         var view = this, model = view.$model, key = data.key;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
         if ( data[HAS]('value') )
         {
@@ -1095,7 +1087,7 @@ view.reset( );
     ,do_hide: function( evt, el, data ) {
         var view = this, model = view.$model, key = data.key;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
         if ( data[HAS]('value') )
         {

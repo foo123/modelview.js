@@ -2,6 +2,7 @@
 *
 *   ModelView.js
 *   @version: @@VERSION@@
+*   @built on @@DATE@@
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget

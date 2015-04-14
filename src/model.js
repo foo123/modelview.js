@@ -474,6 +474,8 @@ Model.count = function( o ) {
     else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
     return 0;
 };
+// return a sorter to sort model data in custom ways, easily
+Model.sorter = sorter;
 Model.Field = ModelField;
 
 // Model implements PublishSubscribe pattern

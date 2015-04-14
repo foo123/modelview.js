@@ -1,7 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.54
+*   @version: 0.60
+*   @built on 2015-04-14 10:03:29
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -37,7 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.54
+*   @version: 0.60
+*   @built on 2015-04-14 10:03:29
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -56,7 +58,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.54**
+**Version 0.60**
 
 ###Contents
 
@@ -187,6 +189,119 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
+    // Array multi - sorter utility
+    // returns a sorter that can (sub-)sort by multiple (nested) fields 
+    // each ascending or descending independantly
+    sorter = function( ) {
+
+        var arr = this, i, args = arguments, l = args.length,
+            a, b, step, lt, gt,
+            field, filter_args, sorter_args, desc, dir, sorter,
+            ASC = '|^', DESC = '|v';
+        // |^ after a (nested) field indicates ascending sorting (default), 
+        // example "a.b.c|^"
+        // |v after a (nested) field indicates descending sorting, 
+        // example "b.c.d|v"
+        if ( l )
+        {
+            step = 1;
+            sorter = [];
+            sorter_args = [];
+            filter_args = []; 
+            for (i=l-1; i>=0; i--)
+            {
+                field = args[i];
+                // if is array, it contains a filter function as well
+                filter_args.unshift('f'+i);
+                if ( field.push )
+                {
+                    sorter_args.unshift(field[1]);
+                    field = field[0];
+                }
+                else
+                {
+                    sorter_args.unshift(null);
+                }
+                dir = field.slice(-2);
+                if ( DESC === dir ) 
+                {
+                    desc = true;
+                    field = field.slice(0,-2);
+                }
+                else if ( ASC === dir )
+                {
+                    desc = false;
+                    field = field.slice(0,-2);
+                }
+                else
+                {
+                    // default ASC
+                    desc = false;
+                }
+                field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
+                a = "a"+field; b = "b"+field;
+                if ( sorter_args[0] ) 
+                {
+                    a = filter_args[0] + '(' + a + ')';
+                    b = filter_args[0] + '(' + b + ')';
+                }
+                lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
+                sorter.unshift("("+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0))");
+                step <<= 1;
+            }
+            // use optional custom filters as well
+            return (newFunc(
+                    filter_args.join(','), 
+                    'return function(a,b) { return ('+sorter.join(' + ')+'); };'
+                    ))
+                    .apply(null, sorter_args);
+        }
+        else
+        {
+            a = "a"; b = "b"; lt = '-1'; gt = '1';
+            sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
+            return newFunc("a,b", 'return ('+sorter+');');
+        }
+    },
+    
+    // http://stackoverflow.com/a/11762728/3591273
+    node_index = function( node ) {
+        var index = 0;
+        while ( (node=node.previousSibling) ) index++;
+        return index;
+    },
+    
+    node_closest_index = function( node, root ) {
+        var closest = node;
+        if ( root ) while ( closest.parentNode && closest.parentNode !== root ) closest = closest.parentNode;
+        return node_index( closest );
+    },
+    
+    find_node = function( root, node_type, node_index ) {
+        var ndList = root.childNodes, len = ndList.length, 
+            n, node = null, i = 0, node_ith = 0;
+        node_index = node_index || 1;
+        // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
+        // TEXT_NODE = 3, COMMENT_NODE = 8
+        // return node.nodeValue
+        while ( i < len )
+        {
+            n = ndList[i++];
+            if ( node_type === n.nodeType )
+            {
+                node = n;
+                if (++node_ith === node_index) break;
+            }
+        }
+        return node;
+    },
+    
+    join_text_nodes = function( nodes ) {
+        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
+        if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
+        return txt;
+    },
+    
     // http://youmightnotneedjquery.com/
     $id = function( id, el ) {
         return [ (el || document).getElementById( id ) ];
@@ -199,6 +314,11 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             ? [ (el || document).querySelector( selector ) ]
             : AP.slice.call( (el || document).querySelectorAll( selector ), 0 )
         ;
+    },
+    
+    get_dom_ref = function( el, ref ) {
+        // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     },
     
     // http://youmightnotneedjquery.com/
@@ -1162,25 +1282,6 @@ var
         return fields;
     },
     
-    // Type Compositor
-    TC = function TC( T ) {
-        
-        T.BEFORE = function( T2 ) {
-            return TC(function( v, k ) { 
-                var self = this;
-                return T2.call(self, T.call(self, v, k), k);
-            }); 
-        };
-        T.AFTER = function( T2 ) {
-            return TC(function( v, k ) { 
-                var self = this;
-                return T.call(self, T2.call(self, v, k), k);
-            }); 
-        };
-        
-        return T;
-    },
-        
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -1238,10 +1339,26 @@ var
 [/DOC_MARKDOWN]**/
     Type = {
         
-        TypeCaster: TC
+        TypeCaster: function( typecaster ){ return typecaster; }
         
         // default type casters
         ,Cast: {
+/**[DOC_MARKDOWN]
+// functionaly compose typeCasters, i.e final TypeCaster = TypeCaster1(TypeCaster2(...(value)))
+ModelView.Type.Cast.COMPOSITE( TypeCaster1, TypeCaster2 [, ...] );
+
+[/DOC_MARKDOWN]**/
+            // composite type caster
+            COMPOSITE: function( ) {
+                var args = arguments;
+                if ( is_type(args[ 0 ], T_ARRAY) ) args = args[ 0 ];
+                return function( v, k ) {
+                   var l = args.length;
+                   while ( l-- ) v = args[l].call(this, v, k);
+                   return v;
+                };
+            },
+            
 /**[DOC_MARKDOWN]
 // cast to "eachTypeCaster" for each element in a collection (see examples)
 ModelView.Type.Cast.EACH( eachTypeCaster );
@@ -1265,7 +1382,7 @@ ModelView.Type.Cast.FIELDS({
                 //var notbinded = true;
                 // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
                 typesPerField = bindFieldsToModel( Merge( {}, typesPerField || {} ) );
-                return TC(function( v ) { 
+                return function( v ) { 
                     var self = this, field, type, val, l, i;
                     //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
@@ -1286,7 +1403,7 @@ ModelView.Type.Cast.FIELDS({
                         }
                     }
                     return v;
-                }); 
+                }; 
             },
             
 /**[DOC_MARKDOWN]
@@ -1295,43 +1412,43 @@ ModelView.Type.Cast.DEFAULT( defaultValue );
 
 [/DOC_MARKDOWN]**/
             DEFAULT: function( defaultValue ) {  
-                return TC(function( v ) { 
+                return function( v ) { 
                     var T = get_type( v );
                     if ( (T_UNDEF & T) || ((T_STR & T) && !trim(v).length)  ) v = defaultValue;
                     return v;
-                }); 
+                }; 
             },
 /**[DOC_MARKDOWN]
 // cast to boolean
 ModelView.Type.Cast.BOOL;
 
 [/DOC_MARKDOWN]**/
-            BOOL: TC(function( v ) { 
+            BOOL: function( v ) { 
                 return !!v; 
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to integer
 ModelView.Type.Cast.INT;
 
 [/DOC_MARKDOWN]**/
-            INT: TC(function( v ) { 
+            INT: function( v ) { 
                 return parseInt(v, 10);
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to float
 ModelView.Type.Cast.FLOAT;
 
 [/DOC_MARKDOWN]**/
-            FLOAT: TC(function( v ) { 
+            FLOAT: function( v ) { 
                 return parseFloat(v, 10); 
-            }),
+            },
 /**[DOC_MARKDOWN]
 // min if value is less than
 ModelView.Type.Cast.MIN( min );
 
 [/DOC_MARKDOWN]**/
             MIN: function( m ) {  
-                return TC(function( v ) { return (v < m) ? m : v; }); 
+                return function( v ) { return (v < m) ? m : v; }; 
             },
 /**[DOC_MARKDOWN]
 // max if value is greater than
@@ -1339,7 +1456,7 @@ ModelView.Type.Cast.MAX( max );
 
 [/DOC_MARKDOWN]**/
             MAX: function( M ) {  
-                return TC(function( v ) { return (v > M) ? M : v; }); 
+                return function( v ) { return (v > M) ? M : v; }; 
             },
 /**[DOC_MARKDOWN]
 // clamp between min-max (included)
@@ -1349,40 +1466,40 @@ ModelView.Type.Cast.CLAMP( min, max );
             CLAMP: function( m, M ) {  
                 // swap
                 if ( m > M ) { var tmp = M; M = m; m = tmp; }
-                return TC(function( v ) { return (v < m) ? m : ((v > M) ? M : v); }); 
+                return function( v ) { return (v < m) ? m : ((v > M) ? M : v); }; 
             },
 /**[DOC_MARKDOWN]
 // cast to trimmed string of spaces
 ModelView.Type.Cast.TRIM;
 
 [/DOC_MARKDOWN]**/
-            TRIM: TC(function( v ) { 
+            TRIM: function( v ) { 
                 return trim(Str(v));
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to lowercase string
 ModelView.Type.Cast.LCASE;
 
 [/DOC_MARKDOWN]**/
-            LCASE: TC(function( v ) { 
+            LCASE: function( v ) { 
                 return Str(v).toLowerCase( );
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to uppercase string
 ModelView.Type.Cast.UCASE;
 
 [/DOC_MARKDOWN]**/
-            UCASE: TC(function( v ) { 
+            UCASE: function( v ) { 
                 return Str(v).toUpperCase( );
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to string
 ModelView.Type.Cast.STR;
 
 [/DOC_MARKDOWN]**/
-            STR: TC(function( v ) { 
+            STR: function( v ) { 
                 return (''+v); 
-            })
+            }
         }
         
 /**[DOC_MARKDOWN]
@@ -1392,7 +1509,7 @@ ModelView.Type.add( name, typeCaster );
 [/DOC_MARKDOWN]**/
         ,add: function( type, handler ) {
             if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) 
-                Type.Cast[ type ] = is_type( handler.AFTER, T_FUNC ) ? handler : TC( handler );
+                Type.Cast[ type ] = handler;
             return Type;
         }
         
@@ -1730,9 +1847,9 @@ $dom.modelview({
             
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
-                // type casters  can be composed (using BEFORE/AFTER) in an algebraic/functional way..
+                // type casters can be composed in an algebraic/functional way..
                 
-                'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STR ),
+                'field1': $.ModelView.Type.Cast.COMPOSITE($.ModelView.Type.Cast.DEFAULT( "default" ), $.ModelView.Type.Cast.STR),
                 
                 'field2': $.ModelView.Type.Cast.BOOL
             })
@@ -2245,6 +2362,8 @@ Model.count = function( o ) {
     else if ( T_UNDEF !== T ) return 1; //  is scalar value, set count to 1
     return 0;
 };
+// return a sorter to sort model data in custom ways, easily
+Model.sorter = sorter;
 Model.Field = ModelField;
 
 // Model implements PublishSubscribe pattern
@@ -3107,8 +3226,9 @@ var Tpl = function Tpl( id ) {
     tpl.id = id || uuid('Tpl');
     tpl.initPubSub( );
 };
+Tpl.joinTextNodes = join_text_nodes;
 Tpl.multisplit = function multisplit( tpl, reps, as_array ) {
-    var r, sr, s, i, j, a, b, c, al, bl/*, as_array = is_array(reps)*/;
+    var r, sr, s, i, j, a, b, c, al, bl;
     as_array = !!as_array;
     a = [ [1, tpl] ];
     for ( r in reps )
@@ -3151,18 +3271,6 @@ Tpl.multisplit_re = function multisplit_re( tpl, re ) {
     }
     a.push([1, tpl.slice(i)]);
     return a;
-};
-Tpl.render = function render( tpl, args ) {
-    var l = tpl.length,
-        i, notIsSub, s, out = ''
-    ;
-    args = args || [ ];
-    for (i=0; i<l; i++)
-    {
-        notIsSub = tpl[ i ][ 0 ]; s = tpl[ i ][ 1 ];
-        out += (notIsSub ? s : args[ s ]);
-    }
-    return out;
 };
 Tpl.compile = function compile( tpl ) {
     var l = tpl.length, 
@@ -3313,34 +3421,24 @@ Tpl.multisplit_dom = function multisplit_dom( node, re_key, hash, atKeys ) {
     }
     return hash;
 };
-Tpl.joinTextNodes = function joinTextNodes( nodes ) {
-    var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
-    if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
-    return txt;
-};
-Tpl.findNode = function findNode( root, node_type, node_index ) {
-    var ndList = root.childNodes, len = ndList.length, 
-        n, node = null, i = 0, node_ith = 0;
-    node_index = node_index || 1;
-    // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
-    // TEXT_NODE = 3, COMMENT_NODE = 8
-    // return node.nodeValue
-    while ( i < len )
+Tpl.render_str = function render( tpl, args ) {
+    var l = tpl.length,
+        i, notIsSub, s, out = ''
+    ;
+    for (i=0; i<l; i++)
     {
-        n = ndList[i++];
-        if ( node_type === n.nodeType )
-        {
-            node = n;
-            if (++node_ith === node_index) break;
-        }
+        notIsSub = tpl[ i ][ 0 ]; s = tpl[ i ][ 1 ];
+        out += (notIsSub ? s : String(args[ s ]));
     }
-    return node;
+    return out;
 };
-Tpl.renderDom = function renderDom( tpl, data ) {
-    var model = data.model, elements = data.elements, els_len = elements.length, el, e, att,
-        key = data.key, val = data.val, evt = data.evt,
+Tpl.render_dom = function render( tpl, args ) {
+    // todo
+};
+Tpl.render_view = function( tpl, view, model, evt, elements, key, val, isSync ) {
+    var els_len = elements.length, el, e, att,
         i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
-        isSync = data.isSync, hash = tpl.$keynodes, cached = { }, nid
+        hash = tpl.$keynodes, cached = { }, nid
     ;
     if ( !hash ) return;
 
@@ -3542,6 +3640,13 @@ tpl.free( Node el );
         return tpl;
     }
     
+    ,renderView: function( view, model, evt, elements, key, val, isSync ) {
+        var tpl = this;
+        
+        if ( tpl.$dom ) Tpl.render_view( tpl, view, model, evt, elements, key, val, isSync );
+        return tpl;
+    }
+    
 /**[DOC_MARKDOWN]
 // render the template with given data (either update DOM Node or return the replaced string template)
 tpl.render( Object|Array data );
@@ -3553,14 +3658,14 @@ tpl.render( Object|Array data );
         if ( tpl.$dom )
         {
             data = data || {};
-            Tpl.renderDom( tpl, data );
+            Tpl.render_dom( tpl, data );
             return tpl;
         }
         else if ( tpl.$tpl )
         {
             data = data || [];
             if ( tpl.$renderer ) return tpl.$renderer( data );
-            else return Tpl.render( tpl.$tpl, data );
+            else return Tpl.render_str( tpl.$tpl, data );
         }
     }
     
@@ -3771,6 +3876,10 @@ var View = function View( id, model, atts, cacheSize, refreshInterval ) {
 // STATIC
 View._CACHE_SIZE = 600; // cache size
 View._REFRESH_INTERVAL = INF; // refresh cache interval
+View.node = find_node;
+View.index = node_index;
+View.indexClosest = node_closest_index;
+View.getDomRef = get_dom_ref;
 // View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
@@ -3997,13 +4106,6 @@ view.autobind( [Boolean bool] );
         return view.$bindbubble;                        
     }
     
-    // http://stackoverflow.com/a/11762728/3591273
-    ,index: function( node ) {
-        var index = 0;
-        while ( (node=node.previousSibling) ) index++;
-        return index;
-    }
-    
     // cache selectors for even faster performance
     ,get: function( selector, $dom, addRoot, bypass ) {
         var view = this, selectorsCache = view.$selectors, elements;
@@ -4119,11 +4221,6 @@ view.autobind( [Boolean bool] );
         }
         
         return undef;
-    }
-    
-    ,getDomRef: function( el, ref ) {
-        // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     }
     
     ,add: function( el, and_sync ) {  
@@ -4325,7 +4422,7 @@ view.sync( [DOMNode dom=view.$dom] );
         }
         if ( binds.length ) doBindAction( view, binds, syncEvent );
         if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
-        if ( livebind && livebinds.length ) view.$dom_tpl.render({elements: livebinds, model: view.$model, key: null, val: null, evt: syncEvent, isSync: true});
+        if ( livebind && livebinds.length ) view.$dom_tpl.renderView(view, view.$model, syncEvent, livebinds, null, null, true);
         return view;
     }
     
@@ -4489,7 +4586,7 @@ view.reset( );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
+        if ( livebind && liveBindings.length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
     }
 
     ,on_model_error: function( evt, data ) {
@@ -4506,7 +4603,7 @@ view.reset( );
         // do view autobind action to bind input elements that map to the model, afterwards
         if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
         // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.render({elements: liveBindings, model: view.$model, key: data.key, val: data.value, evt: evt, isSync: 'sync' == evt.type});
+        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
     }
     
     //
@@ -4524,7 +4621,7 @@ view.reset( );
             prop = data.prop, p, k, v, vT
         ;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el ) return;
             
         for (p in prop)
@@ -4576,7 +4673,7 @@ view.reset( );
     ,do_html: function( evt, el, data ) {
         if ( !data.key ) return;
         var view = this, model = view.$model, key = data.key;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key || !model.has( key ) ) return;
         el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
     }
@@ -4585,7 +4682,7 @@ view.reset( );
     ,do_css: function( evt, el, data ) {
         if ( !is_type(data.css, T_OBJ) ) return;
         var view = this, model = view.$model, css = data.css, k, p, v;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[ 0 ];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[ 0 ];
         if ( !el ) return;
         // css attributes
         for ( p in css )
@@ -4620,7 +4717,7 @@ view.reset( );
             }
             else
             {
-                if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+                if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
                 val = get_val( el );
             }
             model.set( key, val, 1 );
@@ -4634,7 +4731,7 @@ view.reset( );
             mode, html
         ;
         if ( !view.$template || !key || !tplID ) return;
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el ) return;
         
         model = view.$model;
@@ -4650,7 +4747,7 @@ view.reset( );
     ,do_show: function( evt, el, data ) {
         var view = this, model = view.$model, key = data.key;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
         if ( data[HAS]('value') )
         {
@@ -4670,7 +4767,7 @@ view.reset( );
     ,do_hide: function( evt, el, data ) {
         var view = this, model = view.$model, key = data.key;
         
-        if ( data['domRef'] ) el = view.getDomRef( el, data['domRef'] )[0];
+        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
         if ( !el || !key ) return;
         if ( data[HAS]('value') )
         {
@@ -4991,7 +5088,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.54"
+    VERSION: "0.60"
     
     ,UUID: uuid
     
@@ -5015,7 +5112,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.54
+*   @version: 0.60
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

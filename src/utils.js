@@ -116,6 +116,119 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     
+    // Array multi - sorter utility
+    // returns a sorter that can (sub-)sort by multiple (nested) fields 
+    // each ascending or descending independantly
+    sorter = function( ) {
+
+        var arr = this, i, args = arguments, l = args.length,
+            a, b, step, lt, gt,
+            field, filter_args, sorter_args, desc, dir, sorter,
+            ASC = '|^', DESC = '|v';
+        // |^ after a (nested) field indicates ascending sorting (default), 
+        // example "a.b.c|^"
+        // |v after a (nested) field indicates descending sorting, 
+        // example "b.c.d|v"
+        if ( l )
+        {
+            step = 1;
+            sorter = [];
+            sorter_args = [];
+            filter_args = []; 
+            for (i=l-1; i>=0; i--)
+            {
+                field = args[i];
+                // if is array, it contains a filter function as well
+                filter_args.unshift('f'+i);
+                if ( field.push )
+                {
+                    sorter_args.unshift(field[1]);
+                    field = field[0];
+                }
+                else
+                {
+                    sorter_args.unshift(null);
+                }
+                dir = field.slice(-2);
+                if ( DESC === dir ) 
+                {
+                    desc = true;
+                    field = field.slice(0,-2);
+                }
+                else if ( ASC === dir )
+                {
+                    desc = false;
+                    field = field.slice(0,-2);
+                }
+                else
+                {
+                    // default ASC
+                    desc = false;
+                }
+                field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
+                a = "a"+field; b = "b"+field;
+                if ( sorter_args[0] ) 
+                {
+                    a = filter_args[0] + '(' + a + ')';
+                    b = filter_args[0] + '(' + b + ')';
+                }
+                lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
+                sorter.unshift("("+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0))");
+                step <<= 1;
+            }
+            // use optional custom filters as well
+            return (newFunc(
+                    filter_args.join(','), 
+                    'return function(a,b) { return ('+sorter.join(' + ')+'); };'
+                    ))
+                    .apply(null, sorter_args);
+        }
+        else
+        {
+            a = "a"; b = "b"; lt = '-1'; gt = '1';
+            sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
+            return newFunc("a,b", 'return ('+sorter+');');
+        }
+    },
+    
+    // http://stackoverflow.com/a/11762728/3591273
+    node_index = function( node ) {
+        var index = 0;
+        while ( (node=node.previousSibling) ) index++;
+        return index;
+    },
+    
+    node_closest_index = function( node, root ) {
+        var closest = node;
+        if ( root ) while ( closest.parentNode && closest.parentNode !== root ) closest = closest.parentNode;
+        return node_index( closest );
+    },
+    
+    find_node = function( root, node_type, node_index ) {
+        var ndList = root.childNodes, len = ndList.length, 
+            n, node = null, i = 0, node_ith = 0;
+        node_index = node_index || 1;
+        // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
+        // TEXT_NODE = 3, COMMENT_NODE = 8
+        // return node.nodeValue
+        while ( i < len )
+        {
+            n = ndList[i++];
+            if ( node_type === n.nodeType )
+            {
+                node = n;
+                if (++node_ith === node_index) break;
+            }
+        }
+        return node;
+    },
+    
+    join_text_nodes = function( nodes ) {
+        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
+        if ( l > 1 ) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
+        return txt;
+    },
+    
     // http://youmightnotneedjquery.com/
     $id = function( id, el ) {
         return [ (el || document).getElementById( id ) ];
@@ -128,6 +241,11 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             ? [ (el || document).querySelector( selector ) ]
             : AP.slice.call( (el || document).querySelectorAll( selector ), 0 )
         ;
+    },
+    
+    get_dom_ref = function( el, ref ) {
+        // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
+        return ( /*ref &&*/ startsWith(ref, "$this::") ) ? $sel( ref.slice( 7 ), el, 1 ) : $sel( ref, null, 1 );
     },
     
     // http://youmightnotneedjquery.com/

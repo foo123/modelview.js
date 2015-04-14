@@ -34,25 +34,6 @@ var
         return fields;
     },
     
-    // Type Compositor
-    TC = function TC( T ) {
-        
-        T.BEFORE = function( T2 ) {
-            return TC(function( v, k ) { 
-                var self = this;
-                return T2.call(self, T.call(self, v, k), k);
-            }); 
-        };
-        T.AFTER = function( T2 ) {
-            return TC(function( v, k ) { 
-                var self = this;
-                return T.call(self, T2.call(self, v, k), k);
-            }); 
-        };
-        
-        return T;
-    },
-        
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -110,10 +91,26 @@ var
 [/DOC_MARKDOWN]**/
     Type = {
         
-        TypeCaster: TC
+        TypeCaster: function( typecaster ){ return typecaster; }
         
         // default type casters
         ,Cast: {
+/**[DOC_MARKDOWN]
+// functionaly compose typeCasters, i.e final TypeCaster = TypeCaster1(TypeCaster2(...(value)))
+ModelView.Type.Cast.COMPOSITE( TypeCaster1, TypeCaster2 [, ...] );
+
+[/DOC_MARKDOWN]**/
+            // composite type caster
+            COMPOSITE: function( ) {
+                var args = arguments;
+                if ( is_type(args[ 0 ], T_ARRAY) ) args = args[ 0 ];
+                return function( v, k ) {
+                   var l = args.length;
+                   while ( l-- ) v = args[l].call(this, v, k);
+                   return v;
+                };
+            },
+            
 /**[DOC_MARKDOWN]
 // cast to "eachTypeCaster" for each element in a collection (see examples)
 ModelView.Type.Cast.EACH( eachTypeCaster );
@@ -137,7 +134,7 @@ ModelView.Type.Cast.FIELDS({
                 //var notbinded = true;
                 // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
                 typesPerField = bindFieldsToModel( Merge( {}, typesPerField || {} ) );
-                return TC(function( v ) { 
+                return function( v ) { 
                     var self = this, field, type, val, l, i;
                     //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
@@ -158,7 +155,7 @@ ModelView.Type.Cast.FIELDS({
                         }
                     }
                     return v;
-                }); 
+                }; 
             },
             
 /**[DOC_MARKDOWN]
@@ -167,43 +164,43 @@ ModelView.Type.Cast.DEFAULT( defaultValue );
 
 [/DOC_MARKDOWN]**/
             DEFAULT: function( defaultValue ) {  
-                return TC(function( v ) { 
+                return function( v ) { 
                     var T = get_type( v );
                     if ( (T_UNDEF & T) || ((T_STR & T) && !trim(v).length)  ) v = defaultValue;
                     return v;
-                }); 
+                }; 
             },
 /**[DOC_MARKDOWN]
 // cast to boolean
 ModelView.Type.Cast.BOOL;
 
 [/DOC_MARKDOWN]**/
-            BOOL: TC(function( v ) { 
+            BOOL: function( v ) { 
                 return !!v; 
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to integer
 ModelView.Type.Cast.INT;
 
 [/DOC_MARKDOWN]**/
-            INT: TC(function( v ) { 
+            INT: function( v ) { 
                 return parseInt(v, 10);
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to float
 ModelView.Type.Cast.FLOAT;
 
 [/DOC_MARKDOWN]**/
-            FLOAT: TC(function( v ) { 
+            FLOAT: function( v ) { 
                 return parseFloat(v, 10); 
-            }),
+            },
 /**[DOC_MARKDOWN]
 // min if value is less than
 ModelView.Type.Cast.MIN( min );
 
 [/DOC_MARKDOWN]**/
             MIN: function( m ) {  
-                return TC(function( v ) { return (v < m) ? m : v; }); 
+                return function( v ) { return (v < m) ? m : v; }; 
             },
 /**[DOC_MARKDOWN]
 // max if value is greater than
@@ -211,7 +208,7 @@ ModelView.Type.Cast.MAX( max );
 
 [/DOC_MARKDOWN]**/
             MAX: function( M ) {  
-                return TC(function( v ) { return (v > M) ? M : v; }); 
+                return function( v ) { return (v > M) ? M : v; }; 
             },
 /**[DOC_MARKDOWN]
 // clamp between min-max (included)
@@ -221,40 +218,40 @@ ModelView.Type.Cast.CLAMP( min, max );
             CLAMP: function( m, M ) {  
                 // swap
                 if ( m > M ) { var tmp = M; M = m; m = tmp; }
-                return TC(function( v ) { return (v < m) ? m : ((v > M) ? M : v); }); 
+                return function( v ) { return (v < m) ? m : ((v > M) ? M : v); }; 
             },
 /**[DOC_MARKDOWN]
 // cast to trimmed string of spaces
 ModelView.Type.Cast.TRIM;
 
 [/DOC_MARKDOWN]**/
-            TRIM: TC(function( v ) { 
+            TRIM: function( v ) { 
                 return trim(Str(v));
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to lowercase string
 ModelView.Type.Cast.LCASE;
 
 [/DOC_MARKDOWN]**/
-            LCASE: TC(function( v ) { 
+            LCASE: function( v ) { 
                 return Str(v).toLowerCase( );
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to uppercase string
 ModelView.Type.Cast.UCASE;
 
 [/DOC_MARKDOWN]**/
-            UCASE: TC(function( v ) { 
+            UCASE: function( v ) { 
                 return Str(v).toUpperCase( );
-            }),
+            },
 /**[DOC_MARKDOWN]
 // cast to string
 ModelView.Type.Cast.STR;
 
 [/DOC_MARKDOWN]**/
-            STR: TC(function( v ) { 
+            STR: function( v ) { 
                 return (''+v); 
-            })
+            }
         }
         
 /**[DOC_MARKDOWN]
@@ -264,7 +261,7 @@ ModelView.Type.add( name, typeCaster );
 [/DOC_MARKDOWN]**/
         ,add: function( type, handler ) {
             if ( is_type( type, T_STR ) && is_type( handler, T_FUNC ) ) 
-                Type.Cast[ type ] = is_type( handler.AFTER, T_FUNC ) ? handler : TC( handler );
+                Type.Cast[ type ] = handler;
             return Type;
         }
         
@@ -602,9 +599,9 @@ $dom.modelview({
             
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
-                // type casters  can be composed (using BEFORE/AFTER) in an algebraic/functional way..
+                // type casters can be composed in an algebraic/functional way..
                 
-                'field1': $.ModelView.Type.Cast.DEFAULT( "default" ).AFTER( $.ModelView.Type.Cast.STR ),
+                'field1': $.ModelView.Type.Cast.COMPOSITE($.ModelView.Type.Cast.DEFAULT( "default" ), $.ModelView.Type.Cast.STR),
                 
                 'field2': $.ModelView.Type.Cast.BOOL
             })
