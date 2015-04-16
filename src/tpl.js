@@ -238,7 +238,7 @@ tpl.bind( Node el );
 [/DOC_MARKDOWN]**/
     ,bind: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl.keys = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl.keys, tpl.$tpl.atkeys );
+        if ( el ) tpl.$tpl.keys = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl.keys, tpl.$tpl.atkeys ).keys;
         return tpl;
     }
     

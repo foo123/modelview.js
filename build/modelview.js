@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.55
-*   @built on 2015-04-16 13:17:52
+*   @built on 2015-04-16 13:39:37
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.55
-*   @built on 2015-04-16 13:17:52
+*   @built on 2015-04-16 13:39:37
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -3643,7 +3643,7 @@ tpl.bind( Node el );
 [/DOC_MARKDOWN]**/
     ,bind: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl.keys = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl.keys, tpl.$tpl.atkeys );
+        if ( el ) tpl.$tpl.keys = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl.keys, tpl.$tpl.atkeys ).keys;
         return tpl;
     }
     
