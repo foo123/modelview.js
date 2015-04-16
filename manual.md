@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.60**
+**Version 0.55**
 
 ###Contents
 
@@ -569,10 +569,11 @@ model.atom( String dottedKey | Boolean false );
 
 ####Tpl
 
-ModelView.Tpl is an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
+ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
 
 ```javascript
 // modelview.js tpl methods
+// adapted from https://github.com/foo123/Tao.js
 
 var tpl = new ModelView.Tpl( [String id=UUID] );
 
@@ -585,18 +586,17 @@ tpl.dispose( );
 
 
 
-// tpl represents a live dom Node
-// re_key is the regular expression for key replacememnts inside the template
-// atkeys is the attribute to use on node if it has key replacements (used internaly mostly)
-tpl.dom( Node dom, RegExp re_key, String atkeys );
-
-
-
-
 // tpl represents a string template str_tpl
-// reps is either a regular expression for key replacememnts inside the template or a hash of keys to be replaced
-// if compiled is set to true, the tpl will be compiled into a function renderer for even faster performance
-tpl.str( String str_tpl, RegExp|Object reps [, Boolean compiled=false] );
+// re_keys is a regular expression for key replacememnts inside the template
+tpl.str( String str_tpl, RegExp re_keys );
+
+
+
+
+// tpl represents a live dom Node
+// re_keys is the regular expression for key replacememnts inside the template
+// atkeys is the attribute to use on node if it has key replacements (used internaly mostly)
+tpl.dom( DoOMNode node, RegExp re_keys, String atkeys );
 
 
 
@@ -613,8 +613,8 @@ tpl.free( Node el );
 
 
 
-// render the template with given data (either update DOM Node or return the replaced string template)
-tpl.render( Object|Array data );
+// render/update and return the template string with given data
+tpl.renderString( Object|Array data );
 
 
 
