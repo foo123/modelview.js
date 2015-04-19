@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-19 12:07:47
+*   @built on 2015-04-19 16:34:53
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-19 12:07:47
+*   @built on 2015-04-19 16:34:53
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -3605,14 +3605,14 @@ var POS = 'lastIndexOf', MATCH = 'match'
                 do {
                     key = m[1] ? m[1] : m[0]; keyNode = rest.splitText( m.index );
                     rest = keyNode.splitText( m[0].length );
-                    (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                    (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
                     m = rest[VALUE][MATCH]( re_keys );
                 } while ( m );
             }
             else
             {
                 key = m[1] ? m[1] : m[0]; keyNode = rest;
-                (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
             }
         }
         aNodes = { };
@@ -3638,8 +3638,8 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         rest = keyNode.splitText( att[1][1] );
                         aNodes[ txt ][0].push( key );
                         aNodes[ txt ][1].push( keyNode, rest ); 
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
+                        (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
+                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
                         pos += att[1][1] + att[1][0];
                     }
                 }
@@ -3652,8 +3652,8 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         rest = keyNode.splitText( m[0].length );
                         aNodes[ txt ][0].push( key );
                         aNodes[ txt ][1].push( keyNode, rest ); 
-                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
+                        (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
+                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
                         m = rest[VALUE][MATCH]( re_keys );
                     } while ( m );
                 }
@@ -3661,15 +3661,15 @@ var POS = 'lastIndexOf', MATCH = 'match'
                 {
                     keyNode = rest; key = m[1] ? m[1] : m[0];
                     aNodes[ txt ][0].push( key );
-                    (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                    (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
+                    (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
+                    (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
                 }
             }
             else
             {
                 // share txt nodes between same (value) attributes
                 for (m=0; m<aNodes[ txt ][0].length; m++)
-                    keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
+                    keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt, n] );
             }
         }
         
@@ -3752,7 +3752,7 @@ var POS = 'lastIndexOf', MATCH = 'match'
             keyNodes = tpl_keys[key][0/*KEYS*/]; 
             for (i=0,l=keyNodes.length; i<l; i++) 
             {
-                keyNodes[i][VALUE] = val;
+                keyNodes[i][0][VALUE] = val;
             }
             
             // element live attributes
@@ -3807,12 +3807,6 @@ var Tpl = function Tpl( template, re_keys, revivable ) {
 };
 Tpl.multisplit_string = multisplit_string;
 Tpl.multisplit_node = multisplit_node;
-Tpl.free = function( node, hash, atKeys ) {
-    var nid;
-    if ( hash && (nid=node[nUUID]) && hash[HAS](nid) ) del(hash, nid);
-    if ( node[ATTR](atKeys) ) node.removeAttribute( atKeys );
-    return hash;
-};
 // Tpl implements PublishSubscribe pattern
 Tpl[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
@@ -3833,7 +3827,7 @@ tpl.dispose( );
         tpl.disposePubSub( );
         tpl.$key = null;
         tpl.$tpl = null;
-        tp.$revivable = null;
+        tpl.$revivable = null;
         return tpl;
     }
     
@@ -3862,7 +3856,26 @@ tpl.bind( Node el );
 [/DOC_MARKDOWN]**/
     ,bind: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl[KEYS] = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl[KEYS], tpl.$tpl[ATKEYS] )[KEYS];
+        if ( el ) 
+        {
+            var key, $keys = tpl.$tpl[0], 
+                tpl_keys = multisplit_node( el, tpl.$key, false/*tpl.$revivable*/ )[0];
+            for (key in tpl_keys)
+            {
+                if ( tpl_keys[HAS](key) )
+                {
+                    if ( $keys[HAS](key) ) 
+                    {
+                        $keys[key][0] = $keys[key][0].concat(tpl_keys[key][0]);
+                        $keys[key][1] = $keys[key][1].concat(tpl_keys[key][1]);
+                    }
+                    else
+                    {                        
+                        $keys[key] = tpl_keys[key];
+                    }
+                }
+            }
+        }
         return tpl;
     }
     
@@ -3873,7 +3886,37 @@ tpl.free( Node el );
 [/DOC_MARKDOWN]**/
     ,free: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl[KEYS] = Tpl.free( el, tpl.$tpl[KEYS], tpl.$tpl[ATKEYS] );
+        if ( el ) 
+        {
+            var key, i, l, k, 
+                $keys = tpl.$tpl[0],
+                tpl_keys = Keys($keys),
+                kl = tpl_keys.length,
+                nodes, keyNodes, atNodes
+            ;
+            for (k=0; k<kl; k++)
+            {
+                key = tpl_keys[k]; nodes = $keys[key];
+                
+                // remove key text nodes
+                keyNodes = nodes[0];
+                l = keyNodes.length;
+                for (i=l-1; i>=0; i--)
+                {
+                    if ( el === keyNodes[i][1] )
+                        keyNodes.splice(i, 1);
+                }
+                
+                // remove attribute nodes
+                atNodes = nodes[1];
+                l = atNodes.length;
+                for (i=l-1; i>=0; i--)
+                {
+                    if ( el === atNodes[i][3] )
+                        atNodes.splice(i, 1);
+                }
+            }
+        }
         return tpl;
     }
     

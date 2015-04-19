@@ -299,7 +299,7 @@ Current work is focusing on (model) collections and using the **composite patter
 
 Furthermore, focus is on inline dynamic binding and update directly inside the markup handled by modelview.js (this is sth that is already handled using 'data-bind: text' attributes, however it can become cumbersome), see examples and updates.
 
-jQuery DOM/Event dependency has been removed, ModelView can be used a standalone framework, however it provides a plugin (and widget) for jQuery (jQueryUI) for easy integration (see examples).
+jQuery DOM/Event dependency has been removed, ModelView can be used as standalone framework, however it provides a plugin (and widget) for jQuery (jQueryUI) for easy integration (see examples).
 
 
 ####Performance
