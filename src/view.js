@@ -1,6 +1,7 @@
 
 // View utils
-var
+var namedKeyProp = "mv_namedkey",
+
     getInlineTplRE = function( InlineTplFormat, modelID ) {
         return new Regex(
             esc_re( InlineTplFormat )
@@ -34,7 +35,7 @@ var
         }
     },
     
-    doBindAction = function( view, elements, evt, fromModel ) {
+    doBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
@@ -70,7 +71,7 @@ var
         }
     },
     
-    doAutoBindAction = function( view, elements, evt, fromModel ) {
+    doAutoBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, cached = { }, i, l = elements.length,
             el, name, key, ns_key, value
         ;
@@ -91,6 +92,35 @@ var
             // call default action (ie: live update)
             view.do_bind( evt, el, {name:name, key:key, value:value} );
         }
+    },
+    
+    doLiveBindAction = function( view, evt, fromModel ) {
+        var model = view.$model, isSync = 'sync' == evt.type, hasData = false,
+            key, keyDot, k, kk, keys = view.$tpl.keys(), kl = keys.length, data = {}
+        ;
+        if ( isSync )
+        {
+            for (k=0; k<kl; k++)
+            {
+                kk = keys[k];
+                data[kk] = model.get(kk);
+                hasData = true;
+            }
+        }
+        else if ( fromModel && fromModel.key )
+        {
+            key = fromModel.key; keyDot = key + '.';
+            for (k=0; k<kl; k++)
+            {
+                kk = keys[k];
+                if ( key === kk || startsWith(kk, keyDot) )
+                {
+                    data[kk] = model.get(kk);
+                    hasData = true;
+                }
+            }
+        }
+        if ( hasData ) view.$tpl.render( data );
     },
     
     //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
@@ -188,7 +218,7 @@ var View = function View( id, model, atts, cacheSize, refreshInterval ) {
     view.$memoize = new Cache( cacheSize, INF );
     view.$selectors = new Cache( cacheSize, refreshInterval );
     view.$atbind = view.attribute( "bind" );
-    view.$atkeys = view.attribute( "keys" );
+    //view.$atkeys = view.attribute( "keys" );
     view.$shortcuts = { };
     view.$num_shortcuts = 0;
     view.model( model || new Model( ) ).initPubSub( );
@@ -207,17 +237,18 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,id: null
     ,$dom: null
-    ,$dom_tpl: null
+    ,$tpl: null
     ,$model: null
     ,$livebind: null
     ,$autobind: false
+    ,$isomorphic: false
     ,$bindbubble: false
     ,$template: null
     ,$atts: null
     ,$memoize: null
     ,$selectors: null
     ,$atbind: null
-    ,$atkeys: null
+    //,$atkeys: null
     ,$shortcuts: null
     ,$num_shortcuts: null
     
@@ -232,8 +263,8 @@ view.dispose( );
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
-        if ( view.$dom_tpl ) view.$dom_tpl.dispose();
-        view.$dom_tpl = null;
+        if ( view.$tpl ) view.$tpl.dispose();
+        view.$tpl = null;
         view.$template = null;
         view.$atts = null;
         view.$memoize.dispose( );
@@ -241,8 +272,9 @@ view.dispose( );
         view.$selectors.dispose( );
         view.$selectors = null;
         view.$livebind = null;
+        view.$isomorphic = null;
         view.$atbind = null;
-        view.$atkeys = null;
+        //view.$atkeys = null;
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         return view;
@@ -400,6 +432,22 @@ view.livebind( [String format | Boolean false] );
     }
     
 /**[DOC_MARKDOWN]
+// get / set isomorphic flag, 
+// isomorphic flag enables ModelView API to run both on server and browser and seamlessly and continously pass from one to the other
+view.isomorphic( [Boolean false] );
+
+[/DOC_MARKDOWN]**/
+    ,isomorphic: function( bool ) {
+        var view = this;
+        if ( arguments.length )
+        {
+            view.$isomorphic = !!bool;
+            return view;
+        }
+        return view.$isomorphic;
+    }
+    
+/**[DOC_MARKDOWN]
 // get / set autobind, 
 // autobind automatically binds (2-way) input elements to model keys via name attribute 
 // e.g <input name="model[key]" />, <select name="model[key]"></select>
@@ -553,7 +601,7 @@ view.autobind( [Boolean bool] );
         var view = this;
         if ( el )
         {
-            if ( view.$dom_tpl ) view.$dom_tpl.bind( el );
+            if ( view.$tpl ) view.$tpl.bind( el );
             if ( false !== and_sync ) view.sync( null, el );
         }
         return view;
@@ -563,7 +611,7 @@ view.autobind( [Boolean bool] );
         var view = this;
         if ( el ) 
         {
-            if ( view.$dom_tpl ) view.$dom_tpl.free( el );
+            if ( view.$tpl ) view.$tpl.free( el );
             if ( false !== and_reset ) view.$selectors.reset( );
         }
         return view;
@@ -576,23 +624,23 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
 [/DOC_MARKDOWN]**/
     ,bind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
+            sels = getSelectors( view.$atbind, null/*[view.$atkeys]*/, [model.id+'['] ),
             bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
             method, evt, namespaced, 
-            autobind = view.$autobind, livebind = !!view.$livebind
+            autobind = view.$autobind, livebind = !!view.$livebind,
+            hasDocument = 'undefined' !== typeof document
         ;
         
         events = events || ['change', 'click'];
-        view.$dom = dom || document.body;
+        view.$dom = dom || (hasDocument ? document.body : null);
         
         namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
         
         // live update dom nodes via special isomorphic Tpl live dom class
-        if ( livebind )
-            view.$dom_tpl = Tpl().dom( view.$dom, view.$livebind, view.$atkeys );
+        if ( livebind ) view.$tpl = Tpl( view.$dom, view.$livebind, view.$isomorphic );
         
         // default view/dom binding events
-        if ( view.on_view_change && events.length )
+        if ( hasDocument && view.on_view_change && events.length )
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
@@ -628,35 +676,38 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
         {
             if ( !is_type( view[ method ], T_FUNC ) ) continue;
             
-            if ( startsWith( method, 'on_document_' ) )
-            {
-                evt = method.slice(12);
-                evt.length && DOMEvent( document.body ).on( 
-                    namespaced(evt), 
-                    viewHandler( view, method )
-                );
-            }
-            else if ( startsWith( method, 'on_model_' ) )
+            if ( startsWith( method, 'on_model_' ) )
             {
                 evt = method.slice(9);
                 evt.length && view.onTo( model, evt, view[ method ] );
             }
-            else if ( startsWith( method, 'on_view_' ) && 'on_view_change' !== method )
+            else if ( hasDocument )
             {
-                evt = method.slice(8);
-                evt.length && DOMEvent( view.$dom ).on( 
-                    namespaced(evt), 
-                    autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector, 
-                    viewHandler( view, method )
-                );
-            }
-            else if ( startsWith( method, 'on_dom_' ) )
-            {
-                evt = method.slice(7);
-                evt.length && DOMEvent( view.$dom ).on( 
-                    namespaced(evt), 
-                    viewHandler( view, method )
-                );
+                if ( startsWith( method, 'on_document_' ) )
+                {
+                    evt = method.slice(12);
+                    evt.length && DOMEvent( document.body ).on( 
+                        namespaced(evt), 
+                        viewHandler( view, method )
+                    );
+                }
+                else if ( startsWith( method, 'on_view_' ) && 'on_view_change' !== method )
+                {
+                    evt = method.slice(8);
+                    evt.length && DOMEvent( view.$dom ).on( 
+                        namespaced(evt), 
+                        autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector, 
+                        viewHandler( view, method )
+                    );
+                }
+                else if ( startsWith( method, 'on_dom_' ) )
+                {
+                    evt = method.slice(7);
+                    evt.length && DOMEvent( view.$dom ).on( 
+                        namespaced(evt), 
+                        viewHandler( view, method )
+                    );
+                }
             }
         }
         
@@ -670,9 +721,10 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 [/DOC_MARKDOWN]**/
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
+            sels = getSelectors( view.$atbind, null/*[view.$atkeys]*/, [model.id+'['] ),
             namespaced, $dom, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind
+            autobind = view.$autobind, livebind = !!view.$livebind,
+            hasDocument = 'undefined' !== typeof document
         ;
         
         events = events || null;
@@ -681,7 +733,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
          
         // view/dom change events
-        if ( view.on_view_change )
+        if ( hasDocument && view.on_view_change )
         {
             DOMEvent( $dom ).off( 
                 
@@ -693,13 +745,16 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         
         // model events
         view.offFrom( model );
-        DOMEvent( $dom ).off( viewEvent );
-        DOMEvent( document.body ).off( viewEvent );
-        // live update dom nodes
-        if ( view.$dom_tpl )
+        if ( hasDocument )
         {
-            view.$dom_tpl.dispose();
-            view.$dom_tpl = null;
+            DOMEvent( $dom ).off( viewEvent );
+            DOMEvent( document.body ).off( viewEvent );
+        }
+        // live update dom nodes
+        if ( view.$tpl )
+        {
+            view.$tpl.dispose();
+            view.$tpl = null;
         }
         
         return view;
@@ -727,28 +782,32 @@ view.sync( [DOMNode dom=view.$dom] );
     ,sync: function( $dom, el ) {
         var view = this, 
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys] : 0, autobind ? [view.$model.id+'['] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys] : 0*/, autobind ? [view.$model.id+'['] : 0 ),
             syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
+            hasDocument = 'undefined' !== typeof document,
             andCache;
         
         view.$selectors.reset( );
         if ( el )
         {
             syncEvent.currentTarget = el;
-            binds = view.get( s[ 0 ], el, 0, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
-            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
+            if ( hasDocument )
+            {
+                binds = view.get( s[ 0 ], el, 0, 1 );
+                if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
+                //if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
+            }
         }
-        else
+        else if ( hasDocument )
         {
             $dom = $dom || view.$dom; andCache = !($dom === view.$dom);
             binds = view.get( s[ 0 ], $dom, 0, andCache );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
-            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
+            //if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
         }
-        if ( binds.length ) doBindAction( view, binds, syncEvent );
-        if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
-        if ( livebind && livebinds.length ) view.$dom_tpl.renderView(view, view.$model, syncEvent, livebinds, null, null, true);
+        if ( hasDocument && binds.length ) doBindAction( view, syncEvent, binds );
+        if ( hasDocument && autobind && autobinds.length ) doAutoBindAction( view, syncEvent, autobinds );
+        if ( livebind && /*livebinds.length*/view.$tpl ) doLiveBindAction( view, syncEvent );
         return view;
     }
     
@@ -815,7 +874,7 @@ view.reset( );
         
         // if not model update error and element is bind element
         // do view action
-        if ( !modeldata.error && data.isBind ) doBindAction( view, [el], evt/*, data*/ );
+        if ( !modeldata.error && data.isBind ) doBindAction( view, evt, [el]/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -887,49 +946,54 @@ view.reset( );
     ,on_model_change: function( evt, data ) {
         var view = this, model = view.$model,
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys, data.key] : 0*/, autobind ? [model.id + bracketed( data.key )] : 0 ),
             bindElements, autoBindElements, liveBindings,  
+            hasDocument = 'undefined' !== typeof document,
             notTriggerElem
         ;
         
-        bindElements = view.get( s[ 0 ] );
-        if ( autobind ) autoBindElements = view.get( s[ 2 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
-        
-        // bypass element that triggered the "model:change" event
-        if ( data.$callData && data.$callData.$trigger )
+        if ( hasDocument )
         {
-            notTriggerElem = function( ele ){ return ele !== data.$callData.$trigger; };
-            bindElements = bindElements.filter( notTriggerElem );
-            if ( autobind ) autoBindElements = autoBindElements.filter( notTriggerElem );
-            data.$callData = null;
+            bindElements = view.get( s[ 0 ] );
+            if ( autobind ) autoBindElements = view.get( s[ 2 ] );
+            //if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
+            
+            // bypass element that triggered the "model:change" event
+            if ( data.$callData && data.$callData.$trigger )
+            {
+                notTriggerElem = function( ele ){ return ele !== data.$callData.$trigger; };
+                bindElements = bindElements.filter( notTriggerElem );
+                if ( autobind ) autoBindElements = autoBindElements.filter( notTriggerElem );
+                data.$callData = null;
+            }
         }
         
         // do actions ..
         
         // do view action first
-        if ( bindElements.length ) doBindAction( view, bindElements, evt, data );
+        if ( hasDocument && bindElements.length ) doBindAction( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( hasDocument && autobind && autoBindElements.length ) doAutoBindAction( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
+        if ( livebind && /*liveBindings.length*/view.$tpl ) doLiveBindAction( view, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys, data.key] : 0*/, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            hasDocument = 'undefined' !== typeof document,
             bindElements, autoBindElements, liveBindings
         ;
 
         // do actions ..
         
         // do view bind action first
-        if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
+        if ( hasDocument && (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( hasDocument && autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
+        if ( livebind && /*(liveBindings=view.get( s[ 1 ], 0, 1 )).length*/view.$tpl ) doLiveBindAction( view, evt, data );
     }
     
     //

@@ -103,6 +103,7 @@
                             ,bindAttribute: 'data-bind' // default
                             ,livebind: null
                             ,autobind: false
+                            ,isomorphic: false
                             ,bindbubble: false
                             ,autovalidate: true
                             ,events: null
@@ -158,6 +159,7 @@
                     // init view
                     .livebind( options.livebind )
                     .autobind( options.autobind )
+                    .isomorphic( options.isomorphic )
                     .bindbubble( options.bindbubble )
                     .autovalidate( options.autovalidate )
                     .bind( options.events, $dom[0] )

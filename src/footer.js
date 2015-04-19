@@ -33,6 +33,9 @@ new ModelView.View(
     // model data validators (if any) here ..
     .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
+.shortcuts({
+    'alt+h': 'alert_msg'
+})
 .actions({
     // custom view actions (if any) here ..
     alert_msg: function( evt, el, bindData ) {
@@ -50,8 +53,8 @@ new ModelView.View(
 .attribute( 'bind', 'data-bind' ) // default
 .livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
+.isomorphic( false ) // default
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
-.autovalidate( true ) // default
 .sync( )
 ;
 ```
@@ -69,7 +72,7 @@ $('#screen').modelview({
     events: [ 'change', 'click' ], // default
     livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
-    autovalidate: true, // default
+    isomorphic: false, // default
     autoSync: true, // default
     
     model: {
@@ -89,6 +92,10 @@ $('#screen').modelview({
             // model data validators (if any) here ..
             msg: ModelView.Validation.Validate.NOT_EMPTY
         }
+    },
+    
+    shortcuts: {
+        'alt+h': 'alert_msg'
     },
     
     actions: {

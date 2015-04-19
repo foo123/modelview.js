@@ -302,7 +302,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
-    get_style = window.getComputedStyle 
+    get_style = 'undefined' !== typeof window && window.getComputedStyle 
         ? function( el ){ return window.getComputedStyle(el, null); } 
         : function( el ) { return el.currentStyle; },
     
@@ -414,7 +414,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     WILDCARD = "*", NAMESPACE = "modelview",
     
-    // UUID counter for Modelviews
+    // UUID counter for ModelViews
     _uuid = 0,
         
     // get a Universal Unique Identifier (UUID)

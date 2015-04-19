@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.55**
+**Version 0.60**
 
 ###Contents
 
@@ -575,7 +575,7 @@ ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline t
 // modelview.js tpl methods
 // adapted from https://github.com/foo123/Tao.js
 
-var tpl = new ModelView.Tpl( [String id=UUID] );
+var tpl = new ModelView.Tpl( String|DOMNode tpl );
 
 
 
@@ -586,17 +586,14 @@ tpl.dispose( );
 
 
 
-// tpl represents a string template str_tpl
-// re_keys is a regular expression for key replacememnts inside the template
-tpl.str( String str_tpl, RegExp re_keys );
+// get the template dynamic keys
+tpl.keys( );
 
 
 
 
-// tpl represents a live dom Node
-// re_keys is the regular expression for key replacememnts inside the template
-// atkeys is the attribute to use on node if it has key replacements (used internaly mostly)
-tpl.dom( DoOMNode node, RegExp re_keys, String atkeys );
+// render/update and return the template string with given data
+tpl.render( Object|Array data );
 
 
 
@@ -609,12 +606,6 @@ tpl.bind( Node el );
 
 // tpl free the Dom node removed from the template (if tpl represents a dom template)
 tpl.free( Node el );
-
-
-
-
-// render/update and return the template string with given data
-tpl.renderString( Object|Array data );
 
 
 
@@ -681,6 +672,13 @@ view.autovalidate( [Boolean enabled] );
 // livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
 // e.g <span>model.key is $(model.key)</span>
 view.livebind( [String format | Boolean false] );
+
+
+
+
+// get / set isomorphic flag, 
+// isomorphic flag enables ModelView API to run both on server and browser and seamlessly and continously pass from one to the other
+view.isomorphic( [Boolean false] );
 
 
 
@@ -906,6 +904,9 @@ new ModelView.View(
     // model data validators (if any) here ..
     .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
+.shortcuts({
+    'alt+h': 'alert_msg'
+})
 .actions({
     // custom view actions (if any) here ..
     alert_msg: function( evt, el, bindData ) {
@@ -923,8 +924,8 @@ new ModelView.View(
 .attribute( 'bind', 'data-bind' ) // default
 .livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
+.isomorphic( false ) // default
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
-.autovalidate( true ) // default
 .sync( )
 ;
 ```
@@ -942,7 +943,7 @@ $('#screen').modelview({
     events: [ 'change', 'click' ], // default
     livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
-    autovalidate: true, // default
+    isomorphic: false, // default
     autoSync: true, // default
     
     model: {
@@ -962,6 +963,10 @@ $('#screen').modelview({
             // model data validators (if any) here ..
             msg: ModelView.Validation.Validate.NOT_EMPTY
         }
+    },
+    
+    shortcuts: {
+        'alt+h': 'alert_msg'
     },
     
     actions: {

@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.55
-*   @built on 2015-04-16 13:39:37
+*   @version: 0.60
+*   @built on 2015-04-19 12:07:47
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.55
-*   @built on 2015-04-16 13:39:37
+*   @version: 0.60
+*   @built on 2015-04-19 12:07:47
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.55**
+**Version 0.60**
 
 ###Contents
 
@@ -376,7 +376,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     get_textnode = function( txt ) { return document.createTextNode(txt||''); },
     
     // http://stackoverflow.com/a/2364000/3591273
-    get_style = window.getComputedStyle 
+    get_style = 'undefined' !== typeof window && window.getComputedStyle 
         ? function( el ){ return window.getComputedStyle(el, null); } 
         : function( el ) { return el.currentStyle; },
     
@@ -488,7 +488,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     WILDCARD = "*", NAMESPACE = "modelview",
     
-    // UUID counter for Modelviews
+    // UUID counter for ModelViews
     _uuid = 0,
         
     // get a Universal Unique Identifier (UUID)
@@ -3405,79 +3405,131 @@ Model[proto].rem = Model[proto].del;
 [/DOC_MARKDOWN]**/
 
 // Tpl utils
-var
-    namedKeyProp = "mv_namedkey", nUUID = 'mv_uuid',
+var POS = 'lastIndexOf', MATCH = 'match'
+    ,VALUE = 'nodeValue', NODETYPE = 'nodeType', ATT_RE = /[a-zA-Z0-9_\-]/
+    ,to_int = function(v){return parseInt(v,10);}
     // use hexadecimal string representation in order to have optimal key distribution in hash (??)
-    nuuid = 0, node_uuid = function( n ) { return n[nUUID] = n[nUUID] || n.id || ('_'+(++nuuid).toString(16)); }
-;
-
-/**[DOC_MARKDOWN]
-####Tpl
-
-ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
-
-```javascript
-// modelview.js tpl methods
-// adapted from https://github.com/foo123/Tao.js
-
-var tpl = new ModelView.Tpl( [String id=UUID] );
-
-[/DOC_MARKDOWN]**/
-//
-// String and LiveDom Isomorphic (Inline) Template Class
-// adapted from https://github.com/foo123/Tao.js
-var Tpl = function Tpl( id ) {
-    var tpl = this;
-    // constructor-factory pattern
-    if ( !(tpl instanceof Tpl) ) return new Tpl( id );
-    tpl.id = id || uuid('Tpl');
-    tpl.initPubSub( );
-};
-Tpl.string2Dom = str2dom;
-Tpl.dom2String = dom2str;
-Tpl.multisplit_string = function multisplit_string( str, re_key ) {
-    var a = [ ], i = 0, m;
-    while ( m = re_key.exec( str ) )
-    {
-        a.push([1, str.slice(i, re_key.lastIndex - m[0].length)]);
-        a.push([0, m[1] ? m[1] : m[0], undef]);
-        i = re_key.lastIndex;
-    }
-    a.push([1, str.slice(i)]);
-    return a;
-};
-Tpl.multisplit_node = function multisplit_node( node, re_key, hash, atKeys ) {
-    if ( !re_key ) return {node: node, keys: hash, atkeys: atKeys};
-    var matchedNodes, matchedAtts, i, l, m, matched, n, a, key, nid, atnodes,
-        keyNode, aNodes, aNodesCached, txt, rest, stack, keyNodes, keyAtts
-    ;
+    ,nuuid = 0, node_uuid = function( n ) { return n.$TID$ = n.$TID$ || n.id || ('_TID_'+(++nuuid).toString(16)); }
     
-    hash = hash || {};
-    if ( node )
-    {
-        // http://www.geeksforgeeks.org/inorder-tree-traversal-without-recursion/
-        /*
-        1) Create an empty stack S.
-        2) Initialize current node as root
-        3) Push the current node to S and set current = current->left until current is NULL
-        4) If current is NULL and stack is not empty then 
-             a) Pop the top item from stack.
-             b) Print the popped item, set current = current->right 
-             c) Go to step 3.
-        5) If current is NULL and stack is empty then we are done.            
-        */
-        matchedNodes = [ ]; matchedAtts = [ ]; n = node;
-        if ( n.attributes && (l=n.attributes.length) ) 
+    ,multisplit_string = function multisplit_string( str, re_keys, revivable ) {
+        var tpl = [ ], i = 0, m, sel_pos, sel, ch, ind,
+            atName = false, atIndex, atKeyStart = -1, atKeyEnd = -1, atPos = 0,
+            openTag, closeTag, tagEnd, insideTag = false, tpl_keys = {}, key;
+        // find and split the tpl_keys
+        while ( m = re_keys.exec( str ) )
         {
-            for (i=0; i<l; i++)
+            sel_pos = re_keys.lastIndex - m[0].length;
+            sel = str.slice(i, sel_pos);
+            tagEnd = -1;
+            if ( revivable )
             {
-                a = n.attributes[ i ];
-                if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
+                openTag = sel[POS]('<'); closeTag = sel[POS]('>');
+                // match and annotate open close xml tags as well
+                if ( openTag > closeTag /*&& '/' !== sel.charAt(openTag+1)*/ ) 
+                {
+                    tagEnd = -1; insideTag = true;
+                }
+                else if ( closeTag > openTag ) 
+                {
+                    tagEnd = closeTag+1; insideTag = false;
+                }
+            }
+            tpl.push([1, insideTag, sel, tagEnd]);
+            
+            // match and annotate attributes
+            if ( insideTag )
+            {
+                if ( -1 < (ind=sel[POS]('=')) )
+                {
+                    atName = ''; atIndex = ind;
+                    while ( -1 < ind && ATT_RE.test(ch=sel.charAt(--ind)) ) atName = ch + atName;
+                    atKeyStart = sel_pos - i - atIndex-2;
+                    atPos = atKeyStart + m[0].length;
+                }
+                else if ( atName )
+                {
+                    atKeyStart = atPos + sel_pos - i - 2 -1;
+                    atPos += atKeyStart + m[0].length;
+                }
+            }
+            else
+            {
+                atName = false; atPos = 0; atKeyStart = -1;
+            }
+            key = m[1] ? m[1] : m[0];
+            if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [tpl.length];
+            else tpl_keys[key].push(tpl.length);
+            tpl.push([0, insideTag, key, undef, atName, atKeyStart]);
+            i = re_keys.lastIndex;
+        }
+        sel = str.slice(i);
+        tagEnd = -1;
+        if ( revivable )
+        {
+            openTag = sel[POS]('<'); closeTag = sel[POS]('>');
+            // match and annotate open close xml tags as well
+            if ( openTag > closeTag /*&& '/' !== sel.charAt(openTag+1)*/ ) 
+            {
+                tagEnd = -1; insideTag = true;
+            }
+            else if ( closeTag > openTag ) 
+            {
+                tagEnd = closeTag+1; insideTag = false;
             }
         }
-        if ( 3 === n.nodeType ) // textNode 
+        tpl.push([1, insideTag, sel, tagEnd]);
+        return [tpl_keys, tpl];
+    }
+    
+    ,multisplit_node = function multisplit_node( node, re_keys, revivable ) {
+        var tpl_keys, matchedNodes, matchedAtts, i, l, m, matched, matches, ml, n, a, key, nid, atnodes,
+            keyNode, aNodes, aNodesCached, txt, atName, att, pos, rest, stack, keyNodes, keyAtts, hash = {}
+        ;
+         matchedNodes = [ ]; matchedAtts = [ ]; n = node;
+        // find the nodes having tpl_keys
+        if ( n.attributes && (l=n.attributes.length) ) 
         {
-            if ( m=n.nodeValue.match(re_key) ) matchedNodes.push([n, m, n[PARENT]]);
+            // revive: match key:val attribute annotations in wrapping comments
+            if ( revivable && n.firstChild && 8 === n.firstChild[NODETYPE] && 'att:' === n.firstChild[VALUE].slice(0,4) )
+            {
+                matches = n.firstChild[VALUE].split("\n"); l = matches.length; 
+                atnodes = {};
+                for (i=0; i<l; i++)
+                {
+                    m = matches[i].split('|'); atName = m[0].slice(4); a = n.attributes[atName];
+                    if ( !atnodes[HAS](atName) )
+                    {
+                        atnodes[atName] = [1, []];
+                        matchedAtts.push([a, atnodes[atName], n]);
+                    }
+                    atnodes[atName][1].push([m[1].slice(4),m[2].split(',').map(to_int)]);
+                }
+            }
+            else
+            {
+                for (i=0; i<l; i++)
+                {
+                    a = n.attributes[ i ];
+                    if ( m=a[VALUE][MATCH](re_keys) ) matchedAtts.push([0, a, m, n]);
+                }
+            }
+        }
+        if ( 3 === n[NODETYPE] ) // textNode 
+        {
+            // revive: match key:val annotations in wrapping comments
+            if ( revivable && n.previousSibling && n.nextSibling && 
+                8 === n.previousSibling[NODETYPE] && 8 === n.nextSibling[NODETYPE] &&
+                'key:' === (key=n.previousSibling[VALUE]).slice(0,4) &&
+                '/key' === n.nextSibling[VALUE]
+            ) 
+            {
+                m = [n[VALUE], key.slice(4)];
+                matchedNodes.push([n, m, n[PARENT]]);
+            }
+            else if ( m=n[VALUE][MATCH](re_keys) ) 
+            {
+                matchedNodes.push([n, m, n[PARENT]]);
+            }
         }  
         else if ( n.firstChild )
         {
@@ -3486,79 +3538,128 @@ Tpl.multisplit_node = function multisplit_node( node, re_key, hash, atKeys ) {
             {
                 if ( n.attributes && (l=n.attributes.length) ) 
                 {
-                    for (i=0; i<l; i++)
+                    // revive: match key:val attribute annotations in wrapping comments
+                    if ( revivable && n.firstChild && 8 === n.firstChild[NODETYPE] && 'att:' === n.firstChild[VALUE].slice(0,4) )
                     {
-                        a = n.attributes[ i ];
-                        if ( m=a.nodeValue.match(re_key) ) matchedAtts.push([a, m, n]);
+                        matches = n.firstChild[VALUE].split("\n"); l = matches.length; 
+                        atnodes = {};
+                        for (i=0; i<l; i++)
+                        {
+                            m = matches[i].split('|'); atName = m[0].slice(4); a = n.attributes[atName];
+                            if ( !atnodes[HAS](atName) )
+                            {
+                                atnodes[atName] = [1, []];
+                                matchedAtts.push([a, atnodes[atName], n]);
+                            }
+                            atnodes[atName][1].push([m[1].slice(4),m[2].split(',').map(to_int)]);
+                        }
+                    }
+                    else
+                    {
+                        for (i=0; i<l; i++)
+                        {
+                            a = n.attributes[ i ];
+                            if ( m=a[VALUE][MATCH](re_keys) ) matchedAtts.push([a, m, n]);
+                        }
                     }
                 }
                 if ( n.firstChild ) stack.push( n=n.firstChild );
                 else 
                 {
-                    if ( 3 === n.nodeType && (m=n.nodeValue.match(re_key)) ) matchedNodes.push([n, m, n[PARENT]]);
+                    if ( 3 === n[NODETYPE] )
+                    {
+                        // revive: match key:val annotations in wrapping comments
+                        if ( revivable && n.previousSibling && n.nextSibling && 
+                            8 === n.previousSibling[NODETYPE] && 8 === n.nextSibling[NODETYPE] &&
+                            'key:' === (key=n.previousSibling[VALUE]).slice(0,4) &&
+                            '/key' === n.nextSibling[VALUE]
+                        ) 
+                        {
+                            m = [n[VALUE], key.slice(4)];
+                            matchedNodes.push([n, m, n[PARENT]]);
+                        }
+                        else if ( (m=n[VALUE][MATCH](re_keys)) ) 
+                        {
+                            matchedNodes.push([n, m, n[PARENT]]);
+                        }
+                    }
                     n = stack.pop( );
                     while ( stack.length && !n.nextSibling ) n = stack.pop( );
                     if ( n.nextSibling ) stack.push( n=n.nextSibling );
                 }
             }
         }
+        // split the tpl_keys nodes
         atnodes = { };
         for (i=0,l=matchedNodes.length; i<l; i++)
         {
             matched = matchedNodes[ i ];
             rest = matched[0]; m = matched[1]; n = matched[2];
-            nid = node_uuid( n ); //if ( hash[nid] && hash[nid].keys ) continue;
-            hash[nid] = hash[nid] || { }; atnodes[nid] = n;
-            hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
-            txt = rest.nodeValue;  
+            nid = node_uuid( n );
+            hash[nid] = hash[nid] || [{},{}]; atnodes[nid] = n;
+            keyNodes = hash[nid][0/*KEYS*/];
+            txt = rest[VALUE];  
             if ( txt.length > m[0].length )
             {
                 // node contains more text than just the $(key) ref
                 do {
-                    key = m[1]; keyNode = rest.splitText( m.index );
+                    key = m[1] ? m[1] : m[0]; keyNode = rest.splitText( m.index );
                     rest = keyNode.splitText( m[0].length );
                     (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
-                    m = rest.nodeValue.match( re_key );
+                    m = rest[VALUE][MATCH]( re_keys );
                 } while ( m );
             }
             else
             {
-                key = m[1]; keyNode = rest;
+                key = m[1] ? m[1] : m[0]; keyNode = rest;
                 (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
             }
-            //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
         }
         aNodes = { };
         for (i=0,l=matchedAtts.length; i<l; i++)
         {
             matched = matchedAtts[ i ];
             a = matched[0]; m = matched[1]; n = matched[2];
-            nid = node_uuid( n ); //if ( hash[nid] && hash[nid].atts ) continue;
-            hash[nid] = hash[nid] || { }; atnodes[nid] = n;
-            hash[nid].keys = hash[nid].keys || { }; keyNodes = hash[nid].keys;
-            hash[nid].atts = hash[nid].atts || { }; keyAtts = hash[nid].atts;
-            txt = a.nodeValue;  aNodesCached = (txt in aNodes);
+            nid = node_uuid( n );
+            hash[nid] = hash[nid] || [{},{}]; atnodes[nid] = n;
+            keyNodes = hash[nid][0/*KEYS*/]; keyAtts = hash[nid][1/*ATTS*/];
+            txt = a[VALUE];  aNodesCached = (txt in aNodes);
             if ( !aNodesCached ) 
             {
-                rest = get_textnode( txt ); aNodes[ txt ] = [[], [ rest ]];
-                if ( txt.length > m[0].length )
+                rest = document.createTextNode(txt||''); aNodes[ txt ] = [[], [ rest ]];
+                if ( 1 === m[0] ) // revived attribute
+                {
+                    matches = m[1]; ml = matches.length; pos = 0;
+                    for (i=0; i<ml; i++)
+                    {
+                        att = matches[i];
+                        key = att[0];
+                        keyNode = rest.splitText( att[1][0]-pos );
+                        rest = keyNode.splitText( att[1][1] );
+                        aNodes[ txt ][0].push( key );
+                        aNodes[ txt ][1].push( keyNode, rest ); 
+                        (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
+                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
+                        pos += att[1][1] + att[1][0];
+                    }
+                }
+                else if ( txt.length > m[0].length )
                 {
                     // attr contains more text than just the $(key) ref
                     do {
-                        key = m[1]; 
+                        key = m[1] ? m[1] : m[0];
                         keyNode = rest.splitText( m.index );
                         rest = keyNode.splitText( m[0].length );
                         aNodes[ txt ][0].push( key );
-                        aNodes[ txt ][1].push( keyNode ); 
-                        aNodes[ txt ][1].push( rest );
+                        aNodes[ txt ][1].push( keyNode, rest ); 
                         (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
                         (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
-                        m = rest.nodeValue.match( re_key );
+                        m = rest[VALUE][MATCH]( re_keys );
                     } while ( m );
                 }
                 else
                 {
-                    keyNode = rest; key = m[1];
+                    keyNode = rest; key = m[1] ? m[1] : m[0];
                     aNodes[ txt ][0].push( key );
                     (keyNodes[key]=keyNodes[key]||[]).push( keyNode );
                     (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt] );
@@ -3570,17 +3671,142 @@ Tpl.multisplit_node = function multisplit_node( node, re_key, hash, atKeys ) {
                 for (m=0; m<aNodes[ txt ][0].length; m++)
                     keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt] );
             }
-            //if ( !n[ATTR](atKeys) ) n[SET_ATTR](atKeys, 1);
         }
-        key = Keys( atnodes );
-        for (m=0; m<key.length; m++)
+        
+        // convert to another hash format based on tpl_key
+        tpl_keys = {};
+        for (nid in hash)
         {
-            n = atnodes[ nid=key[m] ];
-            n[SET_ATTR](atKeys, '|'+Keys(hash[nid].keys).join('|'));
+            if ( !hash[HAS](nid) ) continue;
+            for (key in hash[nid][0/*KEYS*/] )
+            {
+                if ( !hash[nid][0/*KEYS*/][HAS](key) ) continue;
+                if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [hash[nid][0/*KEYS*/][key], hash[nid][1/*ATTS*/][key]||[]];
+                else tpl_keys[key][0/*KEYS*/] = tpl_keys[key][0/*KEYS*/].concat(hash[nid][0/*KEYS*/][key]);
+            }
+            for (key in hash[nid][1/*ATTS*/] )
+            {
+                if ( !hash[nid][1/*ATTS*/][HAS](key) ) continue;
+                if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [hash[nid][0/*KEYS*/][key]||[], hash[nid][1/*ATTS*/][key]];
+                else tpl_keys[key][1/*ATTS*/] = tpl_keys[key][1/*ATTS*/].concat(hash[nid][1/*ATTS*/][key]);
+            }
         }
+        return [tpl_keys, node];
     }
-    return {node: node, keys: hash, atkeys: atKeys};;
+    
+    ,renderer_string = function( data ) {
+        var tpl = this.$tpl[1/*TPL*/], revivable = this.$revivable, 
+            l = tpl.length, t, atts = [],
+            i, notIsSub, s, insideTag, out = ''
+        ;
+        for (i=0; i<l; i++)
+        {
+            t = tpl[ i ]; 
+            notIsSub = t[ 0 ]; 
+            insideTag = t[ 1 ];
+            s = t[ 2 ];
+            if ( notIsSub )
+            {
+                // add comment annotations for template to be revived on client-side
+                if ( revivable && !insideTag && t[ 3 ] > -1 && atts.length )
+                {
+                    s = s.slice(0,t[ 3 ]) + '<!--' + atts.join("\n") + '-->' + s.slice(t[ 3 ]);
+                    atts = [];
+                }
+                out += s;
+            }
+            else
+            {
+                // enable to render/update tempate with partial data updates only
+                // check if not key set and re-use the previous value (if any)
+                if ( data[HAS](s) ) t[ 3 ] = String(data[ s ]);
+                // add comment annotations for template to be revived on client-side
+                if ( revivable ) 
+                {
+                    if ( insideTag )
+                    {
+                        out += t[ 3 ];
+                        if ( t[ 4 ] ) atts.push('att:'+t[ 4 ]+'|key:'+s+'|'+[t[ 5 ],t[ 3 ].length].join(','));
+                    }
+                    else
+                    {
+                        out += '<!--key:'+s+'-->' + t[ 3 ] + '<!--/key-->';
+                    }
+                }
+                else out += t[ 3 ];
+            }
+        }
+        return out;
+    }
+    
+    ,renderer_node = function( data ) {
+        var att, i, l, keys, key, k, kl, val, keyNodes, keyAtts, nodes, ni, nl, txt, 
+            tpl_keys = this.$tpl[0/*KEYS*/];
+        keys = Keys(data); kl = keys.length
+        for (k=0; k<kl; k++)
+        {
+            key = keys[k]; val = String(data[key]);
+            if ( !tpl_keys[HAS](key) ) continue;
+            
+            // element live text nodes
+            keyNodes = tpl_keys[key][0/*KEYS*/]; 
+            for (i=0,l=keyNodes.length; i<l; i++) 
+            {
+                keyNodes[i][VALUE] = val;
+            }
+            
+            // element live attributes
+            keyAtts = tpl_keys[key][1/*ATTS*/];
+            for (i=0,l=keyAtts.length; i<l; i++) 
+            {
+                att = keyAtts[i]; 
+                // inline join_text_nodes
+                nodes = att[1]; nl = nodes.length; 
+                txt = nl ? nodes[0][VALUE] : '';
+                if ( nl > 1 ) for (ni=1; ni<nl; ni++) txt += nodes[ni][VALUE];
+                att[0][VALUE] = txt;
+            }
+        }
+        return this;
+    }
+;
+
+/**[DOC_MARKDOWN]
+####Tpl
+
+ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
+
+```javascript
+// modelview.js tpl methods
+// adapted from https://github.com/foo123/Tao.js
+
+var tpl = new ModelView.Tpl( String|DOMNode tpl );
+
+[/DOC_MARKDOWN]**/
+//
+// String and LiveDom Isomorphic (Inline) Template Class
+// adapted from https://github.com/foo123/Tao.js
+var Tpl = function Tpl( template, re_keys, revivable ) {
+    var tpl = this;
+    // constructor-factory pattern
+    if ( !(tpl instanceof Tpl) ) return new Tpl( template, re_keys, revivable );
+    tpl.initPubSub( );
+    tpl.$revivable = true === revivable;
+    if ( template.substr && template.substring )
+    {
+        tpl.$key = new RegExp(re_keys.source, "g"); /* make sure global flag is added */
+        tpl.$tpl = Tpl.multisplit_string( template, tpl.$key, tpl.$revivable );
+        tpl.render = renderer_string;
+    }
+    else //if (tpl is dom_node)
+    {
+        tpl.$key = new RegExp(re_keys.source, ""); /* make sure global flag is removed */
+        tpl.$tpl = multisplit_node( template, tpl.$key, tpl.$revivable );
+        tpl.render = renderer_node;
+    }
 };
+Tpl.multisplit_string = multisplit_string;
+Tpl.multisplit_node = multisplit_node;
 Tpl.free = function( node, hash, atKeys ) {
     var nid;
     if ( hash && (nid=node[nUUID]) && hash[HAS](nid) ) del(hash, nid);
@@ -3595,6 +3821,7 @@ Tpl[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     ,id: null
     ,$tpl: null
     ,$key: null
+    ,$revivable: false
     
 /**[DOC_MARKDOWN]
 // dispose tpl
@@ -3606,34 +3833,26 @@ tpl.dispose( );
         tpl.disposePubSub( );
         tpl.$key = null;
         tpl.$tpl = null;
+        tp.$revivable = null;
         return tpl;
     }
     
 /**[DOC_MARKDOWN]
-// tpl represents a string template str_tpl
-// re_keys is a regular expression for key replacememnts inside the template
-tpl.str( String str_tpl, RegExp re_keys );
+// get the template dynamic keys
+tpl.keys( );
 
 [/DOC_MARKDOWN]**/
-    ,str: function( str, re_keys ) {
-        var tpl = this;
-        tpl.$key = new RegExp(re_keys.source, "g"); // make sure global flag is added
-        tpl.$tpl = Tpl.multisplit_string(str, tpl.$key);
-        return tpl;
+    ,keys: function( ) {
+        return Keys(this.$tpl[0]);
     }
     
 /**[DOC_MARKDOWN]
-// tpl represents a live dom Node
-// re_keys is the regular expression for key replacememnts inside the template
-// atkeys is the attribute to use on node if it has key replacements (used internaly mostly)
-tpl.dom( DoOMNode node, RegExp re_keys, String atkeys );
+// render/update and return the template string with given data
+tpl.render( Object|Array data );
 
 [/DOC_MARKDOWN]**/
-    ,dom: function( node, re_keys, atkeys ) {
-        var tpl = this;
-        tpl.$key = new RegExp(re_keys.source, ""); // make sure global flag is removed
-        tpl.$tpl = Tpl.multisplit_node( node, tpl.$key, null, atkeys );
-        return tpl;
+    ,render: function( data ) {
+        // override
     }
     
 /**[DOC_MARKDOWN]
@@ -3643,7 +3862,7 @@ tpl.bind( Node el );
 [/DOC_MARKDOWN]**/
     ,bind: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl.keys = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl.keys, tpl.$tpl.atkeys ).keys;
+        if ( el ) tpl.$tpl[KEYS] = Tpl.multisplit_node( el, tpl.$key, tpl.$tpl[KEYS], tpl.$tpl[ATKEYS] )[KEYS];
         return tpl;
     }
     
@@ -3654,153 +3873,10 @@ tpl.free( Node el );
 [/DOC_MARKDOWN]**/
     ,free: function( el ) {  
         var tpl = this;
-        if ( el ) tpl.$tpl.keys = Tpl.free( el, tpl.$tpl.keys, tpl.$tpl.atkeys );
+        if ( el ) tpl.$tpl[KEYS] = Tpl.free( el, tpl.$tpl[KEYS], tpl.$tpl[ATKEYS] );
         return tpl;
     }
     
-    ,renderView: function( view, model, evt, elements, key, val, isSync ) {
-        var tpl = this,
-            els_len = elements.length, el, e, att,
-            i, nodes, l, keys, k, kk, nkk, kl, v, keyDot, keyNodes, keyAtts,
-            hash = tpl.$tpl.keys, cached = { }, nid
-        ;
-        if ( !hash ) return;
-
-        if ( key )
-        {
-            keyDot = key + '.'; val = '' + model.get(key); //val;
-            for (e=0; e<els_len; e++)
-            {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[HAS](nid) ) continue;
-                
-                // element live text nodes
-                if ( (keyNodes=hash[nid].keys) )
-                {
-                    if ( keyNodes[HAS](key) )
-                    {
-                        nodes=keyNodes[key];
-                        for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = val;
-                    }
-                    keys = Keys(keyNodes);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k]; if ( key === kk ) continue;
-                        if ( startsWith( kk, keyDot ) && (nodes=keyNodes[kk]).length )
-                        {
-                            // use already cached key/value
-                            nkk = '_' + kk;
-                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
-                            for (i=0,l=nodes.length; i<l; i++) nodes[i].nodeValue = v;
-                        }
-                    }
-                }
-                
-                // element live attributes
-                if ( (keyAtts=hash[nid].atts) )
-                {
-                    if ( keyAtts && keyAtts[HAS](key) )
-                    {
-                        nodes=keyAtts[key];
-                        for (i=0,l=nodes.length; i<l; i++) nodes[i][0].nodeValue = join_text_nodes( nodes[i][1] );
-                    }
-                    keys = Keys(keyAtts);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k]; if ( key === kk ) continue;
-                        if ( startsWith( kk, keyDot ) && (nodes=keyAtts[kk]).length )
-                        {
-                            for (i=0,l=nodes.length; i<l; i++) 
-                            {
-                                att = nodes[i];
-                                // use already cached key/value
-                                nkk = '_' + att[2];
-                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                                else cached[ nkk ] = [ v=join_text_nodes( att[1] ) ];
-                                att[0].nodeValue = v;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else if ( isSync )
-        {
-            for (e=0; e<els_len; e++)
-            {
-                el = elements[ e ]; if ( !el || !(nid=el[nUUID]) || !hash[nid] ) continue;
-                
-                // element live text nodes
-                if ( (keyNodes=hash[nid].keys) )
-                {
-                    keys = Keys(keyNodes);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k];
-                        if ( (nodes=keyNodes[kk]) && (l=nodes.length) )
-                        {
-                            // use already cached key/value
-                            nkk = '_' + kk;
-                            if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                            else cached[ nkk ] = [ v='' + model.get( kk ) ];
-                            for (i=0; i<l; i++) nodes[i].nodeValue = v;
-                        }
-                    }
-                }
-                
-                // element live attributes
-                if ( (keyAtts=hash[nid].atts) )
-                {
-                    keys = Keys(keyAtts);
-                    for (k=0,kl=keys.length; k<kl; k++)
-                    {
-                        kk = keys[k];
-                        if ( (nodes=keyAtts[kk]) && (l=nodes.length) )
-                        {
-                            for (i=0; i<l; i++) 
-                            {
-                                att = nodes[i];
-                                // use already cached key/value
-                                nkk = '_' + att[2];
-                                if ( cached[HAS]( nkk ) ) v = cached[ nkk ][ 0 ];
-                                else cached[ nkk ] = [ v=join_text_nodes( att[1] ) ];
-                                att[0].nodeValue = v;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return tpl;
-    }
-    
-/**[DOC_MARKDOWN]
-// render/update and return the template string with given data
-tpl.renderString( Object|Array data );
-
-[/DOC_MARKDOWN]**/
-    ,renderString: function( data ) {
-        var tpl = this.$tpl,
-            l = tpl.length,
-            i, notIsSub, s, out = ''
-        ;
-        for (i=0; i<l; i++)
-        {
-            notIsSub = tpl[ i ][ 0 ]; s = tpl[ i ][ 1 ];
-            if ( notIsSub )
-            {
-                out += s;
-            }
-            else
-            {
-                // allow to render/update tempate with partial data updates only
-                // check if not key set and re-use the previous value (if any)
-                if ( data[HAS](s) ) tpl[i][2] = String(data[ s ]);
-                out += tpl[i][2];
-            }
-        }
-        return out;
-    }
     /*
     ,clone: function( ) {
         // todo
@@ -3818,7 +3894,8 @@ tpl.renderString( Object|Array data );
 [/DOC_MARKDOWN]**/
 
 // View utils
-var
+var namedKeyProp = "mv_namedkey",
+
     getInlineTplRE = function( InlineTplFormat, modelID ) {
         return new Regex(
             esc_re( InlineTplFormat )
@@ -3852,7 +3929,7 @@ var
         }
     },
     
-    doBindAction = function( view, elements, evt, fromModel ) {
+    doBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
@@ -3888,7 +3965,7 @@ var
         }
     },
     
-    doAutoBindAction = function( view, elements, evt, fromModel ) {
+    doAutoBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, cached = { }, i, l = elements.length,
             el, name, key, ns_key, value
         ;
@@ -3909,6 +3986,35 @@ var
             // call default action (ie: live update)
             view.do_bind( evt, el, {name:name, key:key, value:value} );
         }
+    },
+    
+    doLiveBindAction = function( view, evt, fromModel ) {
+        var model = view.$model, isSync = 'sync' == evt.type, hasData = false,
+            key, keyDot, k, kk, keys = view.$tpl.keys(), kl = keys.length, data = {}
+        ;
+        if ( isSync )
+        {
+            for (k=0; k<kl; k++)
+            {
+                kk = keys[k];
+                data[kk] = model.get(kk);
+                hasData = true;
+            }
+        }
+        else if ( fromModel && fromModel.key )
+        {
+            key = fromModel.key; keyDot = key + '.';
+            for (k=0; k<kl; k++)
+            {
+                kk = keys[k];
+                if ( key === kk || startsWith(kk, keyDot) )
+                {
+                    data[kk] = model.get(kk);
+                    hasData = true;
+                }
+            }
+        }
+        if ( hasData ) view.$tpl.render( data );
     },
     
     //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
@@ -4006,7 +4112,7 @@ var View = function View( id, model, atts, cacheSize, refreshInterval ) {
     view.$memoize = new Cache( cacheSize, INF );
     view.$selectors = new Cache( cacheSize, refreshInterval );
     view.$atbind = view.attribute( "bind" );
-    view.$atkeys = view.attribute( "keys" );
+    //view.$atkeys = view.attribute( "keys" );
     view.$shortcuts = { };
     view.$num_shortcuts = 0;
     view.model( model || new Model( ) ).initPubSub( );
@@ -4025,17 +4131,18 @@ View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
     ,id: null
     ,$dom: null
-    ,$dom_tpl: null
+    ,$tpl: null
     ,$model: null
     ,$livebind: null
     ,$autobind: false
+    ,$isomorphic: false
     ,$bindbubble: false
     ,$template: null
     ,$atts: null
     ,$memoize: null
     ,$selectors: null
     ,$atbind: null
-    ,$atkeys: null
+    //,$atkeys: null
     ,$shortcuts: null
     ,$num_shortcuts: null
     
@@ -4050,8 +4157,8 @@ view.dispose( );
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
-        if ( view.$dom_tpl ) view.$dom_tpl.dispose();
-        view.$dom_tpl = null;
+        if ( view.$tpl ) view.$tpl.dispose();
+        view.$tpl = null;
         view.$template = null;
         view.$atts = null;
         view.$memoize.dispose( );
@@ -4059,8 +4166,9 @@ view.dispose( );
         view.$selectors.dispose( );
         view.$selectors = null;
         view.$livebind = null;
+        view.$isomorphic = null;
         view.$atbind = null;
-        view.$atkeys = null;
+        //view.$atkeys = null;
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         return view;
@@ -4218,6 +4326,22 @@ view.livebind( [String format | Boolean false] );
     }
     
 /**[DOC_MARKDOWN]
+// get / set isomorphic flag, 
+// isomorphic flag enables ModelView API to run both on server and browser and seamlessly and continously pass from one to the other
+view.isomorphic( [Boolean false] );
+
+[/DOC_MARKDOWN]**/
+    ,isomorphic: function( bool ) {
+        var view = this;
+        if ( arguments.length )
+        {
+            view.$isomorphic = !!bool;
+            return view;
+        }
+        return view.$isomorphic;
+    }
+    
+/**[DOC_MARKDOWN]
 // get / set autobind, 
 // autobind automatically binds (2-way) input elements to model keys via name attribute 
 // e.g <input name="model[key]" />, <select name="model[key]"></select>
@@ -4371,7 +4495,7 @@ view.autobind( [Boolean bool] );
         var view = this;
         if ( el )
         {
-            if ( view.$dom_tpl ) view.$dom_tpl.bind( el );
+            if ( view.$tpl ) view.$tpl.bind( el );
             if ( false !== and_sync ) view.sync( null, el );
         }
         return view;
@@ -4381,7 +4505,7 @@ view.autobind( [Boolean bool] );
         var view = this;
         if ( el ) 
         {
-            if ( view.$dom_tpl ) view.$dom_tpl.free( el );
+            if ( view.$tpl ) view.$tpl.free( el );
             if ( false !== and_reset ) view.$selectors.reset( );
         }
         return view;
@@ -4394,23 +4518,23 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
 [/DOC_MARKDOWN]**/
     ,bind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
+            sels = getSelectors( view.$atbind, null/*[view.$atkeys]*/, [model.id+'['] ),
             bindSelector = sels[ 0 ], autobindSelector = sels[ 2 ],
             method, evt, namespaced, 
-            autobind = view.$autobind, livebind = !!view.$livebind
+            autobind = view.$autobind, livebind = !!view.$livebind,
+            hasDocument = 'undefined' !== typeof document
         ;
         
         events = events || ['change', 'click'];
-        view.$dom = dom || document.body;
+        view.$dom = dom || (hasDocument ? document.body : null);
         
         namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
         
         // live update dom nodes via special isomorphic Tpl live dom class
-        if ( livebind )
-            view.$dom_tpl = Tpl().dom( view.$dom, view.$livebind, view.$atkeys );
+        if ( livebind ) view.$tpl = Tpl( view.$dom, view.$livebind, view.$isomorphic );
         
         // default view/dom binding events
-        if ( view.on_view_change && events.length )
+        if ( hasDocument && view.on_view_change && events.length )
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
@@ -4446,35 +4570,38 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
         {
             if ( !is_type( view[ method ], T_FUNC ) ) continue;
             
-            if ( startsWith( method, 'on_document_' ) )
-            {
-                evt = method.slice(12);
-                evt.length && DOMEvent( document.body ).on( 
-                    namespaced(evt), 
-                    viewHandler( view, method )
-                );
-            }
-            else if ( startsWith( method, 'on_model_' ) )
+            if ( startsWith( method, 'on_model_' ) )
             {
                 evt = method.slice(9);
                 evt.length && view.onTo( model, evt, view[ method ] );
             }
-            else if ( startsWith( method, 'on_view_' ) && 'on_view_change' !== method )
+            else if ( hasDocument )
             {
-                evt = method.slice(8);
-                evt.length && DOMEvent( view.$dom ).on( 
-                    namespaced(evt), 
-                    autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector, 
-                    viewHandler( view, method )
-                );
-            }
-            else if ( startsWith( method, 'on_dom_' ) )
-            {
-                evt = method.slice(7);
-                evt.length && DOMEvent( view.$dom ).on( 
-                    namespaced(evt), 
-                    viewHandler( view, method )
-                );
+                if ( startsWith( method, 'on_document_' ) )
+                {
+                    evt = method.slice(12);
+                    evt.length && DOMEvent( document.body ).on( 
+                        namespaced(evt), 
+                        viewHandler( view, method )
+                    );
+                }
+                else if ( startsWith( method, 'on_view_' ) && 'on_view_change' !== method )
+                {
+                    evt = method.slice(8);
+                    evt.length && DOMEvent( view.$dom ).on( 
+                        namespaced(evt), 
+                        autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector, 
+                        viewHandler( view, method )
+                    );
+                }
+                else if ( startsWith( method, 'on_dom_' ) )
+                {
+                    evt = method.slice(7);
+                    evt.length && DOMEvent( view.$dom ).on( 
+                        namespaced(evt), 
+                        viewHandler( view, method )
+                    );
+                }
             }
         }
         
@@ -4488,9 +4615,10 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 [/DOC_MARKDOWN]**/
     ,unbind: function( events, dom ) {
         var view = this, model = view.$model,
-            sels = getSelectors( view.$atbind, [view.$atkeys], [model.id+'['] ),
+            sels = getSelectors( view.$atbind, null/*[view.$atkeys]*/, [model.id+'['] ),
             namespaced, $dom, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind
+            autobind = view.$autobind, livebind = !!view.$livebind,
+            hasDocument = 'undefined' !== typeof document
         ;
         
         events = events || null;
@@ -4499,7 +4627,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         namespaced = function( evt ) { return NSEvent(evt, view.namespace); };
          
         // view/dom change events
-        if ( view.on_view_change )
+        if ( hasDocument && view.on_view_change )
         {
             DOMEvent( $dom ).off( 
                 
@@ -4511,13 +4639,16 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         
         // model events
         view.offFrom( model );
-        DOMEvent( $dom ).off( viewEvent );
-        DOMEvent( document.body ).off( viewEvent );
-        // live update dom nodes
-        if ( view.$dom_tpl )
+        if ( hasDocument )
         {
-            view.$dom_tpl.dispose();
-            view.$dom_tpl = null;
+            DOMEvent( $dom ).off( viewEvent );
+            DOMEvent( document.body ).off( viewEvent );
+        }
+        // live update dom nodes
+        if ( view.$tpl )
+        {
+            view.$tpl.dispose();
+            view.$tpl = null;
         }
         
         return view;
@@ -4545,28 +4676,32 @@ view.sync( [DOMNode dom=view.$dom] );
     ,sync: function( $dom, el ) {
         var view = this, 
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys] : 0, autobind ? [view.$model.id+'['] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys] : 0*/, autobind ? [view.$model.id+'['] : 0 ),
             syncEvent = PBEvent('sync', view), binds, autobinds, livebinds, 
+            hasDocument = 'undefined' !== typeof document,
             andCache;
         
         view.$selectors.reset( );
         if ( el )
         {
             syncEvent.currentTarget = el;
-            binds = view.get( s[ 0 ], el, 0, 1 );
-            if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
-            if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
+            if ( hasDocument )
+            {
+                binds = view.get( s[ 0 ], el, 0, 1 );
+                if ( autobind ) autobinds = view.get( s[ 2 ], el, 0, 1 );
+                //if ( livebind ) livebinds = view.get( s[ 1 ], el, 1, 1 );
+            }
         }
-        else
+        else if ( hasDocument )
         {
             $dom = $dom || view.$dom; andCache = !($dom === view.$dom);
             binds = view.get( s[ 0 ], $dom, 0, andCache );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
-            if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
+            //if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
         }
-        if ( binds.length ) doBindAction( view, binds, syncEvent );
-        if ( autobind && autobinds.length ) doAutoBindAction( view, autobinds, syncEvent );
-        if ( livebind && livebinds.length ) view.$dom_tpl.renderView(view, view.$model, syncEvent, livebinds, null, null, true);
+        if ( hasDocument && binds.length ) doBindAction( view, syncEvent, binds );
+        if ( hasDocument && autobind && autobinds.length ) doAutoBindAction( view, syncEvent, autobinds );
+        if ( livebind && /*livebinds.length*/view.$tpl ) doLiveBindAction( view, syncEvent );
         return view;
     }
     
@@ -4633,7 +4768,7 @@ view.reset( );
         
         // if not model update error and element is bind element
         // do view action
-        if ( !modeldata.error && data.isBind ) doBindAction( view, [el], evt/*, data*/ );
+        if ( !modeldata.error && data.isBind ) doBindAction( view, evt, [el]/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -4705,49 +4840,54 @@ view.reset( );
     ,on_model_change: function( evt, data ) {
         var view = this, model = view.$model,
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys, data.key] : 0*/, autobind ? [model.id + bracketed( data.key )] : 0 ),
             bindElements, autoBindElements, liveBindings,  
+            hasDocument = 'undefined' !== typeof document,
             notTriggerElem
         ;
         
-        bindElements = view.get( s[ 0 ] );
-        if ( autobind ) autoBindElements = view.get( s[ 2 ] );
-        if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
-        
-        // bypass element that triggered the "model:change" event
-        if ( data.$callData && data.$callData.$trigger )
+        if ( hasDocument )
         {
-            notTriggerElem = function( ele ){ return ele !== data.$callData.$trigger; };
-            bindElements = bindElements.filter( notTriggerElem );
-            if ( autobind ) autoBindElements = autoBindElements.filter( notTriggerElem );
-            data.$callData = null;
+            bindElements = view.get( s[ 0 ] );
+            if ( autobind ) autoBindElements = view.get( s[ 2 ] );
+            //if ( livebind ) liveBindings = view.get( s[ 1 ], 0, 1 );
+            
+            // bypass element that triggered the "model:change" event
+            if ( data.$callData && data.$callData.$trigger )
+            {
+                notTriggerElem = function( ele ){ return ele !== data.$callData.$trigger; };
+                bindElements = bindElements.filter( notTriggerElem );
+                if ( autobind ) autoBindElements = autoBindElements.filter( notTriggerElem );
+                data.$callData = null;
+            }
         }
         
         // do actions ..
         
         // do view action first
-        if ( bindElements.length ) doBindAction( view, bindElements, evt, data );
+        if ( hasDocument && bindElements.length ) doBindAction( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( autobind && autoBindElements.length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( hasDocument && autobind && autoBindElements.length ) doAutoBindAction( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && liveBindings.length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
+        if ( livebind && /*liveBindings.length*/view.$tpl ) doLiveBindAction( view, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
         var view = this, model = view.$model,
             autobind = view.$autobind, livebind = !!view.$livebind, 
-            s = getSelectors( view.$atbind, livebind ? [view.$atkeys, data.key] : 0, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            s = getSelectors( view.$atbind, null/*livebind ? [view.$atkeys, data.key] : 0*/, autobind ? [model.id + bracketed( data.key )] : 0 ),
+            hasDocument = 'undefined' !== typeof document,
             bindElements, autoBindElements, liveBindings
         ;
 
         // do actions ..
         
         // do view bind action first
-        if ( (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, bindElements, evt, data );
+        if ( hasDocument && (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, autoBindElements, evt, data );
+        if ( hasDocument && autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && (liveBindings=view.get( s[ 1 ], 0, 1 )).length ) view.$dom_tpl.renderView(view, view.$model, evt, liveBindings, data.key, data.value, 'sync' == evt.type);
+        if ( livebind && /*(liveBindings=view.get( s[ 1 ], 0, 1 )).length*/view.$tpl ) doLiveBindAction( view, evt, data );
     }
     
     //
@@ -5165,6 +5305,9 @@ new ModelView.View(
     // model data validators (if any) here ..
     .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
+.shortcuts({
+    'alt+h': 'alert_msg'
+})
 .actions({
     // custom view actions (if any) here ..
     alert_msg: function( evt, el, bindData ) {
@@ -5182,8 +5325,8 @@ new ModelView.View(
 .attribute( 'bind', 'data-bind' ) // default
 .livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
+.isomorphic( false ) // default
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
-.autovalidate( true ) // default
 .sync( )
 ;
 ```
@@ -5201,7 +5344,7 @@ $('#screen').modelview({
     events: [ 'change', 'click' ], // default
     livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
-    autovalidate: true, // default
+    isomorphic: false, // default
     autoSync: true, // default
     
     model: {
@@ -5221,6 +5364,10 @@ $('#screen').modelview({
             // model data validators (if any) here ..
             msg: ModelView.Validation.Validate.NOT_EMPTY
         }
+    },
+    
+    shortcuts: {
+        'alt+h': 'alert_msg'
     },
     
     actions: {
@@ -5247,7 +5394,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.55"
+    VERSION: "0.60"
     
     ,UUID: uuid
     
@@ -5271,7 +5418,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.55
+*   @version: 0.60
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -5373,6 +5520,7 @@ exports['ModelView'] = {
                             ,bindAttribute: 'data-bind' // default
                             ,livebind: null
                             ,autobind: false
+                            ,isomorphic: false
                             ,bindbubble: false
                             ,autovalidate: true
                             ,events: null
@@ -5428,6 +5576,7 @@ exports['ModelView'] = {
                     // init view
                     .livebind( options.livebind )
                     .autobind( options.autobind )
+                    .isomorphic( options.isomorphic )
                     .bindbubble( options.bindbubble )
                     .autovalidate( options.autovalidate )
                     .bind( options.events, $dom[0] )

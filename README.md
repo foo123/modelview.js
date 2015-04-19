@@ -1,10 +1,13 @@
 modelview.js
 ============
 
-A simple / extendable / umd-compatible / light-weight (~40 kB minified, ~13kB gzipped) mv* (MVVM) framework <del>based on jQuery</del> (jQuery is **not** a dependency, but can be used as a plugin/widget as easily)
+A simple / extendable / isomorphic / umd-compatible / light-weight (~48kB minified, ~16kB gzipped) mv* (MVVM) framework  (plays nicely with jQuery / jQueryUI as plugin / widget as easily)
 
 
-**Version 0.55**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.60**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+
+
+**NEW:** ModelView (version 0.60+) is now an [(full) isomorphic](http://isomorphic.net/) MVVM framework!
 
 
 **see also:**  
@@ -65,6 +68,9 @@ new ModelView.View(
     // model data validators (if any) here ..
     .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
 )
+.shortcuts({
+    'alt+h': 'alert_msg'
+})
 .actions({
     // custom view actions (if any) here ..
     alert_msg: function( evt, el, bindData ) {
@@ -82,6 +88,7 @@ new ModelView.View(
 .attribute( 'bind', 'data-bind' ) // default
 .livebind( '$(__MODEL__.__KEY__)' )
 .autobind( true )
+.isomorphic( false ) // default
 .bind( [ 'change', 'click' ], document.getElementById('screen') )
 .sync( )
 ;
@@ -99,6 +106,7 @@ $('#screen').modelview({
     events: [ 'change', 'click' ], // default
     livebind: '$(__MODEL__.__KEY__)',
     autobind: true,
+    isomorphic: false, // default
     autoSync: true, // default
     
     model: {
@@ -118,6 +126,10 @@ $('#screen').modelview({
             // model data validators (if any) here ..
             msg: ModelView.Validation.Validate.NOT_EMPTY
         }
+    },
+    
+    shortcuts: {
+        'alt+h': 'alert_msg'
     },
     
     actions: {
