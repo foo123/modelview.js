@@ -321,4 +321,4 @@ Previous tests are here [jsperf/0.42.2](http://jsperf.com/angularjs-vs-knockoutj
 
 ModelView 0.60 is (consistently) 1st place on almost all browsers.
 
-[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/53)
+[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/73)
