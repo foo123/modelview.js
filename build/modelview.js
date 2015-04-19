@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-19 16:34:53
+*   @built on 2015-04-19 17:17:49
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.60
-*   @built on 2015-04-19 16:34:53
+*   @built on 2015-04-19 17:17:49
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -121,7 +121,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
         
         //type_of = typeOf(v);
-        to_string = toString.call( v );
+        to_string = OP.toString.call( v );
         //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
         to_string = TO_STRING[to_string] || T_UNKNOWN;
         

@@ -47,7 +47,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
         
         //type_of = typeOf(v);
-        to_string = toString.call( v );
+        to_string = OP.toString.call( v );
         //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
         to_string = TO_STRING[to_string] || T_UNKNOWN;
         
