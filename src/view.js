@@ -211,7 +211,6 @@ var View = function View( id, model, atts, cacheSize, refreshInterval ) {
     
     view.namespace = view.id = id || uuid('View');
     if ( !(atts=atts||{})[HAS]('bind') ) atts['bind'] = "data-bind";
-    if ( !atts[HAS]('keys') ) atts['keys'] = "data-mvkeys" + (++nuuid);
     view.$atts = atts;
     cacheSize = cacheSize || View._CACHE_SIZE;
     refreshInterval = refreshInterval || View._REFRESH_INTERVAL;

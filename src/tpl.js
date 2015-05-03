@@ -1,10 +1,9 @@
 
 // Tpl utils
 var POS = 'lastIndexOf', MATCH = 'match'
-    ,VALUE = 'nodeValue', NODETYPE = 'nodeType', ATT_RE = /[a-zA-Z0-9_\-]/
+    ,VALUE = 'nodeValue', NODETYPE = 'nodeType', PARENTNODE = 'parentNode'
+    ,ATT_RE = /[a-zA-Z0-9_\-]/
     ,to_int = function(v){return parseInt(v,10);}
-    // use hexadecimal string representation in order to have optimal key distribution in hash (??)
-    ,nuuid = 0, node_uuid = function( n ) { return n.$TID$ = n.$TID$ || n.id || ('_TID_'+(++nuuid).toString(16)); }
     
     ,multisplit_string = function multisplit_string( str, re_keys, revivable ) {
         var tpl = [ ], i = 0, m, sel_pos, sel, ch, ind,
@@ -75,10 +74,9 @@ var POS = 'lastIndexOf', MATCH = 'match'
         tpl.push([1, insideTag, sel, tagEnd]);
         return [tpl_keys, tpl];
     }
-    
     ,multisplit_node = function multisplit_node( node, re_keys, revivable ) {
-        var tpl_keys, matchedNodes, matchedAtts, i, l, m, matched, matches, ml, n, a, key, nid, atnodes,
-            keyNode, aNodes, aNodesCached, txt, atName, att, pos, rest, stack, keyNodes, keyAtts, hash = {}
+        var tpl_keys, matchedNodes, matchedAtts, i, l, m, matched, matches, ml, n, a, key, 
+            keyNode, atnodes, aNodes, aNodesCached, txt, txtkey, txtcnt = 0, atName, att, pos, rest, stack
         ;
          matchedNodes = [ ]; matchedAtts = [ ]; n = node;
         // find the nodes having tpl_keys
@@ -119,11 +117,11 @@ var POS = 'lastIndexOf', MATCH = 'match'
             ) 
             {
                 m = [n[VALUE], key.slice(4)];
-                matchedNodes.push([n, m, n[PARENT]]);
+                matchedNodes.push([n, m, n[PARENTNODE]]);
             }
             else if ( m=n[VALUE][MATCH](re_keys) ) 
             {
-                matchedNodes.push([n, m, n[PARENT]]);
+                matchedNodes.push([n, m, n[PARENTNODE]]);
             }
         }  
         else if ( n.firstChild )
@@ -171,11 +169,11 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         ) 
                         {
                             m = [n[VALUE], key.slice(4)];
-                            matchedNodes.push([n, m, n[PARENT]]);
+                            matchedNodes.push([n, m, n[PARENTNODE]]);
                         }
                         else if ( (m=n[VALUE][MATCH](re_keys)) ) 
                         {
-                            matchedNodes.push([n, m, n[PARENT]]);
+                            matchedNodes.push([n, m, n[PARENTNODE]]);
                         }
                     }
                     n = stack.pop( );
@@ -185,14 +183,11 @@ var POS = 'lastIndexOf', MATCH = 'match'
             }
         }
         // split the tpl_keys nodes
-        atnodes = { };
+        tpl_keys = { };
         for (i=0,l=matchedNodes.length; i<l; i++)
         {
             matched = matchedNodes[ i ];
             rest = matched[0]; m = matched[1]; n = matched[2];
-            nid = node_uuid( n );
-            hash[nid] = hash[nid] || [{},{}]; atnodes[nid] = n;
-            keyNodes = hash[nid][0/*KEYS*/];
             txt = rest[VALUE];  
             if ( txt.length > m[0].length )
             {
@@ -200,14 +195,16 @@ var POS = 'lastIndexOf', MATCH = 'match'
                 do {
                     key = m[1] ? m[1] : m[0]; keyNode = rest.splitText( m.index );
                     rest = keyNode.splitText( m[0].length );
-                    (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
+                    if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, []/*ATTS*/];
+                    else tpl_keys[key][0/*KEYS*/].push( [keyNode, n] );
                     m = rest[VALUE][MATCH]( re_keys );
                 } while ( m );
             }
             else
             {
                 key = m[1] ? m[1] : m[0]; keyNode = rest;
-                (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
+                if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, []/*ATTS*/];
+                else tpl_keys[key][0/*KEYS*/].push( [keyNode, n] );
             }
         }
         aNodes = { };
@@ -215,13 +212,11 @@ var POS = 'lastIndexOf', MATCH = 'match'
         {
             matched = matchedAtts[ i ];
             a = matched[0]; m = matched[1]; n = matched[2];
-            nid = node_uuid( n );
-            hash[nid] = hash[nid] || [{},{}]; atnodes[nid] = n;
-            keyNodes = hash[nid][0/*KEYS*/]; keyAtts = hash[nid][1/*ATTS*/];
-            txt = a[VALUE];  aNodesCached = (txt in aNodes);
+            txt = a[VALUE];  txtkey = txt; aNodesCached = (txtkey in aNodes);
+            if ( aNodesCached ) {txtkey += '_' + (++txtcnt); aNodesCached = false;}
             if ( !aNodesCached ) 
             {
-                rest = document.createTextNode(txt||''); aNodes[ txt ] = [[], [ rest ]];
+                rest = document.createTextNode(txt||''); aNodes[ txtkey ] = [[], [ rest ]];
                 if ( 1 === m[0] ) // revived attribute
                 {
                     matches = m[1]; ml = matches.length; pos = 0;
@@ -231,10 +226,10 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         key = att[0];
                         keyNode = rest.splitText( att[1][0]-pos );
                         rest = keyNode.splitText( att[1][1] );
-                        aNodes[ txt ][0].push( key );
-                        aNodes[ txt ][1].push( keyNode, rest ); 
-                        (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
+                        aNodes[ txtkey ][0].push( key );
+                        aNodes[ txtkey ][1].push( keyNode, rest ); 
+                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
+                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
                         pos += att[1][1] + att[1][0];
                     }
                 }
@@ -245,46 +240,30 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         key = m[1] ? m[1] : m[0];
                         keyNode = rest.splitText( m.index );
                         rest = keyNode.splitText( m[0].length );
-                        aNodes[ txt ][0].push( key );
-                        aNodes[ txt ][1].push( keyNode, rest ); 
-                        (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
-                        (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
+                        aNodes[ txtkey ][0].push( key );
+                        aNodes[ txtkey ][1].push( keyNode, rest ); 
+                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
+                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
                         m = rest[VALUE][MATCH]( re_keys );
                     } while ( m );
                 }
                 else
                 {
                     keyNode = rest; key = m[1] ? m[1] : m[0];
-                    aNodes[ txt ][0].push( key );
-                    (keyNodes[key]=keyNodes[key]||[]).push( [keyNode, n] );
-                    (keyAtts[key]=keyAtts[key]||[]).push( [a, aNodes[ txt ][1], txt, n] );
+                    aNodes[ txtkey ][0].push( key );
+                    if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
+                    else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
                 }
             }
-            else
+            /*else
             {
                 // share txt nodes between same (value) attributes
-                for (m=0; m<aNodes[ txt ][0].length; m++)
-                    keyAtts[aNodes[ txt ][0][m]].push( [a, aNodes[ txt ][1], txt, n] );
-            }
-        }
-        
-        // convert to another hash format based on tpl_key
-        tpl_keys = {};
-        for (nid in hash)
-        {
-            if ( !hash[HAS](nid) ) continue;
-            for (key in hash[nid][0/*KEYS*/] )
-            {
-                if ( !hash[nid][0/*KEYS*/][HAS](key) ) continue;
-                if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [hash[nid][0/*KEYS*/][key], hash[nid][1/*ATTS*/][key]||[]];
-                else tpl_keys[key][0/*KEYS*/] = tpl_keys[key][0/*KEYS*/].concat(hash[nid][0/*KEYS*/][key]);
-            }
-            for (key in hash[nid][1/*ATTS*/] )
-            {
-                if ( !hash[nid][1/*ATTS*/][HAS](key) ) continue;
-                if ( !tpl_keys[HAS](key) ) tpl_keys[key] = [hash[nid][0/*KEYS*/][key]||[], hash[nid][1/*ATTS*/][key]];
-                else tpl_keys[key][1/*ATTS*/] = tpl_keys[key][1/*ATTS*/].concat(hash[nid][1/*ATTS*/][key]);
-            }
+                for (m=0; m<aNodes[ txtkey ][0].length; m++)
+                {
+                    key = aNodes[ txtkey ][0][m];
+                    tpl_keys[key][1/*ATTS* /].push( [a, aNodes[ txtkey ][1], txt, n] );
+                }
+            }*/
         }
         return [tpl_keys, node];
     }
@@ -333,7 +312,6 @@ var POS = 'lastIndexOf', MATCH = 'match'
         }
         return out;
     }
-    
     ,renderer_node = function( data ) {
         var att, i, l, keys, key, k, kl, val, keyNodes, keyAtts, nodes, ni, nl, txt, 
             tpl_keys = this.$tpl[0/*KEYS*/];
@@ -498,7 +476,7 @@ tpl.free( Node el );
                 l = keyNodes.length;
                 for (i=l-1; i>=0; i--)
                 {
-                    if ( el === keyNodes[i][1] )
+                    if ( /*el === keyNodes[i][1]*/el.contains(keyNodes[i][1]) )
                         keyNodes.splice(i, 1);
                 }
                 
@@ -507,7 +485,7 @@ tpl.free( Node el );
                 l = atNodes.length;
                 for (i=l-1; i>=0; i--)
                 {
-                    if ( el === atNodes[i][3] )
+                    if ( /*el === atNodes[i][3]*/el.contains(atNodes[i][3]) )
                         atNodes.splice(i, 1);
                 }
             }
