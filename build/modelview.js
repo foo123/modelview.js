@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.61
-*   @built on 2015-05-03 15:51:30
+*   @version: 0.61.1
+*   @built on 2015-05-06 15:15:08
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.61
-*   @built on 2015-05-03 15:51:30
+*   @version: 0.61.1
+*   @built on 2015-05-06 15:15:08
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.61**
+**Version 0.61.1**
 
 ###Contents
 
@@ -3612,16 +3612,16 @@ var POS = 'lastIndexOf', MATCH = 'match'
                 else tpl_keys[key][0/*KEYS*/].push( [keyNode, n] );
             }
         }
-        aNodes = { };
+        //aNodes = { };
         for (i=0,l=matchedAtts.length; i<l; i++)
         {
             matched = matchedAtts[ i ];
             a = matched[0]; m = matched[1]; n = matched[2];
-            txt = a[VALUE];  txtkey = txt; aNodesCached = (txtkey in aNodes);
-            if ( aNodesCached ) {txtkey += '_' + (++txtcnt); aNodesCached = false;}
-            if ( !aNodesCached ) 
-            {
-                rest = document.createTextNode(txt||''); aNodes[ txtkey ] = [[], [ rest ]];
+            txt = a[VALUE];  //txtkey = txt; aNodesCached = (txtkey in aNodes);
+            //if ( aNodesCached ) {txtkey += '_' + (++txtcnt); aNodesCached = false;}
+            /*if ( !aNodesCached ) 
+            {*/
+                rest = document.createTextNode(txt||''); aNodes/*[ txtkey ]*/ = [[], [ rest ]];
                 if ( 1 === m[0] ) // revived attribute
                 {
                     matches = m[1]; ml = matches.length; pos = 0;
@@ -3631,10 +3631,10 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         key = att[0];
                         keyNode = rest.splitText( att[1][0]-pos );
                         rest = keyNode.splitText( att[1][1] );
-                        aNodes[ txtkey ][0].push( key );
-                        aNodes[ txtkey ][1].push( keyNode, rest ); 
-                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
-                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
+                        aNodes/*[ txtkey ]*/[0].push( key );
+                        aNodes/*[ txtkey ]*/[1].push( keyNode, rest ); 
+                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes/*[ txtkey ]*/[1], txt, n]]/*ATTS*/];}
+                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes/*[ txtkey ]*/[1], txt, n] );}
                         pos += att[1][1] + att[1][0];
                     }
                 }
@@ -3645,22 +3645,22 @@ var POS = 'lastIndexOf', MATCH = 'match'
                         key = m[1] ? m[1] : m[0];
                         keyNode = rest.splitText( m.index );
                         rest = keyNode.splitText( m[0].length );
-                        aNodes[ txtkey ][0].push( key );
-                        aNodes[ txtkey ][1].push( keyNode, rest ); 
-                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
-                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
+                        aNodes/*[ txtkey ]*/[0].push( key );
+                        aNodes/*[ txtkey ]*/[1].push( keyNode, rest ); 
+                        if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes/*[ txtkey ]*/[1], txt, n]]/*ATTS*/];}
+                        else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes/*[ txtkey ]*/[1], txt, n] );}
                         m = rest[VALUE][MATCH]( re_keys );
                     } while ( m );
                 }
                 else
                 {
                     keyNode = rest; key = m[1] ? m[1] : m[0];
-                    aNodes[ txtkey ][0].push( key );
-                    if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes[ txtkey ][1], txt, n]]/*ATTS*/];}
-                    else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes[ txtkey ][1], txt, n] );}
+                    aNodes/*[ txtkey ]*/[0].push( key );
+                    if ( !tpl_keys[HAS](key) ) {tpl_keys[key] = [[[keyNode, n]]/*KEYS*/, [[a, aNodes/*[ txtkey ]*/[1], txt, n]]/*ATTS*/];}
+                    else {tpl_keys[key][0/*KEYS*/].push( [keyNode, n] ); tpl_keys[key][1/*ATTS*/].push( [a, aNodes/*[ txtkey ]*/[1], txt, n] );}
                 }
-            }
-            /*else
+            /*}
+            else
             {
                 // share txt nodes between same (value) attributes
                 for (m=0; m<aNodes[ txtkey ][0].length; m++)
@@ -5414,7 +5414,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.61"
+    VERSION: "0.61.1"
     
     ,UUID: uuid
     
@@ -5438,7 +5438,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.61
+*   @version: 0.61.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
