@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.61.1
-*   @built on 2015-05-06 15:15:08
+*   @version: 0.62
+*   @built on 2015-07-08 22:06:14
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.61.1
-*   @built on 2015-05-06 15:15:08
+*   @version: 0.62
+*   @built on 2015-07-08 22:06:14
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.61.1**
+**Version 0.62**
 
 ###Contents
 
@@ -649,7 +649,8 @@ DOMEvent.Handler = function( event ) {
             listenerList = listeners[0][type];
             break;
     }
-
+    if ( !listenerList ) return;
+    
     // Need to continuously check
     // that the specific list is
     // still populated in case one
@@ -660,6 +661,7 @@ DOMEvent.Handler = function( event ) {
     {
         for (i=0; i<l; i++) 
         {
+            if ( !listenerList ) return;
             listener = listenerList[i];
             if ( !listener ) break;
 
@@ -1308,6 +1310,106 @@ var
         return fields;
     },
     
+    date_formatter = {
+        // Day
+        d: '([0-3][0-9])' // Day of month w/leading 0; 01..31
+        ,
+        D: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\\w{3})' // Shorthand day name; Mon...Sun
+        ,
+        j: '([1-3]?[0-9])' // Day of month; 1..31
+        ,
+        l: '(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\\w+?)' // Full day name; Monday...Sunday
+        ,
+        N: '([1-7])' // ISO-8601 day of week; 1[Mon]..7[Sun]
+        ,
+        S: '(st|nd|rd|th|\\w{2})' // Ordinal suffix for day of month; st, nd, rd, th
+        ,
+        w: '([0-6])' // Day of week; 0[Sun]..6[Sat]
+        ,
+        z: '([0-3]?[0-9]{1,2})' // Day of year; 0..365
+        ,
+
+        // Week
+        W: '([0-5][0-9])' // ISO-8601 week number
+        ,
+
+        // Month
+        F: '(January|February|March|April|May|June|July|August|September|October|November|December|\\w+?)' // Full month name; January...December
+        ,
+        m: '([0-1][0-9])' // Month w/leading 0; 01...12
+        ,
+        M: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\\w{3})' // Shorthand month name; Jan...Dec
+        ,
+        n: '(1?[0-9])' // Month; 1...12
+        ,
+        t: '(28|29|31)' // Days in month; 28...31
+        ,
+
+        // Year
+        L: '([0-1])' // Is leap year?; 0 or 1
+        ,
+        o: '(\\d{2,4})' // ISO-8601 year
+        ,
+        Y: '([1-9][0-9]{3})' // Full year; e.g. 1980...2010
+        ,
+        y: '([0-9]{2})' // Last two digits of year; 00...99
+        ,
+
+        // Time
+        a: '(am|pm|\\w{2})' // am or pm
+        ,
+        A: '(AM|PM|\\w{2})' // AM or PM
+        ,
+        B: '([0-9]{3})' // Swatch Internet time; 000..999
+        ,
+        g: '(1?[0-9])' // 12-Hours; 1..12
+        ,
+        G: '([1-2]?[0-9])' // 24-Hours; 0..23
+        ,
+        h: '([0-1][0-9])' // 12-Hours w/leading 0; 01..12
+        ,
+        H: '([0-2][0-9])' // 24-Hours w/leading 0; 00..23
+        ,
+        i: '([0-5][0-9])' // Minutes w/leading 0; 00..59
+        ,
+        s: '([0-5][0-9])' // Seconds w/leading 0; 00..59
+        ,
+        u: '([0-9]{6})' // Microseconds; 000000-999000
+        ,
+
+        // Timezone
+        e: '(\\w+?)' // Timezone identifier; e.g. Atlantic/Azores, ...
+        ,
+        I: '([0-1])' // DST observed?; 0 or 1
+        ,
+        O: '([+-][0-9]{4})' // Difference to GMT in hour format; e.g. +0200
+        ,
+        P: '([+-][0-9]{2}:[0-9]{2})' // Difference to GMT w/colon; e.g. +02:00
+        ,
+        T: '(UTC|EST|MDT|\\w{3})' // Timezone abbreviation; e.g. EST, MDT, ...
+        ,
+        Z: '(-?[0-9]{5})' // Timezone offset in seconds (-43200...50400)
+        ,
+
+        // Full Date/Time
+        c: '([1-9][0-9]{3})\\s?\\(UTC|EST|MDT|\\w{3})\\s?([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s?([+-][0-9]{2}\\:[0-9]{2})' // ISO-8601 date. Y-m-d\\TH:i:sP
+        ,
+        r:  '(\\w{3}),\\s([0-3][0-9])\\s(\\w{3})\\s([1-9][0-9]{3})\\s([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s([+-][0-9]{4})' // RFC 2822 D, d M Y H:i:s O
+        ,
+        U: '([0-9]{1,8})' // Seconds since UNIX epoch
+        
+    },
+    
+    get_date_pattern = function( format ) {
+        var re = '', f, i, l = format.length;
+        for (i=0; i<l; i++)
+        {
+            f = format.charAt( i );
+            re += date_formatter[HAS](f) ? date_formatter[ f ] : esc_re( f );
+        }
+        return new Regex('^'+re+'$','');
+    },
+    
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -1450,6 +1552,12 @@ ModelView.Type.Cast.BOOL;
 
 [/DOC_MARKDOWN]**/
             BOOL: function( v ) { 
+                // handle string representation of booleans as well
+                if ( is_type(v, T_STR) && v.length )
+                {
+                    var vs = v.toLowerCase( );
+                    return "true" === vs || "on" === vs || "1" === vs;
+                }
                 return !!v; 
             },
 /**[DOC_MARKDOWN]
@@ -1458,7 +1566,8 @@ ModelView.Type.Cast.INT;
 
 [/DOC_MARKDOWN]**/
             INT: function( v ) { 
-                return parseInt(v, 10);
+                // convert NaN to 0 if needed
+                return parseInt(v, 10) || 0;
             },
 /**[DOC_MARKDOWN]
 // cast to float
@@ -1466,7 +1575,8 @@ ModelView.Type.Cast.FLOAT;
 
 [/DOC_MARKDOWN]**/
             FLOAT: function( v ) { 
-                return parseFloat(v, 10); 
+                // convert NaN to 0 if needed
+                return parseFloat(v, 10) || 0;
             },
 /**[DOC_MARKDOWN]
 // min if value is less than
@@ -1628,6 +1738,14 @@ ModelView.Validation.Validate.NUMERIC;
                 return is_numeric( v ); 
             }),
 /**[DOC_MARKDOWN]
+// validate (string) empty (can be used as optional)
+ModelView.Validation.Validate.EMPTY;
+
+[/DOC_MARKDOWN]**/
+            EMPTY: VC(function( v ){
+                return !v || !trim(Str(v)).length;
+            }),
+/**[DOC_MARKDOWN]
 // validate (string) not empty
 ModelView.Validation.Validate.NOT_EMPTY;
 
@@ -1637,19 +1755,19 @@ ModelView.Validation.Validate.NOT_EMPTY;
             }),
 /**[DOC_MARKDOWN]
 // validate (string) maximum length
-ModelView.Validation.Validate.MAXLEN( len );
+ModelView.Validation.Validate.MAXLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
             MAXLEN: function( len ) {
-                return VC(newFunc("v", "return v.length <= "+len+";")); 
+                return VC(newFunc("v", "return v.length <= "+(len||0)+";")); 
             },
 /**[DOC_MARKDOWN]
 // validate (string) minimum length
-ModelView.Validation.Validate.MINLEN( len );
+ModelView.Validation.Validate.MINLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
             MINLEN: function( len ) {
-                return VC(newFunc("v", "return v.length >= "+len+";")); 
+                return VC(newFunc("v", "return v.length >= "+(len||0)+";")); 
             },
 /**[DOC_MARKDOWN]
 // validate value matches regex pattern
@@ -1804,6 +1922,31 @@ ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
                     return VC(function( v ) {
                         return v.length <= limit;
                     });
+            },
+/**[DOC_MARKDOWN]
+// validate value is valid email pattern
+ModelView.Validation.Validate.EMAIL;
+
+[/DOC_MARKDOWN]**/
+            EMAIL: (function( email_pattern ){
+                return VC(function( v ) { return email_pattern.test( v ); }); 
+            })(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/),
+/**[DOC_MARKDOWN]
+// validate value is valid url pattern (including mailto|http|https|ftp)
+ModelView.Validation.Validate.URL;
+
+[/DOC_MARKDOWN]**/
+            URL: (function( url_pattern ){
+                return VC(function( v ) { return url_pattern.test( v ); }); 
+            })(new Regex('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i')),
+/**[DOC_MARKDOWN]
+// validate value is valid date pattern according to [format](http://php.net/manual/en/function.date.php)
+ModelView.Validation.Validate.DATE( format="Y-m-d" );
+
+[/DOC_MARKDOWN]**/
+            DATE: function( format ) { 
+                var date_pattern = get_date_pattern( format || "Y-m-d" );
+                return VC(function( v ) { return date_pattern.test( v ); }); 
             }
         }
         
@@ -2389,7 +2532,7 @@ Model.count = function( o ) {
     return 0;
 };
 // return a sorter to sort model data in custom ways, easily
-Model.sorter = sorter;
+Model.Sorter = sorter;
 Model.Field = ModelField;
 
 // Model implements PublishSubscribe pattern
@@ -3956,7 +4099,7 @@ var namedKeyProp = "mv_namedkey",
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
             notmodelkey = !modelkey,
             modelkeyDot = modelkey ? (modelkey+'.') : null,
-            el, bind, do_action, name, key, 
+            el, bind, do_action, name, key, domref,
             isAtom = model.atomic, atom = model.$atom,
             atomDot = isAtom ? (atom+'.') : null
         ;
@@ -3982,7 +4125,9 @@ var namedKeyProp = "mv_namedkey",
             if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
             
             if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) )
+            {
                 view[ do_action ]( evt, el, bind );
+            }
         }
     },
     
@@ -4101,6 +4246,8 @@ var namedKeyProp = "mv_namedkey",
     ,122 : 'f11'
     ,123 : 'f12'
     },
+    
+    empty_brackets_re = /\[\s*\]$/,
     
     viewHandler = function( view, method ) {
         return function(evt){return view[method](evt, {el:this});};
@@ -4497,7 +4644,8 @@ view.autobind( [Boolean bool] );
                 
                 if ( (attbind=attribute.change) )
                 {
-                    if ( !attbind.domRef && attribute.domRef ) attbind.domRef = attribute.domRef;
+                    // domRef referenced in separate data-domref attribute
+                    //if ( !attbind.domRef && attribute.domRef ) attbind.domRef = attribute.domRef;
                     if ( !attbind.key && attribute.key ) attbind.key = attribute.key;
                 }
                 
@@ -4745,7 +4893,8 @@ view.reset( );
     ,on_view_change: function( evt, data ) {
         var view = this, model = view.$model, 
             el = data.el, name, key, val, 
-            checkbox, modeldata = { }
+            checkboxes, is_dynamic_array, input_type, alternative,
+            modeldata = { }
         ;
         
         // update model and propagate to other elements of same view (via model publish hook)
@@ -4756,24 +4905,42 @@ view.reset( );
             
             if ( key && model.has( key ) )
             {
-                if ( 'checkbox' === el[TYPE].toLowerCase( ) )
+                input_type = el[TYPE].toLowerCase( );
+                
+                if ( 'checkbox' === input_type )
                 {
-                    checkbox = view.get('input[type="checkbox"][name="'+name+'"]');
+                    is_dynamic_array = empty_brackets_re.test( name );
+                    checkboxes = view.get('input[type="checkbox"][name="'+name+'"]');
                     
-                    if ( checkbox.length > 1 )
+                    if ( is_dynamic_array )
                     {
+                        // multiple checkboxes [name="model[key][]"] dynamic array
+                        // only checked items are in the list
                         val = [ ];
-                        checkbox.forEach(function( c ) {
-                            val.push( c[CHECKED] ? c[VAL] : '' );
+                        checkboxes.forEach(function( c ) {
+                            if ( c[CHECKED] ) val.push( c[VAL] );
+                        });
+                    }
+                    else if ( checkboxes.length > 1 )
+                    {
+                        // multiple checkboxes [name="model[key]"] static array
+                        // all items are in the list either with values or defaults
+                        val = [ ];
+                        checkboxes.forEach(function( c ) {
+                            if ( c[CHECKED] ) val.push( c[VAL] );
+                            else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
                         });
                     }
                     else if ( el[CHECKED] )
                     {
+                        // single checkbox, checked
                         val = el[VAL];
                     }
                     else
                     {
-                        val = '';
+                        // single checkbox, un-checked
+                        // use alternative value in [data-else] attribute, if needed, else empty
+                        val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
                     }
                 }
                 else
@@ -4927,86 +5094,102 @@ view.reset( );
         if ( !is_type(data.prop, T_OBJ) ) return;
         
         var view = this, model = view.$model, 
-            prop = data.prop, p, k, v, vT
+            prop = data.prop, p, k, v, vT, domref
         ;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
             
-        for (p in prop)
-        {
-            if ( prop[HAS](p) )
+        el.forEach(function( el ){
+            if ( !el ) return;
+            for (p in prop)
             {
-                k = prop[ p ];
-                if ( !model.has( k ) ) continue;
-                v = model.get( k ); vT = get_type( v );
-                switch( p )
+                if ( prop[HAS](p) )
                 {
-                    case 'value':
-                        set_val(el, v);
-                        break;
-                    
-                    case 'checked': case 'disabled':
-                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
-                        break;
-                    
-                    case 'options':
-                        if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
-                        {
-                            var sel, ii, vl = v.length,
-                                _options = '', group = $tag( 'optgroup', el );
-                            sel = select_get( el ); // get selected value
-                            group = group.length ? group[ 0 ] : el;
-                            $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
-                            for (ii=0; ii<vl; ii++)
+                    k = prop[ p ];
+                    if ( !model.has( k ) ) continue;
+                    v = model.get( k ); vT = get_type( v );
+                    switch( p )
+                    {
+                        case 'value':
+                            set_val(el, v);
+                            break;
+                        
+                        case 'checked': case 'disabled':
+                            el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
+                            break;
+                        
+                        case 'options':
+                            if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
                             {
-                                if ( v[ii] && v[ii].label )
-                                    _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
-                                else
-                                    _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                                var sel, ii, vl = v.length,
+                                    _options = '', group = $tag( 'optgroup', el );
+                                sel = select_get( el ); // get selected value
+                                group = group.length ? group[ 0 ] : el;
+                                $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                                for (ii=0; ii<vl; ii++)
+                                {
+                                    if ( v[ii] && v[ii].label )
+                                        _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
+                                    else
+                                        _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                                }
+                                group[HTML] = _options;
+                                select_set( el, sel ); // select the appropriate option
                             }
-                            group[HTML] = _options;
-                            select_set( el, sel ); // select the appropriate option
-                        }
-                        break;
-                    
-                    default:
-                        el[SET_ATTR](p, v);
-                        break;
+                            break;
+                        
+                        default:
+                            el[SET_ATTR](p, v);
+                            break;
+                    }
                 }
             }
-        }
+        });
     }
     
     // set element(s) html/text prop based on model key value
     ,do_html: function( evt, el, data ) {
         if ( !data.key ) return;
-        var view = this, model = view.$model, key = data.key;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key || !model.has( key ) ) return;
-        el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
+        var view = this, model = view.$model, key = data.key, domref;
+        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length || !key || !model.has( key ) ) return;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
+        });
     }
     
     // set element(s) css props based on model key value
     ,do_css: function( evt, el, data ) {
         if ( !is_type(data.css, T_OBJ) ) return;
-        var view = this, model = view.$model, css = data.css, k, p, v;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[ 0 ];
-        if ( !el ) return;
-        // css attributes
-        for ( p in css )
-        {
-            if ( css[HAS](p) )
+        var view = this, model = view.$model, css = data.css, k, p, v, domref;
+        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            // css attributes
+            for ( p in css )
             {
-                k = css[ p ]; v = model.get( k );
-                if ( /*model.has( k )*/v ) el.style[ p ] = v;
+                if ( css[HAS](p) )
+                {
+                    k = css[ p ]; v = model.get( k );
+                    if ( /*model.has( k )*/v ) el.style[ p ] = v;
+                }
             }
-        }
+        });
     }
     
     // update/set a model field with a given value
     ,do_set: function( evt, el, data ) {
-        var view = this, model = view.$model, key = null, val;
+        var view = this, model = view.$model, key = null, val, domref;
         
         if ( data.key ) 
         {
@@ -5026,7 +5209,7 @@ view.reset( );
             }
             else
             {
-                if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
+                if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref )[0];
                 val = get_val( el );
             }
             model.set( key, val, 1 );
@@ -5037,74 +5220,79 @@ view.reset( );
     ,do_tpl: function( evt, el, data ) {
         var view = this, model, 
             key = data.key, tplID = data.tpl,
-            mode, html
+            mode, html, domref
         ;
         if ( !view.$template || !key || !tplID ) return;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el ) return;
-        
         model = view.$model;
         if ( !key || !model.has( key ) ) return;
-        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
         mode = data.mode || 'replace';
-        if ( 'replace' == mode ) el[HTML] = '';
         html = view.$template( tplID, model.get( key ) );
-        if ( html ) el[HTML] += html;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( 'replace' == mode ) el[HTML] = '';
+            if ( html ) el[HTML] += html;
+        });
     }
     
     // show/hide element(s) according to binding
     ,do_show: function( evt, el, data ) {
-        var view = this, model = view.$model, key = data.key;
+        var view = this, model = view.$model, key = data.key, 
+            modelkey, domref, enabled;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key ) return;
-        if ( data[HAS]('value') )
-        {
-            // show if data[key] is value, else hide
-            if ( data.value === model.get( key ) ) show(el);
+        if ( !key ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        modelkey = model.get( key );
+        // show if data[key] is value, else hide
+        // show if data[key] is true, else hide
+        enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( enabled ) show(el);
             else hide(el);
-        }
-        else
-        {
-            // show if data[key] is true, else hide
-            if ( !!model.get( key ) ) show(el);
-            else hide(el);
-        }
+        });
     }
     
     // hide/show element(s) according to binding
     ,do_hide: function( evt, el, data ) {
-        var view = this, model = view.$model, key = data.key;
+        var view = this, model = view.$model, key = data.key, 
+            modelkey, domref, enabled;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key ) return;
-        if ( data[HAS]('value') )
-        {
-            // hide if data[key] is value, else show
-            if ( data.value === model.get( key ) ) hide(el);
+        if ( !key ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        modelkey = model.get( key );
+        // hide if data[key] is value, else show
+        // hide if data[key] is true, else show
+        enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( enabled ) hide(el);
             else show(el);
-        }
-        else
-        {
-            // hide if data[key] is true, else show
-            if ( !!model.get( key ) ) hide(el);
-            else show(el);
-        }
+        });
     }
     
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function( evt, el, data ) {
         var view = this, model = view.$model, 
             name = data.name, key = data.key, 
-            elType = el[TYPE].toLowerCase( ),
-            value, valueType
+            input_type = el[TYPE].toLowerCase( ),
+            value, value_type, checkboxes, is_dynamic_array
         ;
         
         // use already computed/cached key/value from calling method passed in "data"
         if ( !key ) return;
-        value = data.value; valueType = get_type( value );
+        value = data.value; value_type = get_type( value );
         
-        if ( 'radio' === elType )
+        if ( 'radio' === input_type )
         {
             if ( Str(value) == el[VAL] )
             {
@@ -5116,21 +5304,36 @@ view.reset( );
             }
         }
         
-        else if ( 'checkbox' === elType )
+        else if ( 'checkbox' === input_type )
         {
-            var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
+            is_dynamic_array = empty_brackets_re.test( name );
+            //checkboxes = view.get('input[type="checkbox"][name="'+name+'"]'); 
             
-            if ( checkbox.length > 1 && (T_ARRAY === valueType) )
+            if ( is_dynamic_array )
             {
-                checkbox.forEach(function( cb ) {
+                value = T_ARRAY === value_type ? value : [value];
+                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                // eventually all same name checkboxes will be updated similarly from autobind
+                // so update only one element at a time here
+                /*checkboxes.forEach(function( cb ) {
                     if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
                     else cb[CHECKED] = false;
-                });
+                });*/
+            }
+            else if ( /*checkboxes.length > 1 &&*/ (T_ARRAY === value_type) )
+            {
+                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                // eventually all same name checkboxes will be updated similarly from autobind
+                // so update only one element at a time here
+                /*checkboxes.forEach(function( cb ) {
+                    if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
+                    else cb[CHECKED] = false;
+                });*/
             }
             
             else
             {
-                el[CHECKED] = T_BOOL === valueType ? value : (Str(value) == el[VAL]);
+                el[CHECKED] = T_BOOL === value_type ? value : (Str(value) == el[VAL]);
             }
         }
         else
@@ -5414,7 +5617,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.61.1"
+    VERSION: "0.62"
     
     ,UUID: uuid
     
@@ -5438,7 +5641,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.61.1
+*   @version: 0.62
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.61.1**
+**Version 0.62**
 
 ###Contents
 
@@ -231,6 +231,12 @@ ModelView.Validation.Validate.NUMERIC;
 
 
 
+// validate (string) empty (can be used as optional)
+ModelView.Validation.Validate.EMPTY;
+
+
+
+
 // validate (string) not empty
 ModelView.Validation.Validate.NOT_EMPTY;
 
@@ -238,13 +244,13 @@ ModelView.Validation.Validate.NOT_EMPTY;
 
 
 // validate (string) maximum length
-ModelView.Validation.Validate.MAXLEN( len );
+ModelView.Validation.Validate.MAXLEN( len=0 );
 
 
 
 
 // validate (string) minimum length
-ModelView.Validation.Validate.MINLEN( len );
+ModelView.Validation.Validate.MINLEN( len=0 );
 
 
 
@@ -317,6 +323,24 @@ ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
 
 // validate array/collection of items contains at maximum 'limit' items (use optional item_filter to only filtered items)
 ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
+
+
+
+
+// validate value is valid email pattern
+ModelView.Validation.Validate.EMAIL;
+
+
+
+
+// validate value is valid url pattern (including mailto|http|https|ftp)
+ModelView.Validation.Validate.URL;
+
+
+
+
+// validate value is valid date pattern according to [format](http://php.net/manual/en/function.date.php)
+ModelView.Validation.Validate.DATE( format="Y-m-d" );
 
 
 

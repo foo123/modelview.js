@@ -41,7 +41,7 @@ var namedKeyProp = "mv_namedkey",
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
             notmodelkey = !modelkey,
             modelkeyDot = modelkey ? (modelkey+'.') : null,
-            el, bind, do_action, name, key, 
+            el, bind, do_action, name, key, domref,
             isAtom = model.atomic, atom = model.$atom,
             atomDot = isAtom ? (atom+'.') : null
         ;
@@ -67,7 +67,9 @@ var namedKeyProp = "mv_namedkey",
             if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
             
             if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) )
+            {
                 view[ do_action ]( evt, el, bind );
+            }
         }
     },
     
@@ -186,6 +188,8 @@ var namedKeyProp = "mv_namedkey",
     ,122 : 'f11'
     ,123 : 'f12'
     },
+    
+    empty_brackets_re = /\[\s*\]$/,
     
     viewHandler = function( view, method ) {
         return function(evt){return view[method](evt, {el:this});};
@@ -582,7 +586,8 @@ view.autobind( [Boolean bool] );
                 
                 if ( (attbind=attribute.change) )
                 {
-                    if ( !attbind.domRef && attribute.domRef ) attbind.domRef = attribute.domRef;
+                    // domRef referenced in separate data-domref attribute
+                    //if ( !attbind.domRef && attribute.domRef ) attbind.domRef = attribute.domRef;
                     if ( !attbind.key && attribute.key ) attbind.key = attribute.key;
                 }
                 
@@ -830,7 +835,8 @@ view.reset( );
     ,on_view_change: function( evt, data ) {
         var view = this, model = view.$model, 
             el = data.el, name, key, val, 
-            checkbox, modeldata = { }
+            checkboxes, is_dynamic_array, input_type, alternative,
+            modeldata = { }
         ;
         
         // update model and propagate to other elements of same view (via model publish hook)
@@ -841,24 +847,42 @@ view.reset( );
             
             if ( key && model.has( key ) )
             {
-                if ( 'checkbox' === el[TYPE].toLowerCase( ) )
+                input_type = el[TYPE].toLowerCase( );
+                
+                if ( 'checkbox' === input_type )
                 {
-                    checkbox = view.get('input[type="checkbox"][name="'+name+'"]');
+                    is_dynamic_array = empty_brackets_re.test( name );
+                    checkboxes = view.get('input[type="checkbox"][name="'+name+'"]');
                     
-                    if ( checkbox.length > 1 )
+                    if ( is_dynamic_array )
                     {
+                        // multiple checkboxes [name="model[key][]"] dynamic array
+                        // only checked items are in the list
                         val = [ ];
-                        checkbox.forEach(function( c ) {
-                            val.push( c[CHECKED] ? c[VAL] : '' );
+                        checkboxes.forEach(function( c ) {
+                            if ( c[CHECKED] ) val.push( c[VAL] );
+                        });
+                    }
+                    else if ( checkboxes.length > 1 )
+                    {
+                        // multiple checkboxes [name="model[key]"] static array
+                        // all items are in the list either with values or defaults
+                        val = [ ];
+                        checkboxes.forEach(function( c ) {
+                            if ( c[CHECKED] ) val.push( c[VAL] );
+                            else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
                         });
                     }
                     else if ( el[CHECKED] )
                     {
+                        // single checkbox, checked
                         val = el[VAL];
                     }
                     else
                     {
-                        val = '';
+                        // single checkbox, un-checked
+                        // use alternative value in [data-else] attribute, if needed, else empty
+                        val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
                     }
                 }
                 else
@@ -1012,86 +1036,102 @@ view.reset( );
         if ( !is_type(data.prop, T_OBJ) ) return;
         
         var view = this, model = view.$model, 
-            prop = data.prop, p, k, v, vT
+            prop = data.prop, p, k, v, vT, domref
         ;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
             
-        for (p in prop)
-        {
-            if ( prop[HAS](p) )
+        el.forEach(function( el ){
+            if ( !el ) return;
+            for (p in prop)
             {
-                k = prop[ p ];
-                if ( !model.has( k ) ) continue;
-                v = model.get( k ); vT = get_type( v );
-                switch( p )
+                if ( prop[HAS](p) )
                 {
-                    case 'value':
-                        set_val(el, v);
-                        break;
-                    
-                    case 'checked': case 'disabled':
-                        el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
-                        break;
-                    
-                    case 'options':
-                        if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
-                        {
-                            var sel, ii, vl = v.length,
-                                _options = '', group = $tag( 'optgroup', el );
-                            sel = select_get( el ); // get selected value
-                            group = group.length ? group[ 0 ] : el;
-                            $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
-                            for (ii=0; ii<vl; ii++)
+                    k = prop[ p ];
+                    if ( !model.has( k ) ) continue;
+                    v = model.get( k ); vT = get_type( v );
+                    switch( p )
+                    {
+                        case 'value':
+                            set_val(el, v);
+                            break;
+                        
+                        case 'checked': case 'disabled':
+                            el[p] = ( T_BOOL === vT ) ? v : (Str(v) == el[VAL]);
+                            break;
+                        
+                        case 'options':
+                            if ( 'SELECT' === el[TAG] && (T_ARRAY === vT) )
                             {
-                                if ( v[ii] && v[ii].label )
-                                    _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
-                                else
-                                    _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                                var sel, ii, vl = v.length,
+                                    _options = '', group = $tag( 'optgroup', el );
+                                sel = select_get( el ); // get selected value
+                                group = group.length ? group[ 0 ] : el;
+                                $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                                for (ii=0; ii<vl; ii++)
+                                {
+                                    if ( v[ii] && v[ii].label )
+                                        _options += '<option value="' + v[ii].value + '">' + v[ii].label + '</option>';
+                                    else
+                                        _options += '<option value="' + v[ii] + '">' + v[ii] + '</option>';
+                                }
+                                group[HTML] = _options;
+                                select_set( el, sel ); // select the appropriate option
                             }
-                            group[HTML] = _options;
-                            select_set( el, sel ); // select the appropriate option
-                        }
-                        break;
-                    
-                    default:
-                        el[SET_ATTR](p, v);
-                        break;
+                            break;
+                        
+                        default:
+                            el[SET_ATTR](p, v);
+                            break;
+                    }
                 }
             }
-        }
+        });
     }
     
     // set element(s) html/text prop based on model key value
     ,do_html: function( evt, el, data ) {
         if ( !data.key ) return;
-        var view = this, model = view.$model, key = data.key;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key || !model.has( key ) ) return;
-        el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
+        var view = this, model = view.$model, key = data.key, domref;
+        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length || !key || !model.has( key ) ) return;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
+        });
     }
     
     // set element(s) css props based on model key value
     ,do_css: function( evt, el, data ) {
         if ( !is_type(data.css, T_OBJ) ) return;
-        var view = this, model = view.$model, css = data.css, k, p, v;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[ 0 ];
-        if ( !el ) return;
-        // css attributes
-        for ( p in css )
-        {
-            if ( css[HAS](p) )
+        var view = this, model = view.$model, css = data.css, k, p, v, domref;
+        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            // css attributes
+            for ( p in css )
             {
-                k = css[ p ]; v = model.get( k );
-                if ( /*model.has( k )*/v ) el.style[ p ] = v;
+                if ( css[HAS](p) )
+                {
+                    k = css[ p ]; v = model.get( k );
+                    if ( /*model.has( k )*/v ) el.style[ p ] = v;
+                }
             }
-        }
+        });
     }
     
     // update/set a model field with a given value
     ,do_set: function( evt, el, data ) {
-        var view = this, model = view.$model, key = null, val;
+        var view = this, model = view.$model, key = null, val, domref;
         
         if ( data.key ) 
         {
@@ -1111,7 +1151,7 @@ view.reset( );
             }
             else
             {
-                if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
+                if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref )[0];
                 val = get_val( el );
             }
             model.set( key, val, 1 );
@@ -1122,74 +1162,79 @@ view.reset( );
     ,do_tpl: function( evt, el, data ) {
         var view = this, model, 
             key = data.key, tplID = data.tpl,
-            mode, html
+            mode, html, domref
         ;
         if ( !view.$template || !key || !tplID ) return;
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el ) return;
-        
         model = view.$model;
         if ( !key || !model.has( key ) ) return;
-        
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
         mode = data.mode || 'replace';
-        if ( 'replace' == mode ) el[HTML] = '';
         html = view.$template( tplID, model.get( key ) );
-        if ( html ) el[HTML] += html;
+            
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( 'replace' == mode ) el[HTML] = '';
+            if ( html ) el[HTML] += html;
+        });
     }
     
     // show/hide element(s) according to binding
     ,do_show: function( evt, el, data ) {
-        var view = this, model = view.$model, key = data.key;
+        var view = this, model = view.$model, key = data.key, 
+            modelkey, domref, enabled;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key ) return;
-        if ( data[HAS]('value') )
-        {
-            // show if data[key] is value, else hide
-            if ( data.value === model.get( key ) ) show(el);
+        if ( !key ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        modelkey = model.get( key );
+        // show if data[key] is value, else hide
+        // show if data[key] is true, else hide
+        enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( enabled ) show(el);
             else hide(el);
-        }
-        else
-        {
-            // show if data[key] is true, else hide
-            if ( !!model.get( key ) ) show(el);
-            else hide(el);
-        }
+        });
     }
     
     // hide/show element(s) according to binding
     ,do_hide: function( evt, el, data ) {
-        var view = this, model = view.$model, key = data.key;
+        var view = this, model = view.$model, key = data.key, 
+            modelkey, domref, enabled;
         
-        if ( data['domRef'] ) el = View.getDomRef( el, data['domRef'] )[0];
-        if ( !el || !key ) return;
-        if ( data[HAS]('value') )
-        {
-            // hide if data[key] is value, else show
-            if ( data.value === model.get( key ) ) hide(el);
+        if ( !key ) return;
+        if ( !!(domref=el[ATTR]('data-domref')) ) el = View.getDomRef( el, domref );
+        else el = [el];
+        if ( !el || !el.length ) return;
+            
+        modelkey = model.get( key );
+        // hide if data[key] is value, else show
+        // hide if data[key] is true, else show
+        enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
+        el.forEach(function( el ){
+            if ( !el ) return;
+            if ( enabled ) hide(el);
             else show(el);
-        }
-        else
-        {
-            // hide if data[key] is true, else show
-            if ( !!model.get( key ) ) hide(el);
-            else show(el);
-        }
+        });
     }
     
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function( evt, el, data ) {
         var view = this, model = view.$model, 
             name = data.name, key = data.key, 
-            elType = el[TYPE].toLowerCase( ),
-            value, valueType
+            input_type = el[TYPE].toLowerCase( ),
+            value, value_type, checkboxes, is_dynamic_array
         ;
         
         // use already computed/cached key/value from calling method passed in "data"
         if ( !key ) return;
-        value = data.value; valueType = get_type( value );
+        value = data.value; value_type = get_type( value );
         
-        if ( 'radio' === elType )
+        if ( 'radio' === input_type )
         {
             if ( Str(value) == el[VAL] )
             {
@@ -1201,21 +1246,36 @@ view.reset( );
             }
         }
         
-        else if ( 'checkbox' === elType )
+        else if ( 'checkbox' === input_type )
         {
-            var checkbox = view.get('input[type="checkbox"][name="'+name+'"]'); 
+            is_dynamic_array = empty_brackets_re.test( name );
+            //checkboxes = view.get('input[type="checkbox"][name="'+name+'"]'); 
             
-            if ( checkbox.length > 1 && (T_ARRAY === valueType) )
+            if ( is_dynamic_array )
             {
-                checkbox.forEach(function( cb ) {
+                value = T_ARRAY === value_type ? value : [value];
+                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                // eventually all same name checkboxes will be updated similarly from autobind
+                // so update only one element at a time here
+                /*checkboxes.forEach(function( cb ) {
                     if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
                     else cb[CHECKED] = false;
-                });
+                });*/
+            }
+            else if ( /*checkboxes.length > 1 &&*/ (T_ARRAY === value_type) )
+            {
+                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                // eventually all same name checkboxes will be updated similarly from autobind
+                // so update only one element at a time here
+                /*checkboxes.forEach(function( cb ) {
+                    if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
+                    else cb[CHECKED] = false;
+                });*/
             }
             
             else
             {
-                el[CHECKED] = T_BOOL === valueType ? value : (Str(value) == el[VAL]);
+                el[CHECKED] = T_BOOL === value_type ? value : (Str(value) == el[VAL]);
             }
         }
         else

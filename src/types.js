@@ -34,6 +34,106 @@ var
         return fields;
     },
     
+    date_formatter = {
+        // Day
+        d: '([0-3][0-9])' // Day of month w/leading 0; 01..31
+        ,
+        D: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\\w{3})' // Shorthand day name; Mon...Sun
+        ,
+        j: '([1-3]?[0-9])' // Day of month; 1..31
+        ,
+        l: '(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\\w+?)' // Full day name; Monday...Sunday
+        ,
+        N: '([1-7])' // ISO-8601 day of week; 1[Mon]..7[Sun]
+        ,
+        S: '(st|nd|rd|th|\\w{2})' // Ordinal suffix for day of month; st, nd, rd, th
+        ,
+        w: '([0-6])' // Day of week; 0[Sun]..6[Sat]
+        ,
+        z: '([0-3]?[0-9]{1,2})' // Day of year; 0..365
+        ,
+
+        // Week
+        W: '([0-5][0-9])' // ISO-8601 week number
+        ,
+
+        // Month
+        F: '(January|February|March|April|May|June|July|August|September|October|November|December|\\w+?)' // Full month name; January...December
+        ,
+        m: '([0-1][0-9])' // Month w/leading 0; 01...12
+        ,
+        M: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\\w{3})' // Shorthand month name; Jan...Dec
+        ,
+        n: '(1?[0-9])' // Month; 1...12
+        ,
+        t: '(28|29|31)' // Days in month; 28...31
+        ,
+
+        // Year
+        L: '([0-1])' // Is leap year?; 0 or 1
+        ,
+        o: '(\\d{2,4})' // ISO-8601 year
+        ,
+        Y: '([1-9][0-9]{3})' // Full year; e.g. 1980...2010
+        ,
+        y: '([0-9]{2})' // Last two digits of year; 00...99
+        ,
+
+        // Time
+        a: '(am|pm|\\w{2})' // am or pm
+        ,
+        A: '(AM|PM|\\w{2})' // AM or PM
+        ,
+        B: '([0-9]{3})' // Swatch Internet time; 000..999
+        ,
+        g: '(1?[0-9])' // 12-Hours; 1..12
+        ,
+        G: '([1-2]?[0-9])' // 24-Hours; 0..23
+        ,
+        h: '([0-1][0-9])' // 12-Hours w/leading 0; 01..12
+        ,
+        H: '([0-2][0-9])' // 24-Hours w/leading 0; 00..23
+        ,
+        i: '([0-5][0-9])' // Minutes w/leading 0; 00..59
+        ,
+        s: '([0-5][0-9])' // Seconds w/leading 0; 00..59
+        ,
+        u: '([0-9]{6})' // Microseconds; 000000-999000
+        ,
+
+        // Timezone
+        e: '(\\w+?)' // Timezone identifier; e.g. Atlantic/Azores, ...
+        ,
+        I: '([0-1])' // DST observed?; 0 or 1
+        ,
+        O: '([+-][0-9]{4})' // Difference to GMT in hour format; e.g. +0200
+        ,
+        P: '([+-][0-9]{2}:[0-9]{2})' // Difference to GMT w/colon; e.g. +02:00
+        ,
+        T: '(UTC|EST|MDT|\\w{3})' // Timezone abbreviation; e.g. EST, MDT, ...
+        ,
+        Z: '(-?[0-9]{5})' // Timezone offset in seconds (-43200...50400)
+        ,
+
+        // Full Date/Time
+        c: '([1-9][0-9]{3})\\s?\\(UTC|EST|MDT|\\w{3})\\s?([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s?([+-][0-9]{2}\\:[0-9]{2})' // ISO-8601 date. Y-m-d\\TH:i:sP
+        ,
+        r:  '(\\w{3}),\\s([0-3][0-9])\\s(\\w{3})\\s([1-9][0-9]{3})\\s([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s([+-][0-9]{4})' // RFC 2822 D, d M Y H:i:s O
+        ,
+        U: '([0-9]{1,8})' // Seconds since UNIX epoch
+        
+    },
+    
+    get_date_pattern = function( format ) {
+        var re = '', f, i, l = format.length;
+        for (i=0; i<l; i++)
+        {
+            f = format.charAt( i );
+            re += date_formatter[HAS](f) ? date_formatter[ f ] : esc_re( f );
+        }
+        return new Regex('^'+re+'$','');
+    },
+    
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -176,6 +276,12 @@ ModelView.Type.Cast.BOOL;
 
 [/DOC_MARKDOWN]**/
             BOOL: function( v ) { 
+                // handle string representation of booleans as well
+                if ( is_type(v, T_STR) && v.length )
+                {
+                    var vs = v.toLowerCase( );
+                    return "true" === vs || "on" === vs || "1" === vs;
+                }
                 return !!v; 
             },
 /**[DOC_MARKDOWN]
@@ -184,7 +290,8 @@ ModelView.Type.Cast.INT;
 
 [/DOC_MARKDOWN]**/
             INT: function( v ) { 
-                return parseInt(v, 10);
+                // convert NaN to 0 if needed
+                return parseInt(v, 10) || 0;
             },
 /**[DOC_MARKDOWN]
 // cast to float
@@ -192,7 +299,8 @@ ModelView.Type.Cast.FLOAT;
 
 [/DOC_MARKDOWN]**/
             FLOAT: function( v ) { 
-                return parseFloat(v, 10); 
+                // convert NaN to 0 if needed
+                return parseFloat(v, 10) || 0;
             },
 /**[DOC_MARKDOWN]
 // min if value is less than
@@ -354,6 +462,14 @@ ModelView.Validation.Validate.NUMERIC;
                 return is_numeric( v ); 
             }),
 /**[DOC_MARKDOWN]
+// validate (string) empty (can be used as optional)
+ModelView.Validation.Validate.EMPTY;
+
+[/DOC_MARKDOWN]**/
+            EMPTY: VC(function( v ){
+                return !v || !trim(Str(v)).length;
+            }),
+/**[DOC_MARKDOWN]
 // validate (string) not empty
 ModelView.Validation.Validate.NOT_EMPTY;
 
@@ -363,19 +479,19 @@ ModelView.Validation.Validate.NOT_EMPTY;
             }),
 /**[DOC_MARKDOWN]
 // validate (string) maximum length
-ModelView.Validation.Validate.MAXLEN( len );
+ModelView.Validation.Validate.MAXLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
             MAXLEN: function( len ) {
-                return VC(newFunc("v", "return v.length <= "+len+";")); 
+                return VC(newFunc("v", "return v.length <= "+(len||0)+";")); 
             },
 /**[DOC_MARKDOWN]
 // validate (string) minimum length
-ModelView.Validation.Validate.MINLEN( len );
+ModelView.Validation.Validate.MINLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
             MINLEN: function( len ) {
-                return VC(newFunc("v", "return v.length >= "+len+";")); 
+                return VC(newFunc("v", "return v.length >= "+(len||0)+";")); 
             },
 /**[DOC_MARKDOWN]
 // validate value matches regex pattern
@@ -530,6 +646,31 @@ ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
                     return VC(function( v ) {
                         return v.length <= limit;
                     });
+            },
+/**[DOC_MARKDOWN]
+// validate value is valid email pattern
+ModelView.Validation.Validate.EMAIL;
+
+[/DOC_MARKDOWN]**/
+            EMAIL: (function( email_pattern ){
+                return VC(function( v ) { return email_pattern.test( v ); }); 
+            })(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/),
+/**[DOC_MARKDOWN]
+// validate value is valid url pattern (including mailto|http|https|ftp)
+ModelView.Validation.Validate.URL;
+
+[/DOC_MARKDOWN]**/
+            URL: (function( url_pattern ){
+                return VC(function( v ) { return url_pattern.test( v ); }); 
+            })(new Regex('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i')),
+/**[DOC_MARKDOWN]
+// validate value is valid date pattern according to [format](http://php.net/manual/en/function.date.php)
+ModelView.Validation.Validate.DATE( format="Y-m-d" );
+
+[/DOC_MARKDOWN]**/
+            DATE: function( format ) { 
+                var date_pattern = get_date_pattern( format || "Y-m-d" );
+                return VC(function( v ) { return date_pattern.test( v ); }); 
             }
         }
         

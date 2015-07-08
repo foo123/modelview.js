@@ -150,7 +150,8 @@ DOMEvent.Handler = function( event ) {
             listenerList = listeners[0][type];
             break;
     }
-
+    if ( !listenerList ) return;
+    
     // Need to continuously check
     // that the specific list is
     // still populated in case one
@@ -161,6 +162,7 @@ DOMEvent.Handler = function( event ) {
     {
         for (i=0; i<l; i++) 
         {
+            if ( !listenerList ) return;
             listener = listenerList[i];
             if ( !listener ) break;
 

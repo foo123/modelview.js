@@ -475,7 +475,7 @@ Model.count = function( o ) {
     return 0;
 };
 // return a sorter to sort model data in custom ways, easily
-Model.sorter = sorter;
+Model.Sorter = sorter;
 Model.Field = ModelField;
 
 // Model implements PublishSubscribe pattern
