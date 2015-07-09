@@ -10,13 +10,14 @@
 var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
-    Func = Function, FP = Func[proto], Str = String, SP = Str[proto], FPCall = FP.call,
+    Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
-    /*hasProp = bindF(FPCall, OP.hasOwnProperty),*/ toStr = bindF(FPCall, OP.toString), slice = bindF(FPCall, AP.slice),
+    //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
+    toString = OP.toString, slice = AP.slice,
+    tostr = function( s ){ return Str(s); },
     newFunc = function( args, code ){ return new Func(args, code); },
     is_instance = function( o, T ){ return o instanceof T; },
     
-    tostr = function( s ){ return Str(s); },
     INF = Infinity, rnd = Math.random, 
     
     esc_re = function( s ) { return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); },
@@ -47,7 +48,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
         
         //type_of = typeOf(v);
-        to_string = OP.toString.call( v );
+        to_string = toString.call( v );
         //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
         to_string = TO_STRING[to_string] || T_UNKNOWN;
         
@@ -250,12 +251,12 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return [ (el || document).getElementById( id ) ];
     },
     $tag = function( tagname, el ) {
-        return AP.slice.call( (el || document).getElementsByTagName( tagname ), 0 );
+        return slice.call( (el || document).getElementsByTagName( tagname ), 0 );
     },
     $sel = function( selector, el, single ) {
         return true === single 
             ? [ (el || document).querySelector( selector ) ]
-            : AP.slice.call( (el || document).querySelectorAll( selector ), 0 )
+            : slice.call( (el || document).querySelectorAll( selector ), 0 )
         ;
     },
     

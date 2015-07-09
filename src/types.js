@@ -34,102 +34,112 @@ var
         return fields;
     },
     
-    date_formatter = {
-        // Day
-        d: '([0-3][0-9])' // Day of month w/leading 0; 01..31
-        ,
-        D: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\\w{3})' // Shorthand day name; Mon...Sun
-        ,
-        j: '([1-3]?[0-9])' // Day of month; 1..31
-        ,
-        l: '(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\\w+?)' // Full day name; Monday...Sunday
-        ,
-        N: '([1-7])' // ISO-8601 day of week; 1[Mon]..7[Sun]
-        ,
-        S: '(st|nd|rd|th|\\w{2})' // Ordinal suffix for day of month; st, nd, rd, th
-        ,
-        w: '([0-6])' // Day of week; 0[Sun]..6[Sat]
-        ,
-        z: '([0-3]?[0-9]{1,2})' // Day of year; 0..365
-        ,
+    // date pattern formats
+    date_format = (function(){
+        // (php) date formats
+        // http://php.net/manual/en/function.date.php
+        var D = {
+            // Day --
+            // Day of month w/leading 0; 01..31
+             d: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01)'
+            // Shorthand day name; Mon...Sun
+            ,D: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\\w{3})'
+            // Day of month; 1..31
+            ,j: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|9|8|7|6|5|4|3|2|1)'
+            // Full day name; Monday...Sunday
+            ,l: '(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\\w+?)'
+            // ISO-8601 day of week; 1[Mon]..7[Sun]
+            ,N: '([1-7])'
+            // Ordinal suffix for day of month; st, nd, rd, th
+            ,S: '(st|nd|rd|th|\\w{2})'
+            // Day of week; 0[Sun]..6[Sat]
+            ,w: '([0-6])'
+            // Day of year; 0..365
+            ,z: '([0-3]?[0-9]{1,2})'
 
-        // Week
-        W: '([0-5][0-9])' // ISO-8601 week number
-        ,
+            // Week --
+            // ISO-8601 week number
+            ,W: '([0-5][0-9])'
 
-        // Month
-        F: '(January|February|March|April|May|June|July|August|September|October|November|December|\\w+?)' // Full month name; January...December
-        ,
-        m: '([0-1][0-9])' // Month w/leading 0; 01...12
-        ,
-        M: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\\w{3})' // Shorthand month name; Jan...Dec
-        ,
-        n: '(1?[0-9])' // Month; 1...12
-        ,
-        t: '(28|29|31)' // Days in month; 28...31
-        ,
+            // Month --
+            // Full month name; January...December
+            ,F: '(January|February|March|April|May|June|July|August|September|October|November|December|\\w+?)'
+            // Month w/leading 0; 01...12
+            ,m: '(12|11|10|09|08|07|06|05|04|03|02|01)'
+            // Shorthand month name; Jan...Dec
+            ,M: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\\w{3})'
+            // Month; 1...12
+            ,n: '(12|11|10|9|8|7|6|5|4|3|2|1)'
+            // Days in month; 28...31
+            ,t: '(31|30|29|28)'
+            
+            // Year --
+            // Is leap year?; 0 or 1
+            ,L: '([01])'
+            // ISO-8601 year
+            ,o: '(\\d{2,4})'
+            // Full year; e.g. 1980...2010
+            ,Y: '([1-9][0-9]{3})'
+            // Last two digits of year; 00...99
+            ,y: '([0-9]{2})'
 
-        // Year
-        L: '([0-1])' // Is leap year?; 0 or 1
-        ,
-        o: '(\\d{2,4})' // ISO-8601 year
-        ,
-        Y: '([1-9][0-9]{3})' // Full year; e.g. 1980...2010
-        ,
-        y: '([0-9]{2})' // Last two digits of year; 00...99
-        ,
+            // Time --
+            // am or pm
+            ,a: '(am|pm|\\w{2})'
+            // AM or PM
+            ,A: '(AM|PM|\\w{2})'
+            // Swatch Internet time; 000..999
+            ,B: '([0-9]{3})'
+            // 12-Hours; 1..12
+            ,g: '(12|11|10|9|8|7|6|5|4|3|2|1)'
+            // 24-Hours; 0..23
+            ,G: '(23|22|21|20|19|18|17|16|15|14|13|12|11|10|9|8|7|6|5|4|3|2|1|0)'
+            // 12-Hours w/leading 0; 01..12
+            ,h: '(12|11|10|09|08|07|06|05|04|03|02|01)'
+            // 24-Hours w/leading 0; 00..23
+            ,H: '(23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00)'
+            // Minutes w/leading 0; 00..59
+            ,i: '([0-5][0-9])'
+            // Seconds w/leading 0; 00..59
+            ,s: '([0-5][0-9])'
+            // Microseconds; 000000-999000
+            ,u: '([0-9]{6})'
 
-        // Time
-        a: '(am|pm|\\w{2})' // am or pm
-        ,
-        A: '(AM|PM|\\w{2})' // AM or PM
-        ,
-        B: '([0-9]{3})' // Swatch Internet time; 000..999
-        ,
-        g: '(1?[0-9])' // 12-Hours; 1..12
-        ,
-        G: '([1-2]?[0-9])' // 24-Hours; 0..23
-        ,
-        h: '([0-1][0-9])' // 12-Hours w/leading 0; 01..12
-        ,
-        H: '([0-2][0-9])' // 24-Hours w/leading 0; 00..23
-        ,
-        i: '([0-5][0-9])' // Minutes w/leading 0; 00..59
-        ,
-        s: '([0-5][0-9])' // Seconds w/leading 0; 00..59
-        ,
-        u: '([0-9]{6})' // Microseconds; 000000-999000
-        ,
+            // Timezone --
+            // Timezone identifier; e.g. Atlantic/Azores, ...
+            ,e: '(UTC|EST|MDT|\\w+?)'
+            // DST observed?; 0 or 1
+            ,I: '([01])'
+            // Difference to GMT in hour format; e.g. +0200
+            ,O: '([+-][0-9]{4})'
+            // Difference to GMT w/colon; e.g. +02:00
+            ,P: '([+-][0-9]{2}:[0-9]{2})'
+            // Timezone abbreviation; e.g. EST, MDT, ...
+            ,T: '(UTC|EST|MDT|\\w{3})'
+            // Timezone offset in seconds (-43200...50400)
+            ,Z: '(-?[0-9]{5})'
 
-        // Timezone
-        e: '(\\w+?)' // Timezone identifier; e.g. Atlantic/Azores, ...
-        ,
-        I: '([0-1])' // DST observed?; 0 or 1
-        ,
-        O: '([+-][0-9]{4})' // Difference to GMT in hour format; e.g. +0200
-        ,
-        P: '([+-][0-9]{2}:[0-9]{2})' // Difference to GMT w/colon; e.g. +02:00
-        ,
-        T: '(UTC|EST|MDT|\\w{3})' // Timezone abbreviation; e.g. EST, MDT, ...
-        ,
-        Z: '(-?[0-9]{5})' // Timezone offset in seconds (-43200...50400)
-        ,
-
-        // Full Date/Time
-        c: '([1-9][0-9]{3})\\s?\\(UTC|EST|MDT|\\w{3})\\s?([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s?([+-][0-9]{2}\\:[0-9]{2})' // ISO-8601 date. Y-m-d\\TH:i:sP
-        ,
-        r:  '(\\w{3}),\\s([0-3][0-9])\\s(\\w{3})\\s([1-9][0-9]{3})\\s([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\\s([+-][0-9]{4})' // RFC 2822 D, d M Y H:i:s O
-        ,
-        U: '([0-9]{1,8})' // Seconds since UNIX epoch
-        
-    },
+            // Full Date/Time --
+            // Seconds since UNIX epoch
+            ,U: '([0-9]{1,8})'
+            // ISO-8601 date. Y-m-d\\TH:i:sP
+            ,c: '' // added below
+            // RFC 2822 D, d M Y H:i:s O
+            ,r: '' // added below
+        };
+        // Y-m-d\\TH:i:sP
+        D.c = D.Y+'-'+D.m+'-'+D.d+'\\'+D.T+D.H+':'+D.i+':'+D.s+D.P;
+        // D, d M Y H:i:s O
+        D.r = D.D+',\\s'+D.d+'\\s'+D.M+'\\s'+D.Y+'\\s'+D.H+':'+D.i+':'+D.s+'\\s'+D.O;
+        return D;
+    })(),
     
     get_date_pattern = function( format ) {
         var re = '', f, i, l = format.length;
         for (i=0; i<l; i++)
         {
             f = format.charAt( i );
-            re += date_formatter[HAS](f) ? date_formatter[ f ] : esc_re( f );
+            re += date_format[HAS](f) ? date_format[ f ] : esc_re( f );
         }
         return new Regex('^'+re+'$','');
     },
@@ -351,6 +361,34 @@ ModelView.Type.Cast.UCASE;
 [/DOC_MARKDOWN]**/
             UCASE: function( v ) { 
                 return Str(v).toUpperCase( );
+            },
+/**[DOC_MARKDOWN]
+// cast to padded string (pad type can be "L"=LEFT, "R"=RIGHT, "LR"=LEFT-RIGHT)
+ModelView.Type.Cast.PAD(pad_char, pad_size, pad_type="L");
+
+[/DOC_MARKDOWN]**/
+            PAD: function( pad_char, pad_size, pad_type ) { 
+                pad_type = pad_type || 'L';
+                return function( v ) {
+                    var vs = Str(v), len = vs.length, n = pad_size-len, l, r;
+                    if ( c > 0 )
+                    {
+                        if ( 'LR' === pad_type )
+                        {
+                            r = ~~(n/2); l = n-r;
+                            vs = new Array(l+1).join(pad_char)+vs+new Array(r+1).join(pad_char);
+                        }
+                        else if ( 'R' === pad_type )
+                        {
+                            vs += new Array(n+1).join(pad_char);
+                        }
+                        else if ( 'L' === pad_type )
+                        {
+                            vs = new Array(n+1).join(pad_char) + vs;
+                        }
+                    }
+                    return vs;
+                };
             },
 /**[DOC_MARKDOWN]
 // cast to string
@@ -597,7 +635,7 @@ ModelView.Validation.Validate.IN( value1, value2 [, ...] );
 
 [/DOC_MARKDOWN]**/
             IN: function( /* vals,.. */ ) { 
-                var vals = slice( arguments ); 
+                var vals = slice.call( arguments ); 
                 if ( is_type(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
                 return VC(function( v ) { 
                     return ( -1 < vals.indexOf( v ) ); 
@@ -609,7 +647,7 @@ ModelView.Validation.Validate.NOT_IN( value1, value2 [, ...] );
 
 [/DOC_MARKDOWN]**/
             NOT_IN: function( /* vals,.. */ ) { 
-                var vals = slice( arguments ); 
+                var vals = slice.call( arguments ); 
                 if ( is_type(vals[ 0 ], T_ARRAY) ) vals = vals[ 0 ];
                 return VC(function( v ) { 
                     return ( 0 > vals.indexOf( v ) ); 

@@ -175,6 +175,12 @@ ModelView.Type.Cast.UCASE;
 
 
 
+// cast to padded string (pad type can be "L"=LEFT, "R"=RIGHT, "LR"=LEFT-RIGHT)
+ModelView.Type.Cast.PAD(pad_char, pad_size, pad_type="L");
+
+
+
+
 // cast to string
 ModelView.Type.Cast.STR;
 
