@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.62
-*   @built on 2015-07-09 02:56:28
+*   @built on 2015-07-10 18:31:26
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.62
-*   @built on 2015-07-09 02:56:28
+*   @built on 2015-07-10 18:31:26
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -94,7 +94,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     INF = Infinity, rnd = Math.random, 
     
-    esc_re = function( s ) { return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); },
+    ESCAPED_RE = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g,
+    esc_re = function( s ) { 
+        return s.replace(ESCAPED_RE, "\\$&"); 
+    },
     
     del = function( o, k, soft ) { 
         o[k] = undef; if ( !soft ) delete o[k];
@@ -103,12 +106,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
-    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
-    T_NULL = 256, T_UNDEF = 512, T_UNKNOWN = 1024, 
+    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128, T_DATE = 256,
+    T_NULL = 512, T_UNDEF = 1024, T_UNKNOWN = 2048, 
     T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
     TO_STRING = {
         "[object Array]"    : T_ARRAY,
         "[object RegExp]"   : T_REGEX,
+        "[object Date]"     : T_DATE,
         "[object Number]"   : T_NUM,
         "[object String]"   : T_STR,
         "[object Function]" : T_FUNC,
@@ -131,6 +135,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (T_STR === to_string || v instanceof Str) return (1 === v.length) ? T_CHAR : T_STR;
         else if (T_ARRAY === to_string || v instanceof Arr)  return T_ARRAY;
         else if (T_REGEX === to_string || v instanceof Regex)  return T_REGEX;
+        else if (T_DATE === to_string || v instanceof Date)  return T_DATE;
         else if (T_FUNC === to_string || v instanceof Func)  return T_FUNC;
         else if (T_OBJ === to_string)  return T_OBJ;
         // unkown type
@@ -1311,8 +1316,36 @@ var
         return fields;
     },
     
-    // date pattern formats
-    date_format = (function(){
+    floor = Math.floor, round = Math.round, abs = Math.abs,
+    
+    by_length_desc = function( a, b ) {
+        return b.length - a.length;
+    },
+    
+    pad = function( s, len, ch ) {
+        var sp = s.toString( ), n = len-sp.length;
+        return n > 0 ? new Array(n+1).join(ch||' ')+sp : sp;
+    },
+
+    get_alternate_pattern = function( alts ) {
+        return alts.sort( by_length_desc ).map( esc_re ).join( '|' );
+    },
+    
+    default_date_locale = {
+        meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
+        ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
+        timezone: [ 'UTC','EST','MDT' ],
+        timezone_short: [ 'UTC','EST','MDT' ],
+        day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
+        day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
+        month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
+        month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
+    },
+    
+    // (localised) date pattern formats
+    get_date_format = function( ) {
+        var locale = arguments.length ? arguments[0] : default_date_locale;
+        
         // (php) date formats
         // http://php.net/manual/en/function.date.php
         var D = {
@@ -1320,15 +1353,15 @@ var
             // Day of month w/leading 0; 01..31
              d: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01)'
             // Shorthand day name; Mon...Sun
-            ,D: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun|\\w{3})'
+            ,D: '(' + get_alternate_pattern( locale.day_short ) + ')'
             // Day of month; 1..31
             ,j: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|9|8|7|6|5|4|3|2|1)'
             // Full day name; Monday...Sunday
-            ,l: '(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|\\w+?)'
+            ,l: '(' + get_alternate_pattern( locale.day ) + ')'
             // ISO-8601 day of week; 1[Mon]..7[Sun]
             ,N: '([1-7])'
             // Ordinal suffix for day of month; st, nd, rd, th
-            ,S: '(st|nd|rd|th|\\w{2})'
+            ,S: '' // added below
             // Day of week; 0[Sun]..6[Sat]
             ,w: '([0-6])'
             // Day of year; 0..365
@@ -1340,11 +1373,11 @@ var
 
             // Month --
             // Full month name; January...December
-            ,F: '(January|February|March|April|May|June|July|August|September|October|November|December|\\w+?)'
+            ,F: '(' + get_alternate_pattern( locale.month ) + ')'
             // Month w/leading 0; 01...12
             ,m: '(12|11|10|09|08|07|06|05|04|03|02|01)'
             // Shorthand month name; Jan...Dec
-            ,M: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\\w{3})'
+            ,M: '(' + get_alternate_pattern( locale.month_short ) + ')'
             // Month; 1...12
             ,n: '(12|11|10|9|8|7|6|5|4|3|2|1)'
             // Days in month; 28...31
@@ -1362,9 +1395,15 @@ var
 
             // Time --
             // am or pm
-            ,a: '(am|pm|\\w{2})'
+            ,a: '(' + get_alternate_pattern( [
+                locale.meridian.am || default_date_locale.meridian.am,
+                locale.meridian.pm || default_date_locale.meridian.pm
+            ] ) + ')'
             // AM or PM
-            ,A: '(AM|PM|\\w{2})'
+            ,A: '(' + get_alternate_pattern( [
+                locale.meridian.AM || default_date_locale.meridian.AM,
+                locale.meridian.PM || default_date_locale.meridian.PM
+            ] ) + ')'
             // Swatch Internet time; 000..999
             ,B: '([0-9]{3})'
             // 12-Hours; 1..12
@@ -1384,7 +1423,7 @@ var
 
             // Timezone --
             // Timezone identifier; e.g. Atlantic/Azores, ...
-            ,e: '(UTC|EST|MDT|\\w+?)'
+            ,e: '(' + get_alternate_pattern( locale.timezone || default_date_locale.timezone ) + ')'
             // DST observed?; 0 or 1
             ,I: '([01])'
             // Difference to GMT in hour format; e.g. +0200
@@ -1392,7 +1431,7 @@ var
             // Difference to GMT w/colon; e.g. +02:00
             ,P: '([+-][0-9]{2}:[0-9]{2})'
             // Timezone abbreviation; e.g. EST, MDT, ...
-            ,T: '(UTC|EST|MDT|\\w{3})'
+            ,T: '(' + get_alternate_pattern( locale.timezone_short || default_date_locale.timezone_short ) + ')'
             // Timezone offset in seconds (-43200...50400)
             ,Z: '(-?[0-9]{5})'
 
@@ -1404,21 +1443,293 @@ var
             // RFC 2822 D, d M Y H:i:s O
             ,r: '' // added below
         };
-        // Y-m-d\\TH:i:sP
+        // Ordinal suffix for day of month; st, nd, rd, th
+        var lord = locale.ordinal.ord, lords = [], i;
+        for (i in lordinal.ord) if ( lord[HAS](i) ) lords.push(i);
+        lords.push( locale.ordinal.nth );
+        D.S = '(' + get_alternate_pattern( lords ) + ')';
+        // ISO-8601 date. Y-m-d\\TH:i:sP
         D.c = D.Y+'-'+D.m+'-'+D.d+'\\'+D.T+D.H+':'+D.i+':'+D.s+D.P;
-        // D, d M Y H:i:s O
+        // RFC 2822 D, d M Y H:i:s O
         D.r = D.D+',\\s'+D.d+'\\s'+D.M+'\\s'+D.Y+'\\s'+D.H+':'+D.i+':'+D.s+'\\s'+D.O;
         return D;
-    })(),
+    },
     
-    get_date_pattern = function( format ) {
-        var re = '', f, i, l = format.length;
+    get_date_pattern = function( format, locale ) {
+        var re = '', f, i, l = format.length, 
+            D = get_date_format(locale || default_date_locale);
         for (i=0; i<l; i++)
         {
             f = format.charAt( i );
-            re += date_format[HAS](f) ? date_format[ f ] : esc_re( f );
+            re += D[HAS](f) ? D[ f ] : esc_re( f );
         }
         return new Regex('^'+re+'$','');
+    },
+    
+    // (localised) date encoder
+    // adapted and optimised from phpjs project
+    date_encoder = {
+        // Day --
+        // Day of month w/leading 0; 01..31
+        d: function( jsdate, locale ) {
+            return pad(jsdate.getDate( ), 2, '0');
+        }
+        
+        // Shorthand day name; Mon...Sun
+        ,D: function( jsdate, locale ) {
+            return locale.day_short[ jsdate.getDay( ) ];
+        }
+        
+        // Day of month; 1..31
+        ,j: function( jsdate, locale ) {
+            return jsdate.getDate( );
+        }
+        
+        // Full day name; Monday...Sunday
+        ,l: function( jsdate, locale ) {
+            return locale.day[ jsdate.getDay( ) ];
+        }
+        
+        // ISO-8601 day of week; 1[Mon]..7[Sun]
+        ,N: function( jsdate, locale ) {
+            return jsdate.getDay( ) || 7;
+        }
+        
+        // Ordinal suffix for day of month; st, nd, rd, th
+        ,S: function( jsdate, locale ) {
+            var j = jsdate.getDate( ), jmod10 = j%10;
+            //j = j < 4 || j > 20 ? j % 10 - 1 : j;
+            if ( locale.ordinal.ord[ j-1 ] ) return locale.ordinal.ord[ j-1 ];
+            else if ( locale.ordinal.ord[ jmod10-1 ] ) return locale.ordinal.ord[ jmod10-1 ];
+            return locale.ordinal.nth;
+        }
+        
+        // Day of week; 0[Sun]..6[Sat]
+        ,w: function( jsdate, locale ) {
+            return jsdate.getDay( );
+        }
+        
+        // Day of year; 0..365
+        ,z: function( jsdate, locale ) {
+            var Y = jsdate.getFullYear( ),
+                a = new Date(Y, jsdate.getMonth( ), jsdate.getDate( )),
+                b = new Date(Y, 0, 1);
+            return round((a - b) / 864e5);
+        }
+
+        // Week --
+        // ISO-8601 week number
+        ,W: function( jsdate, locale ) {
+            var Y = jsdate.getFullYear( ), N = jsdate.getDay( ) || 7,
+                a = new Date(Y, jsdate.getMonth( ), jsdate.getDate( ) - N + 3),
+                b = new Date(a.getFullYear( ), 0, 4);
+            return pad(1 + round((a - b) / 864e5 / 7), 2, '0');
+        }
+
+        // Month --
+        // Full month name; January...December
+        ,F: function( jsdate, locale ) {
+            return locale.month[ jsdate.getMonth( ) ];
+        }
+        
+        // Month w/leading 0; 01...12
+        ,m: function( jsdate, locale ) {
+            return pad(jsdate.getMonth( )+1, 2, '0');
+        }
+        
+        // Shorthand month name; Jan...Dec
+        ,M: function( jsdate, locale ) {
+            return locale.month_short[ jsdate.getMonth( ) ];
+        }
+        
+        // Month; 1...12
+        ,n: function( jsdate, locale ) {
+            return jsdate.getMonth( ) + 1;
+        }
+        
+        // Days in month; 28...31
+        ,t: function( jsdate, locale ) {
+            return (new Date(jsdate.getFullYear( ), jsdate.getMonth( )+1, 0)).getDate( );
+        }
+
+        // Year --
+        // Is leap year?; 0 or 1
+        ,L: function( jsdate, locale ) {
+            var Y = jsdate.getFullYear( );
+            return Y % 4 === 0 & Y % 100 !== 0 | Y % 400 === 0;
+        }
+        
+        // ISO-8601 year
+        ,o: function( jsdate, locale ) {
+            var n = jsdate.getMonth( )+1,
+                W = date_encoder.W(jsdate, locale),
+                Y = jsdate.getFullYear( );
+            return Y + (n === 12 && W < 9 ? 1 : n === 1 && W > 9 ? -1 : 0);
+        }
+        
+        // Full year; e.g. 1980...2010
+        ,Y: function( jsdate, locale ) {
+            return jsdate.getFullYear( );
+        }
+        
+        // Last two digits of year; 00...99
+        ,y: function( jsdate, locale ) {
+            return jsdate.getFullYear( ).toString( ).slice(-2);
+        }
+
+        // Time --
+        // am or pm
+        ,a: function( jsdate, locale ) {
+            return jsdate.getHours( ) > 11 ? locale.meridian.pm : locale.meridian.am;
+        }
+        
+        // AM or PM
+        ,A: function( jsdate, locale ) {
+            return jsdate.getHours( ) > 11 ? locale.meridian.PM : locale.meridian.AM;
+        }
+        
+        // Swatch Internet time; 000..999
+        ,B: function( jsdate, locale ) {
+            var H = jsdate.getUTCHours( ) * 36e2,
+                // Hours
+                i = jsdate.getUTCMinutes( ) * 60,
+                // Minutes
+                s = jsdate.getUTCSeconds( ); // Seconds
+            return pad(floor((H + i + s + 36e2) / 86.4) % 1e3, 3, '0');
+        }
+        
+        // 12-Hours; 1..12
+        ,g: function( jsdate, locale ) {
+            return jsdate.getHours( ) % 12 || 12;
+        }
+        
+        // 24-Hours; 0..23
+        ,G: function( jsdate, locale ) {
+            return jsdate.getHours( );
+        }
+        
+        // 12-Hours w/leading 0; 01..12
+        ,h: function( jsdate, locale ) {
+            return pad(jsdate.getHours( ) % 12 || 12, 2, '0');
+        }
+        
+        // 24-Hours w/leading 0; 00..23
+        ,H: function( jsdate, locale ) {
+            return pad(jsdate.getHours( ), 2, '0');
+        }
+        
+        // Minutes w/leading 0; 00..59
+        ,i: function( jsdate, locale ) {
+            return pad(jsdate.getMinutes( ), 2, '0');
+        }
+        
+        // Seconds w/leading 0; 00..59
+        ,s: function( jsdate, locale ) {
+            return pad(jsdate.getSeconds( ), 2, '0');
+        }
+        
+        // Microseconds; 000000-999000
+        ,u: function( jsdate, locale ) {
+            return pad(jsdate.getMilliseconds( ) * 1000, 6, '0');
+        }
+
+        // Timezone --
+        // Timezone identifier; e.g. Atlantic/Azores, ...
+        ,e: function( jsdate, locale ) {
+            // The following works, but requires inclusion of the very large
+            // timezone_abbreviations_list() function.
+            /*              return that.date_default_timezone_get();
+            */
+            throw 'Not supported (see source code of date() for timezone on how to add support)';
+        }
+        
+        // DST observed?; 0 or 1
+        ,I: function( jsdate, locale ) {
+            // Compares Jan 1 minus Jan 1 UTC to Jul 1 minus Jul 1 UTC.
+            // If they are not equal, then DST is observed.
+            var Y = jsdate.getFullYear( ),
+                a = new Date(Y, 0), // Jan 1
+                c = Date.UTC(Y, 0), // Jan 1 UTC
+                b = new Date(Y, 6), // Jul 1
+                d = Date.UTC(Y, 6); // Jul 1 UTC
+            return ((a - c) !== (b - d)) ? 1 : 0;
+        }
+        
+        // Difference to GMT in hour format; e.g. +0200
+        ,O: function( jsdate, locale ) {
+            var tzo = jsdate.getTimezoneOffset( ), a = abs(tzo);
+            return (tzo > 0 ? "-" : "+") + pad(floor(a / 60) * 100 + a % 60, 4, '0');
+        }
+        
+        // Difference to GMT w/colon; e.g. +02:00
+        ,P: function( jsdate, locale ) {
+            var O = date_encoder.O(jsdate, locale);
+            return (O.substr(0, 3) + ":" + O.substr(3, 2));
+        }
+        
+        // Timezone abbreviation; e.g. EST, MDT, ...
+        ,T: function( jsdate, locale ) {
+            return 'UTC';
+        }
+        
+        // Timezone offset in seconds (-43200...50400)
+        ,Z: function( jsdate, locale ) {
+            return -jsdate.getTimezoneOffset( ) * 60;
+        }
+
+        // Full Date/Time --
+        // ISO-8601 date. 'Y-m-d\\TH:i:sP'
+        ,c: function( jsdate, locale ) {
+            var D = date_encoder;
+            return [
+                D.Y(jsdate, locale),'-',D.m(jsdate, locale),'-',D.d(jsdate, locale),
+                '\\',D.T(jsdate, locale),
+                D.H(jsdate, locale),':',D.i(jsdate, locale),':',D.s(jsdate, locale),
+                D.P(jsdate, locale)
+            ].join('');
+        }
+        
+        // RFC 2822 'D, d M Y H:i:s O'
+        ,r: function( jsdate, locale, formatChrCb ) {
+            var D = date_encoder;
+            return [
+                D.D(jsdate, locale),', ',
+                D.d(jsdate, locale),' ',D.M(jsdate, locale),' ',D.Y(jsdate, locale),
+                ' ',
+                D.H(jsdate, locale),':',D.i(jsdate, locale),':',D.s(jsdate, locale),
+                ' ',
+                D.O(jsdate, locale)
+            ].join('');
+        }
+        
+        // Seconds since UNIX epoch
+        ,U: function( jsdate, locale ) {
+            return jsdate / 1000 | 0;
+        }
+    },
+    
+    get_formatted_date = function( d, format, locale ) {
+        var D = date_encoder, date = '',
+            f, i, l = format.length, 
+            date_type = get_type( d ), jsdate;
+        
+        if ( T_STR & date_type ) return d; // already string format, return it
+        
+        // undefined
+        if ( (T_NULL|T_UNDEF) & date_type ) jsdate = new Date( );
+        // JS Date
+        else if ( T_DATE & date_type ) jsdate = new Date( d );
+        // UNIX timestamp (auto-convert to int)
+        else if ( T_NUM & date_type ) jsdate =  new Date(d/* * 1000*/);
+        
+        locale = locale || default_date_locale;
+        
+        for (i=0; i<l; i++)
+        {
+            f = format.charAt( i );
+            date += D[HAS](f) ? D[ f ]( jsdate, locale ) : f;
+        }
+        return date;
     },
     
     // Validator Compositor
@@ -1674,6 +1985,41 @@ ModelView.Type.Cast.STR;
 [/DOC_MARKDOWN]**/
             STR: function( v ) { 
                 return (''+v); 
+            },
+/**[DOC_MARKDOWN]
+// cast to (localised) datetime-formatted string [datetime php formats](http://php.net/manual/en/function.date.php)
+ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
+
+// default locale is:
+ 
+{
+    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
+    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
+    timezone: [ 'UTC','EST','MDT' ],
+    timezone_short: [ 'UTC','EST','MDT' ],
+    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
+    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
+    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
+    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
+}
+
+[/DOC_MARKDOWN]**/
+            DATETIME: function( format, locale ) {
+                format = format || "Y-m-d";
+                locale = locale || default_date_locale;
+                return function( v ) { 
+                    return get_formatted_date( v, format, locale ); 
+                }
+            },
+/**[DOC_MARKDOWN]
+// cast to formatted output based on given template
+ModelView.Type.Cast.FORMAT( ModelView.Tpl | Function tpl );
+
+[/DOC_MARKDOWN]**/
+            FORMAT: function( tpl ) {
+                if ( tpl instanceof Tpl ) return function( v ) { return tpl.render( v ); };
+                else if ( is_type(tpl, T_FUNC) ) return function( v ) { return tpl( v ); };
+                else return function( v ) { return Str(v); };
             }
         }
         
@@ -1979,12 +2325,25 @@ ModelView.Validation.Validate.URL;
                 return VC(function( v ) { return url_pattern.test( v ); }); 
             })(new Regex('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i')),
 /**[DOC_MARKDOWN]
-// validate value is valid date pattern according to [format](http://php.net/manual/en/function.date.php)
-ModelView.Validation.Validate.DATE( format="Y-m-d" );
+// validate (string) value is valid (localised) datetime pattern according to [format](http://php.net/manual/en/function.date.php)
+ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
+
+// default locale is:
+ 
+{
+    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
+    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
+    timezone: [ 'UTC','EST','MDT' ],
+    timezone_short: [ 'UTC','EST','MDT' ],
+    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
+    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
+    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
+    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
+}
 
 [/DOC_MARKDOWN]**/
-            DATE: function( format ) { 
-                var date_pattern = get_date_pattern( format || "Y-m-d" );
+            DATETIME: function( format, locale ) { 
+                var date_pattern = get_date_pattern( format || "Y-m-d", locale || default_date_locale );
                 return VC(function( v ) { return date_pattern.test( v ); }); 
             }
         }
@@ -2061,6 +2420,8 @@ $dom.modelview({
                 
                 'field2': $.ModelView.Type.Cast.BOOL
             })
+            // this is equivalent to:
+            //'collection': $.ModelView.Type.Cast.EACH($.ModelView.Type.Cast.FIELDS( .. ))
         },
         
         validators: {
@@ -2076,6 +2437,8 @@ $dom.modelview({
                 
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
             })
+            // this is equivalent to:
+            //'collection': $.ModelView.Validation.Validate.EACH($.ModelView.Validation.Validate.FIELDS( .. ))
         },
         
         dependencies: {
@@ -5402,19 +5765,19 @@ The declarative view binding format is like:
 ```html
 <element bind-attr="JSON"></element>
 
-<!-- for example -->
+<!-- for example: -->
 <div data-bind='{"event_name":{"action":"action_name","key":"a.model.key","anotherparam":"anotherparamvalue"}}'></div>
 
 <!-- for some actions there are shorthand formats (see below) e.g -->
 <div data-bind='{"hide":"a.model.key"}'></div>
 
-<!-- is shorthand for -->
+<!-- is shorthand for: -->
 <div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
 
 <!-- or -->
 <div data-bind='{"event_name":"action_name"}'></div>
 
-<!-- is shorthand for -->
+<!-- is shorthand for: -->
 <div data-bind='{"event_name":{"action":"action_name"}}'></div>
 ```
 
@@ -5429,102 +5792,121 @@ The declarative view binding format is like:
 </thead>
 <tbody>
 <tr>
-    <td>each</td>
-    <td>view.do_each</td>
+    <td>`each`</td>
+    <td>`view.do_each`</td>
     <td>
-&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
-<br />shorthand of:<br />
-&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
+```html
+<ul data-bind='{"each":"a.model.collection.key"}'></ul>
+<!-- is shorthand for: -->
+<ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'></ul>
+```
     </td>
-    <td>update element each child node depending on model collection key (IN PROGRESS)</td>
+    <td>update element each child node depending on model collection key (TODO)</td>
 </tr>
 <tr>
-    <td>prop</td>
-    <td>view.do_prop</td>
+    <td>`prop`</td>
+    <td>`view.do_prop`</td>
     <td>
-&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+```html
+<div data-bind='{"value":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'></div>
+
+<div data-bind='{"checked":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'></div>
+
+<div data-bind='{"disabled":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'></div>
+
+<div data-bind='{"options":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'></div>
+```
     </td>
     <td>set element properties based on model data keys</td>
 </tr>
 <tr>
-    <td>html</td>
-    <td>view.do_html</td>
+    <td>`html` / `text`</td>
+    <td>`view.do_html`</td>
     <td>
-&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"html":"a.model.key"}'></div>
+<div data-bind='{"text":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"html","key":"a.model.key"}}'></div>
+<div data-bind='{"change":{"action":"text","key":"a.model.key"}}'></div>
+```
     </td>
     <td>set element html/text property based on model data key</td>
 </tr>
 <tr>
-    <td>css</td>
-    <td>view.do_css</td>
+    <td>`css`</td>
+    <td>`view.do_css`</td>
     <td>
-&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
+```html
+<div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'></div>
+```
     </td>
     <td>set element css style(s) based on model data key(s)</td>
 </tr>
 <tr>
-    <td>show</td>
-    <td>view.do_show</td>
+    <td>`show`</td>
+    <td>`view.do_show`</td>
     <td>
-&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"show":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"show","key":"a.model.key"}}'></div>
+```
     </td>
     <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>hide</td>
-    <td>view.do_hide</td>
+    <td>`hide`</td>
+    <td>`view.do_hide`</td>
     <td>
-&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"hide":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
+```
     </td>
     <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>tpl</td>
-    <td>view.do_tpl</td>
+    <td>`tpl`</td>
+    <td>`view.do_tpl`</td>
     <td>
-&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'></div>
+```
     </td>
     <td>element render a template based on model data key</td>
 </tr>
 <tr>
-    <td>set</td>
-    <td>view.do_set</td>
+    <td>`set`</td>
+    <td>`view.do_set`</td>
     <td>
-&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
+```html
+<div data-bind='{"set":{"key":"akey","value":"aval"}}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'></div>
+```
     </td>
     <td>set/update model data key with given value on a UI event (default "click")</td>
 </tr>
 <tr>
-    <td>bind</td>
-    <td>view.do_bind</td>
+    <td>`bind`</td>
+    <td>`view.do_bind`</td>
     <td>
-&lt;input name="model[a][model][key]" /> <br />
-&lt;select name="model[another][model][key]">&lt;/select>
-
+```html
+<input name="model[a][model][key]" />
+<select name="model[another][model][key]"></select>
+```
     </td>
     <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
 </tr>

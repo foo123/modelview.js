@@ -20,7 +20,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     INF = Infinity, rnd = Math.random, 
     
-    esc_re = function( s ) { return s.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"); },
+    ESCAPED_RE = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g,
+    esc_re = function( s ) { 
+        return s.replace(ESCAPED_RE, "\\$&"); 
+    },
     
     del = function( o, k, soft ) { 
         o[k] = undef; if ( !soft ) delete o[k];
@@ -29,12 +32,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     // types
     T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
-    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128,  
-    T_NULL = 256, T_UNDEF = 512, T_UNKNOWN = 1024, 
+    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128, T_DATE = 256,
+    T_NULL = 512, T_UNDEF = 1024, T_UNKNOWN = 2048, 
     T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
     TO_STRING = {
         "[object Array]"    : T_ARRAY,
         "[object RegExp]"   : T_REGEX,
+        "[object Date]"     : T_DATE,
         "[object Number]"   : T_NUM,
         "[object String]"   : T_STR,
         "[object Function]" : T_FUNC,
@@ -57,6 +61,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (T_STR === to_string || v instanceof Str) return (1 === v.length) ? T_CHAR : T_STR;
         else if (T_ARRAY === to_string || v instanceof Arr)  return T_ARRAY;
         else if (T_REGEX === to_string || v instanceof Regex)  return T_REGEX;
+        else if (T_DATE === to_string || v instanceof Date)  return T_DATE;
         else if (T_FUNC === to_string || v instanceof Func)  return T_FUNC;
         else if (T_OBJ === to_string)  return T_OBJ;
         // unkown type

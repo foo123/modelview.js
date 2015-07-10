@@ -187,6 +187,31 @@ ModelView.Type.Cast.STR;
 
 
 
+// cast to (localised) datetime-formatted string [datetime php formats](http://php.net/manual/en/function.date.php)
+ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
+
+// default locale is:
+ 
+{
+    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
+    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
+    timezone: [ 'UTC','EST','MDT' ],
+    timezone_short: [ 'UTC','EST','MDT' ],
+    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
+    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
+    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
+    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
+}
+
+
+
+
+// cast to formatted output based on given template
+ModelView.Type.Cast.FORMAT( ModelView.Tpl | Function tpl );
+
+
+
+
 // add a custom typecaster
 ModelView.Type.add( name, typeCaster );
 
@@ -345,8 +370,21 @@ ModelView.Validation.Validate.URL;
 
 
 
-// validate value is valid date pattern according to [format](http://php.net/manual/en/function.date.php)
-ModelView.Validation.Validate.DATE( format="Y-m-d" );
+// validate (string) value is valid (localised) datetime pattern according to [format](http://php.net/manual/en/function.date.php)
+ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
+
+// default locale is:
+ 
+{
+    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
+    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
+    timezone: [ 'UTC','EST','MDT' ],
+    timezone_short: [ 'UTC','EST','MDT' ],
+    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
+    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
+    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
+    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
+}
 
 
 
@@ -408,6 +446,8 @@ $dom.modelview({
                 
                 'field2': $.ModelView.Type.Cast.BOOL
             })
+            // this is equivalent to:
+            //'collection': $.ModelView.Type.Cast.EACH($.ModelView.Type.Cast.FIELDS( .. ))
         },
         
         validators: {
@@ -423,6 +463,8 @@ $dom.modelview({
                 
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
             })
+            // this is equivalent to:
+            //'collection': $.ModelView.Validation.Validate.EACH($.ModelView.Validation.Validate.FIELDS( .. ))
         },
         
         dependencies: {
@@ -768,19 +810,19 @@ The declarative view binding format is like:
 ```html
 <element bind-attr="JSON"></element>
 
-<!-- for example -->
+<!-- for example: -->
 <div data-bind='{"event_name":{"action":"action_name","key":"a.model.key","anotherparam":"anotherparamvalue"}}'></div>
 
 <!-- for some actions there are shorthand formats (see below) e.g -->
 <div data-bind='{"hide":"a.model.key"}'></div>
 
-<!-- is shorthand for -->
+<!-- is shorthand for: -->
 <div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
 
 <!-- or -->
 <div data-bind='{"event_name":"action_name"}'></div>
 
-<!-- is shorthand for -->
+<!-- is shorthand for: -->
 <div data-bind='{"event_name":{"action":"action_name"}}'></div>
 ```
 
@@ -795,102 +837,121 @@ The declarative view binding format is like:
 </thead>
 <tbody>
 <tr>
-    <td>each</td>
-    <td>view.do_each</td>
+    <td>`each`</td>
+    <td>`view.do_each`</td>
     <td>
-&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
-<br />shorthand of:<br />
-&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
+```html
+<ul data-bind='{"each":"a.model.collection.key"}'></ul>
+<!-- is shorthand for: -->
+<ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'></ul>
+```
     </td>
-    <td>update element each child node depending on model collection key (IN PROGRESS)</td>
+    <td>update element each child node depending on model collection key (TODO)</td>
 </tr>
 <tr>
-    <td>prop</td>
-    <td>view.do_prop</td>
+    <td>`prop`</td>
+    <td>`view.do_prop`</td>
     <td>
-&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
-<br /><br />
-&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+```html
+<div data-bind='{"value":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'></div>
+
+<div data-bind='{"checked":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'></div>
+
+<div data-bind='{"disabled":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'></div>
+
+<div data-bind='{"options":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'></div>
+```
     </td>
     <td>set element properties based on model data keys</td>
 </tr>
 <tr>
-    <td>html</td>
-    <td>view.do_html</td>
+    <td>`html` / `text`</td>
+    <td>`view.do_html`</td>
     <td>
-&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"html":"a.model.key"}'></div>
+<div data-bind='{"text":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"html","key":"a.model.key"}}'></div>
+<div data-bind='{"change":{"action":"text","key":"a.model.key"}}'></div>
+```
     </td>
     <td>set element html/text property based on model data key</td>
 </tr>
 <tr>
-    <td>css</td>
-    <td>view.do_css</td>
+    <td>`css`</td>
+    <td>`view.do_css`</td>
     <td>
-&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
+```html
+<div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'></div>
+```
     </td>
     <td>set element css style(s) based on model data key(s)</td>
 </tr>
 <tr>
-    <td>show</td>
-    <td>view.do_show</td>
+    <td>`show`</td>
+    <td>`view.do_show`</td>
     <td>
-&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"show":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"show","key":"a.model.key"}}'></div>
+```
     </td>
     <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>hide</td>
-    <td>view.do_hide</td>
+    <td>`hide`</td>
+    <td>`view.do_hide`</td>
     <td>
-&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"hide":"a.model.key"}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
+```
     </td>
     <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>tpl</td>
-    <td>view.do_tpl</td>
+    <td>`tpl`</td>
+    <td>`view.do_tpl`</td>
     <td>
-&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
+```html
+<div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'></div>
+```
     </td>
     <td>element render a template based on model data key</td>
 </tr>
 <tr>
-    <td>set</td>
-    <td>view.do_set</td>
+    <td>`set`</td>
+    <td>`view.do_set`</td>
     <td>
-&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
-<br />shorthand of:<br />
-&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
+```html
+<div data-bind='{"set":{"key":"akey","value":"aval"}}'></div>
+<!-- is shorthand for: -->
+<div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'></div>
+```
     </td>
     <td>set/update model data key with given value on a UI event (default "click")</td>
 </tr>
 <tr>
-    <td>bind</td>
-    <td>view.do_bind</td>
+    <td>`bind`</td>
+    <td>`view.do_bind`</td>
     <td>
-&lt;input name="model[a][model][key]" /> <br />
-&lt;select name="model[another][model][key]">&lt;/select>
-
+```html
+<input name="model[a][model][key]" />
+<select name="model[another][model][key]"></select>
+```
     </td>
     <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
 </tr>
