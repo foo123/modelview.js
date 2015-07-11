@@ -2,6 +2,7 @@
 // Tpl utils
 var POS = 'lastIndexOf', MATCH = 'match'
     ,VALUE = 'nodeValue', NODETYPE = 'nodeType', PARENTNODE = 'parentNode'
+    ,G = 'global', I = 'ignoreCase'
     ,ATT_RE = /[a-zA-Z0-9_\-]/
     ,to_int = function(v){return parseInt(v,10);}
     
@@ -367,13 +368,13 @@ var Tpl = function Tpl( template, re_keys, revivable ) {
     tpl.$revivable = true === revivable;
     if ( template.substr && template.substring )
     {
-        tpl.$key = new RegExp(re_keys.source, "g"); /* make sure global flag is added */
+        tpl.$key = re_keys[G] ? re_keys : new RegExp(re_keys.source, re_keys[I]?"gi":"g"); /* make sure global flag is added */
         tpl.$tpl = Tpl.multisplit_string( template, tpl.$key, tpl.$revivable );
         tpl.render = renderer_string;
     }
     else //if (tpl is dom_node)
     {
-        tpl.$key = new RegExp(re_keys.source, ""); /* make sure global flag is removed */
+        tpl.$key = re_keys[G] ? new RegExp(re_keys.source, re_keys[I]?"i":"") : re_keys; /* make sure global flag is removed */
         tpl.$tpl = multisplit_node( template, tpl.$key, tpl.$revivable );
         tpl.render = renderer_node;
     }

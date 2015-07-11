@@ -450,6 +450,8 @@ var
         return date;
     },
     
+    tpl_$0_re = /\$0/g,
+    
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -731,12 +733,19 @@ ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
             },
 /**[DOC_MARKDOWN]
 // cast to formatted output based on given template
-ModelView.Type.Cast.FORMAT( ModelView.Tpl | Function tpl );
+ModelView.Type.Cast.FORMAT( String | ModelView.Tpl | Function tpl );
 
 [/DOC_MARKDOWN]**/
             FORMAT: function( tpl ) {
-                if ( tpl instanceof Tpl ) return function( v ) { return tpl.render( v ); };
-                else if ( is_type(tpl, T_FUNC) ) return function( v ) { return tpl( v ); };
+                if ( is_type(tpl, T_STR) ) 
+                {
+                    tpl = new Tpl(tpl, tpl_$0_re);
+                    return function( v ) { return tpl.render( {$0:v} ); };
+                }
+                else if ( tpl instanceof Tpl ) 
+                    return function( v ) { return tpl.render( v ); };
+                else if ( is_type(tpl, T_FUNC) ) 
+                    return function( v ) { return tpl( v ); };
                 else return function( v ) { return Str(v); };
             }
         }

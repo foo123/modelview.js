@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.62
-*   @built on 2015-07-10 18:31:26
+*   @built on 2015-07-11 23:53:22
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.62
-*   @built on 2015-07-10 18:31:26
+*   @built on 2015-07-11 23:53:22
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1732,6 +1732,8 @@ var
         return date;
     },
     
+    tpl_$0_re = /\$0/g,
+    
     // Validator Compositor
     VC = function VC( V ) {
         
@@ -2013,12 +2015,19 @@ ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
             },
 /**[DOC_MARKDOWN]
 // cast to formatted output based on given template
-ModelView.Type.Cast.FORMAT( ModelView.Tpl | Function tpl );
+ModelView.Type.Cast.FORMAT( String | ModelView.Tpl | Function tpl );
 
 [/DOC_MARKDOWN]**/
             FORMAT: function( tpl ) {
-                if ( tpl instanceof Tpl ) return function( v ) { return tpl.render( v ); };
-                else if ( is_type(tpl, T_FUNC) ) return function( v ) { return tpl( v ); };
+                if ( is_type(tpl, T_STR) ) 
+                {
+                    tpl = new Tpl(tpl, tpl_$0_re);
+                    return function( v ) { return tpl.render( {$0:v} ); };
+                }
+                else if ( tpl instanceof Tpl ) 
+                    return function( v ) { return tpl.render( v ); };
+                else if ( is_type(tpl, T_FUNC) ) 
+                    return function( v ) { return tpl( v ); };
                 else return function( v ) { return Str(v); };
             }
         }
@@ -3952,6 +3961,7 @@ Model[proto].rem = Model[proto].del;
 // Tpl utils
 var POS = 'lastIndexOf', MATCH = 'match'
     ,VALUE = 'nodeValue', NODETYPE = 'nodeType', PARENTNODE = 'parentNode'
+    ,G = 'global', I = 'ignoreCase'
     ,ATT_RE = /[a-zA-Z0-9_\-]/
     ,to_int = function(v){return parseInt(v,10);}
     
@@ -4317,13 +4327,13 @@ var Tpl = function Tpl( template, re_keys, revivable ) {
     tpl.$revivable = true === revivable;
     if ( template.substr && template.substring )
     {
-        tpl.$key = new RegExp(re_keys.source, "g"); /* make sure global flag is added */
+        tpl.$key = re_keys[G] ? re_keys : new RegExp(re_keys.source, re_keys[I]?"gi":"g"); /* make sure global flag is added */
         tpl.$tpl = Tpl.multisplit_string( template, tpl.$key, tpl.$revivable );
         tpl.render = renderer_string;
     }
     else //if (tpl is dom_node)
     {
-        tpl.$key = new RegExp(re_keys.source, ""); /* make sure global flag is removed */
+        tpl.$key = re_keys[G] ? new RegExp(re_keys.source, re_keys[I]?"i":"") : re_keys; /* make sure global flag is removed */
         tpl.$tpl = multisplit_node( template, tpl.$key, tpl.$revivable );
         tpl.render = renderer_node;
     }
@@ -5792,121 +5802,130 @@ The declarative view binding format is like:
 </thead>
 <tbody>
 <tr>
-    <td>`each`</td>
-    <td>`view.do_each`</td>
+    <td><code>each</code></td>
+    <td><code>view.do_each</code></td>
     <td>
-```html
-<ul data-bind='{"each":"a.model.collection.key"}'></ul>
-<!-- is shorthand for: -->
-<ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'></ul>
-```
+        
+        ```html
+        <ul data-bind='{"each":"a.model.collection.key"}'></ul>
+        <!-- is shorthand for: -->
+        <ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'></ul>
+        ```
     </td>
     <td>update element each child node depending on model collection key (TODO)</td>
 </tr>
 <tr>
-    <td>`prop`</td>
-    <td>`view.do_prop`</td>
+    <td><code>prop</code></td>
+    <td><code>view.do_prop</code></td>
     <td>
-```html
-<div data-bind='{"value":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'></div>
+        
+        ```html
+        <div data-bind='{"value":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'></div>
 
-<div data-bind='{"checked":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'></div>
+        <div data-bind='{"checked":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'></div>
 
-<div data-bind='{"disabled":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'></div>
+        <div data-bind='{"disabled":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'></div>
 
-<div data-bind='{"options":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'></div>
-```
+        <div data-bind='{"options":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'></div>
+        ```
     </td>
     <td>set element properties based on model data keys</td>
 </tr>
 <tr>
-    <td>`html` / `text`</td>
-    <td>`view.do_html`</td>
+    <td><code>html</code> / <code>text</code></td>
+    <td><code>view.do_html</code></td>
     <td>
-```html
-<div data-bind='{"html":"a.model.key"}'></div>
-<div data-bind='{"text":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"html","key":"a.model.key"}}'></div>
-<div data-bind='{"change":{"action":"text","key":"a.model.key"}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"html":"a.model.key"}'></div>
+        <div data-bind='{"text":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"html","key":"a.model.key"}}'></div>
+        <div data-bind='{"change":{"action":"text","key":"a.model.key"}}'></div>
+        ```
     </td>
     <td>set element html/text property based on model data key</td>
 </tr>
 <tr>
-    <td>`css`</td>
-    <td>`view.do_css`</td>
+    <td><code>css</code></td>
+    <td><code>view.do_css</code></td>
     <td>
-```html
-<div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'></div>
+        ```
     </td>
     <td>set element css style(s) based on model data key(s)</td>
 </tr>
 <tr>
-    <td>`show`</td>
-    <td>`view.do_show`</td>
+    <td><code>show</code></td>
+    <td><code>view.do_show</code></td>
     <td>
-```html
-<div data-bind='{"show":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"show","key":"a.model.key"}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"show":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"show","key":"a.model.key"}}'></div>
+        ```
     </td>
     <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>`hide`</td>
-    <td>`view.do_hide`</td>
+    <td><code>hide</code></td>
+    <td><code>view.do_hide</code></td>
     <td>
-```html
-<div data-bind='{"hide":"a.model.key"}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"hide":"a.model.key"}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
+        ```
     </td>
     <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
 </tr>
 <tr>
-    <td>`tpl`</td>
-    <td>`view.do_tpl`</td>
+    <td><code>tpl</code></td>
+    <td><code>view.do_tpl</code></td>
     <td>
-```html
-<div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'></div>
+        ```
     </td>
     <td>element render a template based on model data key</td>
 </tr>
 <tr>
-    <td>`set`</td>
-    <td>`view.do_set`</td>
+    <td><code>set</code></td>
+    <td><code>view.do_set</code></td>
     <td>
-```html
-<div data-bind='{"set":{"key":"akey","value":"aval"}}'></div>
-<!-- is shorthand for: -->
-<div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'></div>
-```
+        
+        ```html
+        <div data-bind='{"set":{"key":"akey","value":"aval"}}'></div>
+        <!-- is shorthand for: -->
+        <div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'></div>
+        ```
     </td>
     <td>set/update model data key with given value on a UI event (default "click")</td>
 </tr>
 <tr>
-    <td>`bind`</td>
-    <td>`view.do_bind`</td>
+    <td><code>bind</code></td>
+    <td><code>view.do_bind</code></td>
     <td>
-```html
-<input name="model[a][model][key]" />
-<select name="model[another][model][key]"></select>
-```
+        
+        ```html
+        <input name="model[a][model][key]" />
+        <select name="model[another][model][key]"></select>
+        ```
     </td>
     <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
 </tr>
