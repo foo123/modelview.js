@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.62
-*   @built on 2015-07-12 14:09:15
+*   @version: 0.63
+*   @built on 2015-07-12 22:11:44
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.62
-*   @built on 2015-07-12 14:09:15
+*   @version: 0.63
+*   @built on 2015-07-12 22:11:44
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.62**
+**Version 0.63**
 
 ###Contents
 
@@ -488,8 +488,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     Node = function( val, next ) {
-        this.v = val || null;
-        this.n = next || {};
+        var self = this;
+        self.v = val || null;
+        self.n = next || {};
     },
     
     WILDCARD = "*", NAMESPACE = "modelview",
@@ -1284,19 +1285,20 @@ cache.del( key );
 //
 // Data Types / Validators for Models (Static)
 var 
-    ModelField = function( modelField ) {
+    ModelField = function ModelField( modelField ) {
         if ( !is_instance(this, ModelField) ) return new ModelField( modelField );
         this.f = modelField || null;
     },
     
-    CollectionEach = function( f ) {
+    CollectionEach = function CollectionEach( f ) {
         if ( !is_instance(this, CollectionEach) ) return new CollectionEach( f );
         this.f = f || null;
+        this.fEach = 1;
     },
     
     bindFieldsToModel = function( /*model,*/ fields ) {
         // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-        var p, t;
+        /*var p, t;
         for ( p in fields )
         {
             if ( fields[HAS](p) )
@@ -1312,7 +1314,7 @@ var
                     fields[ p ] = t;//bindF( t, model );
                 }
             }
-        }
+        }*/
         return fields;
     },
     
@@ -1845,7 +1847,7 @@ ModelView.Type.Cast.FIELDS({
                             if ( type.fEach && is_type(val, T_ARRAY) )
                             {
                                l = val.length;
-                               for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
+                               for (i=0; i<l; i++) val[ i ] = type.f.call( self, val[ i ] );
                                v[ field ] = val;
                             }
                             else
@@ -2111,7 +2113,7 @@ ModelView.Validation.Validate.FIELDS({
                             if ( validator.fEach && is_type(val, T_ARRAY) )
                             {
                                l = val.length;
-                               for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
+                               for (i=0; i<l; i++) if ( !validator.f.call( self, val[ i ] ) )  return false;
                             }
                             else
                             {
@@ -2469,7 +2471,7 @@ $dom.modelview({
 
 // Model utils
 var 
-    getNext = function( a, k ) {
+    get_next = function( a, k ) {
         if ( !a ) return null;
         var b = [ ], i, ai, l = a.length;
         for (i=0; i<l; i++)
@@ -2484,7 +2486,7 @@ var
         return b.length ? b : null;
     },
     
-    getValue = function( a, k ) {
+    get_value = function( a, k ) {
         if ( !a ) return null;
         var i, ai, l = a.length;
         if ( k )
@@ -2510,7 +2512,7 @@ var
         return null;
     },
     
-    walkadd = function( v, p, obj, isCollectionEach ) {
+    walk_and_add = function( v, p, obj, isCollectionEach ) {
         var o = obj, k, i = 0, l = p.length;
         while ( i < l )
         {
@@ -2537,7 +2539,7 @@ var
         return obj;
     },
     
-    walkcheck = function( p, obj, aux, C ) {
+    walk_and_check = function( p, obj, aux, C ) {
         var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
         while ( i < l ) 
         {
@@ -2550,16 +2552,16 @@ var
                     o = o[ k ];
                     // nested sub-composite class
                     if ( o instanceof C ) return [C, o, p.slice(i)];
-                    a && (a = getNext( a, k ));
+                    a && (a = get_next( a, k ));
                 }
-                else if ( !a || !(a = getNext( a, k )) )
+                else if ( !a || !(a = get_next( a, k )) )
                 {
                     return false;
                 }
             }
             else
             {
-                if ( a && getValue( a, k ) ) return true;
+                if ( a && get_value( a, k ) ) return true;
                 else if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return true;
                 else if ( T_OBJ === to && 'length' == k ) return true;
                 return false;
@@ -2568,7 +2570,7 @@ var
         return false;
     },
     
-    walk2 = function( p, obj, aux, C ) {
+    walk_and_get2 = function( p, obj, aux, C ) {
         var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
         while ( i < l ) 
         {
@@ -2580,16 +2582,16 @@ var
                     o = o[ k ];
                     // nested sub-composite class
                     if ( o instanceof C ) return [C, o, p.slice(i)];
-                    a && (a = getNext( a, k ));
+                    a && (a = get_next( a, k ));
                 }
-                else if ( !a || !(a = getNext( a, k )) )
+                else if ( !a || !(a = get_next( a, k )) )
                 {
                     return false;
                 }
             }
             else
             {
-                if ( a && (a = getValue( a, k )) ) return [false, a];
+                if ( a && (a = get_value( a, k )) ) return [false, a];
                 else if ( (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return [true, o[k]];
                 else if ( T_OBJ === to && 'length' == k ) return [true, Keys(o).length];
                 return false;
@@ -2598,7 +2600,7 @@ var
         return false;
     },
     
-    walk2v = function( p, obj, aux, C ) {
+    walk_and_get_value2 = function( p, obj, aux, C ) {
         var o = obj, a = aux, k, to, i = 0, l = p.length;
         while ( i < l ) 
         {
@@ -2610,7 +2612,7 @@ var
                     o = o[ k ];
                     // nested sub-composite class
                     if ( o instanceof C ) return [C, o, p.slice(i)];
-                    else if ( !a || !(a = getNext( a, k )) ) return false;
+                    else if ( !a || !(a = get_next( a, k )) ) return false;
                 }
                 else
                 {
@@ -2621,14 +2623,14 @@ var
             {
                 // nested sub-composite class
                 if ( o[k] instanceof C ) return [C, o[k], p.slice(i)];
-                else if ( a /*&& getValue( a, k )*/ && (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return [true, o, k, a];
+                else if ( a /*&& get_value( a, k )*/ && (to&T_ARRAY_OR_OBJ) && o[HAS](k) ) return [true, o, k, a];
                 return false;
             }
         }
         return false;
     },
     
-    walk3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
+    walk_and_get3 = function( p, obj, aux1, aux2, aux3, C, all3 ) {
         var o = obj, a1 = null, a2 = null, a3 = null, 
             k, to, i = 0, l = p.length
         ;
@@ -2648,16 +2650,16 @@ var
                     if ( o instanceof C ) return [C, o, p.slice(i), 0, null, null, null];
                     if ( all3 )
                     {
-                        a1 = getNext( a1, k );
-                        a2 = getNext( a2, k );
-                        a3 = getNext( a3, k );
+                        a1 = get_next( a1, k );
+                        a2 = get_next( a2, k );
+                        a3 = get_next( a3, k );
                     }
                 }
                 // fixed, it bypassed setters which had multiple virtual levels
-                else if ( all3 && a3 && (a3 = getNext( a3, k )) )
+                else if ( all3 && a3 && (a3 = get_next( a3, k )) )
                 {
-                    a1 = getNext( a1, k );
-                    a2 = getNext( a2, k );
+                    a1 = get_next( a1, k );
+                    a2 = get_next( a2, k );
                 }
                 else
                 {
@@ -2682,12 +2684,13 @@ var
     dotted = function( key ) {
         return key
                 .replace(/\[([^\]]*)\]/g, '.$1')         // convert indexes to properties
-                .replace(/^\.+/, '')                       // strip a leading dot
-                .replace(/\.+$/, '')                       // strip trailing dots
+                .replace(/^\.+|\.+$/g, '')               // strip leading/trailing dots
         ;
     },
     
-    bracketed = function( dottedKey ) { return '['+dottedKey.split('.').join('][')+']'; },
+    bracketed = function( dottedKey ) { 
+        return '['+dottedKey.split('.').join('][')+']'; 
+    },
     
     removePrefix = function( prefix ) {
         // strict mode (after prefix, a key follows)
@@ -2704,24 +2707,31 @@ var
     
     addModelTypeValidator = function addModelTypeValidator( model, dottedKey, typeOrValidator, modelTypesValidators ) {
         var k, t, isCollectionEach = false;
-        t = get_type( typeOrValidator );
-        if ( T_FUNC & t )
+        if ( isCollectionEach=is_instance( typeOrValidator, CollectionEach ) )
         {
-            isCollectionEach = is_instance( typeOrValidator, CollectionEach );
-            // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
             // each wrapper
-            if ( isCollectionEach ) typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
-            //else typeOrValidator = bindF( typeOrValidator, model );
+            typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
             // bind the typeOrValidator handler to 'this model'
-            walkadd( typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach );
+            walk_and_add( typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach );
         }
-        else if ( T_ARRAY_OR_OBJ & t )
+        else
         {
-            // nested keys given, recurse
-            for ( k in typeOrValidator ) 
+            t = get_type( typeOrValidator );
+            if ( T_FUNC & t )
             {
-                if ( typeOrValidator[HAS](k) )
-                    addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+                //typeOrValidator = bindF( typeOrValidator, model );
+                // bind the typeOrValidator handler to 'this model'
+                walk_and_add( typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach );
+            }
+            else if ( T_ARRAY_OR_OBJ & t )
+            {
+                // nested keys given, recurse
+                for ( k in typeOrValidator ) 
+                {
+                    if ( typeOrValidator[HAS](k) )
+                        addModelTypeValidator( model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators );
+                }
             }
         }
     },
@@ -2733,7 +2743,7 @@ var
         {
             // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
             // bind the getterOrSetter handler to 'this model'
-            walkadd( getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters );
+            walk_and_add( getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters );
         }
         else if ( T_ARRAY_OR_OBJ & t )
         {
@@ -2788,7 +2798,7 @@ var
             {
                 fixKey = function( k ){ return !!nestedKey ? (nestedKey + '.' + k) : k; };
                 
-                if ( (r = walk2v( splitKey=dottedKey.split('.'), o=data, validators, modelClass )) )
+                if ( (r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )) )
                 {
                     o = r[ 1 ]; key = r[ 2 ];
                     
@@ -2809,14 +2819,14 @@ var
                     {
                         nestedKey = splitKey.slice(0, -1).join('.');
                         
-                        val = o[ key ]; validator = getValue( r[3], key );
+                        val = o[ key ]; validator = get_value( r[3], key );
                         if ( validator && !validator.call( model, val, dottedKey ) ) 
                         {
                             result.errors.push( dottedKey/*fixKey( key )*/ );
                             result.isValid = false;
                             if ( breakOnError ) return result;
                         }
-                        if ( (T_ARRAY_OR_OBJ & get_type( val )) && (validators=getNext( r[3], key )) && validators.length )
+                        if ( (T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length )
                         {
                             nestedKey += !!nestedKey ? ('.' + key) : key;
                             
@@ -3175,7 +3185,7 @@ model.toJSON( [String dottedKey] );
         if ( arguments.length ) data = model.get( dottedKey );
         else data = model.data( );
         
-        try { json = toJSON( serializeModel( model, Model ) ); } 
+        try { json = toJSON( serializeModel( model, Model, data ) ); } 
         catch( e ) { throw e; return; }
         
         return json;
@@ -3215,7 +3225,7 @@ model.has( String dottedKey [, Boolean RAW=false ] );
             // handle single key fast
             return true;
         }
-        else if ( (r = walkcheck( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
+        else if ( (r = walk_and_check( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
         {
             return (true === r) ? true : r[1].has(r[2].join('.'));
         }
@@ -3239,7 +3249,7 @@ model.get( String dottedKey [, Boolean RAW=false ] );
             if ( !RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v ) return r.v.call( model, dottedKey );
             return data[ dottedKey ];
         }
-        else if ( (r = walk2( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
+        else if ( (r = walk_and_get2( dottedKey.split('.'), data, RAW ? null : getters, Model )) )
         {
             // nested sub-model
             if ( Model === r[ 0 ] ) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
@@ -3258,10 +3268,12 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 [/DOC_MARKDOWN]**/
     // set/add, it can add last node also if not there
     ,set: function ( dottedKey, val, pub, callData ) {
-        var model = this, r, o, k, p,
+        var model = this, r, cr, o, k, p, i, l,
             type, validator, setter,
+            collection_type = null, collection_validator = null,
+            is_collection = false,
             types, validators, setters, ideps,
-            prevval, canSet = false,
+            prevval, canSet = false, validated,
             autovalidate = model.$autovalidate
         ;
         
@@ -3272,6 +3284,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
         validators = model.$validators; 
         setters = model.$setters;
         ideps = model.$idependencies;
+        is_collection = T_ARRAY & get_type( val );
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -3283,14 +3296,18 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             setter = (r=setters[k]) ? r.v : null;
             type = (r=types[k] || types[WILDCARD]) ? r.v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) ? r.v : null;
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = (cr=types[k] || types[WILDCARD]) && cr.n[WILDCARD] ? cr.n[WILDCARD].v : null;
+                if ( autovalidate && !validator )
+                    collection_validator = (cr=validators[k] || validators[WILDCARD]) && cr.n[WILDCARD] ? cr.n[WILDCARD].v : null;
+            }
             canSet = true;
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
+        else if ( (r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( r[4], k );
-            validator = getValue( r[5], k );
-            setter = getValue( r[6], k );
             
             if ( Model === r[ 0 ]  ) 
             {
@@ -3324,18 +3341,53 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 }
                 return model;
             }
-            else if ( !setter  && (false === r[0] && r[3].length) )
+            
+            setter = get_value( r[6], k );
+            if ( !setter  && (false === r[0] && r[3].length) )
             {
                 // cannot add intermediate values
                 return model;
+            }
+            
+            type = get_value( r[4], k );
+            validator = get_value( r[5], k );
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = get_value( get_next( r[4], k ), WILDCARD );
+                if ( autovalidate && !validator )
+                    collection_validator = get_value( get_next( r[5], k ), WILDCARD );
             }
             canSet = true;
         }
         
         if ( canSet )
         {
-            if ( type ) val = type.call( model, val, dottedKey );
-            if ( validator && !validator.call( model, val, dottedKey ) )
+            if ( type ) 
+            {
+                val = type.call( model, val, dottedKey );
+            }
+            else if ( collection_type )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    val[i] = collection_type.call( model, val[i], dottedKey );
+            }
+            
+            validated = true;
+            if ( validator )
+            {
+                validated = validator.call( model, val, dottedKey );
+            }
+            else if ( collection_validator )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    if ( !collection_validator.call( model, val[i], dottedKey ) )
+                    {
+                        validated = false;
+                        break;
+                    }
+            }
+            if ( !validated )
             {
                 if ( pub )
                 {
@@ -3405,11 +3457,13 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
     // add/append value (for arrays like structures)
-    ,append: function ( dottedKey, val, pub, callData ) {
-        var model = this, r, o, k, p, index = -1,
+    ,add: function ( dottedKey, val, pub, callData ) {
+        var model = this, r, cr, o, k, p, i, l, index = -1,
             type, validator, setter,
+            collection_type = null, collection_validator = null,
+            is_collection = false,
             types, validators, setters, ideps,
-            canSet = false,
+            canSet = false, validated,
             autovalidate = model.$autovalidate
         ;
         
@@ -3420,6 +3474,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
         validators = model.$validators; 
         setters = model.$setters;
         ideps = model.$idependencies;
+        is_collection = T_ARRAY & get_type( val );
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -3431,14 +3486,18 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = get_value(get_next(get_next([types[k] || types[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
+                if ( autovalidate && !validator )
+                    collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
+            }
             canSet = true;
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
+        else if ( (r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( getNext( r[4], k ), WILDCARD );
-            validator = getValue( getNext( r[5], k ), WILDCARD );
-            setter = getValue( getNext( r[6], k ), WILDCARD );
             
             if ( Model === r[ 0 ]  ) 
             {
@@ -3469,18 +3528,53 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 }
                 return model;
             }
-            else if ( !setter && (false === r[0] && r[3].length) )
+            
+            setter = get_value( get_next( r[6], k ), WILDCARD );
+            if ( !setter && (false === r[0] && r[3].length) )
             {
                 // cannot add intermediate values or not array
                 return model;
+            }
+            
+            type = get_value( get_next( r[4], k ), WILDCARD );
+            validator = get_value( get_next( r[5], k ), WILDCARD );
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = get_value( get_next(get_next( r[4], k ), WILDCARD), WILDCARD );
+                if ( autovalidate && !validator )
+                    collection_validator = get_value( get_next(get_next( r[5], k ), WILDCARD), WILDCARD );
             }
             canSet = true;
         }
         
         if ( canSet )
         {
-            if ( type ) val = type.call( model, val, dottedKey );
-            if ( validator && !validator.call( model, val, dottedKey ) )
+            if ( type ) 
+            {
+                val = type.call( model, val, dottedKey );
+            }
+            else if ( collection_type )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    val[i] = collection_type.call( model, val[i], dottedKey );
+            }
+            
+            validated = true;
+            if ( validator )
+            {
+                validated = validator.call( model, val, dottedKey );
+            }
+            else if ( collection_validator )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    if ( !collection_validator.call( model, val[i], dottedKey ) )
+                    {
+                        validated = false;
+                        break;
+                    }
+            }
+            if ( !validated )
             {
                 if ( pub )
                 {
@@ -3556,15 +3650,17 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
     
 /**[DOC_MARKDOWN]
 // model insert val to key (if key is array-like) at specified position/index
-model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
+model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
     // insert value at index (for arrays like structures)
-    ,insert: function ( dottedKey, val, index, pub, callData ) {
-        var model = this, r, o, k, p,
+    ,ins: function ( dottedKey, val, index, pub, callData ) {
+        var model = this, r, cr, o, k, p, i, l,
             type, validator, setter,
+            collection_type = null, collection_validator = null,
+            is_collection = false,
             types, validators, setters, ideps,
-            canSet = false,
+            canSet = false, validated,
             autovalidate = model.$autovalidate
         ;
         
@@ -3575,6 +3671,7 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
         validators = model.$validators; 
         setters = model.$setters;
         ideps = model.$idependencies;
+        is_collection = T_ARRAY & get_type( val );
         
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -3587,13 +3684,17 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             canSet = true;
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = get_value(get_next(get_next([types[k] || types[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
+                if ( autovalidate && !validator )
+                    collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
+            }
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
+        else if ( (r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
-            type = getValue( getNext( r[4], k ), WILDCARD );
-            validator = getValue( getNext( r[5], k ), WILDCARD );
-            setter = getValue( getNext( r[6], k ), WILDCARD );
             
             if ( Model === r[ 0 ]  ) 
             {
@@ -3601,7 +3702,7 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
                 if ( k.length ) 
                 {
                     k = k.join('.');
-                    o.insert( k, val, index, pub, callData ); 
+                    o.ins( k, val, index, pub, callData ); 
                 }
                 else 
                 {
@@ -3624,18 +3725,53 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
                 }
                 return model;
             }
-            else if ( !setter && (false === r[0] && r[3].length) )
+            
+            setter = get_value( get_next( r[6], k ), WILDCARD );
+            if ( !setter && (false === r[0] && r[3].length) )
             {
                 // cannot add intermediate values or not array
                 return model;
+            }
+            
+            type = get_value( get_next( r[4], k ), WILDCARD );
+            validator = get_value( get_next( r[5], k ), WILDCARD );
+            if ( is_collection )
+            {
+                if ( !type ) 
+                    collection_type = get_value( get_next(get_next( r[4], k ), WILDCARD), WILDCARD );
+                if ( autovalidate && !validator )
+                    collection_validator = get_value( get_next(get_next( r[5], k ), WILDCARD), WILDCARD );
             }
             canSet = true;
         }
         
         if ( canSet )
         {
-            if ( type ) val = type.call( model, val, dottedKey );
-            if ( validator && !validator.call( model, val, dottedKey ) )
+            if ( type ) 
+            {
+                val = type.call( model, val, dottedKey );
+            }
+            else if ( collection_type )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    val[i] = collection_type.call( model, val[i], dottedKey );
+            }
+            
+            validated = true;
+            if ( validator )
+            {
+                validated = validator.call( model, val, dottedKey );
+            }
+            else if ( collection_validator )
+            {
+                for (i=0,l=val.length; i<l; i++)
+                    if ( !collection_validator.call( model, val[i], dottedKey ) )
+                    {
+                        validated = false;
+                        break;
+                    }
+            }
+            if ( !validated )
             {
                 if ( pub )
                 {
@@ -3643,7 +3779,7 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey, 
                         value: /*val*/undef,
-                        action: 'append',
+                        action: 'insert',
                         index: -1,
                         $callData: callData
                     });
@@ -3706,7 +3842,7 @@ model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
     
 /**[DOC_MARKDOWN]
 // model delete/remove key (with or without re-arranging array indexes)
-model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=false] );
+model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=true] );
 
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
@@ -3727,7 +3863,7 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
             k = dottedKey;
             canDel = true;
         }
-        else if ( (r = walk3( dottedKey.split('.'), o, null, null, null, Model, false )) )
+        else if ( (r = walk_and_get3( dottedKey.split('.'), o, null, null, null, Model, false )) )
         {
             o = r[ 1 ]; k = r[ 2 ];
             
@@ -3759,10 +3895,10 @@ model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeInd
         
         if ( canDel )
         {
-            val = o[ k ];
+            val = o[ k ]; o[ k ] = undef; 
             if ( reArrangeIndexes )
             {
-                o[ k ] = undef; T = get_type( o );
+                T = get_type( o );
                  // re-arrange indexes
                 if ( T_ARRAY == T && is_array_index( k ) ) {index = +k; o.splice( index, 1 );}
                 else if ( T_OBJ == T ) delete o[ k ];
@@ -3949,9 +4085,9 @@ model.atom( String dottedKey | Boolean false );
     }
 });
 // aliases
-Model[proto].add = Model[proto].append;
-Model[proto].ins = Model[proto].insert;
-Model[proto].rem = Model[proto].del;
+Model[proto].append = Model[proto].add;
+Model[proto].insert = Model[proto].ins;
+Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 /**[DOC_MARKDOWN]
 
 ```
@@ -4472,6 +4608,15 @@ tpl.free( Node el );
 // View utils
 var namedKeyProp = "mv_namedkey",
 
+    contains_non_strict = function( collection, value ) {
+        if ( collection )
+        {
+            for (var i=0,l=collection.length; i<l; i++)
+                if ( value == Str(collection[i]) ) return true;
+        }
+        return false;
+    },
+    
     getInlineTplRE = function( InlineTplFormat, modelID ) {
         return new Regex(
             esc_re( InlineTplFormat )
@@ -4505,6 +4650,218 @@ var namedKeyProp = "mv_namedkey",
         }
     },
     
+    numeric_re = /^\d+$/,
+    empty_brackets_re = /\[\s*\]$/,
+    
+    fields2model = function( view, elements ) {
+        var model = view.$model, i, l = elements.length, 
+            model_prefix = model.id + '.',
+            el, name, key, k, j, o, alternative,
+            val, input_type, is_dynamic_array, 
+            checkboxes, checkboxes_done = { }
+        ;
+        
+        for (i=0; i<l; i++)
+        {
+            el = elements[i]; name = el[ATTR]("name");
+            if ( !name ) continue;
+            
+            input_type = (el[TYPE]||'').toLowerCase( );
+            
+            key = dotted( name );
+            if ( startsWith(key, model_prefix) ) key = key.slice( model_prefix.length );
+            
+            k = key.split('.'); o = model.$data;
+            while ( k.length )
+            {
+                j = k.shift( );
+                if ( k.length ) 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                    o = o[ j ];
+                }
+                else 
+                {
+                    if ( 'radio' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            val = '';
+                            checkboxes = view.get('input[type="radio"][name="'+name+'"]', 0, 1);
+                            if ( checkboxes.length > 1 )
+                            {
+                                checkboxes.forEach(function(c){
+                                   if ( el[CHECKED] ) val = el[VAL];
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                val = el[VAL];
+                            }
+                            checkboxes_done[name] = 1;
+                            model.set( key, val );
+                        }
+                    }
+                    else if ( 'checkbox' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            is_dynamic_array = empty_brackets_re.test( name );
+                            checkboxes = view.get('input[type="checkbox"][name="'+name+'"]', 0, 1);
+                            
+                            if ( is_dynamic_array )
+                            {
+                                // multiple checkboxes [name="model[key][]"] dynamic array
+                                // only checked items are in the list
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                });
+                            }
+                            else if ( checkboxes.length > 1 )
+                            {
+                                // multiple checkboxes [name="model[key]"] static array
+                                // all items are in the list either with values or defaults
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                    else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                // single checkbox, checked
+                                val = el[VAL];
+                            }
+                            else
+                            {
+                                // single checkbox, un-checked
+                                // use alternative value in [data-else] attribute, if needed, else empty
+                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                            }
+                            checkboxes_done[name] = 1;
+                            model.set( key, val );
+                        }
+                    }
+                    else
+                    {
+                        val = get_val( el );
+                        model.set( key, val );
+                    }
+                }
+            }
+        }
+    },
+
+    serialize_fields = function( node, name_prefix ) {
+        var data = { },
+            model_prefix = name_prefix&&name_prefix.length ? name_prefix + '.' : null,
+            elements = $sel( 'input,textarea,select', node ),
+            l = elements.length, i,
+            el, name, key, k, j, o,
+            val, input_type, is_dynamic_array, 
+            checkboxes, checkboxes_done = { }
+        ;
+        
+        for (i=0; i<l; i++)
+        {
+            el = elements[i]; name = el[ATTR]("name");
+            if ( !name ) continue;
+            
+            input_type = (el[TYPE]||'').toLowerCase( );
+            
+            key = dotted( name );
+            if ( model_prefix )
+            {
+                if ( !startsWith(key, model_prefix) ) continue;
+                key = key.slice( model_prefix.length );
+            }
+            
+            k = key.split('.'); o = data;
+            while ( k.length )
+            {
+                j = k.shift( );
+                if ( k.length ) 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                    o = o[ j ];
+                }
+                else 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = '';
+                    
+                    if ( 'radio' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            val = '';
+                            checkboxes = $sel( 'input[type="radio"][name="'+name+'"]', node );
+                            if ( checkboxes.length > 1 )
+                            {
+                                checkboxes.forEach(function(c){
+                                   if ( el[CHECKED] ) val = el[VAL];
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                val = el[VAL];
+                            }
+                            checkboxes_done[name] = 1;
+                            o[ j ] = val;
+                        }
+                    }
+                    else if ( 'checkbox' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            is_dynamic_array = empty_brackets_re.test( name );
+                            checkboxes = $sel( 'input[type="radio"][name="'+name+'"]', node );
+                            
+                            if ( is_dynamic_array )
+                            {
+                                // multiple checkboxes [name="model[key][]"] dynamic array
+                                // only checked items are in the list
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                });
+                            }
+                            else if ( checkboxes.length > 1 )
+                            {
+                                // multiple checkboxes [name="model[key]"] static array
+                                // all items are in the list either with values or defaults
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                    else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                // single checkbox, checked
+                                val = el[VAL];
+                            }
+                            else
+                            {
+                                // single checkbox, un-checked
+                                // use alternative value in [data-else] attribute, if needed, else empty
+                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                            }
+                            checkboxes_done[name] = 1;
+                            o[ j ] = val;
+                        }
+                    }
+                    else
+                    {
+                        val = get_val( el );
+                        o[ j ] = val;
+                    }
+                }
+            }
+        }
+        return data;
+    },
+
     doBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
@@ -4659,8 +5016,6 @@ var namedKeyProp = "mv_namedkey",
     ,123 : 'f12'
     },
     
-    empty_brackets_re = /\[\s*\]$/,
-    
     viewHandler = function( view, method ) {
         return function(evt){return view[method](evt, {el:this});};
     }
@@ -4703,6 +5058,7 @@ View.node = find_node;
 View.index = node_index;
 View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
+View.serialize = serialize_fields;
 // View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
@@ -4736,7 +5092,7 @@ view.dispose( );
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
-        if ( view.$tpl ) view.$tpl.dispose();
+        if ( view.$tpl ) view.$tpl.dispose( );
         view.$tpl = null;
         view.$template = null;
         view.$atts = null;
@@ -4948,16 +5304,16 @@ view.autobind( [Boolean bool] );
     }
     
     // cache selectors for even faster performance
-    ,get: function( selector, $dom, addRoot, bypass ) {
+    ,get: function( selector, $dom, addRoot, not_cached ) {
         var view = this, selectorsCache = view.$selectors, elements;
         
         $dom = $dom || view.$dom;
         
-        if ( bypass || !(elements=selectorsCache.get( selector )) ) 
+        if ( not_cached || !(elements=selectorsCache.get( selector )) ) 
         {
             elements = $sel( selector, $dom );
             if ( addRoot && $dom[MATCHES](selector) ) elements.push( $dom );
-            if ( !bypass ) selectorsCache.set( selector, elements );
+            if ( !not_cached ) selectorsCache.set( selector, elements );
         }
         
         return elements;
@@ -5286,6 +5642,27 @@ view.sync( [DOMNode dom=view.$dom] );
     }
     
 /**[DOC_MARKDOWN]
+// synchronize model to underlying dom (or part of it)
+view.sync_model( [DOMNode dom=view.$dom] );
+
+[/DOC_MARKDOWN]**/
+    ,sync_model: function( $dom ) {
+        var view = this, s,
+            autobind = view.$autobind, 
+            autobinds, hasDocument = 'undefined' !== typeof document
+        ;
+        
+        if ( hasDocument && autobind )
+        {
+            s = getSelectors( null, null, [view.$model.id+'['] );
+            view.$selectors.reset( );
+            autobinds = view.get( s[ 2 ], $dom || view.$dom, 0, 1 );
+            if ( autobinds.length ) fields2model( view, autobinds );
+        }
+        return view;
+    }
+    
+/**[DOC_MARKDOWN]
 // reset view caches only
 view.reset( );
 
@@ -5375,13 +5752,14 @@ view.reset( );
     
     ,on_document_keydown: function( evt, data ) {
         var view = this, view_shortcuts = view.$shortcuts, 
-            el = data.el, callback, ret,
+            el = data.el, callback, ret, input_type,
             key, code, character, modifiers;
         
         // adapted from shortcuts.js, http://www.openjs.com/scripts/events/keyboard_shortcuts/
         //
+        input_type = 'TEXTAREA' === el.tagName ? 'text' : ('INPUT' === el.tagName ? el[TYPE].toLowerCase( ) : '');
         // no hotkeys assigned or text input element is the target, bypass
-        if ( !view.$num_shortcuts || 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName ) return;
+        if ( !view.$num_shortcuts || 'text' === input_type || 'email' === input_type || 'url' === input_type || 'number' === input_type ) return;
         
         // find which key is pressed
         code = evt.keyCode || evt.which; 
@@ -5724,7 +6102,7 @@ view.reset( );
             if ( is_dynamic_array )
             {
                 value = T_ARRAY === value_type ? value : [value];
-                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
                 /*checkboxes.forEach(function( cb ) {
@@ -5734,7 +6112,7 @@ view.reset( );
             }
             else if ( /*checkboxes.length > 1 &&*/ (T_ARRAY === value_type) )
             {
-                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
                 /*checkboxes.forEach(function( cb ) {
@@ -5821,21 +6199,21 @@ The declarative view binding format is like:
     <td>
 
 <code><pre>
-&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"value":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}' />
 
-&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"checked":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}' />
 
-&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"disabled":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}' />
 
-&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
+&lt;select data-bind='{"options":"a.model.key"}'>&lt;/select>
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+&lt;select data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/select>
 </pre></code>
 
     </td>
@@ -5848,10 +6226,10 @@ The declarative view binding format is like:
 
 <code><pre>
 &lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-&lt;div data-bind='{"text":"a.model.key"}'>&lt;/div>
+&lt;span data-bind='{"text":"a.model.key"}'>&lt;/span>
 &lt;!-- is shorthand for: -->
 &lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
-&lt;div data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/div>
+&lt;span data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/span>
 </pre></code>
 
     </td>
@@ -6066,7 +6444,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.62"
+    VERSION: "0.63"
     
     ,UUID: uuid
     
@@ -6090,7 +6468,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.62
+*   @version: 0.63
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

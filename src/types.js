@@ -2,19 +2,20 @@
 //
 // Data Types / Validators for Models (Static)
 var 
-    ModelField = function( modelField ) {
+    ModelField = function ModelField( modelField ) {
         if ( !is_instance(this, ModelField) ) return new ModelField( modelField );
         this.f = modelField || null;
     },
     
-    CollectionEach = function( f ) {
+    CollectionEach = function CollectionEach( f ) {
         if ( !is_instance(this, CollectionEach) ) return new CollectionEach( f );
         this.f = f || null;
+        this.fEach = 1;
     },
     
     bindFieldsToModel = function( /*model,*/ fields ) {
         // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-        var p, t;
+        /*var p, t;
         for ( p in fields )
         {
             if ( fields[HAS](p) )
@@ -30,7 +31,7 @@ var
                     fields[ p ] = t;//bindF( t, model );
                 }
             }
-        }
+        }*/
         return fields;
     },
     
@@ -563,7 +564,7 @@ ModelView.Type.Cast.FIELDS({
                             if ( type.fEach && is_type(val, T_ARRAY) )
                             {
                                l = val.length;
-                               for (i=0; i<l; i++) val[ i ] = type.call( self, val[ i ] );
+                               for (i=0; i<l; i++) val[ i ] = type.f.call( self, val[ i ] );
                                v[ field ] = val;
                             }
                             else
@@ -829,7 +830,7 @@ ModelView.Validation.Validate.FIELDS({
                             if ( validator.fEach && is_type(val, T_ARRAY) )
                             {
                                l = val.length;
-                               for (i=0; i<l; i++) if ( !validator.call( self, val[ i ] ) )  return false;
+                               for (i=0; i<l; i++) if ( !validator.f.call( self, val[ i ] ) )  return false;
                             }
                             else
                             {

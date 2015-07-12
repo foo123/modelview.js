@@ -2,6 +2,15 @@
 // View utils
 var namedKeyProp = "mv_namedkey",
 
+    contains_non_strict = function( collection, value ) {
+        if ( collection )
+        {
+            for (var i=0,l=collection.length; i<l; i++)
+                if ( value == Str(collection[i]) ) return true;
+        }
+        return false;
+    },
+    
     getInlineTplRE = function( InlineTplFormat, modelID ) {
         return new Regex(
             esc_re( InlineTplFormat )
@@ -35,6 +44,218 @@ var namedKeyProp = "mv_namedkey",
         }
     },
     
+    numeric_re = /^\d+$/,
+    empty_brackets_re = /\[\s*\]$/,
+    
+    fields2model = function( view, elements ) {
+        var model = view.$model, i, l = elements.length, 
+            model_prefix = model.id + '.',
+            el, name, key, k, j, o, alternative,
+            val, input_type, is_dynamic_array, 
+            checkboxes, checkboxes_done = { }
+        ;
+        
+        for (i=0; i<l; i++)
+        {
+            el = elements[i]; name = el[ATTR]("name");
+            if ( !name ) continue;
+            
+            input_type = (el[TYPE]||'').toLowerCase( );
+            
+            key = dotted( name );
+            if ( startsWith(key, model_prefix) ) key = key.slice( model_prefix.length );
+            
+            k = key.split('.'); o = model.$data;
+            while ( k.length )
+            {
+                j = k.shift( );
+                if ( k.length ) 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                    o = o[ j ];
+                }
+                else 
+                {
+                    if ( 'radio' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            val = '';
+                            checkboxes = view.get('input[type="radio"][name="'+name+'"]', 0, 1);
+                            if ( checkboxes.length > 1 )
+                            {
+                                checkboxes.forEach(function(c){
+                                   if ( el[CHECKED] ) val = el[VAL];
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                val = el[VAL];
+                            }
+                            checkboxes_done[name] = 1;
+                            model.set( key, val );
+                        }
+                    }
+                    else if ( 'checkbox' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            is_dynamic_array = empty_brackets_re.test( name );
+                            checkboxes = view.get('input[type="checkbox"][name="'+name+'"]', 0, 1);
+                            
+                            if ( is_dynamic_array )
+                            {
+                                // multiple checkboxes [name="model[key][]"] dynamic array
+                                // only checked items are in the list
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                });
+                            }
+                            else if ( checkboxes.length > 1 )
+                            {
+                                // multiple checkboxes [name="model[key]"] static array
+                                // all items are in the list either with values or defaults
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                    else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                // single checkbox, checked
+                                val = el[VAL];
+                            }
+                            else
+                            {
+                                // single checkbox, un-checked
+                                // use alternative value in [data-else] attribute, if needed, else empty
+                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                            }
+                            checkboxes_done[name] = 1;
+                            model.set( key, val );
+                        }
+                    }
+                    else
+                    {
+                        val = get_val( el );
+                        model.set( key, val );
+                    }
+                }
+            }
+        }
+    },
+
+    serialize_fields = function( node, name_prefix ) {
+        var data = { },
+            model_prefix = name_prefix&&name_prefix.length ? name_prefix + '.' : null,
+            elements = $sel( 'input,textarea,select', node ),
+            l = elements.length, i,
+            el, name, key, k, j, o,
+            val, input_type, is_dynamic_array, 
+            checkboxes, checkboxes_done = { }
+        ;
+        
+        for (i=0; i<l; i++)
+        {
+            el = elements[i]; name = el[ATTR]("name");
+            if ( !name ) continue;
+            
+            input_type = (el[TYPE]||'').toLowerCase( );
+            
+            key = dotted( name );
+            if ( model_prefix )
+            {
+                if ( !startsWith(key, model_prefix) ) continue;
+                key = key.slice( model_prefix.length );
+            }
+            
+            k = key.split('.'); o = data;
+            while ( k.length )
+            {
+                j = k.shift( );
+                if ( k.length ) 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                    o = o[ j ];
+                }
+                else 
+                {
+                    if ( !o[HAS]( j ) ) o[ j ] = '';
+                    
+                    if ( 'radio' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            val = '';
+                            checkboxes = $sel( 'input[type="radio"][name="'+name+'"]', node );
+                            if ( checkboxes.length > 1 )
+                            {
+                                checkboxes.forEach(function(c){
+                                   if ( el[CHECKED] ) val = el[VAL];
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                val = el[VAL];
+                            }
+                            checkboxes_done[name] = 1;
+                            o[ j ] = val;
+                        }
+                    }
+                    else if ( 'checkbox' === input_type )
+                    {
+                        if ( !checkboxes_done[name] )
+                        {
+                            is_dynamic_array = empty_brackets_re.test( name );
+                            checkboxes = $sel( 'input[type="radio"][name="'+name+'"]', node );
+                            
+                            if ( is_dynamic_array )
+                            {
+                                // multiple checkboxes [name="model[key][]"] dynamic array
+                                // only checked items are in the list
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                });
+                            }
+                            else if ( checkboxes.length > 1 )
+                            {
+                                // multiple checkboxes [name="model[key]"] static array
+                                // all items are in the list either with values or defaults
+                                val = [ ];
+                                checkboxes.forEach(function( c ) {
+                                    if ( c[CHECKED] ) val.push( c[VAL] );
+                                    else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
+                                });
+                            }
+                            else if ( el[CHECKED] )
+                            {
+                                // single checkbox, checked
+                                val = el[VAL];
+                            }
+                            else
+                            {
+                                // single checkbox, un-checked
+                                // use alternative value in [data-else] attribute, if needed, else empty
+                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                            }
+                            checkboxes_done[name] = 1;
+                            o[ j ] = val;
+                        }
+                    }
+                    else
+                    {
+                        val = get_val( el );
+                        o[ j ] = val;
+                    }
+                }
+            }
+        }
+        return data;
+    },
+
     doBindAction = function( view, evt, elements, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
             event = isSync ? 'change' : evt.type, i, l = elements.length,
@@ -189,8 +410,6 @@ var namedKeyProp = "mv_namedkey",
     ,123 : 'f12'
     },
     
-    empty_brackets_re = /\[\s*\]$/,
-    
     viewHandler = function( view, method ) {
         return function(evt){return view[method](evt, {el:this});};
     }
@@ -233,6 +452,7 @@ View.node = find_node;
 View.index = node_index;
 View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
+View.serialize = serialize_fields;
 // View implements PublishSubscribe pattern
 View[proto] = Merge( Create( Obj[proto] ), PublishSubscribe, {
     
@@ -266,7 +486,7 @@ view.dispose( );
         if ( view.$model ) view.$model.dispose( );
         view.$model = null;
         view.$dom = null;
-        if ( view.$tpl ) view.$tpl.dispose();
+        if ( view.$tpl ) view.$tpl.dispose( );
         view.$tpl = null;
         view.$template = null;
         view.$atts = null;
@@ -478,16 +698,16 @@ view.autobind( [Boolean bool] );
     }
     
     // cache selectors for even faster performance
-    ,get: function( selector, $dom, addRoot, bypass ) {
+    ,get: function( selector, $dom, addRoot, not_cached ) {
         var view = this, selectorsCache = view.$selectors, elements;
         
         $dom = $dom || view.$dom;
         
-        if ( bypass || !(elements=selectorsCache.get( selector )) ) 
+        if ( not_cached || !(elements=selectorsCache.get( selector )) ) 
         {
             elements = $sel( selector, $dom );
             if ( addRoot && $dom[MATCHES](selector) ) elements.push( $dom );
-            if ( !bypass ) selectorsCache.set( selector, elements );
+            if ( !not_cached ) selectorsCache.set( selector, elements );
         }
         
         return elements;
@@ -816,6 +1036,27 @@ view.sync( [DOMNode dom=view.$dom] );
     }
     
 /**[DOC_MARKDOWN]
+// synchronize model to underlying dom (or part of it)
+view.sync_model( [DOMNode dom=view.$dom] );
+
+[/DOC_MARKDOWN]**/
+    ,sync_model: function( $dom ) {
+        var view = this, s,
+            autobind = view.$autobind, 
+            autobinds, hasDocument = 'undefined' !== typeof document
+        ;
+        
+        if ( hasDocument && autobind )
+        {
+            s = getSelectors( null, null, [view.$model.id+'['] );
+            view.$selectors.reset( );
+            autobinds = view.get( s[ 2 ], $dom || view.$dom, 0, 1 );
+            if ( autobinds.length ) fields2model( view, autobinds );
+        }
+        return view;
+    }
+    
+/**[DOC_MARKDOWN]
 // reset view caches only
 view.reset( );
 
@@ -905,13 +1146,14 @@ view.reset( );
     
     ,on_document_keydown: function( evt, data ) {
         var view = this, view_shortcuts = view.$shortcuts, 
-            el = data.el, callback, ret,
+            el = data.el, callback, ret, input_type,
             key, code, character, modifiers;
         
         // adapted from shortcuts.js, http://www.openjs.com/scripts/events/keyboard_shortcuts/
         //
+        input_type = 'TEXTAREA' === el.tagName ? 'text' : ('INPUT' === el.tagName ? el[TYPE].toLowerCase( ) : '');
         // no hotkeys assigned or text input element is the target, bypass
-        if ( !view.$num_shortcuts || 'TEXTAREA' === el.tagName || 'INPUT' === el.tagName ) return;
+        if ( !view.$num_shortcuts || 'text' === input_type || 'email' === input_type || 'url' === input_type || 'number' === input_type ) return;
         
         // find which key is pressed
         code = evt.keyCode || evt.which; 
@@ -1254,7 +1496,7 @@ view.reset( );
             if ( is_dynamic_array )
             {
                 value = T_ARRAY === value_type ? value : [value];
-                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
                 /*checkboxes.forEach(function( cb ) {
@@ -1264,7 +1506,7 @@ view.reset( );
             }
             else if ( /*checkboxes.length > 1 &&*/ (T_ARRAY === value_type) )
             {
-                el[CHECKED] = -1 < value.indexOf( el[VAL] );
+                el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
                 /*checkboxes.forEach(function( cb ) {
@@ -1351,21 +1593,21 @@ The declarative view binding format is like:
     <td>
 
 <code><pre>
-&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"value":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}' />
 
-&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"checked":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}' />
 
-&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"disabled":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}' />
 
-&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
+&lt;select data-bind='{"options":"a.model.key"}'>&lt;/select>
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+&lt;select data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/select>
 </pre></code>
 
     </td>
@@ -1378,10 +1620,10 @@ The declarative view binding format is like:
 
 <code><pre>
 &lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-&lt;div data-bind='{"text":"a.model.key"}'>&lt;/div>
+&lt;span data-bind='{"text":"a.model.key"}'>&lt;/span>
 &lt;!-- is shorthand for: -->
 &lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
-&lt;div data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/div>
+&lt;span data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/span>
 </pre></code>
 
     </td>

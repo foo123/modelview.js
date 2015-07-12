@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.62**
+**Version 0.63**
 
 ###Contents
 
@@ -598,13 +598,13 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
 
 // model insert val to key (if key is array-like) at specified position/index
-model.insert( String dottedKey, * val, Number index [, Boolean publish=false] );
+model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=false] );
 
 
 
 
 // model delete/remove key (with or without re-arranging array indexes)
-model.[del|rem]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=false] );
+model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=true] );
 
 
 
@@ -787,6 +787,12 @@ view.sync( [DOMNode dom=view.$dom] );
 
 
 
+// synchronize model to underlying dom (or part of it)
+view.sync_model( [DOMNode dom=view.$dom] );
+
+
+
+
 // reset view caches only
 view.reset( );
 
@@ -856,21 +862,21 @@ The declarative view binding format is like:
     <td>
 
 <code><pre>
-&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"value":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}' />
 
-&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"checked":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
+&lt;input type="checkbox" data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}' />
 
-&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
+&lt;input type="text" data-bind='{"disabled":"a.model.key"}' />
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
+&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}' />
 
-&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
+&lt;select data-bind='{"options":"a.model.key"}'>&lt;/select>
 &lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+&lt;select data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/select>
 </pre></code>
 
     </td>
@@ -883,10 +889,10 @@ The declarative view binding format is like:
 
 <code><pre>
 &lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-&lt;div data-bind='{"text":"a.model.key"}'>&lt;/div>
+&lt;span data-bind='{"text":"a.model.key"}'>&lt;/span>
 &lt;!-- is shorthand for: -->
 &lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
-&lt;div data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/div>
+&lt;span data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/span>
 </pre></code>
 
     </td>

@@ -414,8 +414,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     Node = function( val, next ) {
-        this.v = val || null;
-        this.n = next || {};
+        var self = this;
+        self.v = val || null;
+        self.n = next || {};
     },
     
     WILDCARD = "*", NAMESPACE = "modelview",
