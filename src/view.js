@@ -1335,12 +1335,13 @@ The declarative view binding format is like:
     <td><code>each</code></td>
     <td><code>view.do_each</code></td>
     <td>
-        
-        ```html
-        <ul data-bind='{"each":"a.model.collection.key"}'></ul>
-        <!-- is shorthand for: -->
-        <ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'></ul>
-        ```
+
+<code><pre>
+&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
+&lt;!-- is shorthand for: -->
+&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
+</pre></code>
+
     </td>
     <td>update element each child node depending on model collection key (TODO)</td>
 </tr>
@@ -1348,24 +1349,25 @@ The declarative view binding format is like:
     <td><code>prop</code></td>
     <td><code>view.do_prop</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"value":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'></div>
 
-        <div data-bind='{"checked":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'></div>
+<code><pre>
+&lt;div data-bind='{"value":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}'>&lt;/div>
 
-        <div data-bind='{"disabled":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'></div>
+&lt;div data-bind='{"checked":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}'>&lt;/div>
 
-        <div data-bind='{"options":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'></div>
-        ```
+&lt;div data-bind='{"disabled":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}'>&lt;/div>
+
+&lt;div data-bind='{"options":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>set element properties based on model data keys</td>
 </tr>
@@ -1373,14 +1375,15 @@ The declarative view binding format is like:
     <td><code>html</code> / <code>text</code></td>
     <td><code>view.do_html</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"html":"a.model.key"}'></div>
-        <div data-bind='{"text":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"html","key":"a.model.key"}}'></div>
-        <div data-bind='{"change":{"action":"text","key":"a.model.key"}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
+&lt;div data-bind='{"text":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
+&lt;div data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>set element html/text property based on model data key</td>
 </tr>
@@ -1388,12 +1391,13 @@ The declarative view binding format is like:
     <td><code>css</code></td>
     <td><code>view.do_css</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>set element css style(s) based on model data key(s)</td>
 </tr>
@@ -1401,12 +1405,13 @@ The declarative view binding format is like:
     <td><code>show</code></td>
     <td><code>view.do_show</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"show":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"show","key":"a.model.key"}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
 </tr>
@@ -1414,12 +1419,13 @@ The declarative view binding format is like:
     <td><code>hide</code></td>
     <td><code>view.do_hide</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"hide":"a.model.key"}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
 </tr>
@@ -1427,10 +1433,11 @@ The declarative view binding format is like:
     <td><code>tpl</code></td>
     <td><code>view.do_tpl</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>element render a template based on model data key</td>
 </tr>
@@ -1438,12 +1445,13 @@ The declarative view binding format is like:
     <td><code>set</code></td>
     <td><code>view.do_set</code></td>
     <td>
-        
-        ```html
-        <div data-bind='{"set":{"key":"akey","value":"aval"}}'></div>
-        <!-- is shorthand for: -->
-        <div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'></div>
-        ```
+
+<code><pre>
+&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
+&lt;!-- is shorthand for: -->
+&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
+</pre></code>
+
     </td>
     <td>set/update model data key with given value on a UI event (default "click")</td>
 </tr>
@@ -1451,11 +1459,12 @@ The declarative view binding format is like:
     <td><code>bind</code></td>
     <td><code>view.do_bind</code></td>
     <td>
-        
-        ```html
-        <input name="model[a][model][key]" />
-        <select name="model[another][model][key]"></select>
-        ```
+
+<code><pre>
+&lt;input name="model[a][model][key]" />
+&lt;select name="model[another][model][key]">&lt;/select>
+</pre></code>
+
     </td>
     <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
 </tr>
