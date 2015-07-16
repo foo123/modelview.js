@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.63**
+**Version 0.64**
 
 ###Contents
 
@@ -591,6 +591,12 @@ model.get( String dottedKey [, Boolean RAW=false ] );
 
 
 
+// model get all matching keys including wildcards (bypass custom model getters if RAW is true)
+model.getAll( Array dottedKeys [, Boolean RAW=false ] );
+
+
+
+
 // model set key to val
 model.set( String dottedKey, * val [, Boolean publish=false] );
 
@@ -611,6 +617,12 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
 
 // model delete/remove key (with or without re-arranging array indexes)
 model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean reArrangeIndexes=true] );
+
+
+
+
+// model delete all matching keys (with or without re-arranging array indexes) including wildcards
+model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
 
 
 

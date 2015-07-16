@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.63
-*   @built on 2015-07-16 20:43:50
+*   @version: 0.64
+*   @built on 2015-07-16 23:57:35
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.63
-*   @built on 2015-07-16 20:43:50
+*   @version: 0.64
+*   @built on 2015-07-16 23:57:35
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.63**
+**Version 0.64**
 
 ###Contents
 
@@ -2484,7 +2484,7 @@ var
     get_value = function( a, k ) {
         if ( !a ) return null;
         var i, ai, l = a.length;
-        if ( k )
+        if ( undef !== k )
         {
             for (i=0; i<l; i++)
             {
@@ -3305,6 +3305,139 @@ model.get( String dottedKey [, Boolean RAW=false ] );
     }
     
 /**[DOC_MARKDOWN]
+// model get all matching keys including wildcards (bypass custom model getters if RAW is true)
+model.getAll( Array dottedKeys [, Boolean RAW=false ] );
+
+[/DOC_MARKDOWN]**/
+    ,getAll: function( fields, RAW ) {
+        var model = this, keys, kk, k,
+            f, fl, p, l, i, o, t, getters, g, getter,
+            data, stack, to_get, dottedKey, results = [];
+        
+        if ( !fields || !fields.length ) return results;
+        if ( fields.substr ) fields = [fields];
+        RAW = true === RAW;
+        data = model.$data;
+        getters = RAW ? null : [model.$getters];
+        for (f=0,fl=fields.length; f<fl; f++)
+        {
+            dottedKey = fields[f];
+            stack = [ [data, dottedKey, getters] ];
+            while ( stack.length )
+            {
+                to_get = stack.pop( );
+                o = to_get[0];
+                dottedKey = to_get[1];
+                g = to_get[2];
+                p = dottedKey.split('.');
+                i = 0; l = p.length;
+                while (i < l)
+                {
+                    k = p[i++];
+                    if ( i < l )
+                    {
+                        t = get_type( o );
+                        if ( t & T_OBJ ) 
+                        {
+                            if ( WILDCARD === k ) 
+                            {
+                                k = p.slice(i).join('.');
+                                keys = Keys(o);
+                                for (kk=0; kk<keys.length; kk++)
+                                    stack.push( [o, keys[kk] + '.' + k, get_next(g, keys[kk])] );
+                                break;
+                            }
+                            else if ( o[HAS](k) ) 
+                            {
+                                o = o[k];
+                                g = get_next(g, k);
+                            }
+                        }
+                        else if ( t & T_ARRAY ) 
+                        {
+                            if ( WILDCARD === k ) 
+                            {
+                                k = p.slice(i).join('.');
+                                for (kk=0; kk<o.length; kk++)
+                                    stack.push( [o, '' + kk + '.' + k, get_next(g, ''+kk)] );
+                                break;
+                            }
+                            else if ( o[HAS](k) ) 
+                            {
+                                o = o[k];
+                                g = get_next(g, k);
+                            }
+                        }
+                        else break; // key does not exist
+                    }
+                    else
+                    {
+                        t = get_type( o );
+                        if ( t & T_OBJ ) 
+                        {
+                            if ( WILDCARD === k )
+                            {
+                                keys = Keys(o);
+                                for (kk=0; kk<keys.length; kk++)
+                                {
+                                    if ( RAW )
+                                    {
+                                        results.push( o[keys[kk]] );
+                                    }
+                                    else
+                                    {
+                                        if ( (getter=get_value(g, keys[kk])) || (getter=get_value(g, k)) )
+                                            results.push( getter.call(model, o[keys[kk]]) );
+                                        else
+                                            results.push( o[keys[kk]] );
+                                    }
+                                }
+                            }
+                            else if ( !RAW && (getter=get_value(g, k)) )
+                            {
+                                results.push( getter.call(model, o[k]) );
+                            }
+                            else if ( o[HAS](k) )
+                            {
+                                results.push( o[k] );
+                            }
+                        }
+                        else if ( t & T_ARRAY ) 
+                        {
+                            if ( WILDCARD === k )
+                            {
+                                for (kk=0; kk<o.length; kk++)
+                                {
+                                    if ( RAW )
+                                    {
+                                        results.push( o[kk] );
+                                    }
+                                    else
+                                    {
+                                        if ( (getter=get_value(g, kk)) || (getter=get_value(g, k)) )
+                                            results.push( getter.call(model, o[kk]) );
+                                        else
+                                            results.push( o[kk] );
+                                    }
+                                }
+                            }
+                            else if ( !RAW && (getter=get_value(g, k)) )
+                            {
+                                results.push( getter.call(model, o[k]) );
+                            }
+                            else if ( o[HAS](k) )
+                            {
+                                results.push( o[k] );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return results;
+    }
+    
+/**[DOC_MARKDOWN]
 // model set key to val
 model.set( String dottedKey, * val [, Boolean publish=false] );
 
@@ -3965,6 +4098,121 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
     }
     
 /**[DOC_MARKDOWN]
+// model delete all matching keys (with or without re-arranging array indexes) including wildcards
+model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
+
+[/DOC_MARKDOWN]**/
+    ,delAll: function( fields, reArrangeIndexes ) {
+        var model = this, keys, kk, k,
+            f, fl, p, l, i, o, t, 
+            data, stack, to_remove, dottedKey;
+        
+        if ( !fields || !fields.length ) return model;
+        if ( fields.substr ) fields = [fields];
+        reArrangeIndexes = false !== reArrangeIndexes;
+        data = model.$data;
+        for (f=0,fl=fields.length; f<fl; f++)
+        {
+            dottedKey = fields[f];
+            stack = [ [data, dottedKey] ];
+            while ( stack.length )
+            {
+                to_remove = stack.pop( );
+                o = to_remove[0];
+                dottedKey = to_remove[1];
+                p = dottedKey.split('.');
+                i = 0; l = p.length;
+                while (i < l)
+                {
+                    k = p[i++];
+                    if ( i < l )
+                    {
+                        t = get_type( o );
+                        if ( t & T_OBJ ) 
+                        {
+                            if ( WILDCARD === k ) 
+                            {
+                                k = p.slice(i).join('.');
+                                keys = Keys(o);
+                                for (kk=0; kk<keys.length; kk++)
+                                    stack.push( [o, keys[kk] + '.' + k] );
+                                break;
+                            }
+                            else if ( o[HAS](k) ) 
+                            {
+                                o = o[k];
+                            }
+                        }
+                        else if ( t & T_ARRAY ) 
+                        {
+                            if ( WILDCARD === k ) 
+                            {
+                                k = p.slice(i).join('.');
+                                for (kk=0; kk<o.length; kk++)
+                                    stack.push( [o, '' + kk + '.' + k] );
+                                break;
+                            }
+                            else if ( o[HAS](k) ) 
+                            {
+                                o = o[k];
+                            }
+                        }
+                        else break; // key does not exist
+                    }
+                    else
+                    {
+                        t = get_type( o );
+                        if ( t & T_OBJ ) 
+                        {
+                            if ( WILDCARD === k )
+                            {
+                                keys = Keys(o);
+                                for (kk=0; kk<keys.length; kk++)
+                                    delete o[keys[kk]];
+                            }
+                            else if ( o[HAS](k) )
+                            {
+                                delete o[k];
+                            }
+                        }
+                        else if ( t & T_ARRAY ) 
+                        {
+                            if ( WILDCARD === k )
+                            {
+                                for (kk=o.length-1; kk>=0; kk--)
+                                {
+                                    if ( reArrangeIndexes )
+                                    {
+                                         // re-arrange indexes
+                                        o.splice( kk, 1 );
+                                    }
+                                    else
+                                    {
+                                        delete o[ kk ]; // not re-arrange indexes
+                                    }
+                                }
+                            }
+                            else if ( o[HAS](k) )
+                            {
+                                if ( reArrangeIndexes && is_array_index( k ) )
+                                {
+                                     // re-arrange indexes
+                                    o.splice( +k, 1 );
+                                }
+                                else
+                                {
+                                    delete o[ k ]; // not re-arrange indexes
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return model;
+    }
+    
+/**[DOC_MARKDOWN]
 // shortcut to synchronise specific fields of this model to other fields of another model
 model.sync( Model otherModel, Object fieldsMap );
 
@@ -4131,6 +4379,7 @@ model.atom( String dottedKey | Boolean false );
 Model[proto].append = Model[proto].add;
 Model[proto].insert = Model[proto].ins;
 Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
+Model[proto].deleteAll = Model[proto].delAll;
 /**[DOC_MARKDOWN]
 
 ```
@@ -6487,7 +6736,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.63"
+    VERSION: "0.64"
     
     ,UUID: uuid
     
@@ -6511,7 +6760,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.63
+*   @version: 0.64
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
