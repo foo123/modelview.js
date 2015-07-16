@@ -61,9 +61,8 @@ var
         month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
     },
     
-    // (localised) date pattern formats
-    get_date_format = function( ) {
-        var locale = arguments.length ? arguments[0] : default_date_locale;
+    get_date_pattern = function( format, locale ) {
+        locale = locale || default_date_locale;
         
         // (php) date formats
         // http://php.net/manual/en/function.date.php
@@ -115,13 +114,13 @@ var
             // Time --
             // am or pm
             ,a: '(' + get_alternate_pattern( [
-                locale.meridian.am || default_date_locale.meridian.am,
-                locale.meridian.pm || default_date_locale.meridian.pm
+                locale.meridian.am /*|| default_date_locale.meridian.am*/,
+                locale.meridian.pm /*|| default_date_locale.meridian.pm*/
             ] ) + ')'
             // AM or PM
             ,A: '(' + get_alternate_pattern( [
-                locale.meridian.AM || default_date_locale.meridian.AM,
-                locale.meridian.PM || default_date_locale.meridian.PM
+                locale.meridian.AM /*|| default_date_locale.meridian.AM*/,
+                locale.meridian.PM /*|| default_date_locale.meridian.PM*/
             ] ) + ')'
             // Swatch Internet time; 000..999
             ,B: '([0-9]{3})'
@@ -142,7 +141,7 @@ var
 
             // Timezone --
             // Timezone identifier; e.g. Atlantic/Azores, ...
-            ,e: '(' + get_alternate_pattern( locale.timezone || default_date_locale.timezone ) + ')'
+            ,e: '(' + get_alternate_pattern( locale.timezone /*|| default_date_locale.timezone*/ ) + ')'
             // DST observed?; 0 or 1
             ,I: '([01])'
             // Difference to GMT in hour format; e.g. +0200
@@ -150,7 +149,7 @@ var
             // Difference to GMT w/colon; e.g. +02:00
             ,P: '([+-][0-9]{2}:[0-9]{2})'
             // Timezone abbreviation; e.g. EST, MDT, ...
-            ,T: '(' + get_alternate_pattern( locale.timezone_short || default_date_locale.timezone_short ) + ')'
+            ,T: '(' + get_alternate_pattern( locale.timezone_short /*|| default_date_locale.timezone_short*/ ) + ')'
             // Timezone offset in seconds (-43200...50400)
             ,Z: '(-?[0-9]{5})'
 
@@ -164,19 +163,15 @@ var
         };
         // Ordinal suffix for day of month; st, nd, rd, th
         var lord = locale.ordinal.ord, lords = [], i;
-        for (i in lordinal.ord) if ( lord[HAS](i) ) lords.push(i);
+        for (i in lord) if ( lord[HAS](i) ) lords.push( lord[i] );
         lords.push( locale.ordinal.nth );
         D.S = '(' + get_alternate_pattern( lords ) + ')';
         // ISO-8601 date. Y-m-d\\TH:i:sP
-        D.c = D.Y+'-'+D.m+'-'+D.d+'\\'+D.T+D.H+':'+D.i+':'+D.s+D.P;
+        D.c = D.Y+'-'+D.m+'-'+D.d+'\\\\'+D.T+D.H+':'+D.i+':'+D.s+D.P;
         // RFC 2822 D, d M Y H:i:s O
         D.r = D.D+',\\s'+D.d+'\\s'+D.M+'\\s'+D.Y+'\\s'+D.H+':'+D.i+':'+D.s+'\\s'+D.O;
-        return D;
-    },
-    
-    get_date_pattern = function( format, locale ) {
-        var re = '', f, i, l = format.length, 
-            D = get_date_format(locale || default_date_locale);
+        
+        var re = '', f, i, l = format.length;
         for (i=0; i<l; i++)
         {
             f = format.charAt( i );
@@ -680,7 +675,7 @@ ModelView.Type.Cast.PAD(pad_char, pad_size, pad_type="L");
                 pad_type = pad_type || 'L';
                 return function( v ) {
                     var vs = Str(v), len = vs.length, n = pad_size-len, l, r;
-                    if ( c > 0 )
+                    if ( n > 0 )
                     {
                         if ( 'LR' === pad_type )
                         {
