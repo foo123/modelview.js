@@ -515,6 +515,12 @@ model.dependencies( Object dependencies );
 
 
 
+// add default values given in {key: defaults} format
+model.defaults( Object defaults );
+
+
+
+
 // add typecasters given in {dottedKey: typecaster} format
 model.types( Object typeCasters );
 

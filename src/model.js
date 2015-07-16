@@ -286,6 +286,26 @@ var
         }
     },
     
+    modelDefaults = function modelDefaults( model, data, defaults ) {
+        var k, v;
+        for (k in defaults) 
+        {
+            if ( defaults[HAS](k) )
+            {
+                v = defaults[ k ];
+                if ( !data[HAS]( k ) )
+                {
+                    data[ k ] = v;
+                }
+                else if ( is_type( data[k], T_ARRAY_OR_OBJ ) && is_type( v, T_ARRAY_OR_OBJ ) )
+                {
+                    data[ k ] = modelDefaults( model, data[k], v );
+                }
+            }
+        }
+        return data;
+    },
+    
     // handle sub-composite models as data, via walking the data
     serializeModel = function serializeModel( model_instance, model_class, data, dataType ) {
         var key, type;
@@ -586,6 +606,34 @@ model.dependencies( Object dependencies );
                             if ( !dependencies[HAS](dk) ) dependencies[ dk ] = [ ];
                             if ( 0 > dependencies[ dk ].indexOf( k ) ) dependencies[ dk ].push( k );
                         }
+                    }
+                }
+            }
+        }
+        return model;
+    }
+    
+/**[DOC_MARKDOWN]
+// add default values given in {key: defaults} format
+model.defaults( Object defaults );
+
+[/DOC_MARKDOWN]**/
+    ,defaults: function( defaults ) {
+        var model = this, k, v, data = model.$data;
+        if ( is_type(defaults, T_OBJ) )
+        {
+            for (k in defaults) 
+            {
+                if ( defaults[HAS](k) )
+                {
+                    v = defaults[ k ];
+                    if ( !data[HAS]( k ) )
+                    {
+                        data[ k ] = v;
+                    }
+                    else if ( is_type( data[k], T_ARRAY_OR_OBJ ) && is_type( v, T_ARRAY_OR_OBJ ) )
+                    {
+                        data[ k ] = modelDefaults( model, data[k], v );
                     }
                 }
             }
