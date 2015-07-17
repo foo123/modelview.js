@@ -13,28 +13,6 @@ var
         this.fEach = 1;
     },
     
-    bindFieldsToModel = function( /*model,*/ fields ) {
-        // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-        /*var p, t;
-        for ( p in fields )
-        {
-            if ( fields[HAS](p) )
-            {
-                t = fields[ p ];
-                if ( is_instance( t, CollectionEach ) )
-                {
-                    fields[ p ] = t.f;//bindF( t.f, model );
-                    fields[ p ].fEach = 1;
-                }
-                else
-                {
-                    fields[ p ] = t;//bindF( t, model );
-                }
-            }
-        }*/
-        return fields;
-    },
-    
     floor = Math.floor, round = Math.round, abs = Math.abs,
     
     by_length_desc = function( a, b ) {
@@ -83,11 +61,11 @@ var
             // Day of week; 0[Sun]..6[Sat]
             ,w: '([0-6])'
             // Day of year; 0..365
-            ,z: '([0-3]?[0-9]{1,2})'
+            ,z: '([1-3]?[0-9]{1,2})'
 
             // Week --
             // ISO-8601 week number
-            ,W: '([0-5][0-9])'
+            ,W: '([0-5]?[0-9])'
 
             // Month --
             // Full month name; January...December
@@ -107,7 +85,7 @@ var
             // ISO-8601 year
             ,o: '(\\d{2,4})'
             // Full year; e.g. 1980...2010
-            ,Y: '([1-9][0-9]{3})'
+            ,Y: '([12][0-9]{3})'
             // Last two digits of year; 00...99
             ,y: '([0-9]{2})'
 
@@ -547,10 +525,9 @@ ModelView.Type.Cast.FIELDS({
             FIELDS: function( typesPerField ) {
                 //var notbinded = true;
                 // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                typesPerField = bindFieldsToModel( Merge( {}, typesPerField || {} ) );
+                typesPerField = Merge( {}, typesPerField || {} );
                 return function( v ) { 
                     var self = this, field, type, val, l, i;
-                    //if ( notbinded ) { bindFieldsToModel( this, typesPerField ); notbinded = false; }
                     for ( field in typesPerField )
                     {
                         if ( typesPerField[HAS](field) )
@@ -813,10 +790,9 @@ ModelView.Validation.Validate.FIELDS({
             FIELDS: function( validatorsPerField ) {
                 //var notbinded = true;
                 // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                validatorsPerField = bindFieldsToModel( Merge( {}, validatorsPerField || {} ) );
+                validatorsPerField = Merge( {}, validatorsPerField || {} );
                 return VC(function( v ) { 
                     var self = this, field, validator, val, l, i;
-                    //if ( notbinded ) { bindFieldsToModel( this, validatorsPerField ); notbinded = false; }
                     for ( field in validatorsPerField )
                     {
                         if ( validatorsPerField[HAS](field) )
