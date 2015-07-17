@@ -552,6 +552,13 @@ model.serialize( );
 
 
 
+// typecast model for given key or all data with any attached model typecasters
+// handles nested composite models automaticaly
+model.typecast( [String dottedKey=undefined] );
+
+
+
+
 // validate model for given key or all data with any attached model validators
 // (return on first not valid value if  breakOnFirstError is true )
 // handles nested composite models automaticaly
@@ -563,18 +570,6 @@ model.validate( [Boolean breakOnFirstError=false, String dottedKey=undefined] );
 
 // get/set model auto-validate flag, if TRUE validates each field that has attached validators live as it changes
 model.autovalidate( [Boolean enabled] );
-
-
-
-
-// get data in JSON string format
-model.toJSON( [String dottedKey] );
-
-
-
-
-// set data from JSON string format
-model.fromJSON( String jsonData [, String dottedKey, Boolean publish=false] );
 
 
 

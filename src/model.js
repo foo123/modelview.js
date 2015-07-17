@@ -333,6 +333,63 @@ var
         return data;
     },
     
+    // handle sub-composite models via walking the data and any attached typecasters
+    typecastModel = function typecastModel( model, modelClass, dottedKey, data, typecasters, prefixKey ) {
+        var o, key, val, typecaster, r, res, nestedKey, splitKey;
+        prefixKey = !!prefixKey ? (prefixKey+'.') : '';
+        data = data || model.$data;
+        typecasters = typecasters || [model.$types];
+        
+        if ( typecasters && typecasters.length )
+        {
+            if ( !!dottedKey )
+            {
+                if ( (r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, typecasters, modelClass )) )
+                {
+                    o = r[ 1 ]; key = r[ 2 ];
+                    
+                    if ( modelClass === r[ 0 ]  ) 
+                    {
+                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                        // nested sub-model
+                        typecastModel( o, modelClass, key.length ? key.join('.') : null );
+                    }
+                    else
+                    {
+                        nestedKey = splitKey.slice(0, -1).join('.');
+                        val = o[ key ]; typecaster = get_value( r[3], key );
+                        if ( typecaster ) 
+                        {
+                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                        }
+                        if ( (T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length )
+                        {
+                            nestedKey += !!nestedKey ? ('.' + key) : key;
+                            nestedKey = prefixKey+nestedKey;
+                            for (key in val)
+                            {
+                                if ( val[HAS](key) )
+                                {
+                                    typecastModel( model, modelClass, key, val, typecasters, nestedKey );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if ( T_ARRAY_OR_OBJ & get_type( data ) )
+            {
+                for (key in data)
+                {
+                    if ( data[HAS](key) )
+                    {
+                        typecastModel( model, modelClass, key, data, typecasters );
+                    }
+                }
+            }
+        }
+    },
+    
     // handle sub-composite models via walking the data and any attached validators
     validateModel = function validateModel( model, modelClass, breakOnError, dottedKey, data, validators ) {
         var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
@@ -725,6 +782,18 @@ model.serialize( );
     }
     
 /**[DOC_MARKDOWN]
+// typecast model for given key or all data with any attached model typecasters
+// handles nested composite models automaticaly
+model.typecast( [String dottedKey=undefined] );
+
+[/DOC_MARKDOWN]**/
+    // handle sub-composite models via walking the data and any attached typecasters
+    ,typecast: function( dottedKey ) {
+        typecastModel( this, Model, dottedKey );
+        return this;
+    }
+    
+/**[DOC_MARKDOWN]
 // validate model for given key or all data with any attached model validators
 // (return on first not valid value if  breakOnFirstError is true )
 // handles nested composite models automaticaly
@@ -750,41 +819,6 @@ model.autovalidate( [Boolean enabled] );
             return model;
         }
         return model.$autovalidate;
-    }
-    
-/**[DOC_MARKDOWN]
-// get data in JSON string format
-model.toJSON( [String dottedKey] );
-
-[/DOC_MARKDOWN]**/
-    ,toJSON: function( dottedKey ) {
-        var model = this, json, data, T, e;
-        
-        if ( arguments.length ) data = model.get( dottedKey );
-        else data = model.data( );
-        
-        try { json = toJSON( serializeModel( model, Model, data ) ); } 
-        catch( e ) { throw e; return; }
-        
-        return json;
-    }
-    
-/**[DOC_MARKDOWN]
-// set data from JSON string format
-model.fromJSON( String jsonData [, String dottedKey, Boolean publish=false] );
-
-[/DOC_MARKDOWN]**/
-    ,fromJSON: function( dataJson, dottedKey, pub ) {
-        var model = this, data, e;
-        if ( dataJson )
-        {
-            try { data = fromJSON( dataJson ); } 
-            catch( e ) { throw e; return; }
-            
-            if ( dottedKey ) model.set( dottedKey, data, true === pub );
-            else model.data( data );
-        }
-        return model;
     }
     
 /**[DOC_MARKDOWN]
