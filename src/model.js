@@ -211,13 +211,11 @@ var
     },
     
     // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+    index_to_prop_re = /\[([^\]]*)\]/g, trailing_dots_re = /^\.+|\.+$/g,
     dotted = function( key ) {
-        return key
-                .replace(/\[([^\]]*)\]/g, '.$1')         // convert indexes to properties
-                .replace(/^\.+|\.+$/g, '')               // strip leading/trailing dots
-        ;
+        //        convert indexes to properties     strip leading/trailing dots
+        return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
     },
-    
     bracketed = function( dottedKey ) { 
         return '['+dottedKey.split('.').join('][')+']'; 
     },
