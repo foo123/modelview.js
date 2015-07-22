@@ -135,6 +135,8 @@ exports['@@MODULE_NAME@@'] = {
     
     ,Validation: Validation
     
+    ,PublishSubscribeInterface: PublishSubscribe
+    
     ,Cache: Cache
     
     ,Model: Model

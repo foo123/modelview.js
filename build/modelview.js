@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.64
-*   @built on 2015-07-21 23:33:16
+*   @built on 2015-07-22 11:09:58
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -39,7 +39,7 @@
 *
 *   ModelView.js
 *   @version: 0.64
-*   @built on 2015-07-21 23:33:16
+*   @built on 2015-07-22 11:09:58
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -988,7 +988,7 @@ var PublishSubscribe = {
     }
     
     ,trigger: function( evt, data ) {
-        var self = this, PB = self.$PB, queue, q, i, l, ns, ns_evt;
+        var self = this, PB = self.$PB, queue, q, qq, i, l, ns, ns_evt;
         ns = getNS( evt ); evt = ns[ 0 ]; ns_evt = 'evt_' + evt;
         if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
         {
@@ -996,8 +996,11 @@ var PublishSubscribe = {
             evt = new PBEvent( evt, self, ns );
             for (i=0; i<l; i++) 
             {
-                q[ i ][ 3 ] = 1; // handler called
-                if ( false === q[ i ][ 0 ]( evt, data ) ) break;
+                qq = q[ i ];
+                // oneOff and already called
+                if ( qq[ 2 ] && qq[ 3 ] ) continue;
+                qq[ 3 ] = 1; // handler called
+                if ( false === qq[ 0 ]( evt, data ) ) break;
             }
             if ( PB[HAS](ns_evt) && (queue=PB[ns_evt]) && (l=queue.length) )
             {
@@ -6593,6 +6596,8 @@ exports['ModelView'] = {
     ,Type: Type
     
     ,Validation: Validation
+    
+    ,PublishSubscribeInterface: PublishSubscribe
     
     ,Cache: Cache
     
