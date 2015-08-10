@@ -318,8 +318,8 @@ ModelView 0.51 is (consistently) 2nd place (near 1st place) on all browsers (eve
 
 Some tests on jsperf with ModelView, latest Angular and Knockout on live DOM update and (multiple) watchers/subscribers.
 
-Previous tests are here [jsperf/0.42.2](http://jsperf.com/angularjs-vs-knockoutjs/58), [jsperf/0.42.2 variation](http://jsperf.com/angularjs-vs-knockoutjs/59), [jsperf/0.43](http://jsperf.com/angularjs-vs-knockoutjs/62), [jsperf/0.51](http://jsperf.com/angularjs-vs-knockoutjs/68), [jsperf/0.60](http://jsperf.com/angularjs-vs-knockoutjs/73)
+Previous tests are here [jsperf/0.42.2](http://jsperf.com/angularjs-vs-knockoutjs/58), [jsperf/0.42.2 variation](http://jsperf.com/angularjs-vs-knockoutjs/59), [jsperf/0.43](http://jsperf.com/angularjs-vs-knockoutjs/62), [jsperf/0.51](http://jsperf.com/angularjs-vs-knockoutjs/68), [jsperf/0.60](http://jsperf.com/angularjs-vs-knockoutjs/73), [jsperf/0.64](http://jsperf.com/angularjs-vs-knockoutjs/75)
 
-ModelView 0.60 is (consistently) 1st place on almost all browsers.
+ModelView 0.64 is (consistently) 1st place on almost all browsers.
 
-[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/73)
+[![jsperf-angular-knockout-modelview](/screenshots/jsperf-angular-knockout-modelview.png)](http://jsperf.com/angularjs-vs-knockoutjs/75)
