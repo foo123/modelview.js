@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.64
-*   @built on 2015-07-22 11:09:58
+*   @version: 0.65
+*   @built on 2015-08-24 20:15:23
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,8 +38,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.64
-*   @built on 2015-07-22 11:09:58
+*   @version: 0.65
+*   @built on 2015-08-24 20:15:23
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -59,7 +59,7 @@
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.64**
+**Version 0.65**
 
 ###Contents
 
@@ -105,41 +105,35 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     // types
-    T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
-    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128, T_DATE = 256,
-    T_NULL = 512, T_UNDEF = 1024, T_UNKNOWN = 2048, 
-    T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
-    TO_STRING = {
+    T_NUM = 4, T_INF = 5, T_NAN = 6, T_BOOL = 8,
+    T_STR = 16, T_CHAR = 17, T_CHARLIST = 18,
+    T_ARRAY = 32, T_OBJ = 64, T_FUNC = 128,  T_REGEX = 256, T_DATE = 512,
+    T_NULL = 1024, T_UNDEF = 2048, T_UNKNOWN = 4096,
+    T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY,
+    T_ARRAY_OR_STR = T_STR|T_ARRAY, T_ARRAY_OR_OBJ = T_OBJ|T_ARRAY,
+    STRING_TYPE = {
+        "[object Number]"   : T_NUM,
+        "[object String]"   : T_STR,
         "[object Array]"    : T_ARRAY,
         "[object RegExp]"   : T_REGEX,
         "[object Date]"     : T_DATE,
-        "[object Number]"   : T_NUM,
-        "[object String]"   : T_STR,
         "[object Function]" : T_FUNC,
         "[object Object]"   : T_OBJ
     },
     get_type = function( v ) {
-        var /*type_of,*/ to_string;
-        
-        if (null === v)  return T_NULL;
-        else if (true === v || false === v)  return T_BOOL;
-        else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
-        
-        //type_of = typeOf(v);
-        to_string = toString.call( v );
-        //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
-        to_string = TO_STRING[to_string] || T_UNKNOWN;
-        
-        //if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
-        if (T_NUM === to_string || v instanceof Num)  return isNaN(v) ? T_NAN : T_NUM;
-        else if (T_STR === to_string || v instanceof Str) return (1 === v.length) ? T_CHAR : T_STR;
-        else if (T_ARRAY === to_string || v instanceof Arr)  return T_ARRAY;
-        else if (T_REGEX === to_string || v instanceof Regex)  return T_REGEX;
-        else if (T_DATE === to_string || v instanceof Date)  return T_DATE;
-        else if (T_FUNC === to_string || v instanceof Func)  return T_FUNC;
-        else if (T_OBJ === to_string)  return T_OBJ;
-        // unkown type
-        return T_UNKNOWN;
+        if      ( null === v )                return T_NULL;
+        else if ( true === v || false === v || 
+                       v instanceof Boolean ) return T_BOOL;
+        else if ( undef === v )               return T_UNDEF;
+        var TYPE = STRING_TYPE[ toString.call( v ) ] || T_UNKNOWN;
+        if      ( T_NUM === TYPE   || v instanceof Number )   return isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ( T_STR === TYPE   || v instanceof String )   return 1 === v.length ? T_CHAR : T_STR;
+        else if ( T_ARRAY === TYPE || v instanceof Array )    return T_ARRAY;
+        else if ( T_REGEX === TYPE || v instanceof RegExp )   return T_REGEX;
+        else if ( T_DATE === TYPE  || v instanceof Date )     return T_DATE;
+        else if ( T_FUNC === TYPE  || v instanceof Function ) return T_FUNC;
+        else if ( T_OBJ === TYPE )                            return T_OBJ;
+                                                              return T_UNKNOWN;
     },
     
     is_type = function( v, type ) { return !!( type & get_type( v ) ); },
@@ -216,9 +210,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // returns a sorter that can (sub-)sort by multiple (nested) fields 
     // each ascending or descending independantly
     sorter = function( ) {
-
         var arr = this, i, args = arguments, l = args.length,
-            a, b, step, lt, gt,
+            a, b, avar, bvar, variables, step, lt, gt,
             field, filter_args, sorter_args, desc, dir, sorter,
             ASC = '|^', DESC = '|v';
         // |^ after a (nested) field indicates ascending sorting (default), 
@@ -229,6 +222,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             step = 1;
             sorter = [];
+            variables = [];
             sorter_args = [];
             filter_args = []; 
             for (i=l-1; i>=0; i--)
@@ -268,14 +262,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     a = filter_args[0] + '(' + a + ')';
                     b = filter_args[0] + '(' + b + ')';
                 }
+                avar = 'a_'+i; bvar = 'b_'+i;
+                variables.unshift(''+avar+'='+a+','+bvar+'='+b+'');
                 lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
-                sorter.unshift("("+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0))");
+                sorter.unshift("("+avar+" < "+bvar+" ? "+lt+" : ("+avar+" > "+bvar+" ? "+gt+" : 0))");
                 step <<= 1;
             }
             // use optional custom filters as well
             return (newFunc(
                     filter_args.join(','), 
-                    'return function(a,b) { return ('+sorter.join(' + ')+'); };'
+                    ['return function(a,b) {',
+                     '  var '+variables.join(',')+';',
+                     '  return '+sorter.join('+')+';',
+                     '};'].join("\n")
                     ))
                     .apply(null, sorter_args);
         }
@@ -283,7 +282,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             a = "a"; b = "b"; lt = '-1'; gt = '1';
             sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
-            return newFunc("a,b", 'return ('+sorter+');');
+            return newFunc("a,b", 'return '+sorter+';');
         }
     },
     
@@ -1325,6 +1324,86 @@ var
         month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
     },
     
+    check_and_create_date = function( dto, defaults ) {
+        var year, month, day, 
+            hour, minute, second, ms,
+            leap=0, date=null, time=null, now=new Date( );
+        
+        defaults = defaults || {};
+        
+        if ( null != dto.time ) 
+        {
+            time = new Date( dto.time );
+            // only time given create full date from unix time
+            if ( null == dto.year && null == dto.month && null == dto.day ) 
+                date = new Date( time );
+        }
+        
+        if ( null === date )
+        {
+        if ( null != dto.ms ) ms = dto.ms;
+        else if ( null != defaults.ms ) ms = defaults.ms;
+        else ms = 0;
+        if ( null != dto.second ) second = dto.second;
+        else if ( null != defaults.second ) second = defaults.second;
+        else second = 0;
+        if ( null != dto.minute ) minute = dto.minute;
+        else if ( null != defaults.minute ) minute = defaults.minute;
+        else minute = 0;
+        if ( null != dto.hour ) hour = dto.hour;
+        else
+        {
+            if ( null != dto.hour_12 )
+                hour = 'pm' === dto.meridian ? 11+dto.hour_12 : dto.hour_12-1;
+            else if ( null != defaults.hour ) hour = defaults.hour;
+            else hour = 'pm' === dto.meridian ? 12 : 0;
+        }
+        
+        if ( null != dto.day ) day = dto.day;
+        else if ( null != defaults.day ) day = defaults.day;
+        else day = now.getDate( );
+        if ( null != dto.month ) month = dto.month;
+        else if ( null != defaults.month ) month = defaults.month;
+        else month = now.getMonth( )+1;
+        if ( null != dto.year ) year = dto.year;
+        else if ( null != defaults.year ) year = defaults.year;
+        else year = now.getFullYear( );
+        
+        // http://php.net/manual/en/function.checkdate.php
+        if ( 0 > ms ) return false;
+        if ( 0 > second || 59 < second ) return false;
+        if ( 0 > minute || 59 < minute ) return false;
+        if ( 0 > hour || 23 < hour ) return false;
+        
+        if ( 1 > year || year > 32767 ) return false;
+        leap = (year%4 === 0) & (year%100 !== 0) | (year%400 === 0);
+        if ( null != dto.leap && leap !== dto.leap ) return false;
+        if ( 1 > month || month > 12 ) return false;
+        if ( 1 > day || day > 31 ) return false;
+        if ( 2 === month && day > 28+leap ) return false;
+        
+        date = new Date(year, month-1, day, hour, minute, second, ms);
+        
+        if ( null != dto.day_week && dto.day_week !== date.getDay() ) return false;
+        if ( null != dto.day_year && dto.day_year !== round((new Date(year, month-1, day) - new Date(year, 0, 1)) / 864e5) ) return false;
+        if ( null != dto.days_month && dto.days_month !== (new Date(year, month, 0)).getDate( ) ) return false;
+        if ( null != dto.meridian && ((hour > 11 && 'am' === dto.meridian) || (hour <= 11 && 'pm' === dto.meridian)) ) return false;
+        
+        if ( null != time )
+        {
+            if ( date.getFullYear() !== time.getFullYear() ) return false;
+            if ( date.getMonth() !== time.getMonth() ) return false;
+            if ( date.getDate() !== time.getDate() ) return false;
+            if ( date.getHours() !== time.getHours() ) return false;
+            if ( date.getHours() !== time.getHours() ) return false;
+            if ( date.getMinutes() !== time.getMinutes() ) return false;
+            if ( date.getSeconds() !== time.getSeconds() ) return false;
+        }
+        }
+        
+        return date;
+    },
+    
     get_date_pattern = function( format, locale ) {
         locale = locale || default_date_locale;
         
@@ -1335,11 +1414,11 @@ var
         // Day of month w/leading 0; 01..31
          d: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01)'
         // Shorthand day name; Mon...Sun
-        ,D: '(' + get_alternate_pattern( locale.day_short ) + ')'
+        ,D: '(' + get_alternate_pattern( locale.day_short.slice() ) + ')'
         // Day of month; 1..31
         ,j: '(31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|9|8|7|6|5|4|3|2|1)'
         // Full day name; Monday...Sunday
-        ,l: '(' + get_alternate_pattern( locale.day ) + ')'
+        ,l: '(' + get_alternate_pattern( locale.day.slice() ) + ')'
         // ISO-8601 day of week; 1[Mon]..7[Sun]
         ,N: '([1-7])'
         // Ordinal suffix for day of month; st, nd, rd, th
@@ -1355,11 +1434,11 @@ var
 
         // Month --
         // Full month name; January...December
-        ,F: '(' + get_alternate_pattern( locale.month ) + ')'
+        ,F: '(' + get_alternate_pattern( locale.month.slice() ) + ')'
         // Month w/leading 0; 01...12
         ,m: '(12|11|10|09|08|07|06|05|04|03|02|01)'
         // Shorthand month name; Jan...Dec
-        ,M: '(' + get_alternate_pattern( locale.month_short ) + ')'
+        ,M: '(' + get_alternate_pattern( locale.month_short.slice() ) + ')'
         // Month; 1...12
         ,n: '(12|11|10|9|8|7|6|5|4|3|2|1)'
         // Days in month; 28...31
@@ -1435,13 +1514,297 @@ var
         // RFC 2822 D, d M Y H:i:s O
         D.r = D.D+',\\s'+D.d+'\\s'+D.M+'\\s'+D.Y+'\\s'+D.H+':'+D.i+':'+D.s+'\\s'+D.O;
         
-        var re = '', f, i, l;
+        var re = '', f, i, l, group = 0;
         for (i=0,l=format.length; i<l; i++)
         {
             f = format.charAt( i );
             re += D[HAS](f) ? D[ f ] : esc_re( f );
         }
         return new Regex('^'+re+'$','');
+    },
+    
+    get_date_parser = function( format, locale ) {
+        locale = locale || default_date_locale;
+        
+        // (php) date formats
+        // http://php.net/manual/en/function.date.php
+        var groups = {
+        // Day --
+        // Day of month w/leading 0; 01..31
+         d: function( d, date ) {
+             d = parseInt('0' === d.charAt(0) ? d.slice(1) : d, 10);
+             if ( d < 1 || d > 31 ) return false;
+             if ( null != date.day && d !== date.day ) return false;
+             date.day = d;
+         }
+        // Shorthand day name; Mon...Sun
+        ,D: function( D, date ) {
+             D = locale.day_short.indexOf( D );
+             if ( D < 0 ) return false;
+             if ( null != date.day_week && D !== date.day_week ) return false;
+             date.day_week = D;
+         }
+        // Day of month; 1..31
+        ,j: function( j, date ) {
+             j = parseInt(j, 10);
+             if ( j < 1 || j > 31 ) return false;
+             if ( null != date.day && j !== date.day ) return false;
+             date.day = j;
+         }
+        // Full day name; Monday...Sunday
+        ,l: function( l, date ) {
+             l = locale.day.indexOf( l );
+             if ( l < 0 ) return false;
+             if ( null != date.day_week && l !== date.day_week ) return false;
+             date.day_week = l;
+         }
+        // ISO-8601 day of week; 1[Mon]..7[Sun]
+        ,N: function( N, date ) {
+             N = parseInt(N, 10);
+             if ( N < 1 || N > 7 ) return false;
+             if ( 7 === N ) N = 0;
+             if ( null != date.day_week && N !== date.day_week ) return false;
+             date.day_week = N;
+         }
+        // Ordinal suffix for day of month; st, nd, rd, th
+        ,S: null
+        // Day of week; 0[Sun]..6[Sat]
+        ,w: function( w, date ) {
+             w = parseInt(w, 10);
+             if ( w < 0 || w > 6 ) return false;
+             if ( null != date.day_week && w !== date.day_week ) return false;
+             date.day_week = w;
+         }
+        // Day of year; 0..365(6)
+        ,z: function( z, date ) {
+             z = parseInt(z, 10);
+             if ( z < 0 || z > 366 ) return false;
+             date.day_year = z;
+         }
+
+        // Week --
+        // ISO-8601 week number
+        ,W: function( W, date ) {
+             W = parseInt(W, 10);
+             if ( W < 1 || W > 53 ) return false;
+             date.week_year = W;
+         }
+
+        // Month --
+        // Full month name; January...December
+        ,F: function( F, date ) {
+             F = locale.month.indexOf( F );
+             if ( F < 0 ) return false;
+             if ( null != date.month && F+1 !== date.month ) return false;
+             date.month = F+1;
+         }
+        // Month w/leading 0; 01...12
+        ,m: function( m, date ) {
+             m = parseInt('0' === m.charAt(0) ? m.slice(1) : m, 10);
+             if ( m < 1 || m > 12 ) return false;
+             if ( null != date.month && m !== date.month ) return false;
+             date.month = m;
+         }
+        // Shorthand month name; Jan...Dec
+        ,M: function( M, date ) {
+             M = locale.month_short.indexOf( M );
+             if ( M < 0 ) return false;
+             if ( null != date.month && M+1 !== date.month ) return false;
+             date.month = M+1;
+         }
+        // Month; 1...12
+        ,n: function( n, date ) {
+             n = parseInt(n, 10);
+             if ( n < 1 || n > 12 ) return false;
+             if ( null != date.month && n !== date.month ) return false;
+             date.month = n;
+         }
+        // Days in month; 28...31
+        ,t: function( t, date ) {
+             t = parseInt(t, 10);
+             if ( t < 28 || t > 31 ) return false;
+             date.days_month = t;
+         }
+        
+        // Year --
+        // Is leap year?; 0 or 1
+        ,L: function( L, date ) {
+             if ( '0' === L ) date.leap = 0;
+             else if ( '1' === L ) date.leap = 1;
+             else return false;
+         }
+        // ISO-8601 year
+        ,o: null
+        // Full year; e.g. 1980...2010
+        ,Y: function( Y, date ) {
+             Y = parseInt(Y, 10);
+             if ( Y < 1000 || Y > 3000 ) return false;
+             if ( null != date.year && Y !== date.year ) return false;
+             date.year = Y;
+         }
+        // Last two digits of year; 00...99
+        ,y: function( y, date ) {
+             if ( 2 === y.length )
+             {
+                // http://php.net/manual/en/function.strtotime.php
+                if ( '00' <= y && '69' >= y ) y = '20' + y;
+                else if ( '70' <= y && '99' >= y ) y = '19' + y;
+             }
+             y = parseInt(y , 10);
+             if ( y < 1000 || y > 3000 ) return false;
+             if ( null != date.year && y !== date.year ) return false;
+             date.year = y;
+         }
+
+        // Time --
+        // am or pm
+        ,a: function( a, date ) {
+            if ( locale.meridian.am === a ) a = 'am';
+            else if ( locale.meridian.pm === a ) a = 'pm';
+            else return false;
+            if ( null != date.meridian && a !== date.meridian ) return false;
+            date.meridian = a;
+         }
+        // AM or PM
+        ,A: function( A, date ) {
+            if ( locale.meridian.AM === A ) A = 'am';
+            else if ( locale.meridian.PM === A ) A = 'pm';
+            else return false;
+            if ( null != date.meridian && A !== date.meridian ) return false;
+            date.meridian = A;
+         }
+        // Swatch Internet time; 000..999
+        ,B: null
+        // 12-Hours; 1..12
+        ,g: function( g, date ) {
+            g = parseInt(g, 10);
+            if ( g < 1 || g > 12 ) return false;
+            if ( null != date.hour_12 && g !== date.hour_12 ) return false;
+            date.hour_12 = g;
+         }
+        // 24-Hours; 0..23
+        ,G: function( G, date ) {
+            G = parseInt(G, 10);
+            if ( G < 0 || G > 23 ) return false;
+            if ( null != date.hour && G !== date.hour ) return false;
+            date.hour = G;
+         }
+        // 12-Hours w/leading 0; 01..12
+        ,h: function( h, date ) {
+            h = parseInt('0' === h.charAt(0) ? h.slice(1) : h, 10);
+            if ( h < 1 || h > 12 ) return false;
+            if ( null != date.hour_12 && h !== date.hour_12 ) return false;
+            date.hour_12 = h;
+         }
+        // 24-Hours w/leading 0; 00..23
+        ,H: function( H, date ) {
+            H = parseInt('0' === H.charAt(0) ? H.slice(1) : H, 10);
+            if ( H < 0 || H > 23 ) return false;
+            if ( null != date.hour && H !== date.hour ) return false;
+            date.hour = H;
+         }
+        // Minutes w/leading 0; 00..59
+        ,i: function( i, date ) {
+            i = parseInt('0' === i.charAt(0) ? i.slice(1) : i, 10);
+            if ( i < 0 || i > 59 ) return false;
+            if ( null != date.minute && i !== date.minute ) return false;
+            date.minute = i;
+         }
+        // Seconds w/leading 0; 00..59
+        ,s: function( s, date ) {
+            s = parseInt('0' === s.charAt(0) ? s.slice(1) : s, 10);
+            if ( s < 0 || s > 59 ) return false;
+            if ( null != date.second && s !== date.second ) return false;
+            date.second = s;
+         }
+        // Microseconds; 000000-999000
+        ,u: function( u, date ) {
+            var p = 0;
+            while (u.length > 1 && '0'===u.charAt(p)) p++;
+            u = parseInt(u.slice(p), 10);
+            if ( u < 0 ) return false;
+            u = ~~(u/1000);
+            if ( null != date.ms && u !== date.ms ) return false;
+            date.ms = u;
+         }
+
+        // Timezone --
+        // Timezone identifier; e.g. Atlantic/Azores, ...
+        ,e: null
+        // DST observed?; 0 or 1
+        ,I: null
+        // Difference to GMT in hour format; e.g. +0200
+        ,O: null
+        // Difference to GMT w/colon; e.g. +02:00
+        ,P: null
+        // Timezone abbreviation; e.g. EST, MDT, ...
+        ,T: null
+        // Timezone offset in seconds (-43200...50400)
+        ,Z: null
+
+        // Full Date/Time --
+        // Seconds since UNIX epoch
+        ,U: function( U, date ) {
+            U = parseInt(U, 10);
+            if ( U < 0 ) return false;
+            U *= 1000;
+            if ( null != date.time && U !== date.time ) return false;
+            date.time = U;
+         }
+        // ISO-8601 date. Y-m-d\\TH:i:sP
+        ,c: null // added below
+        // RFC 2822 D, d M Y H:i:s O
+        ,r: null // added below
+        };
+        
+        var date_pattern = get_date_pattern( format, locale ), f, i, l, group = 0, capture = {};
+        for (i=0,l=format.length; i<l; i++)
+        {
+            f = format.charAt( i );
+            if ( groups[HAS](f) )
+            {
+                ++group;
+                if ( 'c' === f )
+                {
+                    capture[group] = groups.Y;
+                    capture[++group] = groups.m;
+                    capture[++group] = groups.d;
+                    ++group;
+                    capture[++group] = groups.H;
+                    capture[++group] = groups.i;
+                    capture[++group] = groups.s;
+                    ++group;
+                }
+                else if ( 'r' === f )
+                {
+                    capture[group] = groups.D;
+                    capture[++group] = groups.d;
+                    capture[++group] = groups.M;
+                    capture[++group] = groups.Y;
+                    capture[++group] = groups.H;
+                    capture[++group] = groups.i;
+                    capture[++group] = groups.s;
+                    ++group;
+                }
+                else if ( groups[f] )
+                {
+                    capture[group] = groups[f];
+                }
+            }
+        }
+        return function( date_string ) {
+            var i, r, m = date_string.match( date_pattern ), dto = {};
+            if ( !m ) return false;
+            for (i=1; i<m.length; i++)
+            {
+                if ( capture[HAS](i) )
+                {
+                    r = capture[i]( m[i], dto );
+                    if ( false === r ) return false;
+                }
+            }
+            return check_and_create_date( dto );
+        };
     },
     
     get_formatted_date = function( d, format, locale ) {
@@ -1455,7 +1818,7 @@ var
         // JS Date
         else if ( T_DATE & date_type ) jsdate = new Date( d );
         // UNIX timestamp (auto-convert to int)
-        else if ( T_NUM & date_type ) jsdate =  new Date(d/* * 1000*/);
+        else if ( T_NUM & date_type ) jsdate =  new Date(d * 1000);
         
         locale = locale || default_date_locale;
         var D = { }, tzo = jsdate.getTimezoneOffset( ), atzo = abs(tzo), m = jsdate.getMonth( ), jmod10;
@@ -1492,7 +1855,7 @@ var
         // Days in month; 28...31
         D.t = (new Date(D.Y, m+1, 0)).getDate( );
         // Is leap year?; 0 or 1
-        D.L = D.Y % 4 === 0 & D.Y % 100 !== 0 | D.Y % 400 === 0;
+        D.L = (D.Y % 4 === 0) & (D.Y % 100 !== 0) | (D.Y % 400 === 0);
         // ISO-8601 year
         D.o = D.Y + (11 === m && D.W < 9 ? 1 : (0 === m && D.W > 9 ? -1 : 0));
         // Last two digits of year; 00...99
@@ -2165,8 +2528,10 @@ ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
 
 [/DOC_MARKDOWN]**/
             DATETIME: function( format, locale ) { 
-                var date_pattern = get_date_pattern( format || "Y-m-d", locale || default_date_locale );
-                return VC(function( v ) { return date_pattern.test( v ); }); 
+                /*var date_pattern = get_date_pattern( format || "Y-m-d", locale || default_date_locale );
+                return VC(function( v ) { return date_pattern.test( v ); });*/
+                var date_parser = get_date_parser( format || "Y-m-d", locale || default_date_locale );
+                return VC(function( v ) { return false !== date_parser( v ); });
             }
         }
         
@@ -6584,7 +6949,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.64"
+    VERSION: "0.65"
     
     ,UUID: uuid
     
@@ -6610,7 +6975,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.64
+*   @version: 0.65
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

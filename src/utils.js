@@ -31,41 +31,35 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     // types
-    T_NUM = 2, T_NAN = 3, /*T_INF = 3,*/ T_BOOL = 4, T_STR = 8, T_CHAR = 9,
-    T_ARRAY = 16, T_OBJ = 32, T_FUNC = 64, T_REGEX = 128, T_DATE = 256,
-    T_NULL = 512, T_UNDEF = 1024, T_UNKNOWN = 2048, 
-    T_ARRAY_OR_OBJ = T_ARRAY | T_OBJ, T_ARRAY_OR_STR = T_ARRAY | T_STR,
-    TO_STRING = {
+    T_NUM = 4, T_INF = 5, T_NAN = 6, T_BOOL = 8,
+    T_STR = 16, T_CHAR = 17, T_CHARLIST = 18,
+    T_ARRAY = 32, T_OBJ = 64, T_FUNC = 128,  T_REGEX = 256, T_DATE = 512,
+    T_NULL = 1024, T_UNDEF = 2048, T_UNKNOWN = 4096,
+    T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY,
+    T_ARRAY_OR_STR = T_STR|T_ARRAY, T_ARRAY_OR_OBJ = T_OBJ|T_ARRAY,
+    STRING_TYPE = {
+        "[object Number]"   : T_NUM,
+        "[object String]"   : T_STR,
         "[object Array]"    : T_ARRAY,
         "[object RegExp]"   : T_REGEX,
         "[object Date]"     : T_DATE,
-        "[object Number]"   : T_NUM,
-        "[object String]"   : T_STR,
         "[object Function]" : T_FUNC,
         "[object Object]"   : T_OBJ
     },
     get_type = function( v ) {
-        var /*type_of,*/ to_string;
-        
-        if (null === v)  return T_NULL;
-        else if (true === v || false === v)  return T_BOOL;
-        else if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
-        
-        //type_of = typeOf(v);
-        to_string = toString.call( v );
-        //to_string = TO_STRING[HAS](to_string) ? TO_STRING[to_string] : T_UNKNOWN;
-        to_string = TO_STRING[to_string] || T_UNKNOWN;
-        
-        //if (undef === v /*|| "undefined" === type_of*/)  return T_UNDEF;
-        if (T_NUM === to_string || v instanceof Num)  return isNaN(v) ? T_NAN : T_NUM;
-        else if (T_STR === to_string || v instanceof Str) return (1 === v.length) ? T_CHAR : T_STR;
-        else if (T_ARRAY === to_string || v instanceof Arr)  return T_ARRAY;
-        else if (T_REGEX === to_string || v instanceof Regex)  return T_REGEX;
-        else if (T_DATE === to_string || v instanceof Date)  return T_DATE;
-        else if (T_FUNC === to_string || v instanceof Func)  return T_FUNC;
-        else if (T_OBJ === to_string)  return T_OBJ;
-        // unkown type
-        return T_UNKNOWN;
+        if      ( null === v )                return T_NULL;
+        else if ( true === v || false === v || 
+                       v instanceof Boolean ) return T_BOOL;
+        else if ( undef === v )               return T_UNDEF;
+        var TYPE = STRING_TYPE[ toString.call( v ) ] || T_UNKNOWN;
+        if      ( T_NUM === TYPE   || v instanceof Number )   return isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ( T_STR === TYPE   || v instanceof String )   return 1 === v.length ? T_CHAR : T_STR;
+        else if ( T_ARRAY === TYPE || v instanceof Array )    return T_ARRAY;
+        else if ( T_REGEX === TYPE || v instanceof RegExp )   return T_REGEX;
+        else if ( T_DATE === TYPE  || v instanceof Date )     return T_DATE;
+        else if ( T_FUNC === TYPE  || v instanceof Function ) return T_FUNC;
+        else if ( T_OBJ === TYPE )                            return T_OBJ;
+                                                              return T_UNKNOWN;
     },
     
     is_type = function( v, type ) { return !!( type & get_type( v ) ); },
@@ -142,9 +136,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // returns a sorter that can (sub-)sort by multiple (nested) fields 
     // each ascending or descending independantly
     sorter = function( ) {
-
         var arr = this, i, args = arguments, l = args.length,
-            a, b, step, lt, gt,
+            a, b, avar, bvar, variables, step, lt, gt,
             field, filter_args, sorter_args, desc, dir, sorter,
             ASC = '|^', DESC = '|v';
         // |^ after a (nested) field indicates ascending sorting (default), 
@@ -155,6 +148,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             step = 1;
             sorter = [];
+            variables = [];
             sorter_args = [];
             filter_args = []; 
             for (i=l-1; i>=0; i--)
@@ -194,14 +188,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     a = filter_args[0] + '(' + a + ')';
                     b = filter_args[0] + '(' + b + ')';
                 }
+                avar = 'a_'+i; bvar = 'b_'+i;
+                variables.unshift(''+avar+'='+a+','+bvar+'='+b+'');
                 lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
-                sorter.unshift("("+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0))");
+                sorter.unshift("("+avar+" < "+bvar+" ? "+lt+" : ("+avar+" > "+bvar+" ? "+gt+" : 0))");
                 step <<= 1;
             }
             // use optional custom filters as well
             return (newFunc(
                     filter_args.join(','), 
-                    'return function(a,b) { return ('+sorter.join(' + ')+'); };'
+                    ['return function(a,b) {',
+                     '  var '+variables.join(',')+';',
+                     '  return '+sorter.join('+')+';',
+                     '};'].join("\n")
                     ))
                     .apply(null, sorter_args);
         }
@@ -209,7 +208,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         {
             a = "a"; b = "b"; lt = '-1'; gt = '1';
             sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
-            return newFunc("a,b", 'return ('+sorter+');');
+            return newFunc("a,b", 'return '+sorter+';');
         }
     },
     

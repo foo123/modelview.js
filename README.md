@@ -4,7 +4,7 @@ modelview.js
 A simple / extendable / isomorphic / umd-compatible / light-weight (~60kB minified, ~19kB gzipped) mv* (MVVM) framework  (plays nicely with jQuery / jQueryUI as plugin / widget as easily)
 
 
-**Version 0.64**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.65**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **NEW:** ModelView (version 0.60+) is now an [(full) isomorphic](http://isomorphic.net/) MVVM framework!
