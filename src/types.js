@@ -46,65 +46,65 @@ var
         
         defaults = defaults || {};
         
-        if ( null != dto.time ) 
+        if ( dto[HAS]('time') ) 
         {
             time = new Date( dto.time );
             // only time given create full date from unix time
-            if ( null == dto.year && null == dto.month && null == dto.day ) 
+            if ( !dto[HAS]('year') && !dto[HAS]('month') && !dto[HAS]('day') ) 
                 date = new Date( time );
         }
         
         if ( null === date )
         {
-        if ( null != dto.ms ) ms = dto.ms;
-        else if ( null != defaults.ms ) ms = defaults.ms;
+        if ( dto[HAS]('ms') ) ms = dto.ms;
+        else if ( defaults[HAS]('ms') ) ms = defaults.ms;
         else ms = 0;
-        if ( null != dto.second ) second = dto.second;
-        else if ( null != defaults.second ) second = defaults.second;
+        if ( dto[HAS]('second') ) second = dto.second;
+        else if ( defaults[HAS]('second') ) second = defaults.second;
         else second = 0;
-        if ( null != dto.minute ) minute = dto.minute;
-        else if ( null != defaults.minute ) minute = defaults.minute;
+        if ( dto[HAS]('minute') ) minute = dto.minute;
+        else if ( defaults[HAS]('minute') ) minute = defaults.minute;
         else minute = 0;
-        if ( null != dto.hour ) hour = dto.hour;
+        if ( dto[HAS]('hour') ) hour = dto.hour;
         else
         {
-            if ( null != dto.hour_12 )
+            if ( dto[HAS]('hour_12') )
                 hour = 'pm' === dto.meridian ? 11+dto.hour_12 : dto.hour_12-1;
-            else if ( null != defaults.hour ) hour = defaults.hour;
+            else if ( defaults[HAS]('hour') ) hour = defaults.hour;
             else hour = 'pm' === dto.meridian ? 12 : 0;
         }
         
-        if ( null != dto.day ) day = dto.day;
-        else if ( null != defaults.day ) day = defaults.day;
+        if ( dto[HAS]('day') ) day = dto.day;
+        else if ( defaults[HAS]('day') ) day = defaults.day;
         else day = now.getDate( );
-        if ( null != dto.month ) month = dto.month;
-        else if ( null != defaults.month ) month = defaults.month;
+        if ( dto[HAS]('month') ) month = dto.month;
+        else if ( defaults[HAS]('month') ) month = defaults.month;
         else month = now.getMonth( )+1;
-        if ( null != dto.year ) year = dto.year;
-        else if ( null != defaults.year ) year = defaults.year;
+        if ( dto[HAS]('year') ) year = dto.year;
+        else if ( defaults[HAS]('year') ) year = defaults.year;
         else year = now.getFullYear( );
         
         // http://php.net/manual/en/function.checkdate.php
-        if ( 0 > ms ) return false;
+        if ( 0 > ms || 999 < ms ) return false;
         if ( 0 > second || 59 < second ) return false;
         if ( 0 > minute || 59 < minute ) return false;
         if ( 0 > hour || 23 < hour ) return false;
         
         if ( 1 > year || year > 32767 ) return false;
         leap = (year%4 === 0) & (year%100 !== 0) | (year%400 === 0);
-        if ( null != dto.leap && leap !== dto.leap ) return false;
+        if ( dto[HAS]('leap') && leap !== dto.leap ) return false;
         if ( 1 > month || month > 12 ) return false;
         if ( 1 > day || day > 31 ) return false;
         if ( 2 === month && day > 28+leap ) return false;
         
         date = new Date(year, month-1, day, hour, minute, second, ms);
         
-        if ( null != dto.day_week && dto.day_week !== date.getDay() ) return false;
-        if ( null != dto.day_year && dto.day_year !== round((new Date(year, month-1, day) - new Date(year, 0, 1)) / 864e5) ) return false;
-        if ( null != dto.days_month && dto.days_month !== (new Date(year, month, 0)).getDate( ) ) return false;
-        if ( null != dto.meridian && ((hour > 11 && 'am' === dto.meridian) || (hour <= 11 && 'pm' === dto.meridian)) ) return false;
+        if ( dto[HAS]('day_week') && dto.day_week !== date.getDay() ) return false;
+        if ( dto[HAS]('day_year') && dto.day_year !== round((new Date(year, month-1, day) - new Date(year, 0, 1)) / 864e5) ) return false;
+        if ( dto[HAS]('days_month') && dto.days_month !== (new Date(year, month, 0)).getDate( ) ) return false;
+        if ( dto[HAS]('meridian') && ((hour > 11 && 'am' === dto.meridian) || (hour <= 11 && 'pm' === dto.meridian)) ) return false;
         
-        if ( null != time )
+        if ( null !== time )
         {
             if ( date.getFullYear() !== time.getFullYear() ) return false;
             if ( date.getMonth() !== time.getMonth() ) return false;
@@ -249,28 +249,28 @@ var
          d: function( d, date ) {
              d = parseInt('0' === d.charAt(0) ? d.slice(1) : d, 10);
              if ( d < 1 || d > 31 ) return false;
-             if ( null != date.day && d !== date.day ) return false;
+             if ( date[HAS]('day') && d !== date.day ) return false;
              date.day = d;
          }
         // Shorthand day name; Mon...Sun
         ,D: function( D, date ) {
              D = locale.day_short.indexOf( D );
              if ( D < 0 ) return false;
-             if ( null != date.day_week && D !== date.day_week ) return false;
+             if ( date[HAS]('day_week') && D !== date.day_week ) return false;
              date.day_week = D;
          }
         // Day of month; 1..31
         ,j: function( j, date ) {
              j = parseInt(j, 10);
              if ( j < 1 || j > 31 ) return false;
-             if ( null != date.day && j !== date.day ) return false;
+             if ( date[HAS]('day') && j !== date.day ) return false;
              date.day = j;
          }
         // Full day name; Monday...Sunday
         ,l: function( l, date ) {
              l = locale.day.indexOf( l );
              if ( l < 0 ) return false;
-             if ( null != date.day_week && l !== date.day_week ) return false;
+             if ( date[HAS]('day_week') && l !== date.day_week ) return false;
              date.day_week = l;
          }
         // ISO-8601 day of week; 1[Mon]..7[Sun]
@@ -278,7 +278,7 @@ var
              N = parseInt(N, 10);
              if ( N < 1 || N > 7 ) return false;
              if ( 7 === N ) N = 0;
-             if ( null != date.day_week && N !== date.day_week ) return false;
+             if ( date[HAS]('day_week') && N !== date.day_week ) return false;
              date.day_week = N;
          }
         // Ordinal suffix for day of month; st, nd, rd, th
@@ -287,7 +287,7 @@ var
         ,w: function( w, date ) {
              w = parseInt(w, 10);
              if ( w < 0 || w > 6 ) return false;
-             if ( null != date.day_week && w !== date.day_week ) return false;
+             if ( date[HAS]('day_week') && w !== date.day_week ) return false;
              date.day_week = w;
          }
         // Day of year; 0..365(6)
@@ -310,28 +310,28 @@ var
         ,F: function( F, date ) {
              F = locale.month.indexOf( F );
              if ( F < 0 ) return false;
-             if ( null != date.month && F+1 !== date.month ) return false;
+             if ( date[HAS]('month') && F+1 !== date.month ) return false;
              date.month = F+1;
          }
         // Month w/leading 0; 01...12
         ,m: function( m, date ) {
              m = parseInt('0' === m.charAt(0) ? m.slice(1) : m, 10);
              if ( m < 1 || m > 12 ) return false;
-             if ( null != date.month && m !== date.month ) return false;
+             if ( date[HAS]('month') && m !== date.month ) return false;
              date.month = m;
          }
         // Shorthand month name; Jan...Dec
         ,M: function( M, date ) {
              M = locale.month_short.indexOf( M );
              if ( M < 0 ) return false;
-             if ( null != date.month && M+1 !== date.month ) return false;
+             if ( date[HAS]('month') && M+1 !== date.month ) return false;
              date.month = M+1;
          }
         // Month; 1...12
         ,n: function( n, date ) {
              n = parseInt(n, 10);
              if ( n < 1 || n > 12 ) return false;
-             if ( null != date.month && n !== date.month ) return false;
+             if ( date[HAS]('month') && n !== date.month ) return false;
              date.month = n;
          }
         // Days in month; 28...31
@@ -354,7 +354,7 @@ var
         ,Y: function( Y, date ) {
              Y = parseInt(Y, 10);
              if ( Y < 1000 || Y > 3000 ) return false;
-             if ( null != date.year && Y !== date.year ) return false;
+             if ( date[HAS]('year') && Y !== date.year ) return false;
              date.year = Y;
          }
         // Last two digits of year; 00...99
@@ -367,7 +367,7 @@ var
              }
              y = parseInt(y , 10);
              if ( y < 1000 || y > 3000 ) return false;
-             if ( null != date.year && y !== date.year ) return false;
+             if ( date[HAS]('year') && y !== date.year ) return false;
              date.year = y;
          }
 
@@ -377,7 +377,7 @@ var
             if ( locale.meridian.am === a ) a = 'am';
             else if ( locale.meridian.pm === a ) a = 'pm';
             else return false;
-            if ( null != date.meridian && a !== date.meridian ) return false;
+            if ( date[HAS]('meridian') && a !== date.meridian ) return false;
             date.meridian = a;
          }
         // AM or PM
@@ -385,7 +385,7 @@ var
             if ( locale.meridian.AM === A ) A = 'am';
             else if ( locale.meridian.PM === A ) A = 'pm';
             else return false;
-            if ( null != date.meridian && A !== date.meridian ) return false;
+            if ( date[HAS]('meridian') && A !== date.meridian ) return false;
             date.meridian = A;
          }
         // Swatch Internet time; 000..999
@@ -394,42 +394,42 @@ var
         ,g: function( g, date ) {
             g = parseInt(g, 10);
             if ( g < 1 || g > 12 ) return false;
-            if ( null != date.hour_12 && g !== date.hour_12 ) return false;
+            if ( date[HAS]('hour_12') && g !== date.hour_12 ) return false;
             date.hour_12 = g;
          }
         // 24-Hours; 0..23
         ,G: function( G, date ) {
             G = parseInt(G, 10);
             if ( G < 0 || G > 23 ) return false;
-            if ( null != date.hour && G !== date.hour ) return false;
+            if ( date[HAS]('hour') && G !== date.hour ) return false;
             date.hour = G;
          }
         // 12-Hours w/leading 0; 01..12
         ,h: function( h, date ) {
             h = parseInt('0' === h.charAt(0) ? h.slice(1) : h, 10);
             if ( h < 1 || h > 12 ) return false;
-            if ( null != date.hour_12 && h !== date.hour_12 ) return false;
+            if ( date[HAS]('hour_12') && h !== date.hour_12 ) return false;
             date.hour_12 = h;
          }
         // 24-Hours w/leading 0; 00..23
         ,H: function( H, date ) {
             H = parseInt('0' === H.charAt(0) ? H.slice(1) : H, 10);
             if ( H < 0 || H > 23 ) return false;
-            if ( null != date.hour && H !== date.hour ) return false;
+            if ( date[HAS]('hour') && H !== date.hour ) return false;
             date.hour = H;
          }
         // Minutes w/leading 0; 00..59
         ,i: function( i, date ) {
             i = parseInt('0' === i.charAt(0) ? i.slice(1) : i, 10);
             if ( i < 0 || i > 59 ) return false;
-            if ( null != date.minute && i !== date.minute ) return false;
+            if ( date[HAS]('minute') && i !== date.minute ) return false;
             date.minute = i;
          }
         // Seconds w/leading 0; 00..59
         ,s: function( s, date ) {
             s = parseInt('0' === s.charAt(0) ? s.slice(1) : s, 10);
             if ( s < 0 || s > 59 ) return false;
-            if ( null != date.second && s !== date.second ) return false;
+            if ( date[HAS]('second') && s !== date.second ) return false;
             date.second = s;
          }
         // Microseconds; 000000-999000
@@ -437,9 +437,9 @@ var
             var p = 0;
             while (u.length > 1 && '0'===u.charAt(p)) p++;
             u = parseInt(u.slice(p), 10);
-            if ( u < 0 ) return false;
             u = ~~(u/1000);
-            if ( null != date.ms && u !== date.ms ) return false;
+            if ( u < 0 || u > 999 ) return false;
+            if ( date[HAS]('ms') && u !== date.ms ) return false;
             date.ms = u;
          }
 
@@ -463,7 +463,7 @@ var
             U = parseInt(U, 10);
             if ( U < 0 ) return false;
             U *= 1000;
-            if ( null != date.time && U !== date.time ) return false;
+            if ( date[HAS]('time') && U !== date.time ) return false;
             date.time = U;
          }
         // ISO-8601 date. Y-m-d\\TH:i:sP
@@ -882,7 +882,7 @@ ModelView.Type.Cast.STR;
             },
 /**[DOC_MARKDOWN]
 // cast to (localised) datetime-formatted string [datetime php formats](http://php.net/manual/en/function.date.php)
-ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
+ModelView.Type.Cast.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
 
 // default locale is:
  
@@ -899,7 +899,7 @@ ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
 
 [/DOC_MARKDOWN]**/
             DATETIME: function( format, locale ) {
-                format = format || "Y-m-d";
+                format = format || "Y-m-d H:i:s";
                 locale = locale || default_date_locale;
                 return function( v ) { 
                     return get_formatted_date( v, format, locale ); 
@@ -1226,7 +1226,7 @@ ModelView.Validation.Validate.URL;
             })(new Regex('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i')),
 /**[DOC_MARKDOWN]
 // validate (string) value is valid (localised) datetime pattern according to [format](http://php.net/manual/en/function.date.php)
-ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
+ModelView.Validation.Validate.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
 
 // default locale is:
  
@@ -1243,10 +1243,10 @@ ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
 
 [/DOC_MARKDOWN]**/
             DATETIME: function( format, locale ) { 
-                /*var date_pattern = get_date_pattern( format || "Y-m-d", locale || default_date_locale );
+                /*var date_pattern = get_date_pattern( format || "Y-m-d H:i:s", locale || default_date_locale );
                 return VC(function( v ) { return date_pattern.test( v ); });*/
-                var date_parser = get_date_parser( format || "Y-m-d", locale || default_date_locale );
-                return VC(function( v ) { return false !== date_parser( v ); });
+                var date_parse = get_date_parser( format || "Y-m-d H:i:s", locale || default_date_locale );
+                return VC(function( v ) { return false !== date_parse( v ); });
             }
         }
         

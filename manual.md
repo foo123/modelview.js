@@ -188,7 +188,7 @@ ModelView.Type.Cast.STR;
 
 
 // cast to (localised) datetime-formatted string [datetime php formats](http://php.net/manual/en/function.date.php)
-ModelView.Type.Cast.DATETIME( format="Y-m-d", locale=default_locale );
+ModelView.Type.Cast.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
 
 // default locale is:
  
@@ -371,7 +371,7 @@ ModelView.Validation.Validate.URL;
 
 
 // validate (string) value is valid (localised) datetime pattern according to [format](http://php.net/manual/en/function.date.php)
-ModelView.Validation.Validate.DATETIME( format="Y-m-d", locale=default_locale );
+ModelView.Validation.Validate.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
 
 // default locale is:
  
