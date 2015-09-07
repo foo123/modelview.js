@@ -415,7 +415,7 @@ var
                         res = validateModel( o, modelClass, breakOnError, key.length ? key.join('.') : null );
                         if ( !res.isValid )
                         {
-                            result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                            result.errors = result.errors.concat( map( res.errors, fixKey ) );
                             result.isValid = false;
                         }
                         if ( !result.isValid && breakOnError ) return result;
@@ -442,7 +442,7 @@ var
                                     res = validateModel( model, modelClass, breakOnError, key, val, validators );
                                     if ( !res.isValid )
                                     {
-                                        result.errors = result.errors.concat( res.errors.map( fixKey ) );
+                                        result.errors = result.errors.concat( map( res.errors, fixKey ) );
                                         result.isValid = false;
                                     }
                                     if ( breakOnError && !result.isValid  ) return result;

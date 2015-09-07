@@ -77,6 +77,102 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return false
     },
     
+    // http://jsperf.com/functional-loop-unrolling/2
+    // http://jsperf.com/functional-loop-unrolling/3
+    operate = function operate( a, f, f0 ) {
+        var i, l=a.length, r=l&15, q=r&1, fv=q?f(f0,a[0]):f0;
+        for (i=q; i<r; i+=2)  fv = f(f(fv,a[i]),a[i+1]);
+        for (i=r; i<l; i+=16) fv = f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(fv,a[i]),a[i+1]),a[i+2]),a[i+3]),a[i+4]),a[i+5]),a[i+6]),a[i+7]),a[i+8]),a[i+9]),a[i+10]),a[i+11]),a[i+12]),a[i+13]),a[i+14]),a[i+15]);
+        return fv;
+    },
+    map = function map( a, f ) {
+        var i, l=a.length, r=l&15, q=r&1, fv=new Array(l);
+        if ( q ) fv[0] = f(a[0]);
+        for (i=q; i<r; i+=2)
+        { 
+            fv[i  ] = f(a[i  ]);
+            fv[i+1] = f(a[i+1]);
+        }
+        for (i=r; i<l; i+=16)
+        {
+            fv[i  ] = f(a[i  ]);
+            fv[i+1] = f(a[i+1]);
+            fv[i+2] = f(a[i+2]);
+            fv[i+3] = f(a[i+3]);
+            fv[i+4] = f(a[i+4]);
+            fv[i+5] = f(a[i+5]);
+            fv[i+6] = f(a[i+6]);
+            fv[i+7] = f(a[i+7]);
+            fv[i+8] = f(a[i+8]);
+            fv[i+9] = f(a[i+9]);
+            fv[i+10] = f(a[i+10]);
+            fv[i+11] = f(a[i+11]);
+            fv[i+12] = f(a[i+12]);
+            fv[i+13] = f(a[i+13]);
+            fv[i+14] = f(a[i+14]);
+            fv[i+15] = f(a[i+15]);
+        }
+        return fv;
+    },
+    filter = function filter( a, f ) {
+        var i, l=a.length, r=l&15, q=r&1, fv=[];
+        if ( q && f(a[0]) ) fv.push(a[0]);
+        for (i=q; i<r; i+=2)
+        { 
+            if ( f(a[i  ]) ) fv.push(a[i  ]);
+            if ( f(a[i+1]) ) fv.push(a[i+1]);
+        }
+        for (i=r; i<l; i+=16)
+        {
+            if ( f(a[i  ]) ) fv.push(a[i  ]);
+            if ( f(a[i+1]) ) fv.push(a[i+1]);
+            if ( f(a[i+2]) ) fv.push(a[i+2]);
+            if ( f(a[i+3]) ) fv.push(a[i+3]);
+            if ( f(a[i+4]) ) fv.push(a[i+4]);
+            if ( f(a[i+5]) ) fv.push(a[i+5]);
+            if ( f(a[i+6]) ) fv.push(a[i+6]);
+            if ( f(a[i+7]) ) fv.push(a[i+7]);
+            if ( f(a[i+8]) ) fv.push(a[i+8]);
+            if ( f(a[i+9]) ) fv.push(a[i+9]);
+            if ( f(a[i+10]) ) fv.push(a[i+10]);
+            if ( f(a[i+11]) ) fv.push(a[i+11]);
+            if ( f(a[i+12]) ) fv.push(a[i+12]);
+            if ( f(a[i+13]) ) fv.push(a[i+13]);
+            if ( f(a[i+14]) ) fv.push(a[i+14]);
+            if ( f(a[i+15]) ) fv.push(a[i+15]);
+        }
+        return fv;
+    },
+    each = function each( a, f ) {
+        var i, l=a.length, r=l&15, q=r&1;
+        if ( q ) f(a[0]);
+        for (i=q; i<r; i+=2)
+        { 
+            f(a[i  ]);
+            f(a[i+1]);
+        }
+        for (i=r; i<l; i+=16)
+        {
+            f(a[i  ]);
+            f(a[i+1]);
+            f(a[i+2]);
+            f(a[i+3]);
+            f(a[i+4]);
+            f(a[i+5]);
+            f(a[i+6]);
+            f(a[i+7]);
+            f(a[i+8]);
+            f(a[i+9]);
+            f(a[i+10]);
+            f(a[i+11]);
+            f(a[i+12]);
+            f(a[i+13]);
+            f(a[i+14]);
+            f(a[i+15]);
+        }
+        return a;
+    },
+    
     Merge = function(/* var args here.. */) { 
         var args = arguments, argslen, 
             o1, o2, v, p, i, T ;
@@ -362,7 +458,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     select_set = function( el, v ) {
-        var values = [ ].concat( v ).map( tostr ), 
+        var values = map( [ ].concat( v ), tostr ), 
             options = el[OPTIONS],
             opt, i, sel_index = -1
         ;
@@ -403,7 +499,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // adapted from jQuery
     getNS = function( evt ) {
         var ns = evt.split('.'), e = ns[ 0 ];
-        ns = ns.slice( 1 ).filter( notEmpty );
+        ns = filter( ns.slice( 1 ), notEmpty );
         return [e, ns.sort( )];
     },
     getNSMatcher = function( givenNamespaces ) {

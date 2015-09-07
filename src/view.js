@@ -84,7 +84,7 @@ var namedKeyProp = "mv_namedkey",
                             checkboxes = view.get('input[type="radio"][name="'+name+'"]', 0, 1);
                             if ( checkboxes.length > 1 )
                             {
-                                checkboxes.forEach(function(c){
+                                each(checkboxes, function(c){
                                    if ( el[CHECKED] ) val = el[VAL];
                                 });
                             }
@@ -108,7 +108,7 @@ var namedKeyProp = "mv_namedkey",
                                 // multiple checkboxes [name="model[key][]"] dynamic array
                                 // only checked items are in the list
                                 val = [ ];
-                                checkboxes.forEach(function( c ) {
+                                each(checkboxes, function( c ) {
                                     if ( c[CHECKED] ) val.push( c[VAL] );
                                 });
                             }
@@ -117,7 +117,7 @@ var namedKeyProp = "mv_namedkey",
                                 // multiple checkboxes [name="model[key]"] static array
                                 // all items are in the list either with values or defaults
                                 val = [ ];
-                                checkboxes.forEach(function( c ) {
+                                each(checkboxes, function( c ) {
                                     if ( c[CHECKED] ) val.push( c[VAL] );
                                     else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
                                 });
@@ -192,7 +192,7 @@ var namedKeyProp = "mv_namedkey",
                             checkboxes = $sel( 'input[type="radio"][name="'+name+'"]', node );
                             if ( checkboxes.length > 1 )
                             {
-                                checkboxes.forEach(function(c){
+                                each(checkboxes, function(c){
                                    if ( el[CHECKED] ) val = el[VAL];
                                 });
                             }
@@ -216,7 +216,7 @@ var namedKeyProp = "mv_namedkey",
                                 // multiple checkboxes [name="model[key][]"] dynamic array
                                 // only checked items are in the list
                                 val = [ ];
-                                checkboxes.forEach(function( c ) {
+                                each(checkboxes, function( c ) {
                                     if ( c[CHECKED] ) val.push( c[VAL] );
                                 });
                             }
@@ -225,7 +225,7 @@ var namedKeyProp = "mv_namedkey",
                                 // multiple checkboxes [name="model[key]"] static array
                                 // all items are in the list either with values or defaults
                                 val = [ ];
-                                checkboxes.forEach(function( c ) {
+                                each(checkboxes, function( c ) {
                                     if ( c[CHECKED] ) val.push( c[VAL] );
                                     else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
                                 });
@@ -869,7 +869,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
             DOMEvent( view.$dom ).on( 
-                events.map( namespaced ).join( ' ' ), 
+                map( events, namespaced ).join( ' ' ), 
                 
                 autobind ? [ autobindSelector, bindSelector ].join( ',' ) : bindSelector,
                 
@@ -961,7 +961,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         {
             DOMEvent( $dom ).off( 
                 
-                events && events.length ? events.map( namespaced ).join(' ') : viewEvent, 
+                events && events.length ? map( events, namespaced ).join(' ') : viewEvent, 
                 
                 autobind ? [ sels[ 2 ], sels[ 0 ] ].join( ',' ) : sels[ 0 ]
             );
@@ -1100,7 +1100,7 @@ view.reset( );
                         // multiple checkboxes [name="model[key][]"] dynamic array
                         // only checked items are in the list
                         val = [ ];
-                        checkboxes.forEach(function( c ) {
+                        each(checkboxes, function( c ) {
                             if ( c[CHECKED] ) val.push( c[VAL] );
                         });
                     }
@@ -1109,7 +1109,7 @@ view.reset( );
                         // multiple checkboxes [name="model[key]"] static array
                         // all items are in the list either with values or defaults
                         val = [ ];
-                        checkboxes.forEach(function( c ) {
+                        each(checkboxes, function( c ) {
                             if ( c[CHECKED] ) val.push( c[VAL] );
                             else val.push( !!(alternative=c[ATTR]('data-else')) ? alternative : '' );
                         });
@@ -1227,8 +1227,8 @@ view.reset( );
             if ( data.$callData && data.$callData.$trigger )
             {
                 notTriggerElem = function( ele ){ return ele !== data.$callData.$trigger; };
-                bindElements = bindElements.filter( notTriggerElem );
-                if ( autobind ) autoBindElements = autoBindElements.filter( notTriggerElem );
+                bindElements = filter( bindElements, notTriggerElem );
+                if ( autobind ) autoBindElements = filter( autoBindElements, notTriggerElem );
                 data.$callData = null;
             }
         }
@@ -1285,7 +1285,7 @@ view.reset( );
         else el = [el];
         if ( !el || !el.length ) return;
             
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             for (p in prop)
             {
@@ -1311,7 +1311,7 @@ view.reset( );
                                     _options = '', group = $tag( 'optgroup', el );
                                 sel = select_get( el ); // get selected value
                                 group = group.length ? group[ 0 ] : el;
-                                $tag( 'option', group ).forEach(function( o ){ group.removeChild( o ); });
+                                each($tag( 'option', group ), function( o ){ group.removeChild( o ); });
                                 for (ii=0; ii<vl; ii++)
                                 {
                                     if ( v[ii] && v[ii].label )
@@ -1342,7 +1342,7 @@ view.reset( );
         else el = [el];
         if ( !el || !el.length || !key || !model.has( key ) ) return;
             
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             el[data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = model.get( key );
         });
@@ -1357,7 +1357,7 @@ view.reset( );
         else el = [el];
         if ( !el || !el.length ) return;
             
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             // css attributes
             for ( p in css )
@@ -1415,7 +1415,7 @@ view.reset( );
         mode = data.mode || 'replace';
         html = view.$template( tplID, model.get( key ) );
             
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             if ( 'replace' == mode ) el[HTML] = '';
             if ( html ) el[HTML] += html;
@@ -1436,7 +1436,7 @@ view.reset( );
         // show if data[key] is value, else hide
         // show if data[key] is true, else hide
         enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             if ( enabled ) show(el);
             else hide(el);
@@ -1457,7 +1457,7 @@ view.reset( );
         // hide if data[key] is value, else show
         // hide if data[key] is true, else show
         enabled = data[HAS]('value') ? data.value === modelkey : !!modelkey;
-        el.forEach(function( el ){
+        each(el, function( el ){
             if ( !el ) return;
             if ( enabled ) hide(el);
             else show(el);
@@ -1480,7 +1480,7 @@ view.reset( );
         {
             if ( Str(value) == el[VAL] )
             {
-                view.get('input[name="'+name+'"]').forEach(function( ele ){
+                each(view.get('input[name="'+name+'"]'), function( ele ){
                     if ( el !== ele )
                         ele[CHECKED] = false;
                 });
@@ -1499,7 +1499,7 @@ view.reset( );
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
-                /*checkboxes.forEach(function( cb ) {
+                /*each(checkboxes, function( cb ) {
                     if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
                     else cb[CHECKED] = false;
                 });*/
@@ -1509,7 +1509,7 @@ view.reset( );
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 // eventually all same name checkboxes will be updated similarly from autobind
                 // so update only one element at a time here
-                /*checkboxes.forEach(function( cb ) {
+                /*each(checkboxes, function( cb ) {
                     if ( -1 < value.indexOf( cb[VAL] ) ) cb[CHECKED] = true;
                     else cb[CHECKED] = false;
                 });*/
