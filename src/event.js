@@ -8,7 +8,7 @@ if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto]
     
     function addToPrototype( name, method ) 
     {
-        Window[proto][name] = HTMLDocument[proto][name] = Element[proto][name] = method;
+        Window[proto][name] = HTMLDocument[proto][name] = HTMLElement[proto][name] = Element[proto][name] = method;
     }
 
     // add

@@ -3,16 +3,14 @@
 var 
     get_next = function( a, k ) {
         if ( !a ) return null;
-        var b = [ ], i, ai, l = a.length;
-        for (i=0; i<l; i++)
-        {
-            ai = a[ i ];
+        var b = iterate(function( i ){
+            var ai = a[ i ];
             if ( ai )
             {
                 if ( ai[HAS]( k ) ) b.push( ai[ k ].n );
                 if ( ai[HAS]( WILDCARD ) ) b.push( ai[ WILDCARD ].n );
             }
-        }
+        }, 0, a.length-1, []);
         return b.length ? b : null;
     },
     

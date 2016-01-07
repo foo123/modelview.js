@@ -1,10 +1,10 @@
 modelview.js
 ============
 
-A simple / extendable / isomorphic / umd-compatible / light-weight (~60kB minified, ~19kB gzipped) mv* (MVVM) framework  (plays nicely with jQuery / jQueryUI as plugin / widget as easily)
+A simple / extendable / isomorphic / umd-compatible / light-weight (~58kB minified, ~19kB gzipped) mv* (MVVM) framework  (plays nicely with jQuery / jQueryUI as plugin / widget as easily)
 
 
-**Version 0.66**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
+**Version 0.70.0**  [modelview.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.js),  [modelview.min.js](https://raw.githubusercontent.com/foo123/modelview.js/master/build/modelview.min.js)
 
 
 **NEW:** ModelView (version 0.60+) is now an [(full) isomorphic](http://isomorphic.net/) MVVM framework!
@@ -12,15 +12,16 @@ A simple / extendable / isomorphic / umd-compatible / light-weight (~60kB minifi
 
 **see also:**  
 
-* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP, Python, ActionScript
-* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for PHP, Node/JS, Python (can be used as plugins for Contemplate engine as well)
-* [Tao](https://github.com/foo123/Tao.js) A simple, tiny, isomorphic, precise and fast template engine for handling both string and live dom based templates
-* [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
-* [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/JS, PHP, Python, ActionScript
-* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/JS, PHP, Python, ActionScript
-* [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/JS, PHP, Python, ActionScript
+* [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for PHP, Node/XPCOM/JS, Python
+* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/XPCOM/JS, PHP, Python, ActionScript
+* [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for Node/XPCOM/JS, PHP, Python, ActionScript
+* [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL construction for PHP, Python, Node/XPCOM/JS, ActionScript
 * [Xpresion](https://github.com/foo123/Xpresion) a simple and flexible eXpression parser engine (with custom functions and variables support) for PHP, Python, Node/JS, ActionScript
-* [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL construction for PHP, Python, Node/JS, ActionScript
+* [Contemplate](https://github.com/foo123/Contemplate) a fast, flexible &amp; light-weight template engine for Node/XPCOM/JS, PHP, Python, ActionScript
+* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for PHP, Node/XPCOM/JS, Python (can be used as plugins for Contemplate engine as well)
+* [Tao](https://github.com/foo123/Tao.js) a simple, tiny, isomorphic, precise and fast template engine for handling both string and live dom based templates
+* [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
+* [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/JS, PHP, Python, ActionScript
 * [Abacus](https://github.com/foo123/Abacus) a fast combinatorics and computation library for Node/JS, PHP, Python, ActionScript
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
 

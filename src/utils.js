@@ -31,35 +31,40 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
     
     // types
-    T_NUM = 4, T_INF = 5, T_NAN = 6, T_BOOL = 8,
-    T_STR = 16, T_CHAR = 17, T_CHARLIST = 18,
-    T_ARRAY = 32, T_OBJ = 64, T_FUNC = 128,  T_REGEX = 256, T_DATE = 512,
-    T_NULL = 1024, T_UNDEF = 2048, T_UNKNOWN = 4096,
+    T_UNKNOWN = 4, T_UNDEF = 8, T_NULL = 16,
+    T_NUM = 32, T_INF = 33, T_NAN = 34, T_BOOL = 64,
+    T_STR = 128, T_CHAR = 129, 
+    T_ARRAY = 256, T_OBJ = 512, T_FUNC = 1024,  T_REGEX = 2048, T_DATE = 4096,
     T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY,
     T_ARRAY_OR_STR = T_STR|T_ARRAY, T_ARRAY_OR_OBJ = T_OBJ|T_ARRAY,
-    STRING_TYPE = {
-        "[object Number]"   : T_NUM,
-        "[object String]"   : T_STR,
-        "[object Array]"    : T_ARRAY,
-        "[object RegExp]"   : T_REGEX,
-        "[object Date]"     : T_DATE,
-        "[object Function]" : T_FUNC,
-        "[object Object]"   : T_OBJ
+    TYPE_STRING = {
+    "[object Number]"   : T_NUM,
+    "[object String]"   : T_STR,
+    "[object Array]"    : T_ARRAY,
+    "[object RegExp]"   : T_REGEX,
+    "[object Date]"     : T_DATE,
+    "[object Function]" : T_FUNC,
+    "[object Object]"   : T_OBJ
     },
     get_type = function( v ) {
-        if      ( null === v )                return T_NULL;
+        var T = 0;
+        if      ( null === v )                T = T_NULL;
         else if ( true === v || false === v || 
-                       v instanceof Boolean ) return T_BOOL;
-        else if ( undef === v )               return T_UNDEF;
-        var TYPE = STRING_TYPE[ toString.call( v ) ] || T_UNKNOWN;
-        if      ( T_NUM === TYPE   || v instanceof Number )   return isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ( T_STR === TYPE   || v instanceof String )   return 1 === v.length ? T_CHAR : T_STR;
-        else if ( T_ARRAY === TYPE || v instanceof Array )    return T_ARRAY;
-        else if ( T_REGEX === TYPE || v instanceof RegExp )   return T_REGEX;
-        else if ( T_DATE === TYPE  || v instanceof Date )     return T_DATE;
-        else if ( T_FUNC === TYPE  || v instanceof Function ) return T_FUNC;
-        else if ( T_OBJ === TYPE )                            return T_OBJ;
-                                                              return T_UNKNOWN;
+                       v instanceof Boolean ) T = T_BOOL;
+        else if ( undef === v )               T = T_UNDEF;
+        else
+        {
+        T = TYPE_STRING[ toString.call( v ) ] || T_UNKNOWN;
+        if      ( T_NUM === T   || v instanceof Number )   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ( T_STR === T   || v instanceof String )   T = 1 === v.length ? T_CHAR : T_STR;
+        else if ( T_ARRAY === T || v instanceof Array )    T = T_ARRAY;
+        else if ( T_REGEX === T || v instanceof RegExp )   T = T_REGEX;
+        else if ( T_DATE === T  || v instanceof Date )     T = T_DATE;
+        else if ( T_FUNC === T  || v instanceof Function ) T = T_FUNC;
+        else if ( T_OBJ === T )                            T = T_OBJ;
+        else                                               T = T_UNKNOWN;
+        }
+        return T;
     },
     
     is_type = function( v, type ) { return !!( type & get_type( v ) ); },
@@ -172,6 +177,39 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
         return a;
     },
+    iterate = function( F, i0, i1, F0 ) {
+        if ( i0 > i1 ) return F0;
+        else if ( i0 === i1 ) { F(i0, F0, i0, i1); return F0; }
+        var l=i1-i0+1, i, k, r=l&15, q=r&1;
+        if ( q ) F(i0, F0, i0, i1);
+        for (i=q; i<r; i+=2)
+        { 
+            k = i0+i;
+            F(  k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+        }
+        for (i=r; i<l; i+=16)
+        {
+            k = i0+i;
+            F(  k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+            F(++k, F0, i0, i1);
+        }
+        return F0;
+    },
     
     Merge = function(/* var args here.. */) { 
         var args = arguments, argslen, 
@@ -206,7 +244,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     HAS = 'hasOwnProperty',
-    ATTR = 'getAttribute', SET_ATTR = 'setAttribute', 
+    ATTR = 'getAttribute', SET_ATTR = 'setAttribute', HAS_ATTR = 'hasAttribute', DEL_ATTR = 'removeAttribute',
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value', 
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',

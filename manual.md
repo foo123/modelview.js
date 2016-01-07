@@ -1,7 +1,7 @@
 
 ###ModelView API
 
-**Version 0.66**
+**Version 0.70.0**
 
 ###Contents
 
@@ -187,25 +187,6 @@ ModelView.Type.Cast.STR;
 
 
 
-// cast to (localised) datetime-formatted string [datetime php formats](http://php.net/manual/en/function.date.php)
-ModelView.Type.Cast.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
-
-// default locale is:
- 
-{
-    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
-    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
-    timezone: [ 'UTC','EST','MDT' ],
-    timezone_short: [ 'UTC','EST','MDT' ],
-    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
-    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
-    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
-    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
-}
-
-
-
-
 // cast to formatted output based on given template
 ModelView.Type.Cast.FORMAT( String | ModelView.Tpl | Function tpl );
 
@@ -366,25 +347,6 @@ ModelView.Validation.Validate.EMAIL;
 
 // validate value is valid url pattern (including mailto|http|https|ftp)
 ModelView.Validation.Validate.URL;
-
-
-
-
-// validate (string) value is valid (localised) datetime pattern according to [format](http://php.net/manual/en/function.date.php)
-ModelView.Validation.Validate.DATETIME( format="Y-m-d H:i:s", locale=default_locale );
-
-// default locale is:
- 
-{
-    meridian: { am:'am', pm:'pm', AM:'AM', PM:'PM' },
-    ordinal: { ord:{1:'st',2:'nd',3:'rd'}, nth:'th' },
-    timezone: [ 'UTC','EST','MDT' ],
-    timezone_short: [ 'UTC','EST','MDT' ],
-    day: [ 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday' ],
-    day_short: [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ],
-    month: [ 'January','February','March','April','May','June','July','August','September','October','November','December' ],
-    month_short: [ 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec' ]
-}
 
 
 

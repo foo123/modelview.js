@@ -48,17 +48,16 @@ var namedKeyProp = "mv_namedkey",
     empty_brackets_re = /\[\s*\]$/,
     
     fields2model = function( view, elements ) {
-        var model = view.$model, i, l = elements.length, 
+        var model = view.$model,
             model_prefix = model.id + '.',
-            el, name, key, k, j, o, alternative,
-            val, input_type, is_dynamic_array, 
-            checkboxes, checkboxes_done = { }
+            checkboxes_done = { }
         ;
         
-        for (i=0; i<l; i++)
-        {
+        iterate(function( i ) {
+            var el, name, key, k, j, o, alternative,
+            val, input_type, is_dynamic_array, checkboxes;
             el = elements[i]; name = el[ATTR]("name");
-            if ( !name ) continue;
+            if ( !name ) return;
             
             input_type = (el[TYPE]||'').toLowerCase( );
             
@@ -144,30 +143,27 @@ var namedKeyProp = "mv_namedkey",
                     }
                 }
             }
-        }
+        }, 0, elements.length-1);
     },
 
     serialize_fields = function( node, name_prefix ) {
         var data = { },
             model_prefix = name_prefix&&name_prefix.length ? name_prefix + '.' : null,
-            elements = $sel( 'input,textarea,select', node ),
-            l = elements.length, i,
-            el, name, key, k, j, o,
-            val, input_type, is_dynamic_array, 
-            checkboxes, checkboxes_done = { }
+            elements = $sel( 'input,textarea,select', node ), checkboxes_done = { }
         ;
         
-        for (i=0; i<l; i++)
-        {
+        iterate(function( i ) {
+            var el, name, key, k, j, o,
+            val, input_type, is_dynamic_array, checkboxes;
             el = elements[i]; name = el[ATTR]("name");
-            if ( !name ) continue;
+            if ( !name ) return;
             
             input_type = (el[TYPE]||'').toLowerCase( );
             
             key = dotted( name );
             if ( model_prefix )
             {
-                if ( !startsWith(key, model_prefix) ) continue;
+                if ( !startsWith(key, model_prefix) ) return;
                 key = key.slice( model_prefix.length );
             }
             
@@ -252,30 +248,28 @@ var namedKeyProp = "mv_namedkey",
                     }
                 }
             }
-        }
+        }, 0, elements.length-1);
         return data;
     },
 
-    doBindAction = function( view, evt, elements, fromModel ) {
+    do_bind_action = function( view, evt, elements, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, 
-            event = isSync ? 'change' : evt.type, i, l = elements.length,
+            event = isSync ? 'change' : evt.type, 
             modelkey = fromModel && fromModel.key ? fromModel.key : null,
-            notmodelkey = !modelkey,
-            modelkeyDot = modelkey ? (modelkey+'.') : null,
-            el, bind, do_action, name, key, domref,
+            notmodelkey = !modelkey, modelkeyDot = modelkey ? (modelkey+'.') : null,
             isAtom = model.atomic, atom = model.$atom,
             atomDot = isAtom ? (atom+'.') : null
         ;
             
-        for (i=0; i<l; i++)
-        {
-            el = elements[i]; if ( !el ) continue;
+        iterate(function( i ) {
+            var el, bind, do_action, name, key;
+            el = elements[i]; if ( !el ) return;
             bind = getBindData( event, view.attr(el, 'bind') );
             // during sync, dont do any actions based on (other) events
-            if ( !bind || !bind[HAS]("action") ) continue;
+            if ( !bind || !bind[HAS]("action") ) return;
             
             do_action = 'do_' + bind.action;
-            if ( !is_type( view[ do_action ], T_FUNC ) ) continue;
+            if ( !is_type( view[ do_action ], T_FUNC ) ) return;
             
             name = el[NAME]; key = bind.key;
             if ( !key )
@@ -285,63 +279,56 @@ var namedKeyProp = "mv_namedkey",
             }
             // "model:change" event and element does not reference the (nested) model key
             // OR model atomic operation(s)
-            if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) continue;
+            if ( (isAtom && key && ((atom === key) || startsWith( key, atomDot ))) || (modelkey && !key) ) return;
             
-            if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) )
-            {
-                view[ do_action ]( evt, el, bind );
-            }
-        }
+            if ( notmodelkey || key === modelkey || startsWith( key, modelkeyDot ) ) view[ do_action ]( evt, el, bind );
+        }, 0, elements.length-1);
     },
     
-    doAutoBindAction = function( view, evt, elements, fromModel ) {
-        var model = view.$model, cached = { }, i, l = elements.length,
-            el, name, key, ns_key, value
-        ;
+    do_auto_bind_action = function( view, evt, elements, fromModel ) {
+        var model = view.$model, cached = { };
         
-        for (i=0; i<l; i++)
-        {
-            el = elements[i];  if ( !el ) continue;
+        iterate(function( i ) {
+            var el, name, key, ns_key, value;
+            el = elements[i];  if ( !el ) return;
             name = el[NAME]; key = 0;
             if ( !el[namedKeyProp] && !!name ) el[namedKeyProp] = model.key( name, 1 );
-            key = el[namedKeyProp]; if ( !key ) continue;
+            key = el[namedKeyProp]; if ( !key ) return;
             
             // use already cached key/value
             ns_key = '_'+key;
             if ( cached[HAS]( ns_key ) )  value = cached[ ns_key ][ 0 ];
             else if ( model.has( key ) ) cached[ ns_key ] = [ value=model.get( key ) ];
-            else continue;  // nothing to do here
+            else return;  // nothing to do here
             
             // call default action (ie: live update)
             view.do_bind( evt, el, {name:name, key:key, value:value} );
-        }
+        }, 0, elements.length-1);
     },
     
-    doLiveBindAction = function( view, evt, fromModel ) {
+    do_live_bind_action = function( view, evt, fromModel ) {
         var model = view.$model, isSync = 'sync' == evt.type, hasData = false,
-            key, keyDot, k, kk, keys = view.$tpl.keys(), kl = keys.length, data = {}
+            key, keyDot, keys = view.$tpl.keys(), kl = keys.length, data = {}
         ;
         if ( isSync )
         {
-            for (k=0; k<kl; k++)
-            {
-                kk = keys[k];
+            iterate(function( k )  {
+                var kk = keys[k];
                 data[kk] = model.get(kk);
                 hasData = true;
-            }
+            }, o, kl-1);
         }
         else if ( fromModel && fromModel.key )
         {
             key = fromModel.key; keyDot = key + '.';
-            for (k=0; k<kl; k++)
-            {
-                kk = keys[k];
+            iterate(function( k )  {
+                var kk = keys[k];
                 if ( key === kk || startsWith(kk, keyDot) )
                 {
                     data[kk] = model.get(kk);
                     hasData = true;
                 }
-            }
+            }, o, kl-1);
         }
         if ( hasData ) view.$tpl.render( data );
     },
@@ -1029,9 +1016,9 @@ view.sync( [DOMNode dom=view.$dom] );
             if ( autobind ) autobinds = view.get( s[ 2 ], $dom, 0, andCache );
             //if ( livebind ) livebinds = view.get( s[ 1 ], $dom, 1, andCache );
         }
-        if ( hasDocument && binds.length ) doBindAction( view, syncEvent, binds );
-        if ( hasDocument && autobind && autobinds.length ) doAutoBindAction( view, syncEvent, autobinds );
-        if ( livebind && /*livebinds.length*/view.$tpl ) doLiveBindAction( view, syncEvent );
+        if ( hasDocument && binds.length ) do_bind_action( view, syncEvent, binds );
+        if ( hasDocument && autobind && autobinds.length ) do_auto_bind_action( view, syncEvent, autobinds );
+        if ( livebind && /*livebinds.length*/view.$tpl ) do_live_bind_action( view, syncEvent );
         return view;
     }
     
@@ -1138,7 +1125,7 @@ view.reset( );
         
         // if not model update error and element is bind element
         // do view action
-        if ( !modeldata.error && data.isBind ) doBindAction( view, evt, [el]/*, data*/ );
+        if ( !modeldata.error && data.isBind ) do_bind_action( view, evt, [el]/*, data*/ );
         
         // notify any 3rd-party also if needed
         view.publish( 'change', data );
@@ -1236,11 +1223,11 @@ view.reset( );
         // do actions ..
         
         // do view action first
-        if ( hasDocument && bindElements.length ) doBindAction( view, evt, bindElements, data );
+        if ( hasDocument && bindElements.length ) do_bind_action( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( hasDocument && autobind && autoBindElements.length ) doAutoBindAction( view, evt, autoBindElements, data );
+        if ( hasDocument && autobind && autoBindElements.length ) do_auto_bind_action( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && /*liveBindings.length*/view.$tpl ) doLiveBindAction( view, evt, data );
+        if ( livebind && /*liveBindings.length*/view.$tpl ) do_live_bind_action( view, evt, data );
     }
 
     ,on_model_error: function( evt, data ) {
@@ -1254,11 +1241,11 @@ view.reset( );
         // do actions ..
         
         // do view bind action first
-        if ( hasDocument && (bindElements=view.get( s[ 0 ] )).length ) doBindAction( view, evt, bindElements, data );
+        if ( hasDocument && (bindElements=view.get( s[ 0 ] )).length ) do_bind_action( view, evt, bindElements, data );
         // do view autobind action to bind input elements that map to the model, afterwards
-        if ( hasDocument && autobind && (autoBindElements=view.get( s[ 2 ] )).length ) doAutoBindAction( view, evt, autoBindElements, data );
+        if ( hasDocument && autobind && (autoBindElements=view.get( s[ 2 ] )).length ) do_auto_bind_action( view, evt, autoBindElements, data );
         // do view live DOM bindings update action
-        if ( livebind && /*(liveBindings=view.get( s[ 1 ], 0, 1 )).length*/view.$tpl ) doLiveBindAction( view, evt, data );
+        if ( livebind && /*(liveBindings=view.get( s[ 1 ], 0, 1 )).length*/view.$tpl ) do_live_bind_action( view, evt, data );
     }
     
     //
