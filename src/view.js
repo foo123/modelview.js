@@ -316,7 +316,7 @@ var namedKeyProp = "mv_namedkey",
                 var kk = keys[k];
                 data[kk] = model.get(kk);
                 hasData = true;
-            }, o, kl-1);
+            }, 0, kl-1);
         }
         else if ( fromModel && fromModel.key )
         {
@@ -328,7 +328,7 @@ var namedKeyProp = "mv_namedkey",
                     data[kk] = model.get(kk);
                     hasData = true;
                 }
-            }, o, kl-1);
+            }, 0, kl-1);
         }
         if ( hasData ) view.$tpl.render( data );
     },

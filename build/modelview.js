@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.70.0
-*   @built on 2016-01-07 19:35:41
+*   @built on 2016-01-07 19:53:32
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -28,7 +28,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 0.70.0
-*   @built on 2016-01-07 19:35:41
+*   @built on 2016-01-07 19:53:32
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2127,7 +2127,7 @@ $dom.modelview({
 var 
     get_next = function( a, k ) {
         if ( !a ) return null;
-        var b = iterate(function( i ){
+        var b = iterate(function( i, b ){
             var ai = a[ i ];
             if ( ai )
             {
@@ -4903,7 +4903,7 @@ var namedKeyProp = "mv_namedkey",
                 var kk = keys[k];
                 data[kk] = model.get(kk);
                 hasData = true;
-            }, o, kl-1);
+            }, 0, kl-1);
         }
         else if ( fromModel && fromModel.key )
         {
@@ -4915,7 +4915,7 @@ var namedKeyProp = "mv_namedkey",
                     data[kk] = model.get(kk);
                     hasData = true;
                 }
-            }, o, kl-1);
+            }, 0, kl-1);
         }
         if ( hasData ) view.$tpl.render( data );
     },

@@ -3,7 +3,7 @@
 var 
     get_next = function( a, k ) {
         if ( !a ) return null;
-        var b = iterate(function( i ){
+        var b = iterate(function( i, b ){
             var ai = a[ i ];
             if ( ai )
             {
