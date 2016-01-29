@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.70.0
-*   @built on 2016-01-07 19:53:32
+*   @version: 0.80.0
+*   @built on 2016-01-29 17:52:16
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -27,8 +27,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 0.70.0
-*   @built on 2016-01-07 19:53:32
+*   @version: 0.80.0
+*   @built on 2016-01-29 17:52:16
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -48,7 +48,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.70.0**
+**Version 0.80.0**
 
 ###Contents
 
@@ -97,7 +97,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     T_UNKNOWN = 4, T_UNDEF = 8, T_NULL = 16,
     T_NUM = 32, T_INF = 33, T_NAN = 34, T_BOOL = 64,
     T_STR = 128, T_CHAR = 129, 
-    T_ARRAY = 256, T_OBJ = 512, T_FUNC = 1024,  T_REGEX = 2048, T_DATE = 4096,
+    T_ARRAY = 256, T_OBJ = 512, T_FUNC = 1024, T_REGEX = 2048, T_DATE = 4096,
+    T_BLOB = 8192, T_FILE = 8192,
     T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY,
     T_ARRAY_OR_STR = T_STR|T_ARRAY, T_ARRAY_OR_OBJ = T_OBJ|T_ARRAY,
     TYPE_STRING = {
@@ -107,6 +108,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     "[object RegExp]"   : T_REGEX,
     "[object Date]"     : T_DATE,
     "[object Function]" : T_FUNC,
+    "[object File]"     : T_FILE,
+    "[object Blob]"     : T_BLOB,
     "[object Object]"   : T_OBJ
     },
     get_type = function( v ) {
@@ -123,6 +126,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if ( T_ARRAY === T || v instanceof Array )    T = T_ARRAY;
         else if ( T_REGEX === T || v instanceof RegExp )   T = T_REGEX;
         else if ( T_DATE === T  || v instanceof Date )     T = T_DATE;
+        else if ( T_FILE === T  || v instanceof File )     T = T_FILE;
+        else if ( T_BLOB === T  || v instanceof Blob )     T = T_BLOB;
         else if ( T_FUNC === T  || v instanceof Function ) T = T_FUNC;
         else if ( T_OBJ === T )                            T = T_OBJ;
         else                                               T = T_UNKNOWN;
@@ -576,7 +581,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG] )
         {
-            case 'TEXTAREA':case 'INPUT': return el[VAL];
+            case 'INPUT': return 'file' === el.type.toLowerCase( ) ? (el.files.length ? el.files : null) : el[VAL];
+            case 'TEXTAREA':return el[VAL];
             case 'SELECT': return select_get( el );
             default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
         }
@@ -586,7 +592,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if ( !el ) return;
         switch( el[TAG] )
         {
-            case 'TEXTAREA':case 'INPUT': el[VAL] = Str(v); break;
+            case 'INPUT': if ( 'file' === el.type.toLowerCase( ) ) {} else { el[VAL] = Str(v); } break;
+            case 'TEXTAREA': el[VAL] = Str(v); break;
             case 'SELECT': select_set( el, v ); break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
@@ -6412,7 +6419,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.70.0"
+    VERSION: "0.80.0"
     
     ,UUID: uuid
     
@@ -6438,7 +6445,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.70.0
+*   @version: 0.80.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
