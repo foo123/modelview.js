@@ -214,8 +214,11 @@ ModelView.Type.del( name );
 ####Validators 
 **(used with Models)**
 
+(extra validators are available in `modelview.validation.js`)
+
 ```javascript
 // modelview.js validators
+// (extra validators are available in `modelview.validation.js`)
 
 
 
@@ -335,18 +338,6 @@ ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
 
 // validate array/collection of items contains at maximum 'limit' items (use optional item_filter to only filtered items)
 ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
-
-
-
-
-// validate value is valid email pattern
-ModelView.Validation.Validate.EMAIL;
-
-
-
-
-// validate value is valid url pattern (including mailto|http|https|ftp)
-ModelView.Validation.Validate.URL;
 
 
 

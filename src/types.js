@@ -339,8 +339,11 @@ ModelView.Type.del( name );
 ####Validators 
 **(used with Models)**
 
+(extra validators are available in `modelview.validation.js`)
+
 ```javascript
 // modelview.js validators
+// (extra validators are available in `modelview.validation.js`)
 
 [/DOC_MARKDOWN]**/
     Validation = {
@@ -562,7 +565,7 @@ ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
 
 [/DOC_MARKDOWN]**/
             MIN_ITEMS: function( limit, item_filter ) {
-                limit = parseInt(limit, 10);
+                limit = parseInt(limit, 10)||0;
                 if ( T_FUNC === get_type(item_filter) )
                     return VC(function( v ) {
                         return v.length >= limit && filter( v, item_filter ).length >= limit;
@@ -578,7 +581,7 @@ ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
 
 [/DOC_MARKDOWN]**/
             MAX_ITEMS: function( limit, item_filter ) {
-                limit = parseInt(limit, 10);
+                limit = parseInt(limit, 10)||0;
                 if ( T_FUNC === get_type(item_filter) )
                     return VC(function( v ) {
                         return filter( v, item_filter ).length <= limit;
@@ -587,23 +590,7 @@ ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
                     return VC(function( v ) {
                         return v.length <= limit;
                     });
-            },
-/**[DOC_MARKDOWN]
-// validate value is valid email pattern
-ModelView.Validation.Validate.EMAIL;
-
-[/DOC_MARKDOWN]**/
-            EMAIL: (function( email_pattern ){
-                return VC(function( v ) { return email_pattern.test( v ); }); 
-            })(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/),
-/**[DOC_MARKDOWN]
-// validate value is valid url pattern (including mailto|http|https|ftp)
-ModelView.Validation.Validate.URL;
-
-[/DOC_MARKDOWN]**/
-            URL: (function( url_pattern ){
-                return VC(function( v ) { return url_pattern.test( v ); }); 
-            })(new Regex('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i'))
+            }
         }
 /**[DOC_MARKDOWN]
 // add a custom validator
