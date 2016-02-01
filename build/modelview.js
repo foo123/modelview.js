@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.80.0
-*   @built on 2016-01-31 16:42:46
+*   @built on 2016-02-02 01:36:59
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -28,7 +28,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 0.80.0
-*   @built on 2016-01-31 16:42:46
+*   @built on 2016-02-02 01:36:59
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1504,6 +1504,8 @@ var
 [/DOC_MARKDOWN]**/
     Type = {
         
+        tpl_$0: tpl_$0_re,
+        
         TypeCaster: function( typecaster ){ return typecaster; }
         
         // default type casters
@@ -1649,73 +1651,12 @@ ModelView.Type.Cast.TRIM;
                 return trim(Str(v));
             },
 /**[DOC_MARKDOWN]
-// cast to lowercase string
-ModelView.Type.Cast.LCASE;
-
-[/DOC_MARKDOWN]**/
-            LCASE: function( v ) { 
-                return Str(v).toLowerCase( );
-            },
-/**[DOC_MARKDOWN]
-// cast to uppercase string
-ModelView.Type.Cast.UCASE;
-
-[/DOC_MARKDOWN]**/
-            UCASE: function( v ) { 
-                return Str(v).toUpperCase( );
-            },
-/**[DOC_MARKDOWN]
-// cast to padded string (pad type can be "L"=LEFT, "R"=RIGHT, "LR"=LEFT-RIGHT)
-ModelView.Type.Cast.PAD(pad_char, pad_size, pad_type="L");
-
-[/DOC_MARKDOWN]**/
-            PAD: function( pad_char, pad_size, pad_type ) { 
-                pad_type = pad_type || 'L';
-                return function( v ) {
-                    var vs = Str(v), len = vs.length, n = pad_size-len, l, r;
-                    if ( n > 0 )
-                    {
-                        if ( 'LR' === pad_type )
-                        {
-                            r = ~~(n/2); l = n-r;
-                            vs = new Array(l+1).join(pad_char)+vs+new Array(r+1).join(pad_char);
-                        }
-                        else if ( 'R' === pad_type )
-                        {
-                            vs += new Array(n+1).join(pad_char);
-                        }
-                        else if ( 'L' === pad_type )
-                        {
-                            vs = new Array(n+1).join(pad_char) + vs;
-                        }
-                    }
-                    return vs;
-                };
-            },
-/**[DOC_MARKDOWN]
 // cast to string
 ModelView.Type.Cast.STR;
 
 [/DOC_MARKDOWN]**/
             STR: function( v ) { 
                 return (''+v); 
-            },
-/**[DOC_MARKDOWN]
-// cast to formatted output based on given template
-ModelView.Type.Cast.FORMAT( String | ModelView.Tpl | Function tpl );
-
-[/DOC_MARKDOWN]**/
-            FORMAT: function( tpl ) {
-                if ( is_type(tpl, T_STR) ) 
-                {
-                    tpl = new Tpl(tpl, tpl_$0_re);
-                    return function( v ) { return tpl.render( {$0:v} ); };
-                }
-                else if ( tpl instanceof Tpl ) 
-                    return function( v ) { return tpl.render( v ); };
-                else if ( is_type(tpl, T_FUNC) ) 
-                    return function( v ) { return tpl( v ); };
-                else return function( v ) { return Str(v); };
             }
         }
         
@@ -1973,38 +1914,6 @@ ModelView.Validation.Validate.NOT_IN( value1, value2 [, ...] );
                 return VC(function( v ) { 
                     return 0 > vals.indexOf( v ); 
                 }); 
-            },
-/**[DOC_MARKDOWN]
-// validate array/collection of items contains at least 'limit' items (use optional item_filter to only filtered items)
-ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
-
-[/DOC_MARKDOWN]**/
-            MIN_ITEMS: function( limit, item_filter ) {
-                limit = parseInt(limit, 10)||0;
-                if ( T_FUNC === get_type(item_filter) )
-                    return VC(function( v ) {
-                        return v.length >= limit && filter( v, item_filter ).length >= limit;
-                    });
-                else
-                    return VC(function( v ) {
-                        return v.length >= limit;
-                    });
-            },
-/**[DOC_MARKDOWN]
-// validate array/collection of items contains at maximum 'limit' items (use optional item_filter to only filtered items)
-ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
-
-[/DOC_MARKDOWN]**/
-            MAX_ITEMS: function( limit, item_filter ) {
-                limit = parseInt(limit, 10)||0;
-                if ( T_FUNC === get_type(item_filter) )
-                    return VC(function( v ) {
-                        return filter( v, item_filter ).length <= limit;
-                    });
-                else
-                    return VC(function( v ) {
-                        return v.length <= limit;
-                    });
             }
         }
 /**[DOC_MARKDOWN]

@@ -22,15 +22,73 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 "use strict";
 
 var HAS = 'hasOwnProperty',
+    Type = ModelView.Type.Cast,
+    TypeCaster = ModelView.Type.Typecaster,
     Validate = ModelView.Validation.Validate,
     Validator = ModelView.Validation.Validator
 ;
 
+if ( !Type[HAS]('LCASE') )
+{
+    Type['LCASE'] = Typecaster(function( v ) { 
+        return String(v).toLowerCase( );
+    });
+}
 
-// adapted from DateX
+if ( !Type[HAS]('UCASE') )
+{
+    Type['LCASE'] = Typecaster(function( v ) { 
+        return String(v).toUpperCase( );
+    });
+}
+
+if ( !Type[HAS]('PAD') )
+{
+    Type['PAD'] = function( pad_char, pad_size, pad_type ) { 
+        pad_type = pad_type || 'L';
+        return Typecaster(function( v ) {
+            var vs = String(v), len = vs.length, n = pad_size-len, l, r;
+            if ( n > 0 )
+            {
+                if ( 'LR' === pad_type )
+                {
+                    r = ~~(n/2); l = n-r;
+                    vs = new Array(l+1).join(pad_char)+vs+new Array(r+1).join(pad_char);
+                }
+                else if ( 'R' === pad_type )
+                {
+                    vs += new Array(n+1).join(pad_char);
+                }
+                else if ( 'L' === pad_type )
+                {
+                    vs = new Array(n+1).join(pad_char) + vs;
+                }
+            }
+            return vs;
+        });
+    };
+}
+
+if ( !Type[HAS]('FORMAT') )
+{
+    Type['FORMAT'] = function( tpl ) {
+        if ( 'string' === typeof tpl ) 
+        {
+            tpl = new ModelView.Tpl(tpl, ModelView.Type.tpl_$0);
+            return Typecaster(function( v ) { return tpl.render( {$0:v} ); });
+        }
+        else if ( tpl instanceof ModelView.Tpl ) 
+            return Typecaster(function( v ) { return tpl.render( v ); });
+        else if ( 'function' === typeof tpl ) 
+            return Typecaster(function( v ) { return tpl( v ); });
+        else return Typecaster(function( v ) { return String(v); });
+    };
+}
+
 if ( !Validate[HAS]('DATETIME') )
 {
-    Validate['DATETIME']  = function( format, locale ){
+    // adapted from DateX, custom implementation removed
+    Validate['DATETIME'] = function( format, locale ){
         if ( 'function' === typeof DateX )
         {
             var date_parse = DateX.getParser( format, locale || DateX.defaultLocale );
@@ -44,6 +102,54 @@ if ( !Validate[HAS]('DATETIME') )
                 return true;
             });
         }
+    };
+}
+
+if ( !Validate[HAS]('EMAIL') )
+{
+    Validate['EMAIL']  = (function( email_pattern ){
+        return Validator(function( v ) {
+            return email_pattern.test( String(v) );
+        }); 
+    })(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+}
+
+if ( !Validate[HAS]('URL') )
+{
+    Validate['URL']  = (function( url_pattern ){
+        return Validator(function( v ) {
+            return url_pattern.test( String(v) );
+        }); 
+    })(new RegExp('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$','i'));
+}
+
+if ( !Validate[HAS]('MIN_ITEMS') )
+{
+    Validate['MIN_ITEMS'] = function( limit, item_filter ) {
+        limit = parseInt(limit, 10)||0;
+        if ( 'function' === typeof item_filter )
+            return Validator(function( v ) {
+                return v.length >= limit && v.filter( item_filter ).length >= limit;
+            });
+        else
+            return Validator(function( v ) {
+                return v.length >= limit;
+            });
+    };
+}
+    
+if ( !Validate[HAS]('MAX_ITEMS') )
+{
+    Validate['MAX_ITEMS'] = function( limit, item_filter ) {
+        limit = parseInt(limit, 10)||0;
+        if ( 'function' === typeof item_filter )
+            return Validator(function( v ) {
+                return v.filter( item_filter ).length <= limit;
+            });
+        else
+            return Validator(function( v ) {
+                return v.length <= limit;
+            });
     };
 }
 
@@ -93,24 +199,6 @@ if ( !Validate[HAS]('FILESIZE') )
             return res;
         });
     };
-}
-
-if ( !Validate[HAS]('EMAIL') )
-{
-    Validate['EMAIL']  = (function( email_pattern ){
-        return Validator(function( v ) {
-            return email_pattern.test( String(v) );
-        }); 
-    })(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
-}
-
-if ( !Validate[HAS]('URL') )
-{
-    Validate['URL']  = (function( url_pattern ){
-        return Validator(function( v ) {
-            return url_pattern.test( String(v) );
-        }); 
-    })(new RegExp('^(?!mailto:)(?:(?:http|https|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$','i'));
 }
 
 // adapted from jquery.validation

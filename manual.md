@@ -163,32 +163,8 @@ ModelView.Type.Cast.TRIM;
 
 
 
-// cast to lowercase string
-ModelView.Type.Cast.LCASE;
-
-
-
-
-// cast to uppercase string
-ModelView.Type.Cast.UCASE;
-
-
-
-
-// cast to padded string (pad type can be "L"=LEFT, "R"=RIGHT, "LR"=LEFT-RIGHT)
-ModelView.Type.Cast.PAD(pad_char, pad_size, pad_type="L");
-
-
-
-
 // cast to string
 ModelView.Type.Cast.STR;
-
-
-
-
-// cast to formatted output based on given template
-ModelView.Type.Cast.FORMAT( String | ModelView.Tpl | Function tpl );
 
 
 
@@ -326,18 +302,6 @@ ModelView.Validation.Validate.IN( value1, value2 [, ...] );
 
 // validate value is not one of value1, value2, ...
 ModelView.Validation.Validate.NOT_IN( value1, value2 [, ...] );
-
-
-
-
-// validate array/collection of items contains at least 'limit' items (use optional item_filter to only filtered items)
-ModelView.Validation.Validate.MIN_ITEMS( limit [, item_filter] );
-
-
-
-
-// validate array/collection of items contains at maximum 'limit' items (use optional item_filter to only filtered items)
-ModelView.Validation.Validate.MAX_ITEMS( limit [, item_filter] );
 
 
 
