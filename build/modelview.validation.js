@@ -23,7 +23,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 
 var HAS = 'hasOwnProperty',
     Type = ModelView.Type.Cast,
-    TypeCaster = ModelView.Type.Typecaster,
+    Typecaster = ModelView.Type.TypeCaster,
     Validate = ModelView.Validation.Validate,
     Validator = ModelView.Validation.Validator
 ;
