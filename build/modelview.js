@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 0.80.0
-*   @built on 2016-02-02 01:36:59
+*   @built on 2016-02-03 14:09:21
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -28,7 +28,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 0.80.0
-*   @built on 2016-02-02 01:36:59
+*   @built on 2016-02-03 14:09:21
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -579,25 +579,30 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     
     get_val = function( el ) {
         if ( !el ) return;
+        var value_alt = null;
+        if ( el[HAS_ATTR]('data-alternative-value') ) value_alt = el[ATTR]('data-alternative-value');
         switch( el[TAG] )
         {
-            case 'INPUT': return 'file' === el.type.toLowerCase( ) ? (el.files.length ? el.files : null) : el[VAL];
-            case 'TEXTAREA':return el[VAL];
-            case 'SELECT': return select_get( el );
-            default: return (TEXTC in el) ? el[TEXTC] : el[TEXT];
+            case 'INPUT': return 'file' === el.type.toLowerCase( ) ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
+            case 'TEXTAREA':return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL];
+            case 'SELECT': return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : select_get( el );
+            default: return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : ((TEXTC in el) ? el[TEXTC] : el[TEXT]);
         }
     },
     
     set_val = function( el, v ) {
         if ( !el ) return;
+        var value_alt = null;
+        if ( el[HAS_ATTR]('data-alternative-value') ) value_alt = el[ATTR]('data-alternative-value');
         switch( el[TAG] )
         {
-            case 'INPUT': if ( 'file' === el.type.toLowerCase( ) ) {} else { el[VAL] = Str(v); } break;
-            case 'TEXTAREA': el[VAL] = Str(v); break;
-            case 'SELECT': select_set( el, v ); break;
+            case 'INPUT': if ( 'file' === el.type.toLowerCase( ) ) {} else { el[VAL] = Str(v); if (!!value_alt) el[value_alt] = null; } break;
+            case 'TEXTAREA': el[VAL] = Str(v);  if (!!value_alt) el[value_alt] = null; break;
+            case 'SELECT': select_set( el, v );  if (!!value_alt) el[value_alt] = null; break;
             default: 
                 if ( TEXTC in el ) el[TEXTC] = Str(v); 
                 else el[TEXT] = Str(v);
+                 if (!!value_alt) el[value_alt] = null;
                 break;
         }
     },
