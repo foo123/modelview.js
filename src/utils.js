@@ -517,7 +517,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     get_val = function( el ) {
         if ( !el ) return;
         var value_alt = null;
-        if ( el[HAS_ATTR]('data-alternative-value') ) value_alt = el[ATTR]('data-alternative-value');
+        if ( el[HAS_ATTR]('data-alt-value') ) value_alt = el[ATTR]('data-alt-value');
         switch( el[TAG] )
         {
             case 'INPUT': return 'file' === el.type.toLowerCase( ) ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
@@ -530,7 +530,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     set_val = function( el, v ) {
         if ( !el ) return;
         var value_alt = null;
-        if ( el[HAS_ATTR]('data-alternative-value') ) value_alt = el[ATTR]('data-alternative-value');
+        if ( el[HAS_ATTR]('data-alt-value') ) value_alt = el[ATTR]('data-alt-value');
         switch( el[TAG] )
         {
             case 'INPUT': if ( 'file' === el.type.toLowerCase( ) ) {} else { el[VAL] = Str(v); if (!!value_alt) el[value_alt] = null; } break;
