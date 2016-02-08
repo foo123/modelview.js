@@ -155,48 +155,41 @@ if ( !Validate[HAS]('MAX_ITEMS') )
 
 if ( !Validate[HAS]('MIN_FILES') )
 {
-    Validate['MIN_FILES']  = function( input, limit, item_filter ){
+    Validate['MIN_FILES']  = function( limit, item_filter ){
         limit = parseInt( limit, 10 ) || 0;
         return Validator('function' === typeof item_filter 
         ? function( fileList ) {
-            fileList = fileList || input.files;
-            return fileList.length > 0 ? (Array.prototype.filter.call(fileList, item_filter).length >= limit) : (0 >= limit);
+            return !!fileList && fileList.length > 0 ? (Array.prototype.filter.call(fileList, item_filter).length >= limit) : (0 >= limit);
         }
         : function( fileList ) {
-            fileList = fileList || input.files;
-            return fileList.length >= limit;
+            return !!fileList && fileList.length >= limit;
         });
     };
 }
 
 if ( !Validate[HAS]('MAX_FILES') )
 {
-    Validate['MAX_FILES']  = function( input, limit, item_filter ){
+    Validate['MAX_FILES']  = function( limit, item_filter ){
         limit = parseInt( limit, 10 ) || 0;
         return Validator('function' === typeof item_filter 
         ? function( fileList ) {
-            fileList = fileList || input.files;
-            return fileList.length > 0 ? (Array.prototype.filter.call(fileList, item_filter).length <= limit) : (0 <= limit);
+            return !!fileList && fileList.length > 0 ? (Array.prototype.filter.call(fileList, item_filter).length <= limit) : (0 <= limit);
         }
         : function( fileList ) {
-            fileList = fileList || input.files;
-            return fileList.length <= limit;
+            return !fileList || fileList.length <= limit;
         });
     };
 }
 
 if ( !Validate[HAS]('FILESIZE') )
 {
-    Validate['FILESIZE']  = function( input, limit ){
+    Validate['FILESIZE']  = function( limit ){
         limit = parseInt( limit, 10 ) || 0;
         return Validator(function( fileList ) {
-            fileList = fileList || input.files;
-            var res = (!fileList.length) || (fileList[0].size <= limit);
-            if ( !res )
-            {
-                input.value = ''; // clear input
-            }
-            return res;
+            if ( !fileList || !fileList.length ) return true;
+            for (var i=0,l=fileList.length; i<l; i++)
+                if ( fileList[i].size > limit ) return false;
+            return true;
         });
     };
 }
@@ -204,7 +197,7 @@ if ( !Validate[HAS]('FILESIZE') )
 // adapted from jquery.validation
 if ( !Validate[HAS]('FILETYPE') )
 {
-    Validate['FILETYPE']  = function( input, accept_types ) {
+    Validate['FILETYPE']  = function( accept_types ) {
         if ( !(accept_types instanceof RegExp) )
         {
             // Split mime on commas in case we have multiple types we can accept
@@ -215,12 +208,9 @@ if ( !Validate[HAS]('FILETYPE') )
             accept_types = new RegExp( ".?(" + accept_types.replace( /[\-\[\]\/\{\}\(\)\+\?\.\\\^\$\|]/g, "\\$&" ).replace( /,/g, "|" ).replace( "\/*", "/.*" ) + ")$", "i" );
         }
         return Validator(function( fileList ) {
-            fileList = fileList || input.files;
-            if ( 'file' === input.type && fileList && fileList.length )
-            {
-                for (var i=0,l=fileList.length; i<l; i++ )
-                    if ( !fileList[ i ].type.match( accept_types ) ) return false;
-            }
+            if ( !fileList || !fileList.length ) return true;
+            for (var i=0,l=fileList.length; i<l; i++)
+                if ( !fileList[ i ].type.match( accept_types ) ) return false;
             return true;
         }); 
     };
