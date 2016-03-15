@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.80.0
-*   @built on 2016-02-08 15:38:17
+*   @version: 0.81.0
+*   @built on 2016-03-15 20:59:43
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -27,8 +27,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 0.80.0
-*   @built on 2016-02-08 15:38:17
+*   @version: 0.81.0
+*   @built on 2016-03-15 20:59:43
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -48,7 +48,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.80.0**
+**Version 0.81.0**
 
 ###Contents
 
@@ -643,12 +643,11 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto].addEventListener )
-!function( ){
+if ( !HTMLElement.prototype.addEventListener ) !function( ){
     
     function addToPrototype( name, method ) 
     {
-        Window[proto][name] = HTMLDocument[proto][name] = HTMLElement[proto][name] = Element[proto][name] = method;
+        Window.prototype[name] = HTMLDocument.prototype[name] = HTMLElement.prototype[name] = Element.prototype[name] = method;
     }
 
     // add
@@ -724,7 +723,7 @@ if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto]
         type = eventObject.type,
         listeners = target.addEventListener.listeners = target.addEventListener.listeners || {},
         typeListeners = listeners[type] = listeners[type] || [];
-
+        
         try {
             return target.fireEvent("on" + type, eventObject);
         } catch (error) {
@@ -830,6 +829,25 @@ DOMEvent.Handler = function( event ) {
         if ( /*event.isPropagationStopped( ) ||*/ root === target )  break;
         l = listenerList.length;
         target = target.parentElement;
+    }
+};
+DOMEvent.Dispatch = function( event, element, data ) {
+    var evt; // The custom event that will be created
+    if ( document.createEvent )
+    {
+        evt = document.createEvent( "HTMLEvents" );
+        evt.initEvent( event, true, true );
+        evt.eventName = event;
+        if ( null != data ) evt.data = data;
+        element.dispatchEvent( evt );
+    }
+    else
+    {
+        evt = document.createEventObject( );
+        evt.eventType = event;
+        evt.eventName = event;
+        if ( null != data ) evt.data = data;
+        element.fireEvent( "on" + evt.eventType, evt );
     }
 };
 
@@ -6320,7 +6338,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.80.0"
+    VERSION: "0.81.0"
     
     ,UUID: uuid
     
@@ -6328,6 +6346,7 @@ exports['ModelView'] = {
     
     //,Field: ModelField
     // transfered to Model.Field
+    ,Event: DOMEvent
     
     ,Type: Type
     
@@ -6346,7 +6365,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.80.0
+*   @version: 0.81.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

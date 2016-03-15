@@ -130,6 +130,7 @@ exports['@@MODULE_NAME@@'] = {
     
     //,Field: ModelField
     // transfered to Model.Field
+    ,Event: DOMEvent
     
     ,Type: Type
     

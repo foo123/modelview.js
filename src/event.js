@@ -3,12 +3,11 @@
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto].addEventListener )
-!function( ){
+if ( !HTMLElement.prototype.addEventListener ) !function( ){
     
     function addToPrototype( name, method ) 
     {
-        Window[proto][name] = HTMLDocument[proto][name] = HTMLElement[proto][name] = Element[proto][name] = method;
+        Window.prototype[name] = HTMLDocument.prototype[name] = HTMLElement.prototype[name] = Element.prototype[name] = method;
     }
 
     // add
@@ -84,7 +83,7 @@ if ( this.Element && /*this.Element[proto].attachEvent &&*/ !this.Element[proto]
         type = eventObject.type,
         listeners = target.addEventListener.listeners = target.addEventListener.listeners || {},
         typeListeners = listeners[type] = listeners[type] || [];
-
+        
         try {
             return target.fireEvent("on" + type, eventObject);
         } catch (error) {
@@ -190,6 +189,25 @@ DOMEvent.Handler = function( event ) {
         if ( /*event.isPropagationStopped( ) ||*/ root === target )  break;
         l = listenerList.length;
         target = target.parentElement;
+    }
+};
+DOMEvent.Dispatch = function( event, element, data ) {
+    var evt; // The custom event that will be created
+    if ( document.createEvent )
+    {
+        evt = document.createEvent( "HTMLEvents" );
+        evt.initEvent( event, true, true );
+        evt.eventName = event;
+        if ( null != data ) evt.data = data;
+        element.dispatchEvent( evt );
+    }
+    else
+    {
+        evt = document.createEventObject( );
+        evt.eventType = event;
+        evt.eventName = event;
+        if ( null != data ) evt.data = data;
+        element.fireEvent( "on" + evt.eventType, evt );
     }
 };
 
