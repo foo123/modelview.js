@@ -1073,7 +1073,7 @@ view.reset( );
             if ( !el[namedKeyProp] ) el[namedKeyProp] = model.key( name, 1 );
             key = el[namedKeyProp];
             
-            if ( key && model.has( key ) )
+            if ( key /*&& model.has( key )*/ )
             {
                 input_type = el[TYPE].toLowerCase( );
                 

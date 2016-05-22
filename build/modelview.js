@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 0.81.0
-*   @built on 2016-03-15 20:59:43
+*   @version: 0.81.1
+*   @built on 2016-05-22 18:23:10
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -27,8 +27,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 0.81.0
-*   @built on 2016-03-15 20:59:43
+*   @version: 0.81.1
+*   @built on 2016-05-22 18:23:10
 *
 *   A simple/extendable MV* (MVVM) framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -48,7 +48,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ###ModelView API
 
-**Version 0.81.0**
+**Version 0.81.1**
 
 ###Contents
 
@@ -5586,7 +5586,7 @@ view.reset( );
             if ( !el[namedKeyProp] ) el[namedKeyProp] = model.key( name, 1 );
             key = el[namedKeyProp];
             
-            if ( key && model.has( key ) )
+            if ( key /*&& model.has( key )*/ )
             {
                 input_type = el[TYPE].toLowerCase( );
                 
@@ -6338,7 +6338,7 @@ $('#screen').modelview({
 // export it
 exports['ModelView'] = {
 
-    VERSION: "0.81.0"
+    VERSION: "0.81.1"
     
     ,UUID: uuid
     
@@ -6365,7 +6365,7 @@ exports['ModelView'] = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 0.81.0
+*   @version: 0.81.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
