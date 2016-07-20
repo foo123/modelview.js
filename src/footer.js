@@ -120,7 +120,7 @@ $('#screen').modelview({
 
 // main
 // export it
-exports['@@MODULE_NAME@@'] = {
+var ModelView = {
 
     VERSION: "@@VERSION@@"
     

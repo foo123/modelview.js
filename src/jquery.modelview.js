@@ -215,4 +215,4 @@ ModelView.jquery = function( $ ) {
 
 // add to jQuery if available/accesible now
 if ( 'undefined' !== typeof window.jQuery ) ModelView.jquery( window.jQuery );
-}( exports['@@MODULE_NAME@@'], this );
+}( ModelView, this );

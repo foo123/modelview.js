@@ -9,13 +9,12 @@
 **/
 !function( root, name, factory ) {
 "use strict";
-var m;
 if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
     module.exports = factory.call( root, require(/\.min(\.js)?/i.test(__filename) ? './modelview.min' : './modelview') );
 else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&(require.specified(name)||require.specified('ModelView')) ) /* AMD */
     define(name,['ModelView'],function(ModelView){return factory.call(root,ModelView);});
-else if ( !(name in root) ) /* Browser/WebWorker/.. */
-    (root[ name ] = (m=factory.call(root,root.ModelView)))&&('function'===typeof(define))&&define.amd&&define(function(){return m;} );
+else /* Browser/WebWorker/.. */
+    (factory.call(root,root['ModelView']))&&('function'===typeof(define))&&define.amd&&define(function(){return root['ModelView'];} );
 }(  /* current root */          this, 
     /* module name */           "ModelViewValidation",
     /* module factory */        function( ModelView ) {
