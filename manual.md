@@ -1,9 +1,9 @@
 
-###ModelView API
+### ModelView API
 
 **Version 0.81.1**
 
-###Contents
+### Contents
 
 * [Types](#types)
 * [Validators](#validators)
@@ -17,7 +17,7 @@
 
 
 
-####Cache
+#### Cache
 
 ModelView.Cache is a cache class for caching key/values for limited time and space. Used internaly by ModelView.View and ModelView.Model, but also available as public class via ModelView.Cache.
 
@@ -83,7 +83,7 @@ cache.del( key );
 
 
 
-####Types 
+#### Types 
 **(used with Models)**
 
 ```javascript
@@ -187,7 +187,7 @@ ModelView.Type.del( name );
 
 
 
-####Validators 
+#### Validators 
 **(used with Models)**
 
 (extra validators are available in `modelview.validation.js`)
@@ -402,7 +402,7 @@ $dom.modelview({
 
 
 
-####Model
+#### Model
 
 ```javascript
 // modelview.js model methods
@@ -569,7 +569,7 @@ model.atom( String dottedKey | Boolean false );
 
 
 
-####Tpl
+#### Tpl
 
 ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
 
@@ -618,7 +618,7 @@ tpl.free( Node el );
 
 
 
-####View
+#### View
 
 ```javascript
 // modelview.js view methods
@@ -736,7 +736,7 @@ view.reset( );
 
 
 
-####View Actions
+#### View Actions
 
 Default View Actions (inherited by sub-views)
 
@@ -915,7 +915,7 @@ The declarative view binding format is like:
 
 
 
-####Examples 
+#### Examples 
 
 [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 

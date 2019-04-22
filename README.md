@@ -26,7 +26,7 @@ A simple / extendable / isomorphic / umd-compatible / light-weight (~58kB minifi
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
 
 
-###Contents
+### Contents
 
 * [Hello Earth](#hello-earth)
 * [Browser Support](#browser-support)
@@ -39,7 +39,7 @@ A simple / extendable / isomorphic / umd-compatible / light-weight (~58kB minifi
 
 
 
-####Hello Earth
+#### Hello Earth
 
 [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
@@ -151,7 +151,7 @@ $('#screen').modelview({
 });
 ```
 
-####Browser Support
+#### Browser Support
 
 for ModelView <= 0.26 (using jQuery) browser support is same as basic jQuery support
 
@@ -165,9 +165,9 @@ for ModelView 0.30+ (using native)
 
 
 
-####Live Examples
+#### Live Examples
 
-[ModelView Temperature example on jsfiddle](http://jsfiddle.net/foo123/ksvovj7u/) based on the example post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
+[ModelView Temperature example on jsfiddle](https://jsfiddle.net/foo123/ksvovj7u/) based on the example post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
 
 [ModelView TodoMVC example](https://foo123.github.io/examples/modelview-todomvc) (with routing and localStorage support)
 
@@ -175,7 +175,7 @@ for ModelView 0.30+ (using native)
 
 
 
-####MV* Patterns and MVVM
+#### MV* Patterns and MVVM
 
 
 **MV* Patterns** 
@@ -288,7 +288,7 @@ Specificaly for HTML and Javascript, the MVVM pattern has this association relat
 
 
 
-####ModelView.js
+#### ModelView.js
 
 ModelView.js is an attempt at using sth like the MVVM pattern in a light-weight, yet extendable and generic way.
 Inspired mainly by Knockoutjs, Agility and Backbone.js, it is an attempt to combine certain things without repeating everything for some custom projects that can greatly benefit from such an approach.
@@ -304,7 +304,7 @@ Furthermore, focus is on inline dynamic binding and update directly inside the m
 jQuery DOM/Event dependency has been removed, ModelView can be used as standalone framework, however it provides a plugin (and widget) for jQuery (jQueryUI) for easy integration (see examples).
 
 
-####Performance
+#### Performance
 
 Some tests on jsperf with ModelView, latest backbonejs, knockoutjs and emberJS (on models get/set).
 
