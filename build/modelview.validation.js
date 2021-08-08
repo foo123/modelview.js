@@ -1,9 +1,6 @@
 /**
 *
 *   ModelView Extra Validation Methods add-on
-*
-*   A simple/extendable MV* (MVVM) framework
-*   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *
 **/
@@ -36,7 +33,7 @@ if ( !Type[HAS]('LCASE') )
 
 if ( !Type[HAS]('UCASE') )
 {
-    Type['LCASE'] = Typecaster(function( v ) { 
+    Type['UCASE'] = Typecaster(function( v ) { 
         return String(v).toUpperCase( );
     });
 }

@@ -1,89 +1,20 @@
 
 ### ModelView API
 
-**Version 0.81.1**
+**Version 1.0.0**
 
 ### Contents
 
 * [Types](#types)
 * [Validators](#validators)
-* [Cache](#cache)
 * [Model](#model)
-* [Tpl](#tpl)
 * [View](#view)
-* [View Actions](#view-actions)
 * [Examples](#examples)
 
 
 
 
-#### Cache
-
-ModelView.Cache is a cache class for caching key/values for limited time and space. Used internaly by ModelView.View and ModelView.Model, but also available as public class via ModelView.Cache.
-
-```javascript
-// modelview.js cache methods
-
-var cache = new ModelView.Cache( Number cacheSize=Infinity, Number refreshInterval=Infinity );
-
-
-
-
-// dispose cache
-cache.dispose( );
-
-
-
-
-// reset cache, clear key/value store
-cache.reset( );
-
-
-
-
-// get/set cache  key/value store size
-cache.size( [Number size] );
-
-
-
-
-// get/set cache  key/value store refresh interval
-cache.interval( [Number interval] );
-
-
-
-
-// whether cache has given key
-cache.has( key );
-
-
-
-
-// get cache key (if exists and valid)
-cache.get( key );
-
-
-
-
-// set cache key to val
-cache.set( key, val );
-
-
-
-
-// delete cache key (if exists)
-cache.del( key );
-
-
-
-
-
-```
-
-
-
-
-#### Types 
+#### Types
 **(used with Models)**
 
 ```javascript
@@ -187,7 +118,7 @@ ModelView.Type.del( name );
 
 
 
-#### Validators 
+#### Validators
 **(used with Models)**
 
 (extra validators are available in `modelview.validation.js`)
@@ -332,67 +263,66 @@ ModelView.Validation.del( name );
 $dom.modelview({
 
     id: 'view',
-    
+
     autobind: true,
-    bindAttribute: 'data-bind',
     events: [ 'change', 'click' ],
-    
+
     model: {
-        
+
         id: 'model',
-        
+
         data: {
             // model data here ..
-            
+
             mode: 'all',
             user: 'foo',
             collection: [ ]
         },
-        
+
         types: {
             // data type-casters here ..
-            
+
             mode: $.ModelView.Type.Cast.STR,
             user: $.ModelView.Type.Cast.STR,
-            
+
             // support wildcard assignment of typecasters
             'collection.*': $.ModelView.Type.Cast.FIELDS({
                 // type casters can be composed in an algebraic/functional way..
-                
+
                 'field1': $.ModelView.Type.Cast.COMPOSITE($.ModelView.Type.Cast.DEFAULT( "default" ), $.ModelView.Type.Cast.STR),
-                
+
                 'field2': $.ModelView.Type.Cast.BOOL
             })
             // this is equivalent to:
             //'collection': $.ModelView.Type.Cast.EACH($.ModelView.Type.Cast.FIELDS( .. ))
         },
-        
+
         validators: {
             // data validators here ..
-            
+
             mode: $.ModelView.Validation.Validate.IN( 'all', 'active', 'completed' ),
-            
+
             // support wildcard assignment of validators
             'collection.*': $.ModelView.Validation.Validate.FIELDS({
                 // validators can be combined (using AND/OR/NOT/XOR) in an algebraic/functional way
-                
+
                 'field1': $.ModelView.Validation.Validate.NOT_EMPTY.AND( $.ModelView.Validation.Validate.MATCH( /item\d+/ ) ),
-                
+
                 'field2': $.ModelView.Validation.Validate.BETWEEN( v1, v2 ).OR( $.ModelView.Validation.Validate.GREATER_THAN( v3 ) )
             })
             // this is equivalent to:
             //'collection': $.ModelView.Validation.Validate.EACH($.ModelView.Validation.Validate.FIELDS( .. ))
         },
-        
+
         dependencies: {
             // data inter-dependencies (if any) here..
-            
+
             // 'mode' field value depends on 'user' field value, e.g by a custom getter
             mode: ['user']
         }
     },
-    
-    actions: { 
+
+    actions: {
         // custom view actions (if any) here ..
     }
 });
@@ -569,61 +499,12 @@ model.atom( String dottedKey | Boolean false );
 
 
 
-#### Tpl
-
-ModelView.Tpl is an adaptation of Tao.js, an isomorphic class to handle inline templates both from/to string format and live dom update format. Used internaly by ModelView.View and also available as public class ModelView.Tpl.
-
-```javascript
-// modelview.js tpl methods
-// adapted from https://github.com/foo123/Tao.js
-
-var tpl = new ModelView.Tpl( String|DOMNode tpl );
-
-
-
-
-// dispose tpl
-tpl.dispose( );
-
-
-
-
-// get the template dynamic keys
-tpl.keys( );
-
-
-
-
-// render/update and return the template string with given data
-tpl.render( Object|Array data );
-
-
-
-
-// tpl bind a new Dom node added to the template (if tpl represents a dom template)
-tpl.bind( Node el );
-
-
-
-
-// tpl free the Dom node removed from the template (if tpl represents a dom template)
-tpl.free( Node el );
-
-
-
-
-
-```
-
-
-
-
 #### View
 
 ```javascript
 // modelview.js view methods
 
-var view = new ModelView.View( [String id=UUID, Model model=new Model(), Object viewAttributes={bind:"data-bind"}, Integer cacheSize=View._CACHE_SIZE, Integer refreshInterval=View._REFRESH_INTERVAL] );
+var view = new ModelView.View( [String id=UUID] );
 
 
 
@@ -640,8 +521,8 @@ view.model( [Model model] );
 
 
 
-// get/set the name of view-specific attribute (e.g "bind": "data-bind" )
-view.attribute( String name [, String att] );
+// get / set the template of the view as HTML string
+view.template( [String html] );
 
 
 
@@ -658,6 +539,18 @@ view.shortcuts( Object shortcuts );
 
 
 
+// add custom view named components which render output in {componentName: componentInstance} format
+view.components( Object components );
+
+
+
+
+// render a custom view named component
+view.component( String componentName, Object props );
+
+
+
+
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
 
@@ -670,25 +563,16 @@ view.autovalidate( [Boolean enabled] );
 
 
 
-// get / set livebind, 
-// livebind automatically binds DOM live nodes to model keys according to {model.key} inline tpl format
-// e.g <span>model.key is $(model.key)</span>
-view.livebind( [String format | Boolean false] );
+// get / set livebind,
+// livebind automatically updates dom when model changes, DEFAULT TRUE
+view.livebind( [Boolean enabled] );
 
 
 
 
-// get / set isomorphic flag, 
-// isomorphic flag enables ModelView API to run both on server and browser and seamlessly and continously pass from one to the other
-view.isomorphic( [Boolean false] );
-
-
-
-
-// get / set autobind, 
-// autobind automatically binds (2-way) input elements to model keys via name attribute 
-// e.g <input name="model[key]" />, <select name="model[key]"></select>
-view.autobind( [Boolean bool] );
+// get / set autobind,
+// autobind automatically binds (2-way) input elements to model keys via name attribute, DEFAULT TRUE
+view.autobind( [Boolean enabled] );
 
 
 
@@ -705,330 +589,85 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
 
 
-// reset view caches and re-bind to dom UI
-view.rebind( [Array events=['change', 'click'], DOMNOde dom=document.body] );
+// render view on actual DOM (immediately or deferred)
+view.render( [Boolean immediate=false] );
 
 
 
 
-// synchronize dom (or part of it) to underlying model
-view.sync( [DOMNode dom=view.$dom] );
+// synchronize dom to underlying model
+view.sync();
 
 
 
 
-// synchronize model to underlying dom (or part of it)
-view.sync_model( [DOMNode dom=view.$dom] );
-
-
-
-
-// reset view caches only
-view.reset( );
-
-
-
-
+// synchronize model to underlying dom
+view.sync_model();
 
 ```
 
 
+#### View.Component
 
+```javascript
 
+var MyComponent = new ModelView.View.Component(String html);
 
-#### View Actions
-
-Default View Actions (inherited by sub-views)
-
-
-The declarative view binding format is like:
-
-```html
-<element bind-attr="JSON"></element>
-
-<!-- for example: -->
-<div data-bind='{"event_name":{"action":"action_name","key":"a.model.key","anotherparam":"anotherparamvalue"}}'></div>
-
-<!-- for some actions there are shorthand formats (see below) e.g -->
-<div data-bind='{"hide":"a.model.key"}'></div>
-
-<!-- is shorthand for: -->
-<div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'></div>
-
-<!-- or -->
-<div data-bind='{"event_name":"action_name"}'></div>
-
-<!-- is shorthand for: -->
-<div data-bind='{"event_name":{"action":"action_name"}}'></div>
 ```
-
-<table>
-<thead>
-<tr>
-    <td>Declarative Binding</td>
-    <td>Method Name</td>
-    <td>Bind Example</td>
-    <td>Description</td>
-</tr>
-</thead>
-<tbody>
-<tr>
-    <td><code>each</code></td>
-    <td><code>view.do_each</code></td>
-    <td>
-
-<code><pre>
-&lt;ul data-bind='{"each":"a.model.collection.key"}'>&lt;/ul>
-&lt;!-- is shorthand for: -->
-&lt;ul data-bind='{"change":{"action":"each","key":"a.model.collection.key"}}'>&lt;/ul>
-</pre></code>
-
-    </td>
-    <td>update element each child node depending on model collection key (TODO)</td>
-</tr>
-<tr>
-    <td><code>prop</code></td>
-    <td><code>view.do_prop</code></td>
-    <td>
-
-<code><pre>
-&lt;input type="text" data-bind='{"value":"a.model.key"}' />
-&lt;!-- is shorthand for: -->
-&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"value":"a.model.key"}}}' />
-
-&lt;input type="checkbox" data-bind='{"checked":"a.model.key"}' />
-&lt;!-- is shorthand for: -->
-&lt;input type="checkbox" data-bind='{"change":{"action":"prop","prop":{"checked":"a.model.key"}}}' />
-
-&lt;input type="text" data-bind='{"disabled":"a.model.key"}' />
-&lt;!-- is shorthand for: -->
-&lt;input type="text" data-bind='{"change":{"action":"prop","prop":{"disabled":"a.model.key"}}}' />
-
-&lt;select data-bind='{"options":"a.model.key"}'>&lt;/select>
-&lt;!-- is shorthand for: -->
-&lt;select data-bind='{"change":{"action":"prop","prop":{"options":"a.model.key"}}}'>&lt;/select>
-</pre></code>
-
-    </td>
-    <td>set element properties based on model data keys</td>
-</tr>
-<tr>
-    <td><code>html</code> / <code>text</code></td>
-    <td><code>view.do_html</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"html":"a.model.key"}'>&lt;/div>
-&lt;span data-bind='{"text":"a.model.key"}'>&lt;/span>
-&lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"html","key":"a.model.key"}}'>&lt;/div>
-&lt;span data-bind='{"change":{"action":"text","key":"a.model.key"}}'>&lt;/span>
-</pre></code>
-
-    </td>
-    <td>set element html/text property based on model data key</td>
-</tr>
-<tr>
-    <td><code>css</code></td>
-    <td><code>view.do_css</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"css":{"color":"a.model.key","background":"another.model.key"}}'>&lt;/div>
-&lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"css","css":{"color":"a.model.key","background":"another.model.key"}}}'>&lt;/div>
-</pre></code>
-
-    </td>
-    <td>set element css style(s) based on model data key(s)</td>
-</tr>
-<tr>
-    <td><code>show</code></td>
-    <td><code>view.do_show</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"show":"a.model.key"}'>&lt;/div>
-&lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"show","key":"a.model.key"}}'>&lt;/div>
-</pre></code>
-
-    </td>
-    <td>show/hide element based on model data key (interpreted as *truthy value*)</td>
-</tr>
-<tr>
-    <td><code>hide</code></td>
-    <td><code>view.do_hide</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"hide":"a.model.key"}'>&lt;/div>
-&lt;!-- is shorthand for: -->
-&lt;div data-bind='{"change":{"action":"hide","key":"a.model.key"}}'>&lt;/div>
-</pre></code>
-
-    </td>
-    <td>hide/show element based on model data key (interpreted as *truthy value*)</td>
-</tr>
-<tr>
-    <td><code>tpl</code></td>
-    <td><code>view.do_tpl</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"click":{"action":"tpl","tpl":"tplID","key":"a.model.key"}}'>&lt;/div>
-</pre></code>
-
-    </td>
-    <td>element render a template based on model data key</td>
-</tr>
-<tr>
-    <td><code>set</code></td>
-    <td><code>view.do_set</code></td>
-    <td>
-
-<code><pre>
-&lt;div data-bind='{"set":{"key":"akey","value":"aval"}}'>&lt;/div>
-&lt;!-- is shorthand for: -->
-&lt;div data-bind='{"click":{"action":"set","key":"a.model.key","value":"aval"}}'>&lt;/div>
-</pre></code>
-
-    </td>
-    <td>set/update model data key with given value on a UI event (default "click")</td>
-</tr>
-<tr>
-    <td><code>bind</code></td>
-    <td><code>view.do_bind</code></td>
-    <td>
-
-<code><pre>
-&lt;input name="model[a][model][key]" />
-&lt;select name="model[another][model][key]">&lt;/select>
-</pre></code>
-
-    </td>
-    <td>input element default two-way autobind action (automaticaly update value on input elements based on changed model data key or vice-versa)</td>
-</tr>
-</tbody>
-</table>
-
 
 
 
 #### Examples 
 
-[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+[See it](/examples/hello-world.html)
 
-
-**markup**
 
 ```html
-<div id="screen">
-    Hello $(model.msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+<template id="content">
+    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
-    <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" title="$(model.msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
-    <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
-    <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
-</div>
+    <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
+    <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
+    <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
+</template>
+<div id="app"></div>
 ```
 
-**javascript** (*standalone*)
 ```javascript
 // standalone
-
-new ModelView.View(
-    'view', 
+new ModelView.View('view')
+.model(
     new ModelView.Model(
         'model', 
         // model data here ..
-        { msg: 'Earth!' }
+        {msg: 'Earth!'}
     )
     // model data type-casters (if any) here ..
-    .types({ msg: ModelView.Type.Cast.STR })
+    .types({msg: ModelView.Type.Cast.STR})
     // model data validators (if any) here ..
-    .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
+    .validators({msg: ModelView.Validation.Validate.NOT_EMPTY})
 )
-.shortcuts({
-    'alt+h': 'alert_msg'
-})
+.template(
+    document.getElementById('content').innerHTML
+)
 .actions({
     // custom view actions (if any) here ..
-    alert_msg: function( evt, el, bindData ) {
-        alert( this.$model.get('msg') );
-        // this also works
-        //alert( this.model().get('msg') );
-        // or even this, if you want the raw data without any processing
-        //alert( this.$model.$data.msg );
+    alert: function(evt, el) {
+        alert(this.model().get('msg'));
     },
-    hello_world: function( evt, el, bindData ) {
-        // set msg to "World" and publish the change
-        this.$model.set('msg', "World", true);
+    hello_world: function(evt, el) {
+        this.model().set('msg', "World", true);
     }
 })
-.attribute( 'bind', 'data-bind' ) // default
-.livebind( '$(__MODEL__.__KEY__)' )
-.autobind( true )
-.isomorphic( false ) // default
-.bind( [ 'change', 'click' ], document.getElementById('screen') )
-.sync( )
+.shortcuts({
+    'alt+h': 'alert'
+})
+.autovalidate(true)
+.autobind(true) // default
+.livebind(true) // default
+.bind(['click', 'change'], document.getElementById('app'))
+.sync()
 ;
-```
-
-**javascript** (*as a jquery plugin/widget, include the jquery.modelview.js file*)
-```javascript
-// as a jQuery plugin/widget
-
-// make sure the modelview jQuery plugin is added if not already
-if ( ModelView.jquery ) ModelView.jquery( $ );
-$('#screen').modelview({
-    id: 'view',
-    
-    bindAttribute: 'data-bind', // default
-    events: [ 'change', 'click' ], // default
-    livebind: '$(__MODEL__.__KEY__)',
-    autobind: true,
-    isomorphic: false, // default
-    autoSync: true, // default
-    
-    model: {
-        id: 'model',
-        
-        data: {
-            // model data here ..
-            msg: 'Earth!'
-        },
-        
-        types: {
-            // model data type-casters (if any) here ..
-            msg: ModelView.Type.Cast.STR
-        },
-        
-        validators: {
-            // model data validators (if any) here ..
-            msg: ModelView.Validation.Validate.NOT_EMPTY
-        }
-    },
-    
-    shortcuts: {
-        'alt+h': 'alert_msg'
-    },
-    
-    actions: {
-        // custom view actions (if any) here ..
-        alert_msg: function( evt, el, bindData ) {
-            alert( this.$model.get('msg') );
-            // this also works
-            //alert( this.model().get('msg') );
-            // or even this, if you want the raw data without any processing
-            //alert( this.$model.$data.msg );
-        },
-        hello_world: function( evt, el, bindData ) {
-            // set msg to "World" and publish the change
-            this.$model.set('msg', "World", true);
-        }
-    }
-});
 ```
 
 

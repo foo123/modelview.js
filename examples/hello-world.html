@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>modelview.js • Hello World</title>
+        
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <meta name="description" content="modelview.js • Hello World" />
+        
+    </head>
+    
+    <body>
+        
+        <header id="header">
+            <h1>ModelView.js Hello Earth!</h1>
+        </header>
+        
+<div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
+<template id="content">
+    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
+    <br /><br />
+    <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" mv-evt mv-on-keyup="update" />
+    <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
+    <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
+</template>
+<div id="app"></div>
+</div>
+
+<script src="../build/modelview.js"></script>
+<script id="js-snippet-without-jquery" type="text/javascript" data-snippet="JS Code (standalone)" data-snippet-type="javascript">
+(function modelView(ModelView) 
+{
+    "use strict";
+    new ModelView.View('view')
+    .model(
+        new ModelView.Model(
+            'model', 
+            // model data here ..
+            {msg: 'Earth!'}
+        )
+        // model data type-casters (if any) here ..
+        .types({msg: ModelView.Type.Cast.STR})
+        // model data validators (if any) here ..
+        .validators({msg: ModelView.Validation.Validate.NOT_EMPTY})
+    )
+    .template(document.getElementById('content').innerHTML)
+    .actions({
+        // custom view actions (if any) here ..
+        alert: function(evt, el) {
+            alert(this.model().get('msg'));
+        },
+        hello_world: function(evt, el) {
+            this.model().set('msg', "World", true);
+        },
+        update: function(evt, el) {
+            this.model().set('msg', el.value, true);
+        }
+    })
+    .shortcuts({
+        'alt+h': 'alert'
+    })
+    .autovalidate(true)
+    .autobind(true)
+    .livebind(true)
+    .bind(['click', 'keyup'], document.getElementById('app'))
+    .sync()
+    ;
+})(ModelView);
+</script>
+</body>
+</html>

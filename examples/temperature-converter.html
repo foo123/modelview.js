@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>modelview.js • Temperature Converter</title>
+        
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <meta name="description" content="modelview.js • Temperature Converter" />
+        
+    </head>
+    
+    <body>
+        
+        <header id="header">
+            <h1>ModelView.js Temperature Converter</h1>
+        </header>
+        
+<div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
+<template id="content">
+    <p class="temperature-converter">
+        <label class="celsius-wrap"><input type="number" class="celsius" id="celsius" name="model[celsius]" value="{%= this.model().get('celsius') %}">°C</label>
+        <span class="arrows">⇄</span>
+        <label class="fahrenheit-wrap"><input type="number" class="fahrenheit" id="fahrenheit" name="model[fahrenheit]" value="{%= this.model().get('fahrenheit') %}" >°F</label>
+    </p>
+</template>
+<div id="app"></div>
+</div>
+
+<script src="../build/modelview.js"></script>
+<script id="js-snippet-without-jquery" type="text/javascript" data-snippet="JS Code (standalone)" data-snippet-type="javascript">
+(function modelView(ModelView) {
+"use strict";
+new ModelView.View('view')
+    .model(
+        new ModelView.Model(
+            'model', 
+            // model data here ..
+            {celsius: 0}
+        )
+        .types({celsius: ModelView.Type.Cast.FLOAT})
+        .getters({
+            fahrenheit: function() {
+                return 9/5 * this.$data.celsius + 32;
+            }
+        })
+        .setters({
+            celsius: function(k, v) {
+                this.$data.celsius = v;
+                this.notify('fahrenheit');
+                return true;
+            },
+            fahrenheit: function(k, v) {
+                this.$data.celsius = 5/9 * (v - 32);
+                this.notify('celsius');
+                return true;
+            }
+        })
+    )
+    .template(document.getElementById('content').innerHTML)
+    .autovalidate(false)
+    .autobind(true)
+    .livebind(false)
+    .bind(['input', 'change', 'click'], document.getElementById('app'))
+    .sync()
+;
+})(ModelView);
+</script>
+</body>
+</html>

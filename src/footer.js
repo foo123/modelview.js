@@ -138,11 +138,7 @@ var ModelView = {
     
     ,PublishSubscribeInterface: PublishSubscribe
     
-    ,Cache: Cache
-    
     ,Model: Model
-    
-    ,Tpl: Tpl
     
     ,View: View
 };

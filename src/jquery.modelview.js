@@ -11,78 +11,74 @@
 "use strict";
 ModelView.jquery = function( $ ) {
     "use strict";
-    
-    if ( !$.ModelView )
+
+    if (!$.ModelView)
     {
         // add it to root jQuery object as a jQuery reference
         $.ModelView = ModelView;
-        
+
         var slice = Function.prototype.call.bind( Array.prototype.slice ),
             extend = $.extend, View = ModelView.View, Model = ModelView.Model;
-        
+
         // modelview jQuery plugin
-        $.fn.modelview = function( arg0, arg1, arg2 ) {
-            var argslen = arguments.length, 
+        $.fn.modelview = function(arg0, arg1, arg2) {
+            var argslen = arguments.length,
                 method = argslen ? arg0 : null, options = arg0,
                 isInit = true, optionsParsed = false,  map = [ ]
             ;
-            
+
             // apply for each matched element (better use one element per time)
-            this.each(function( ) {
-                
+            this.each(function() {
+
                 var $dom = $(this), model, view, defaultModel, defaultOptions;
-                
+
                 // modelview already set on element
-                if ( $dom.data( 'modelview' ) )
+                if ($dom.data('modelview'))
                 {
                     isInit = false;
-                    
-                    view = $dom.data( 'modelview' );
-                    model = view.$model;
-                    
+
+                    view = $dom.data('modelview');
+                    model = view.model();
+
                     // methods
-                    if ( 'view' === method ) 
+                    if ('view' === method)
                     {
-                        map.push( view );
+                        map.push(view);
                     }
-                    else if ( 'model' === method ) 
+                    else if ('model' === method)
                     {
-                        if ( argslen > 1 )
+                        if (argslen > 1)
                         {
-                            view.model( arg1 ); 
+                            view.model(arg1);
                             return this;
                         }
-                            
-                        map.push( model );
+
+                        map.push(model);
                     }
-                    else if ( 'data' === method ) 
+                    else if ('data' === method)
                     {
-                        if ( argslen > 1 )
+                        if (argslen > 1)
                         {
-                            model.data( arg1 ); 
+                            model.data(arg1);
                             return this;
                         }
-                            
-                        map.push( model.data( ) );
+
+                        map.push(model.data());
                     }
-                    else if ( 'sync' === method ) 
+                    else if ('sync' === method)
                     {
-                        view.sync( arg1 );
+                        view.sync();
                     }
-                    else if ( 'reset' === method ) 
+                    else if ('dispose' === method)
                     {
-                        view.reset( );
+                        $dom.data('modelview', null);
+                        view.dispose();
                     }
-                    else if ( 'dispose' === method ) 
-                    {
-                        $dom.data( 'modelview', null );
-                        view.dispose( );
-                    }
-                    
+
                     return this;
                 }
-                
-                if ( !optionsParsed )
+
+                if (!optionsParsed)
                 {
                     defaultModel = {
                         id: 'model'
@@ -94,125 +90,118 @@ ModelView.jquery = function( $ ) {
                         ,dependencies: { }
                     };
                     defaultOptions = {
-                        
+
                         viewClass: View
                         ,modelClass: Model
-                        
+
                         ,id: 'view'
-                        ,bindAttribute: 'data-bind' // default
                         ,livebind: null
                         ,autobind: false
-                        ,isomorphic: false
-                        ,bindbubble: false
                         ,autovalidate: true
                         ,events: null
                         ,autoSync: true
-                        ,cacheSize: View._CACHE_SIZE
-                        ,refreshInterval: View._REFRESH_INTERVAL
-                        
+
                         ,model: null
                         ,template: null
                         ,actions: { }
                         ,handlers: { }
                         ,shortcuts: { }
+                        ,components: { }
                     };
                     // parse options once
-                    options = extend( {}, defaultOptions, options );
-                    
-                    if ( options.model && !(options.model instanceof Model) )
+                    options = extend({}, defaultOptions, options);
+
+                    if (options.model && !(options.model instanceof Model))
                     {
-                        options.model = extend( {}, defaultModel, options.model );
+                        options.model = extend({}, defaultModel, options.model);
                     }
-                    
+
                     optionsParsed = true;
                 }
-                
-                if ( !options.model ) return this;
-                
-                model = (options.model instanceof Model) 
-                        ? options.model 
+
+                if (!options.model) return this;
+
+                model = (options.model instanceof Model)
+                        ? options.model
                         : new options.modelClass(
-                            options.model.id, 
-                            options.model.data, 
-                            options.model.types, 
-                            options.model.validators, 
-                            options.model.getters, 
+                            options.model.id,
+                            options.model.data,
+                            options.model.types,
+                            options.model.validators,
+                            options.model.getters,
                             options.model.setters,
                             options.model.dependencies
                         )
                     ;
-                
-                view = new options.viewClass(
-                    options.id, model, 
-                    { bind: options.bindAttribute || 'data-bind' },
-                    options.cacheSize, options.refreshInterval
-                )
-                // custom view template renderer
-                .template( options.template )
-                // custom view event handlers
-                .events( options.handlers )
-                // custom view hotkeys/keyboard shortcuts
-                .shortcuts( options.shortcuts )
-                // custom view actions
-                .actions( options.actions )
-                // init view
-                .livebind( options.livebind )
-                .autobind( options.autobind )
-                .isomorphic( options.isomorphic )
-                .bindbubble( options.bindbubble )
-                .autovalidate( options.autovalidate )
-                .bind( options.events, $dom[0] )
+
+                view = new options.viewClass(options.id)
+                    .model(model)
+                    // custom view template renderer
+                    .template(options.template)
+                    // custom view event handlers
+                    .events(options.handlers)
+                    // custom view hotkeys/keyboard shortcuts
+                    .shortcuts(options.shortcuts)
+                    // custom view actions
+                    .actions(options.actions)
+                    // custom view components
+                    .components(options.components)
+                    // init view
+                    .livebind(options.livebind)
+                    .autobind(options.autobind)
+                    .autovalidate(options.autovalidate)
+                    .bind(options.events, $dom[0])
                 ;
-                $dom.data( 'modelview', view );
-                if ( options.autoSync ) view.sync( );
+                $dom.data('modelview', view);
+                if (options.autoSync) view.sync();
             });
-            
+
             // chainable or values return
-            return ( !isInit && map.length ) ? ( 1 == this.length ? map[ 0 ] : map ) : this;
+            return !isInit && map.length ? (1 == this.length ? map[ 0 ] : map) : this;
         };
     }
-    
+
     // add modelview as a jQueryUI widget as well if jQueryuI is loaded
-    // to create state-full, self-contained, full-MVC widgets (e.g calendars, grids, etc..)
-    if ( $.widget && (!$.mvc || !$.mvc.ModelViewWidget) )
+    // to create state-full, self-contained, full-MVVM widgets (e.g calendars, grids, etc..)
+    if ($.widget && (!$.mvvm || !$.mvvm.ModelViewWidget))
     {
-        $.widget( 'mvc.ModelViewWidget', {
-            
-            options: { },
+        $.widget('mvvm.ModelViewWidget', {
+
+            options: {},
             $view: null,
-            
+
             _create: function() {
                 var self = this;
-                self.$view = self.element.modelview( self.options ).modelview( 'view' );
+                self.$view = self.element.modelview(self.options).modelview('view');
             },
-            
-            value: function( k, v ) {
+
+            value: function(k, v) {
                 var self = this;
-                if ( 1 < arguments.length ) 
+                if (1 < arguments.length)
                 {
-                    self.$view.$model.set( k, v, 1 );
+                    self.$view.$model.set(k, v, 1);
                     return self.element;
                 }
-                return self.$view.$model.get( k );
+                return self.$view.$model.get(k);
             },
-            
-            view: function( ) {
+
+            view: function() {
                 return this.$view;
             },
-            
-            model: function( ) {
+
+            model: function() {
                 return this.$view.$model;
             },
-            
+
             _destroy: function() {
                 var self = this.
                 self.$view = null;
-                self.element.modelview( 'dispose' );
+                self.element.modelview('dispose');
             }
         });
     }
 };
 
 // add to jQuery if available/accesible now
-if ( 'undefined' !== typeof window.jQuery ) ModelView.jquery( window.jQuery );
-}( ModelView, this );
+if ('undefined' !== typeof window.jQuery) ModelView.jquery(window.jQuery);
+}(ModelView, this);
