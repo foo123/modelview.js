@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-09 17:48:58
+*   @built on 2021-08-09 21:53:09
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-09 17:48:58
+*   @built on 2021-08-09 21:53:09
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -678,6 +678,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                 })
             ;
+            if ('OPTION' === T) e.selected = false;
+            if ('INPUT' === T) e.value = '';
+            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
+            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
             if (atts.type && atts.type !== TT)
             {
                 TT = atts.type;
@@ -750,6 +754,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     e[DEL_ATTR](a);
                 }
             }
+            if ('OPTION' === T) e.selected = false;
+            if ('INPUT' === T) e.value = '';
+            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
+            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
         }
     },
     morph = function morph(e, t) {

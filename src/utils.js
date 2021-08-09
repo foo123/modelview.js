@@ -628,6 +628,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                 })
             ;
+            if ('OPTION' === T) e.selected = false;
+            if ('INPUT' === T) e.value = '';
+            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
+            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
             if (atts.type && atts.type !== TT)
             {
                 TT = atts.type;
@@ -700,6 +704,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     e[DEL_ATTR](a);
                 }
             }
+            if ('OPTION' === T) e.selected = false;
+            if ('INPUT' === T) e.value = '';
+            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
+            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
         }
     },
     morph = function morph(e, t) {

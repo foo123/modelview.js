@@ -112,10 +112,19 @@ View = new ModelView.View('todoview')
         var displayMode = Model.$data.displayMode, completed, visible;
 
         visible = 'all' === displayMode ? Model.$data.todoList.todos : Model.$data.todoList.todos.filter(todo => 'completed' === displayMode ? todo.completed : !todo.completed);
+        completed = visible.filter(todo => todo.completed);
 
-        if (el.checked)
+        if (completed.length === visible.length)
         {
-            // if checked, complete visible todos on current filter
+            // if all completed on current filter, uncomplete them
+            visible.forEach(todo => {todo.completed = false;});
+            Model.$data.todoList.completed -= completed.length;
+            Model.$data.todoList.active += completed.length;
+            Model.notify('todoList');
+        }
+        else
+        {
+            // complete visible todos on current filter
             visible.forEach(todo => {
                 if (!todo.completed)
                 {
@@ -125,18 +134,6 @@ View = new ModelView.View('todoview')
                 }
             })
             Model.notify('todoList');
-        }
-        else
-        {
-            completed = visible.filter(todo => todo.completed);
-            // if all completed on current filter, uncomplete them
-            if (completed.length === visible.length)
-            {
-                visible.forEach(todo => {todo.completed = false;});
-                Model.$data.todoList.completed -= completed.length;
-                Model.$data.todoList.active += completed.length;
-                Model.notify('todoList');
-            }
         }
     }
     ,removeCompleted: function(evt, el){
