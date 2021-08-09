@@ -249,7 +249,6 @@ ModelView.Validation.del( name );
 
 
 
-
 ```
 
 
@@ -326,8 +325,6 @@ $dom.modelview({
         // custom view actions (if any) here ..
     }
 });
-
-
 ```
 
 
@@ -446,7 +443,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 
 
 // model add/append val to key (if key is array-like)
-model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
+model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean publish=false] );
 
 
 
@@ -493,9 +490,7 @@ model.atom( String dottedKey | Boolean false );
 
 
 
-
 ```
-
 
 
 
@@ -604,7 +599,12 @@ view.sync();
 // synchronize model to underlying dom
 view.sync_model();
 
+
+
+
 ```
+
+
 
 
 #### View.Component
@@ -612,6 +612,8 @@ view.sync_model();
 ```javascript
 
 var MyComponent = new ModelView.View.Component(String html);
+MyComponent.render(Object props={} [, View viewInstance=null]); // render
+MyComponent.dispose(); // dispose
 
 ```
 
@@ -619,8 +621,10 @@ var MyComponent = new ModelView.View.Component(String html);
 
 #### Examples 
 
-[See it](/examples/hello-world.html)
+[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
+
+**markup**
 
 ```html
 <template id="content">
@@ -633,6 +637,7 @@ var MyComponent = new ModelView.View.Component(String html);
 <div id="app"></div>
 ```
 
+**javascript** (*standalone*)
 ```javascript
 // standalone
 new ModelView.View('view')
@@ -669,5 +674,3 @@ new ModelView.View('view')
 .sync()
 ;
 ```
-
-

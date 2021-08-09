@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-08 20:35:51
+*   @built on 2021-08-09 17:48:58
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,9 +25,9 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-08 20:35:51
+*   @built on 2021-08-09 17:48:58
 *
-*   A simple, versatile and fast MVVM framework
+*   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
 *   https://github.com/foo123/modelview.js
 *
@@ -36,11 +36,11 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 "use strict";
 
 /**[DOC_MARKDOWN]
-###ModelView API
+### ModelView API
 
 **Version 1.0.0**
 
-###Contents
+### Contents
 
 * [Types](#types)
 * [Validators](#validators)
@@ -51,9 +51,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 [/DOC_MARKDOWN]**/
 ///////////////////////////////////////////////////////////////////////////////////////
 //
-//
 // utilities
-//
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -437,6 +435,30 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return txt;
     },
 
+    // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
+    isElementSupported = function isElementSupported(tag) {
+        // Return undefined if `HTMLUnknownElement` interface
+        // doesn't exist
+        if (!window.HTMLUnknownElement) return undefined;
+        // Create a test element for the tag
+        var element = document.createElement(tag);
+        // Check for support of custom elements registered via
+        // `document.registerElement`
+        if (tag.indexOf('-') > -1)
+        {
+            // Registered elements have their own constructor, while unregistered
+            // ones use the `HTMLElement` or `HTMLUnknownElement` (if invalid name)
+            // constructor (http://stackoverflow.com/a/28210364/1070244)
+            return (
+                element.constructor !== window.HTMLUnknownElement &&
+                element.constructor !== window.HTMLElement
+            ) ? element : null;
+        }
+        // Obtain the element's internal [[Class]] property, if it doesn't
+        // match the `HTMLUnknownElement` interface than it must be supported
+        return OP.toString.call(element) !== '[object HTMLUnknownElement]' ? element : null;
+    },
+
     // http://youmightnotneedjquery.com/
     $id = function(id, el) {
         return [(el || document).getElementById( id )];
@@ -458,9 +480,24 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html) {
-        var el = document.createElement("template");
-        el.innerHTML = trim(String(html));
-        return el.content;
+        var el, frg, i;
+        if (el = isElementSupported('template'))
+        {
+            el.innerHTML = trim(Str(html));
+            return el.content;
+        }
+        else
+        {
+            el = document.createElement('div');
+            frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
+            el.innerHTML = trim(Str(html));
+            if (frg)
+            {
+                while (i=el.firstChild) frg.appendChild(i);
+                return frg;
+            }
+            return el;
+        }
     },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
@@ -602,7 +639,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
     morphAtts = function morphAtts(e, t) {
-        var T = e[TAG], TT = e.type;
+        var T = e[TAG].toUpperCase(), TT = e.type;
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
@@ -611,11 +648,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             Keys(atts2)
                 .reduce(function(rem, a) {if (!HAS.call(atts, a)) rem.push(a); return rem;}, [])
                 .forEach(function(a) {
-                    if ('selected' === a && 'OPTION' === T)
+                    if ('class' === a)
+                    {
+                        e.className = '';
+                    }
+                    else if ('style' === a)
+                    {
+                        e[a] = '';
+                    }
+                    else if ('selected' === a && 'OPTION' === T)
                     {
                         if (e[a]) e[a] = false;
                     }
-                    else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (e[a]) e[a] = false;
                     }
@@ -640,12 +685,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             }
             Keys(atts).forEach(function(a) {
                     if ('type' === a) return;
-                    var v = atts[a] || a;
-                    if ('selected' === a && 'OPTION' === T)
+                    var v = atts[a];
+                    if ('class' === a)
+                    {
+                        e.className = atts[a];
+                    }
+                    else if ('style' === a)
+                    {
+                        e[a] = v;
+                    }
+                    else if ('selected' === a && 'OPTION' === T)
                     {
                         if (!e[a]) e[a] = true;
                     }
-                    else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (!e[a]) e[a] = true;
                     }
@@ -657,7 +710,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a] !== v) e[a] = v;
                     }
-                    else if (!e.hasAttribute(a) || v !== e[ATTR](a))
+                    else if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
                     {
                         e[SET_ATTR](a, v);
                     }
@@ -665,14 +718,22 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
         else if (e.hasAttributes())
         {
-            for (var a, atts2 = e.attributes,i=0; i<atts2.length; i++)
+            for (var a,atts2=e.attributes,i=0; i<atts2.length; i++)
             {
                 a = atts2[i].name;
-                if ('selected' === a && 'OPTION' === T)
+                if ('class' === a)
+                {
+                    e.className = '';
+                }
+                else if ('style' === a)
+                {
+                    e[a] = '';
+                }
+                else if ('selected' === a && 'OPTION' === T)
                 {
                     e[a] = false;
                 }
-                else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
                     e[a] = false;
                 }
@@ -695,12 +756,12 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
-            frozen = filter(e.childNodes, function(n) {return n.hasAttribute && n.hasAttribute('frozen');});
+            frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR]('mv-frozen');});
         frozen.forEach(function(n) {e.removeChild(n);});
         slice.call(t.childNodes).forEach(function(tnode, index) {
             if (index >= e.childNodes.length)
             {
-                if (tnode.hasAttribute && tnode.hasAttribute('frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
                     // use original frozen
                     e.appendChild(frozen.shift());
@@ -714,7 +775,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 var enode = e.childNodes[index], tt = nodeType(tnode), t = nodeType(enode), k, j, jj;
 
-                if (tnode.hasAttribute && tnode.hasAttribute('frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
                     // use original frozen
                     e.replaceChild(frozen.shift(), enode);
@@ -728,6 +789,12 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 {
                     if (enode.textContent !== tnode.textContent)
                         enode.textContent = tnode.textContent;
+                }
+                else if ('textarea' === t)
+                {
+                    morphAtts(enode, tnode);
+                    if (enode.value !== tnode.value)
+                        enode.value = tnode.value;
                 }
                 else
                 {
@@ -1501,7 +1568,7 @@ var
     },
 
 /**[DOC_MARKDOWN]
-####Types
+#### Types
 **(used with Models)**
 
 ```javascript
@@ -1698,7 +1765,7 @@ ModelView.Type.del( name );
 [/DOC_MARKDOWN]**/
 
 /**[DOC_MARKDOWN]
-####Validators
+#### Validators
 **(used with Models)**
 
 (extra validators are available in `modelview.validation.js`)
@@ -1947,12 +2014,11 @@ ModelView.Validation.del( name );
             return '[ModelView.Validation]';
         }
     }
+;
 /**[DOC_MARKDOWN]
-
 ```
 
 [/DOC_MARKDOWN]**/
-;
 
 /**[DOC_MARKDOWN]
 **example**
@@ -2026,8 +2092,6 @@ $dom.modelview({
         // custom view actions (if any) here ..
     }
 });
-
-
 ```
 [/DOC_MARKDOWN]**/
 
@@ -2545,7 +2609,7 @@ var
 ;
 
 /**[DOC_MARKDOWN]
-####Model
+#### Model
 
 ```javascript
 // modelview.js model methods
@@ -3226,11 +3290,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 
 /**[DOC_MARKDOWN]
 // model add/append val to key (if key is array-like)
-model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
+model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
-    // add/append value (for arrays like structures)
-    ,add: function (dottedKey, val, pub, callData) {
+    // add/append/prepend value (for arrays like structures)
+    ,add: function (dottedKey, val, prepend, pub, callData) {
         var model = this, r, cr, o, k, p, i, l, index = -1,
             type, validator, setter,
             collection_type = null, collection_validator = null,
@@ -3278,7 +3342,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 if (k.length)
                 {
                     k = k.join('.');
-                    o.add(k, val, pub, callData);
+                    o.add(k, val, prepend, pub, callData);
                 }
                 else
                 {
@@ -3291,7 +3355,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('change', {
                         key: dottedKey,
                         value: val,
-                        action: 'append',
+                        action: prepend ? 'prepend' : 'append',
                         index: index,
                         $callData: callData
                     });
@@ -3355,7 +3419,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey,
                         value: /*val*/undef,
-                        action: 'append',
+                        action: prepend ? 'prepend' : 'append',
                         index: -1,
                         $callData: callData
                     });
@@ -3372,12 +3436,12 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     {
                         if (T_ARRAY === get_type(o[ k ]))
                         {
-                            index = o[ k ].length;
+                            index = prepend ? 0 : o[k].length;
                         }
                         model.publish('change', {
                             key: dottedKey,
                             value: val,
-                            action: 'append',
+                            action: prepend ? 'prepend' : 'append',
                             index: index,
                             $callData: callData
                         });
@@ -3392,9 +3456,18 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
             if (T_ARRAY === get_type(o[ k ]))
             {
-                // append node here
-                index = o[ k ].length;
-                o[ k ].push(val);
+                if (prepend)
+                {
+                    // prepend node here
+                    index = 0;
+                    o[ k ].unshift(val);
+                }
+                else
+                {
+                    // append node here
+                    index = o[ k ].length;
+                    o[ k ].push(val);
+                }
             }
             else
             {
@@ -3980,9 +4053,7 @@ Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
 /**[DOC_MARKDOWN]
-
 ```
-
 [/DOC_MARKDOWN]**/
 
 // View utils
@@ -4312,7 +4383,7 @@ var namedKeyProp = "mv_namedkey",
 ;
 
 /**[DOC_MARKDOWN]
-####View
+#### View
 
 ```javascript
 // modelview.js view methods
@@ -4991,7 +5062,7 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -5012,7 +5083,7 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -5086,12 +5157,20 @@ view.sync_model();
     }
 });
 /**[DOC_MARKDOWN]
-####View.Component
+```
+
+[/DOC_MARKDOWN]**/
+
+/**[DOC_MARKDOWN]
+#### View.Component
 
 ```javascript
 
 var MyComponent = new ModelView.View.Component(String html);
+MyComponent.render(Object props={} [, View viewInstance=null]); // render
+MyComponent.dispose(); // dispose
 
+```
 [/DOC_MARKDOWN]**/
 View.Component = function Component(tpl) {
   if (!(this instanceof Component)) return new Component(tpl);
@@ -5103,18 +5182,19 @@ View.Component[proto] = {
     ,model: null
     ,renderer: null
     ,dispose: function() {
-        this.tpl = null;
-        this.renderer = null;
-        return this;
+        var self = this;
+        self.tpl = null;
+        self.renderer = null;
+        return self;
     }
     ,render: function(props, view) {
         var self = this;
-        if (self.tpl && !self.renderer) self.renderer = View.parse(self.tpl, 'props');
-        return self.renderer.call(view || self, props);
+        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props');
+        return self.renderer.call(view || self, props || {});
     }
 };
 /**[DOC_MARKDOWN]
-####Examples 
+#### Examples 
 
 [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
@@ -5122,115 +5202,53 @@ View.Component[proto] = {
 **markup**
 
 ```html
-<div id="screen">
-    Hello $(model.msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+<template id="content">
+    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
-    <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" title="$(model.msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
-    <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
-    <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
-</div>
+    <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
+    <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
+    <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
+</template>
+<div id="app"></div>
 ```
 
 **javascript** (*standalone*)
 ```javascript
 // standalone
-
-new ModelView.View(
-    'view', 
+new ModelView.View('view')
+.model(
     new ModelView.Model(
         'model', 
         // model data here ..
-        { msg: 'Earth!' }
+        {msg: 'Earth!'}
     )
     // model data type-casters (if any) here ..
-    .types({ msg: ModelView.Type.Cast.STR })
+    .types({msg: ModelView.Type.Cast.STR})
     // model data validators (if any) here ..
-    .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
+    .validators({msg: ModelView.Validation.Validate.NOT_EMPTY})
 )
-.shortcuts({
-    'alt+h': 'alert_msg'
-})
+.template(
+    document.getElementById('content').innerHTML
+)
 .actions({
     // custom view actions (if any) here ..
-    alert_msg: function( evt, el, bindData ) {
-        alert( this.$model.get('msg') );
-        // this also works
-        //alert( this.model().get('msg') );
-        // or even this, if you want the raw data without any processing
-        //alert( this.$model.$data.msg );
+    alert: function(evt, el) {
+        alert(this.model().get('msg'));
     },
-    hello_world: function( evt, el, bindData ) {
-        // set msg to "World" and publish the change
-        this.$model.set('msg', "World", true);
+    hello_world: function(evt, el) {
+        this.model().set('msg', "World", true);
     }
 })
-.attribute( 'bind', 'data-bind' ) // default
-.livebind( '$(__MODEL__.__KEY__)' )
-.autobind( true )
-.isomorphic( false ) // default
-.bind( [ 'change', 'click' ], document.getElementById('screen') )
-.sync( )
+.shortcuts({
+    'alt+h': 'alert'
+})
+.autovalidate(true)
+.autobind(true) // default
+.livebind(true) // default
+.bind(['click', 'change'], document.getElementById('app'))
+.sync()
 ;
 ```
-
-**javascript** (*as a jquery plugin/widget, include the jquery.modelview.js file*)
-```javascript
-// as a jQuery plugin/widget
-
-// make sure the modelview jQuery plugin is added if not already
-if ( ModelView.jquery ) ModelView.jquery( $ );
-$('#screen').modelview({
-    id: 'view',
-    
-    bindAttribute: 'data-bind', // default
-    events: [ 'change', 'click' ], // default
-    livebind: '$(__MODEL__.__KEY__)',
-    autobind: true,
-    isomorphic: false, // default
-    autoSync: true, // default
-    
-    model: {
-        id: 'model',
-        
-        data: {
-            // model data here ..
-            msg: 'Earth!'
-        },
-        
-        types: {
-            // model data type-casters (if any) here ..
-            msg: ModelView.Type.Cast.STR
-        },
-        
-        validators: {
-            // model data validators (if any) here ..
-            msg: ModelView.Validation.Validate.NOT_EMPTY
-        }
-    },
-    
-    shortcuts: {
-        'alt+h': 'alert_msg'
-    },
-    
-    actions: {
-        // custom view actions (if any) here ..
-        alert_msg: function( evt, el, bindData ) {
-            alert( this.$model.get('msg') );
-            // this also works
-            //alert( this.model().get('msg') );
-            // or even this, if you want the raw data without any processing
-            //alert( this.$model.$data.msg );
-        },
-        hello_world: function( evt, el, bindData ) {
-            // set msg to "World" and publish the change
-            this.$model.set('msg', "World", true);
-        }
-    }
-});
-```
-
-
 [/DOC_MARKDOWN]**/
 
 // main

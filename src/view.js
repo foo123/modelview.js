@@ -326,7 +326,7 @@ var namedKeyProp = "mv_namedkey",
 ;
 
 /**[DOC_MARKDOWN]
-####View
+#### View
 
 ```javascript
 // modelview.js view methods
@@ -1005,7 +1005,7 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -1026,7 +1026,7 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -1100,12 +1100,20 @@ view.sync_model();
     }
 });
 /**[DOC_MARKDOWN]
-####View.Component
+```
+
+[/DOC_MARKDOWN]**/
+
+/**[DOC_MARKDOWN]
+#### View.Component
 
 ```javascript
 
 var MyComponent = new ModelView.View.Component(String html);
+MyComponent.render(Object props={} [, View viewInstance=null]); // render
+MyComponent.dispose(); // dispose
 
+```
 [/DOC_MARKDOWN]**/
 View.Component = function Component(tpl) {
   if (!(this instanceof Component)) return new Component(tpl);
@@ -1117,13 +1125,14 @@ View.Component[proto] = {
     ,model: null
     ,renderer: null
     ,dispose: function() {
-        this.tpl = null;
-        this.renderer = null;
-        return this;
+        var self = this;
+        self.tpl = null;
+        self.renderer = null;
+        return self;
     }
     ,render: function(props, view) {
         var self = this;
-        if (self.tpl && !self.renderer) self.renderer = View.parse(self.tpl, 'props');
-        return self.renderer.call(view || self, props);
+        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props');
+        return self.renderer.call(view || self, props || {});
     }
 };

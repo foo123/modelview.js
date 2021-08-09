@@ -1,11 +1,11 @@
 modelview.js
 ============
 
-A simple, light-weight, versatile and fast MVVM framework for JavaScript
+A simple, light-weight, versatile and fast MVVM front-end framework for JavaScript
 
 ![ModelView](/modelview.jpg)
 
-**Version 1.0.0** in progress
+**Version 1.0.0**
 
 
 **see also:**  
@@ -15,11 +15,11 @@ A simple, light-weight, versatile and fast MVVM framework for JavaScript
 * [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for PHP, Python, JavaScript
 * [Contemplate](https://github.com/foo123/Contemplate) a fast, flexible &amp; light-weight template engine for JavaScript, PHP, Python
 * [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL builder for PHP, Python, JavaScript
-* [DialectORM](https://github.com/foo123/DialectORN) a simple and versatile cross-platform ORM and ODM for PHP, Python, JavaScript based on Dialect
+* [DialectORM](https://github.com/foo123/DialectORM) a simple and versatile cross-platform ORM and ODM for PHP, Python and JavaScript based on `Dialect`
 * [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for JavaScript, PHP, Python
 * [Xpresion](https://github.com/foo123/Xpresion) a simple and flexible eXpression parser engine (with custom functions and variables support) for PHP, Python, JavaScript
-* [Abacus](https://github.com/foo123/Abacus) a fast combinatorics symbolic computation library for JavaScript and Python
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
+* [Abacus](https://github.com/foo123/Abacus) a fast and versatile combinatorics symbolic computation library for JavaScript
 
 
 ### Contents
@@ -86,11 +86,9 @@ new ModelView.View('view')
 
 #### Examples
 
-<!--
-* [Hello World](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
-* [Temperature Converter](https://foo123.github.io/examples/modelview-todomvc/temperature-converter.html) based on the post [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
-* [TodoMVC with ModelView](https://foo123.github.io/examples/modelview-todomvc/) (with routing and localStorage support)
--->
+* [Hello World](/examples/hello-world.html)
+* [Temperature Converter](/examples/temperature-converter.html) based on [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
+* [TodoMVC with ModelView](/examples/todomvc.html) based on [TodoMVC by Addy Osmani](http://todomvc.com)
 
 #### JavaScript and Browser Support
 

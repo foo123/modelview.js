@@ -80,7 +80,7 @@ var
     },
 
 /**[DOC_MARKDOWN]
-####Types
+#### Types
 **(used with Models)**
 
 ```javascript
@@ -277,7 +277,7 @@ ModelView.Type.del( name );
 [/DOC_MARKDOWN]**/
 
 /**[DOC_MARKDOWN]
-####Validators
+#### Validators
 **(used with Models)**
 
 (extra validators are available in `modelview.validation.js`)
@@ -526,12 +526,11 @@ ModelView.Validation.del( name );
             return '[ModelView.Validation]';
         }
     }
+;
 /**[DOC_MARKDOWN]
-
 ```
 
 [/DOC_MARKDOWN]**/
-;
 
 /**[DOC_MARKDOWN]
 **example**
@@ -605,7 +604,5 @@ $dom.modelview({
         // custom view actions (if any) here ..
     }
 });
-
-
 ```
 [/DOC_MARKDOWN]**/

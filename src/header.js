@@ -13,11 +13,11 @@
 "use strict";
 
 /**[DOC_MARKDOWN]
-###ModelView API
+### ModelView API
 
 **Version @@VERSION@@**
 
-###Contents
+### Contents
 
 * [Types](#types)
 * [Validators](#validators)

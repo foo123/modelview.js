@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" class="no-ie">
+<head>
+<title>modelview.js • TodoMVC</title>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="description" content="modelview.js • TodoMVC">
+
+<link rel="stylesheet" href="todomvc.css">
+<style type="text/css">
+#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}
+.show-all > .todo {
+    display: block;
+}
+/*.show-all.show-active > .todo.completed {
+    display: none;
+}
+.show-all.show-completed > .todo:not(.completed) {
+    display: none;
+}*/
+.tab {
+    font-weight: normal;
+}
+.tab.active_tab {
+    font-weight: bold;
+}
+</style>
+
+</head>
+<body>
+    <span id="forkongithub"><a href="https://github.com/foo123/modelview.js">Fork me on GitHub</a></span>
+
+
+<template id="todo-component">
+<li todo-id="{%= props.uuid %}" class="todo">
+    <div class="view">
+        <script>= '<input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="1" '+(props.completed ? 'checked' : '')+'/>' </script>
+        <label mv-evt mv-on-dblclick="edit">{%= props.title %}</label>
+        <button class="destroy" mv-evt mv-on-click="remove"></button>
+    </div>
+    <input class="edit" type="text" mv-evt mv-on-change="stopEditing" mv-on-blur="stopEditing" mv-on-keyup="stopEditing" value="{%= props.title %}" />
+</li>
+</template>
+
+<template id="content">
+<header id="header">
+    <h1>todos</h1>
+    <input id="new-todo" mv-evt mv-on-change="addTodo" placeholder="What needs to be done?" autofocus value="" />
+</header>
+
+<section id="main">
+    <input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="1" />
+    <label for="toggle-all">Mark all as complete</label>
+    <ul id="todo-list" class="show-all">
+    <script>= this.model().get('todoList.display').map(todo => this.component('Todo', todo)).join('') </script>
+    </ul>
+</section>
+
+<footer id="footer">
+    <span id="todo-count"><strong>{%= this.model().get('todoList.active') %}</strong> {%= 1 == this.model().get('todoList.active') ? 'item' : 'items' %} left</span>
+    <ul id="filters">
+        <li>
+            <a id="all" href="#/all" class="tab">All ({%= this.model().get('todoList.all') %})</a>
+        </li>
+        <li>
+            <a id="active" href="#/active" class="tab">Active ({%= this.model().get('todoList.active') %})</a>
+        </li>
+        <li>
+            <a id="completed" href="#/completed" class="tab">Completed ({%= this.model().get('todoList.completed') %})</a>
+        </li>
+    </ul>
+    <script>if (this.model().get('todoList.completed')) {</script>
+    <button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed ({%= this.model().get('todoList.completed') %})</button>
+    <script>}</script>
+</footer>
+</template>
+
+<section id="todoapp"></section>
+
+<footer id="info">
+    <p>Double-click to edit a todo</p>
+    <p>ModelView TodoMVC for <a href="https://github.com/foo123/modelview.js">modelview.js</a></p>
+    <p>Based on <a href="http://todomvc.com">TodoMVC by Addy Osmani</a></p>
+</footer>
+<script src="./Storage.js"></script>
+<script src="../build/modelview.js"></script>
+<script src="./todomvc.js"></script>
+</body>
+</html>

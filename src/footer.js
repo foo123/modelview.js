@@ -1,5 +1,5 @@
 /**[DOC_MARKDOWN]
-####Examples 
+#### Examples 
 
 [See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
 
@@ -7,115 +7,53 @@
 **markup**
 
 ```html
-<div id="screen">
-    Hello $(model.msg) &nbsp;&nbsp;(updated live on <i>change</i>)
+<template id="content">
+    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
-    <input type="text" name="model[msg]" size="50" value="" />
-    <button class="button" title="$(model.msg)" data-bind='{"click":"alert_msg"}'>Hello</button>
-    <button class="button" data-bind='{"set":{"key":"msg","value":"You"}}'>Hello You</button>
-    <button class="button" data-bind='{"click":"hello_world"}'>Hello World</button>
-</div>
+    <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
+    <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
+    <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
+</template>
+<div id="app"></div>
 ```
 
 **javascript** (*standalone*)
 ```javascript
 // standalone
-
-new ModelView.View(
-    'view', 
+new ModelView.View('view')
+.model(
     new ModelView.Model(
         'model', 
         // model data here ..
-        { msg: 'Earth!' }
+        {msg: 'Earth!'}
     )
     // model data type-casters (if any) here ..
-    .types({ msg: ModelView.Type.Cast.STR })
+    .types({msg: ModelView.Type.Cast.STR})
     // model data validators (if any) here ..
-    .validators({ msg: ModelView.Validation.Validate.NOT_EMPTY })
+    .validators({msg: ModelView.Validation.Validate.NOT_EMPTY})
 )
-.shortcuts({
-    'alt+h': 'alert_msg'
-})
+.template(
+    document.getElementById('content').innerHTML
+)
 .actions({
     // custom view actions (if any) here ..
-    alert_msg: function( evt, el, bindData ) {
-        alert( this.$model.get('msg') );
-        // this also works
-        //alert( this.model().get('msg') );
-        // or even this, if you want the raw data without any processing
-        //alert( this.$model.$data.msg );
+    alert: function(evt, el) {
+        alert(this.model().get('msg'));
     },
-    hello_world: function( evt, el, bindData ) {
-        // set msg to "World" and publish the change
-        this.$model.set('msg', "World", true);
+    hello_world: function(evt, el) {
+        this.model().set('msg', "World", true);
     }
 })
-.attribute( 'bind', 'data-bind' ) // default
-.livebind( '$(__MODEL__.__KEY__)' )
-.autobind( true )
-.isomorphic( false ) // default
-.bind( [ 'change', 'click' ], document.getElementById('screen') )
-.sync( )
+.shortcuts({
+    'alt+h': 'alert'
+})
+.autovalidate(true)
+.autobind(true) // default
+.livebind(true) // default
+.bind(['click', 'change'], document.getElementById('app'))
+.sync()
 ;
 ```
-
-**javascript** (*as a jquery plugin/widget, include the jquery.modelview.js file*)
-```javascript
-// as a jQuery plugin/widget
-
-// make sure the modelview jQuery plugin is added if not already
-if ( ModelView.jquery ) ModelView.jquery( $ );
-$('#screen').modelview({
-    id: 'view',
-    
-    bindAttribute: 'data-bind', // default
-    events: [ 'change', 'click' ], // default
-    livebind: '$(__MODEL__.__KEY__)',
-    autobind: true,
-    isomorphic: false, // default
-    autoSync: true, // default
-    
-    model: {
-        id: 'model',
-        
-        data: {
-            // model data here ..
-            msg: 'Earth!'
-        },
-        
-        types: {
-            // model data type-casters (if any) here ..
-            msg: ModelView.Type.Cast.STR
-        },
-        
-        validators: {
-            // model data validators (if any) here ..
-            msg: ModelView.Validation.Validate.NOT_EMPTY
-        }
-    },
-    
-    shortcuts: {
-        'alt+h': 'alert_msg'
-    },
-    
-    actions: {
-        // custom view actions (if any) here ..
-        alert_msg: function( evt, el, bindData ) {
-            alert( this.$model.get('msg') );
-            // this also works
-            //alert( this.model().get('msg') );
-            // or even this, if you want the raw data without any processing
-            //alert( this.$model.$data.msg );
-        },
-        hello_world: function( evt, el, bindData ) {
-            // set msg to "World" and publish the change
-            this.$model.set('msg', "World", true);
-        }
-    }
-});
-```
-
-
 [/DOC_MARKDOWN]**/
 
 // main

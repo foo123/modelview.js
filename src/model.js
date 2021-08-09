@@ -513,7 +513,7 @@ var
 ;
 
 /**[DOC_MARKDOWN]
-####Model
+#### Model
 
 ```javascript
 // modelview.js model methods
@@ -1194,11 +1194,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 
 /**[DOC_MARKDOWN]
 // model add/append val to key (if key is array-like)
-model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
+model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean publish=false] );
 
 [/DOC_MARKDOWN]**/
-    // add/append value (for arrays like structures)
-    ,add: function (dottedKey, val, pub, callData) {
+    // add/append/prepend value (for arrays like structures)
+    ,add: function (dottedKey, val, prepend, pub, callData) {
         var model = this, r, cr, o, k, p, i, l, index = -1,
             type, validator, setter,
             collection_type = null, collection_validator = null,
@@ -1246,7 +1246,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                 if (k.length)
                 {
                     k = k.join('.');
-                    o.add(k, val, pub, callData);
+                    o.add(k, val, prepend, pub, callData);
                 }
                 else
                 {
@@ -1259,7 +1259,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('change', {
                         key: dottedKey,
                         value: val,
-                        action: 'append',
+                        action: prepend ? 'prepend' : 'append',
                         index: index,
                         $callData: callData
                     });
@@ -1323,7 +1323,7 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     model.publish('error', {
                         key: dottedKey,
                         value: /*val*/undef,
-                        action: 'append',
+                        action: prepend ? 'prepend' : 'append',
                         index: -1,
                         $callData: callData
                     });
@@ -1340,12 +1340,12 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
                     {
                         if (T_ARRAY === get_type(o[ k ]))
                         {
-                            index = o[ k ].length;
+                            index = prepend ? 0 : o[k].length;
                         }
                         model.publish('change', {
                             key: dottedKey,
                             value: val,
-                            action: 'append',
+                            action: prepend ? 'prepend' : 'append',
                             index: index,
                             $callData: callData
                         });
@@ -1360,9 +1360,18 @@ model.[add|append]( String dottedKey, * val [, Boolean publish=false] );
 
             if (T_ARRAY === get_type(o[ k ]))
             {
-                // append node here
-                index = o[ k ].length;
-                o[ k ].push(val);
+                if (prepend)
+                {
+                    // prepend node here
+                    index = 0;
+                    o[ k ].unshift(val);
+                }
+                else
+                {
+                    // append node here
+                    index = o[ k ].length;
+                    o[ k ].push(val);
+                }
             }
             else
             {
@@ -1948,7 +1957,5 @@ Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
 /**[DOC_MARKDOWN]
-
 ```
-
 [/DOC_MARKDOWN]**/

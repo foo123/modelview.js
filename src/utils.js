@@ -1,9 +1,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //
-//
 // utilities
-//
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -387,6 +385,30 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return txt;
     },
 
+    // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
+    isElementSupported = function isElementSupported(tag) {
+        // Return undefined if `HTMLUnknownElement` interface
+        // doesn't exist
+        if (!window.HTMLUnknownElement) return undefined;
+        // Create a test element for the tag
+        var element = document.createElement(tag);
+        // Check for support of custom elements registered via
+        // `document.registerElement`
+        if (tag.indexOf('-') > -1)
+        {
+            // Registered elements have their own constructor, while unregistered
+            // ones use the `HTMLElement` or `HTMLUnknownElement` (if invalid name)
+            // constructor (http://stackoverflow.com/a/28210364/1070244)
+            return (
+                element.constructor !== window.HTMLUnknownElement &&
+                element.constructor !== window.HTMLElement
+            ) ? element : null;
+        }
+        // Obtain the element's internal [[Class]] property, if it doesn't
+        // match the `HTMLUnknownElement` interface than it must be supported
+        return OP.toString.call(element) !== '[object HTMLUnknownElement]' ? element : null;
+    },
+
     // http://youmightnotneedjquery.com/
     $id = function(id, el) {
         return [(el || document).getElementById( id )];
@@ -408,9 +430,24 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html) {
-        var el = document.createElement("template");
-        el.innerHTML = trim(String(html));
-        return el.content;
+        var el, frg, i;
+        if (el = isElementSupported('template'))
+        {
+            el.innerHTML = trim(Str(html));
+            return el.content;
+        }
+        else
+        {
+            el = document.createElement('div');
+            frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
+            el.innerHTML = trim(Str(html));
+            if (frg)
+            {
+                while (i=el.firstChild) frg.appendChild(i);
+                return frg;
+            }
+            return el;
+        }
     },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
@@ -552,7 +589,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
     morphAtts = function morphAtts(e, t) {
-        var T = e[TAG], TT = e.type;
+        var T = e[TAG].toUpperCase(), TT = e.type;
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
@@ -561,11 +598,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             Keys(atts2)
                 .reduce(function(rem, a) {if (!HAS.call(atts, a)) rem.push(a); return rem;}, [])
                 .forEach(function(a) {
-                    if ('selected' === a && 'OPTION' === T)
+                    if ('class' === a)
+                    {
+                        e.className = '';
+                    }
+                    else if ('style' === a)
+                    {
+                        e[a] = '';
+                    }
+                    else if ('selected' === a && 'OPTION' === T)
                     {
                         if (e[a]) e[a] = false;
                     }
-                    else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (e[a]) e[a] = false;
                     }
@@ -590,12 +635,20 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             }
             Keys(atts).forEach(function(a) {
                     if ('type' === a) return;
-                    var v = atts[a] || a;
-                    if ('selected' === a && 'OPTION' === T)
+                    var v = atts[a];
+                    if ('class' === a)
+                    {
+                        e.className = atts[a];
+                    }
+                    else if ('style' === a)
+                    {
+                        e[a] = v;
+                    }
+                    else if ('selected' === a && 'OPTION' === T)
                     {
                         if (!e[a]) e[a] = true;
                     }
-                    else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (!e[a]) e[a] = true;
                     }
@@ -607,7 +660,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a] !== v) e[a] = v;
                     }
-                    else if (!e.hasAttribute(a) || v !== e[ATTR](a))
+                    else if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
                     {
                         e[SET_ATTR](a, v);
                     }
@@ -615,14 +668,22 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
         else if (e.hasAttributes())
         {
-            for (var a, atts2 = e.attributes,i=0; i<atts2.length; i++)
+            for (var a,atts2=e.attributes,i=0; i<atts2.length; i++)
             {
                 a = atts2[i].name;
-                if ('selected' === a && 'OPTION' === T)
+                if ('class' === a)
+                {
+                    e.className = '';
+                }
+                else if ('style' === a)
+                {
+                    e[a] = '';
+                }
+                else if ('selected' === a && 'OPTION' === T)
                 {
                     e[a] = false;
                 }
-                else if ('disabled' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
                     e[a] = false;
                 }
@@ -645,12 +706,12 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
-            frozen = filter(e.childNodes, function(n) {return n.hasAttribute && n.hasAttribute('frozen');});
+            frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR]('mv-frozen');});
         frozen.forEach(function(n) {e.removeChild(n);});
         slice.call(t.childNodes).forEach(function(tnode, index) {
             if (index >= e.childNodes.length)
             {
-                if (tnode.hasAttribute && tnode.hasAttribute('frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
                     // use original frozen
                     e.appendChild(frozen.shift());
@@ -664,7 +725,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 var enode = e.childNodes[index], tt = nodeType(tnode), t = nodeType(enode), k, j, jj;
 
-                if (tnode.hasAttribute && tnode.hasAttribute('frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
                     // use original frozen
                     e.replaceChild(frozen.shift(), enode);
@@ -678,6 +739,12 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 {
                     if (enode.textContent !== tnode.textContent)
                         enode.textContent = tnode.textContent;
+                }
+                else if ('textarea' === t)
+                {
+                    morphAtts(enode, tnode);
+                    if (enode.value !== tnode.value)
+                        enode.value = tnode.value;
                 }
                 else
                 {
