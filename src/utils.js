@@ -441,12 +441,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             el = document.createElement('div');
             frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
             el.innerHTML = trim(Str(html));
-            if (frg)
-            {
-                while (i=el.firstChild) frg.appendChild(i);
-                return frg;
-            }
-            return el;
+            if (!frg) return el;
+            while (i=el.firstChild) frg.appendChild(i);
+            return frg;
         }
     },
 
@@ -589,7 +586,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
     morphAtts = function morphAtts(e, t) {
-        var T = e[TAG].toUpperCase(), TT = e.type;
+        var T = e[TAG].toUpperCase(), TT = (e.type || '').toLowerCase();
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
@@ -618,7 +615,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a]) e[a] = false;
                     }
-                    else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('value' === a && 'INPUT' === T)
                     {
                         if (e[a] !== '') e[a] = '';
                     }
@@ -634,7 +631,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
             if (atts.type && atts.type !== TT)
             {
-                TT = atts.type;
+                TT = (atts.type || '').toLowerCase();
                 e.setAttribute('type', TT);
             }
             Keys(atts).forEach(function(a) {
@@ -660,7 +657,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (!e[a]) e[a] = true;
                     }
-                    else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('value' === a && 'INPUT' === T)
                     {
                         if (e[a] !== v) e[a] = v;
                     }
@@ -695,7 +692,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 {
                     e[a] = false;
                 }
-                else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                else if ('value' === a && 'INPUT' === T)
                 {
                     e[a] = '';
                 }

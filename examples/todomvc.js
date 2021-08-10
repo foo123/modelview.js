@@ -30,8 +30,10 @@ function updateModelFromStorage(key)
         var storedOptions = Storage.get(key);
         if (storedOptions)
         {
+            // reset any editing flags
+            storedOptions.todoList.todos.forEach(todo => {todo.editing = false;});
             Model.set('displayMode', storedOptions.displayMode);
-            Model.set('todoList', storedOptions.todoList, true);
+            Model.set('todoList', storedOptions.todoList);
             return true;
         }
     }
@@ -77,8 +79,18 @@ Model = new ModelView.Model('model', {
             case 'completed':
                 return this.$data.todoList.todos.filter(todo => todo.completed);
             default:
-                return this.$data.todoList.todos.slice();
+                return this.$data.todoList.todos;
         }
+    }
+    ,'todoList.todos.active': function() {
+        return this.$data.todoList.todos.filter(todo => !todo.completed);
+    }
+    ,'todoList.todos.completed': function() {
+        return this.$data.todoList.todos.filter(todo => todo.completed);
+    }
+    ,'todoList.allCompleted': function() {
+        var visible = this.get('todoList.display'), completed = visible.filter(todo => todo.completed);
+        return 0 < visible.length && visible.length === completed.length;
     }
 })
 ;
@@ -109,9 +121,9 @@ View = new ModelView.View('todoview')
         }
     }
     ,allCompleted: function(evt, el) {
-        var displayMode = Model.$data.displayMode, completed, visible;
+        var completed, visible;
 
-        visible = 'all' === displayMode ? Model.$data.todoList.todos : Model.$data.todoList.todos.filter(todo => 'completed' === displayMode ? todo.completed : !todo.completed);
+        visible = Model.get('todoList.display');
         completed = visible.filter(todo => todo.completed);
 
         if (completed.length === visible.length)
@@ -220,11 +232,13 @@ View = new ModelView.View('todoview')
 // synchronize UI/View/Model
 updateModelFromStorage(STORAGE_KEY);
 
-window.addEventListener('hashchange', function(evt) {route(location.hash);}, false);
+window.addEventListener('hashchange', function() {route(location.hash);}, false);
 
 if (location.hash) route(location.hash);
 // auto-trigger
 else location.hash = '#/' + Model.get('displayMode');
+
+View.render();
 
 initModelAutoStorage(STORAGE_KEY, STORAGE_INTERVAL);
 }(window, Storage, ModelView);

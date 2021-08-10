@@ -36,9 +36,10 @@
 <template id="todo-component">
 <li todo-id="{%= props.uuid %}" class="todo">
     <div class="view">
-        <script>= '<input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="1" '+(props.completed ? 'checked' : '')+'/>' </script>
+        <script>= '<input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" '+(props.completed ? 'checked' : '')+'/>' </script>
         <label mv-evt mv-on-dblclick="edit">{%= props.title %}</label>
-        <button class="destroy" mv-evt mv-on-click="remove"></button>
+        <button class="process" mv-evt mv-on-click="edit" title="Edit"></button>
+        <button class="destroy" mv-evt mv-on-click="remove" title="Remove"></button>
     </div>
     <input class="edit" type="text" mv-evt mv-on-change="stopEditing" mv-on-blur="stopEditing" mv-on-keyup="stopEditing" value="{%= props.title %}" />
 </li>
@@ -51,7 +52,7 @@
 </header>
 
 <section id="main">
-    <input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="1" />
+    <script>= '<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" '+(this.model().get('todoList.allCompleted') ? 'checked' : '')+'/>' </script>
     <label for="toggle-all">Mark all as complete</label>
     <ul id="todo-list" class="show-all">
     <script>= this.model().get('todoList.display').map(todo => this.component('Todo', todo)).join('') </script>

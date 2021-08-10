@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-09 21:53:09
+*   @built on 2021-08-10 16:52:42
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.0.0
-*   @built on 2021-08-09 21:53:09
+*   @built on 2021-08-10 16:52:42
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -491,12 +491,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             el = document.createElement('div');
             frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
             el.innerHTML = trim(Str(html));
-            if (frg)
-            {
-                while (i=el.firstChild) frg.appendChild(i);
-                return frg;
-            }
-            return el;
+            if (!frg) return el;
+            while (i=el.firstChild) frg.appendChild(i);
+            return frg;
         }
     },
 
@@ -639,7 +636,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
     morphAtts = function morphAtts(e, t) {
-        var T = e[TAG].toUpperCase(), TT = e.type;
+        var T = e[TAG].toUpperCase(), TT = (e.type || '').toLowerCase();
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
@@ -668,7 +665,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a]) e[a] = false;
                     }
-                    else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('value' === a && 'INPUT' === T)
                     {
                         if (e[a] !== '') e[a] = '';
                     }
@@ -684,7 +681,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
             if (atts.type && atts.type !== TT)
             {
-                TT = atts.type;
+                TT = (atts.type || '').toLowerCase();
                 e.setAttribute('type', TT);
             }
             Keys(atts).forEach(function(a) {
@@ -710,7 +707,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (!e[a]) e[a] = true;
                     }
-                    else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                    else if ('value' === a && 'INPUT' === T)
                     {
                         if (e[a] !== v) e[a] = v;
                     }
@@ -745,7 +742,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 {
                     e[a] = false;
                 }
-                else if ('value' === a && ('INPUT' === T || 'TEXTAREA' === T))
+                else if ('value' === a && 'INPUT' === T)
                 {
                     e[a] = '';
                 }
@@ -4305,9 +4302,9 @@ var namedKeyProp = "mv_namedkey",
 
         iterate(function(i) {
             var el, name, key, ns_key, value;
-            el = elements[i];  if ( !el ) return;
+            el = elements[i];  if (!el) return;
             name = el[NAME]; key = 0;
-            if (!el[namedKeyProp] && !!name) el[namedKeyProp] = model.key( name, 1 );
+            if (!el[namedKeyProp] && !!name) el[namedKeyProp] = model.key(name, 1);
             key = el[namedKeyProp]; if (!key) return;
 
             // use already cached key/value
@@ -4420,11 +4417,13 @@ View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
 View.parse = function(str, args) {
+    // supports 2 types of template separators 1. {% %} and 2. <script> </script>
+    // both can be used simultaneously
     var tpl = Str(str), p1, p2, ps1, code = 'var _$$_ = \'\';', echo = 0;
     while (tpl && tpl.length)
     {
         p1 = tpl.indexOf('<script>');
-        ps1 = tpl.indexOf('{%=');
+        ps1 = tpl.indexOf('{%');
         if (-1 === p1 && -1 === ps1)
         {
             code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
@@ -4432,7 +4431,8 @@ View.parse = function(str, args) {
         }
         else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
         {
-            p2 = tpl.indexOf('%}', ps1+3);
+            echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
+            p2 = tpl.indexOf('%}', ps1+2+echo);
             if (-1 === p2)
             {
                 if (-1 === p1)
@@ -4448,7 +4448,14 @@ View.parse = function(str, args) {
                 }
             }
             code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+            if (echo)
+            {
+                code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+            }
+            else
+            {
+                code += "\n"+trim(tpl.slice(ps1+2, p2));
+            }
             tpl = tpl.slice(p2+2);
         }
         else
@@ -4474,7 +4481,7 @@ View.parse = function(str, args) {
         }
     }
     code += "\n"+'return _$$_;';
-    return newFunc(args||'', code);
+    return newFunc(Str(args||''), code);
 };
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
@@ -4828,15 +4835,18 @@ view.render( [Boolean immediate=false] );
     ,render: function(immediate) {
         var self = this;
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl);
-        if (true === immediate)
+        if (self.$dom && self.$out)
         {
-            morph(self.$dom, str2dom(self.$out.call(self)));
-        }
-        else
-        {
-            debounce(function(){
+            if (true === immediate)
+            {
                 morph(self.$dom, str2dom(self.$out.call(self)));
-            }, self);
+            }
+            else
+            {
+                debounce(function(){
+                    morph(self.$dom, str2dom(self.$out.call(self)));
+                }, self);
+            }
         }
         return self;
     }
@@ -4847,7 +4857,14 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        return this.render();
+        var view = this, model = view.$model, hasDocument = 'undefined' !== typeof document;
+
+        if (hasDocument && view.$dom)
+        {
+            view.render(true);
+            if (view.$autobind && !view.$livebind) do_auto_bind_action(view, {type:'change'}, $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom), null);
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]
@@ -4861,7 +4878,7 @@ view.sync_model();
             autobinds, hasDocument = 'undefined' !== typeof document
         ;
 
-        if (hasDocument && autobind)
+        if (hasDocument && view.$dom && autobind)
         {
             autobinds = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
             if (autobinds.length) fields2model(view, autobinds);

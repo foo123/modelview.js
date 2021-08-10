@@ -26,6 +26,7 @@ body {
 	background: #eaeaea url('bg.png');
 	color: #4d4d4d;
 	width: 550px;
+    max-width: 100%;
 	margin: 0 auto;
 	-webkit-font-smoothing: antialiased;
 	-moz-font-smoothing: antialiased;
@@ -57,11 +58,9 @@ body {
 	height: 100%;
 }
 
-#todoapp input::-webkit-input-placeholder {
-	font-style: italic;
-}
-
-#todoapp input:-moz-placeholder {
+#todoapp input::-webkit-input-placeholder,
+#todoapp input:-moz-placeholder,
+#todoapp input::placeholder {
 	font-style: italic;
 	color: #a9a9a9;
 }
@@ -272,7 +271,25 @@ label[for='toggle-all'] {
 	-o-transition: all 0.2s;
 	transition: all 0.2s;
 }
+#todo-list li .process {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 50px;
+	bottom: 0;
+	width: 40px;
+	height: 40px;
+	margin: auto 0;
+	font-size: 22px;
+	color: #228B22;
+	-webkit-transition: all 0.2s;
+	-moz-transition: all 0.2s;
+	-ms-transition: all 0.2s;
+	-o-transition: all 0.2s;
+	transition: all 0.2s;
+}
 
+#todo-list li .process:hover,
 #todo-list li .destroy:hover {
 	text-shadow: 0 0 1px #000,
 				 0 0 10px rgba(199, 107, 107, 0.8);
@@ -286,7 +303,11 @@ label[for='toggle-all'] {
 #todo-list li .destroy:after {
 	content: '✖';
 }
+#todo-list li .process:after {
+	content: '✎';
+}
 
+#todo-list li:hover .process,
 #todo-list li:hover .destroy {
 	display: block;
 }
