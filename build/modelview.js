@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.0.0
-*   @built on 2021-08-10 16:52:42
+*   @version: 1.1.0
+*   @built on 2021-08-11 10:00:33
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -16,7 +16,7 @@ else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require
     define(name,['module'],function(module){factory.moduleUri = module.uri; return factory.call(root);});
 else if ( !(name in root) ) /* Browser/WebWorker/.. */
     (root[name] = factory.call(root)||1)&&('function'===typeof(define))&&define.amd&&define(function(){return root[name];} );
-}(  /* current root */          this, 
+}(  /* current root */          'undefined' !== typeof self ? self : this, 
     /* module name */           "ModelView",
     /* module factory */        function ModuleFactory__ModelView( ){
 /* main code starts here */
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.0.0
-*   @built on 2021-08-10 16:52:42
+*   @version: 1.1.0
+*   @built on 2021-08-11 10:00:33
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,7 +38,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 ### Contents
 
@@ -628,7 +628,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
         // Setup the new render to run at the next animation frame
         if (instance)
-            instance._dbnc = window.requestAnimationFrame(function(){callback.call(instance); instance._dbnc = null;});
+            instance._dbnc = window.requestAnimationFrame(function() {callback.call(instance); instance._dbnc = null;});
         else
             window.requestAnimationFrame(callback);
     },
@@ -640,10 +640,21 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
-                atts2 = AP.reduce.call(e.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {});
+                atts2 = AP.reduce.call(e.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
+                hasSelected = false, hasChecked = false, hasDisabled = false, hasValue = false;
 
             Keys(atts2)
-                .reduce(function(rem, a) {if (!HAS.call(atts, a)) rem.push(a); return rem;}, [])
+                .reduce(function(rem, a) {
+                    if (!HAS.call(atts, a))
+                    {
+                        /*if ('selected' === a) hasSelected = true;
+                        if ('checked' === a) hasChecked = true;
+                        if ('disabled' === a) hasDisabled = true;
+                        if ('value' === a) hasValue = true;*/
+                        rem.push(a);
+                    }
+                    return rem;
+                }, [])
                 .forEach(function(a) {
                     if ('class' === a)
                     {
@@ -675,10 +686,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                 })
             ;
-            if ('OPTION' === T) e.selected = false;
-            if ('INPUT' === T) e.value = '';
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
-            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
+            if (/*hasSelected &&*/ 'OPTION' === T) e.selected = false;
+            if (/*hasChecked &&*/ 'INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
+            if (/*hasDisabled &&*/ ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)) e.disabled = false;
+            if (/*hasValue &&*/ 'INPUT' === T) e.value = '';
             if (atts.type && atts.type !== TT)
             {
                 TT = (atts.type || '').toLowerCase();
@@ -757,7 +768,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
         }
     },
-    morph = function morph(e, t) {
+    morph = function morph(e, t, view) {
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
@@ -774,6 +785,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 else
                 {
                     e.appendChild(tnode);
+                    if (view && tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component'))
+                        view.$attachComponent(tnode[ATTR]('mv-component'), tnode); // lifecycle hooks
                 }
             }
             else
@@ -782,13 +795,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
                 if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
+                    if (view && enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component'))
+                        view.$detachComponent(enode[ATTR]('mv-component'), enode); // lifecycle hooks
                     // use original frozen
                     e.replaceChild(frozen.shift(), enode);
                     return;
                 }
                 if (tt !== t)
                 {
+                    if (view && enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component'))
+                        view.$detachComponent(enode[ATTR]('mv-component'), enode); // lifecycle hooks
                     e.replaceChild(tnode, enode);
+                    if (view && tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component'))
+                        view.$attachComponent(tnode[ATTR]('mv-component'), tnode); // lifecycle hooks
                 }
                 else if ('text' === t || 'comment' === t)
                 {
@@ -806,13 +825,19 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     // moprh attributes/properties
                     morphAtts(enode, tnode);
                     // morph children
-                    morph(enode, tnode);
+                    morph(enode, tnode, view);
                 }
             }
         });
         // If extra elements, remove them
         count = e.childNodes.length - tc;
-        for (; 0 < count; count--) e.removeChild(e.childNodes[e.childNodes.length - count]);
+        for (; 0 < count; count--)
+        {
+            var enode = e.childNodes[e.childNodes.length - count];
+            if (view && enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component'))
+                view.$detachComponent(enode[ATTR]('mv-component'), enode); // lifecycle hooks
+            e.removeChild(enode);
+        }
     },
     notEmpty = function(s) {return 0 < s.length;}, SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
 
@@ -4829,22 +4854,27 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
 /**[DOC_MARKDOWN]
 // render view on actual DOM (immediately or deferred)
+// .render is called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this;
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl);
-        if (self.$dom && self.$out)
+        if (self.$out)
         {
-            if (true === immediate)
+            if (!self.$dom)
             {
-                morph(self.$dom, str2dom(self.$out.call(self)));
+                return self.$out.call(self); // return the rendered string
+            }
+            else if (true === immediate)
+            {
+                morph(self.$dom, str2dom(self.$out.call(self)), self);
             }
             else
             {
-                debounce(function(){
-                    morph(self.$dom, str2dom(self.$out.call(self)));
+                debounce(function() {
+                    morph(self.$dom, str2dom(self.$out.call(self)), self);
                 }, self);
             }
         }
@@ -5078,6 +5108,18 @@ view.sync_model();
         if (livebind) view.render();
     }
 
+    // component lifecycle hooks
+    ,$attachComponent: function(name, el) {
+        var view = this;
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onAttach(el, view);
+        return view;
+    }
+    ,$detachComponent: function(name, el) {
+        var view = this;
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onDetach(el, view);
+        return view;
+    }
+
     //
     // view "do_action" methods
     //
@@ -5191,31 +5233,46 @@ view.sync_model();
 
 ```javascript
 
-var MyComponent = new ModelView.View.Component(String html);
-MyComponent.render(Object props={} [, View viewInstance=null]); // render
+var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
+MyComponent.render(Object props={} [, View view=null]); // render
 MyComponent.dispose(); // dispose
 
 ```
 [/DOC_MARKDOWN]**/
-View.Component = function Component(tpl) {
-  if (!(this instanceof Component)) return new Component(tpl);
-  this.tpl = trim(Str(tpl));
+View.Component = function Component(tpl, opts) {
+  var self = this;
+  if (!(self instanceof Component)) return new Component(tpl, opts);
+  self.tpl = trim(Str(tpl));
+  self.opts = opts || {};
 };
 View.Component[proto] = {
     constructor: View.Component
     ,tpl: ''
+    ,opts: null
     ,model: null
     ,renderer: null
     ,dispose: function() {
         var self = this;
         self.tpl = null;
+        self.opts = null;
         self.renderer = null;
         return self;
     }
     ,render: function(props, view) {
         var self = this;
         if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props');
-        return self.renderer.call(view || self, props || {});
+        return self.renderer ? self.renderer.call(view || self, props || {}) : '';
+    }
+    // component lifecycle hooks
+    ,onAttach: function(el, view) {
+        var self = this;
+        if (self.opts && is_type(self.opts.attach, T_FUNC)) self.opts.attach.call(self, el, view);
+        return self;
+    }
+    ,onDetach: function(el, view) {
+        var self = this;
+        if (self.opts && is_type(self.opts.detach, T_FUNC)) self.opts.detach.call(self, el, view);
+        return self;
     }
 };
 /**[DOC_MARKDOWN]
@@ -5280,7 +5337,7 @@ new ModelView.View('view')
 // export it
 var ModelView = {
 
-    VERSION: "1.0.0"
+    VERSION: "1.1.0"
     
     ,UUID: uuid
     
@@ -5303,7 +5360,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.0.0
+*   @version: 1.1.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

@@ -767,22 +767,27 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
 /**[DOC_MARKDOWN]
 // render view on actual DOM (immediately or deferred)
+// .render is called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this;
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl);
-        if (self.$dom && self.$out)
+        if (self.$out)
         {
-            if (true === immediate)
+            if (!self.$dom)
             {
-                morph(self.$dom, str2dom(self.$out.call(self)));
+                return self.$out.call(self); // return the rendered string
+            }
+            else if (true === immediate)
+            {
+                morph(self.$dom, str2dom(self.$out.call(self)), self);
             }
             else
             {
-                debounce(function(){
-                    morph(self.$dom, str2dom(self.$out.call(self)));
+                debounce(function() {
+                    morph(self.$dom, str2dom(self.$out.call(self)), self);
                 }, self);
             }
         }
@@ -1016,6 +1021,18 @@ view.sync_model();
         if (livebind) view.render();
     }
 
+    // component lifecycle hooks
+    ,$attachComponent: function(name, el) {
+        var view = this;
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onAttach(el, view);
+        return view;
+    }
+    ,$detachComponent: function(name, el) {
+        var view = this;
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onDetach(el, view);
+        return view;
+    }
+
     //
     // view "do_action" methods
     //
@@ -1129,30 +1146,45 @@ view.sync_model();
 
 ```javascript
 
-var MyComponent = new ModelView.View.Component(String html);
-MyComponent.render(Object props={} [, View viewInstance=null]); // render
+var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
+MyComponent.render(Object props={} [, View view=null]); // render
 MyComponent.dispose(); // dispose
 
 ```
 [/DOC_MARKDOWN]**/
-View.Component = function Component(tpl) {
-  if (!(this instanceof Component)) return new Component(tpl);
-  this.tpl = trim(Str(tpl));
+View.Component = function Component(tpl, opts) {
+  var self = this;
+  if (!(self instanceof Component)) return new Component(tpl, opts);
+  self.tpl = trim(Str(tpl));
+  self.opts = opts || {};
 };
 View.Component[proto] = {
     constructor: View.Component
     ,tpl: ''
+    ,opts: null
     ,model: null
     ,renderer: null
     ,dispose: function() {
         var self = this;
         self.tpl = null;
+        self.opts = null;
         self.renderer = null;
         return self;
     }
     ,render: function(props, view) {
         var self = this;
         if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props');
-        return self.renderer.call(view || self, props || {});
+        return self.renderer ? self.renderer.call(view || self, props || {}) : '';
+    }
+    // component lifecycle hooks
+    ,onAttach: function(el, view) {
+        var self = this;
+        if (self.opts && is_type(self.opts.attach, T_FUNC)) self.opts.attach.call(self, el, view);
+        return self;
+    }
+    ,onDetach: function(el, view) {
+        var self = this;
+        if (self.opts && is_type(self.opts.detach, T_FUNC)) self.opts.detach.call(self, el, view);
+        return self;
     }
 };

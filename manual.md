@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 ### Contents
 
@@ -585,6 +585,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
 
 // render view on actual DOM (immediately or deferred)
+// .render is called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
 
@@ -611,8 +612,8 @@ view.sync_model();
 
 ```javascript
 
-var MyComponent = new ModelView.View.Component(String html);
-MyComponent.render(Object props={} [, View viewInstance=null]); // render
+var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
+MyComponent.render(Object props={} [, View view=null]); // render
 MyComponent.dispose(); // dispose
 
 ```
