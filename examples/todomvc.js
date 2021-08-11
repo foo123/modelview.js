@@ -40,6 +40,22 @@ function updateModelFromStorage(key)
     return false;
 }
 
+function timeSince(time)
+{
+  var seconds = Math.floor((new Date().getTime() - time) / 1000), interval;
+  interval = seconds / 31536000;
+  if (interval > 1) return String(Math.floor(interval)) + " year(s) ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return String(Math.floor(interval)) + " month(s) ago";
+  interval = seconds / 86400;
+  if (interval > 1) return String(Math.floor(interval)) + " day(s) ago";
+  interval = seconds / 3600;
+  if (interval > 1) return String(Math.floor(interval)) + " hour(s) ago";
+  interval = seconds / 60;
+  if (interval > 1) return String(Math.floor(interval)) + " minute(s) ago";
+  return interval < 5 ? "just now" : String(Math.floor(seconds)) + " second(s) ago";
+}
+
 function route(displayMode)
 {
     if (displayMode)
@@ -113,6 +129,7 @@ View = new ModelView.View('todoview')
             Model.$data.todoList.todos.unshift({
                 uuid: ModelView.UUID('todo'),
                 title: title,
+                time: new Date().getTime(),
                 completed: false,
                 editing: false
             });
@@ -228,6 +245,9 @@ View = new ModelView.View('todoview')
 })
 .bind(['change', 'click', 'dblclick', 'blur'/*'focusout'*/], document.getElementById('todoapp'))
 ;
+View.timeSince = function(time){
+    return null!=time ? timeSince(time) : '';
+};
 
 // synchronize UI/View/Model
 updateModelFromStorage(STORAGE_KEY);

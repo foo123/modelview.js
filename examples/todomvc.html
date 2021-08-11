@@ -34,7 +34,7 @@
 
 
 <script id="todo-component" type="text/x-template">
-<li todo-id="{%= props.uuid %}" class="todo {%= props.completed ? 'completed' : '' %}">
+<li todo-id="{%= props.uuid %}" class="todo {%= props.completed ? 'completed' : '' %}" title="Added: {%= this.timeSince(props.time) %}">
     <div class="view">
         <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" {%=props.completed ? 'checked' : ''%}/>
         <label mv-evt mv-on-dblclick="edit">{%= props.title %}</label>

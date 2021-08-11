@@ -94,4 +94,4 @@ new ModelView.View('view')
 
 **JavaScript:** ES5
 
-**Browser:** All browsers that support `<template>` tag.
+**Browser:** All browsers that support custom element attributes like `[mv-evt]`, `[mv-on-click]`, ...

@@ -576,6 +576,12 @@ view.component( String componentName, Object props );
         return '';
     }
 
+    // can integrate with HtmlWidget
+    ,widget: function(/*args*/) {
+        var HtmlWidget = View.HtmlWidget;
+        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? HtmlWidget.widget.apply(HtmlWidget, arguments) : '';
+    }
+
 /**[DOC_MARKDOWN]
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
@@ -782,12 +788,12 @@ view.render( [Boolean immediate=false] );
             }
             else if (true === immediate)
             {
-                morph(self.$dom, str2dom(self.$out.call(self)), self);
+                morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
             }
             else
             {
                 debounce(function() {
-                    morph(self.$dom, str2dom(self.$out.call(self)), self);
+                    morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
                 }, self);
             }
         }
@@ -1188,3 +1194,5 @@ View.Component[proto] = {
         return self;
     }
 };
+// can integrate with HtmlWidget by setting the lib via this static property
+View.HtmlWidget = null;
