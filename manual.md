@@ -540,6 +540,12 @@ view.components( Object components );
 
 
 
+// register custom view functions (which can be used in templates) in {funcName: function} format
+view.funcs( Object funcs );
+
+
+
+
 // render a custom view named component
 view.component( String componentName, Object props );
 

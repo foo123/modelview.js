@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.1.0
-*   @built on 2021-08-11 16:42:42
+*   @built on 2021-08-12 17:34:33
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.1.0
-*   @built on 2021-08-11 16:42:42
+*   @built on 2021-08-12 17:34:33
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -466,6 +466,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     $tag = function(tagname, el) {
         return slice.call((el || document).getElementsByTagName(tagname), 0);
     },
+    $class = function(classname, el) {
+        return slice.call((el || document).getElementsByClassName(classname), 0);
+    },
     $sel = function(selector, el, single) {
         el = el || document;
         return el.querySelector ? (true === single
@@ -851,6 +854,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             view.$detachComponent(el[ATTR]('mv-component'), el);
                         });
                         e.replaceChild(tnode, enode);
+                    }
+                    else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                    {
+                        // lifecycle hooks
+                        ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        });
+                        e.replaceChild(tnode, enode);
+                        ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        });
                     }
                     else
                     {
@@ -4447,6 +4461,17 @@ var namedKeyProp = "mv_namedkey",
 
     viewHandler = function(view, method) {
         return function(evt){return view[method](evt, {el:this});};
+    },
+
+    getFuncsScoped = function(view, viewvar) {
+        var code = '';
+        viewvar = viewvar || 'view';
+        for (var k in view.$funcs)
+        {
+            if (HAS.call(view.$funcs,k))
+                code += 'var '+k+'='+viewvar+'.$funcs["'+k+'"];'
+        }
+        return code;
     }
 ;
 
@@ -4471,6 +4496,7 @@ var View = function View(id) {
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
     view.$components = {};
+    view.$funcs = {};
     view.initPubSub();
 };
 // STATIC
@@ -4479,10 +4505,11 @@ View.index = node_index;
 View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = function(str, args) {
+View.parse = function(str, args, scoped) {
     // supports 2 types of template separators 1. {% %} and 2. <script> </script>
     // both can be used simultaneously
-    var tpl = Str(str), p1, p2, ps1, code = 'var _$$_ = \'\';', echo = 0;
+    var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
+    if (scoped && scoped.length) code += "\n" + String(scoped);
     while (tpl && tpl.length)
     {
         p1 = tpl.indexOf('<script>');
@@ -4561,6 +4588,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$shortcuts: null
     ,$num_shortcuts: null
     ,$components: null
+    ,$funcs: null
     ,_dbnc: null
 
 /**[DOC_MARKDOWN]
@@ -4578,6 +4606,7 @@ view.dispose( );
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         view.$components = null;
+        view.$funcs = null;
         return view;
     }
 
@@ -4684,7 +4713,23 @@ view.components( Object components );
         {
             for (k in components)
                 if (HAS.call(components,k) && is_instance(components[k], View.Component))
-                    view.$components[k] = components[k];
+                    view.$components[k] = {c:components[k], o:null};
+        }
+        return view;
+    }
+
+/**[DOC_MARKDOWN]
+// register custom view functions (which can be used in templates) in {funcName: function} format
+view.funcs( Object funcs );
+
+[/DOC_MARKDOWN]**/
+    ,funcs: function(funcs) {
+        var view = this, k;
+        if (is_type(funcs, T_OBJ))
+        {
+            for (k in funcs)
+                if (HAS.call(funcs,k) && ('function' === typeof(funcs[k])))
+                    view.$funcs[k] = funcs[k];
         }
         return view;
     }
@@ -4695,9 +4740,13 @@ view.component( String componentName, Object props );
 
 [/DOC_MARKDOWN]**/
     ,component: function(name, props) {
-        var view = this;
+        var view = this, c;
         if (HAS.call(view.$components,name))
-            return view.$components[name].render(props || {}, view);
+        {
+            c = view.$components[name];
+            if (!c.o && c.c.tpl) c.o = View.parse(c.c.tpl, 'props,component', getFuncsScoped(view));
+            return c.o ? c.o.call(view, props || {}, c.c) : '';
+        }
         return '';
     }
 
@@ -4904,7 +4953,7 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl);
+        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self));
         if (self.$out)
         {
             if (!self.$dom)
@@ -5304,8 +5353,8 @@ View.Component[proto] = {
     }
     ,render: function(props, view) {
         var self = this;
-        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props');
-        return self.renderer ? self.renderer.call(view || self, props || {}) : '';
+        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props,component', getFuncsScoped(view));
+        return self.renderer ? self.renderer.call(view || self, props || {}, self) : '';
     }
     // component lifecycle hooks
     ,onAttach: function(el, view) {

@@ -805,6 +805,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         });
                         e.replaceChild(tnode, enode);
                     }
+                    else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                    {
+                        // lifecycle hooks
+                        ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        });
+                        e.replaceChild(tnode, enode);
+                        ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        });
+                    }
                     else
                     {
                         // moprh attributes/properties

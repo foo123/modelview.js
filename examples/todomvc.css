@@ -195,7 +195,8 @@ label[for='toggle-all'] {
 
 #todo-list li.editing .edit {
 	display: block;
-	width: 506px;
+    width: calc(100% - 45px);
+    box-sizing: border-box;
 	padding: 13px 17px 12px 17px;
 	margin: 0 0 0 43px;
 }
@@ -255,11 +256,19 @@ label[for='toggle-all'] {
 	text-decoration: line-through;
 }
 
-#todo-list li .destroy {
+#todo-list li .time-added {
 	display: none;
 	position: absolute;
 	top: 0;
 	right: 10px;
+	margin: 0;
+	font-size: 11px;
+	color: #a9a9a9;
+}
+#todo-list li .destroy {
+	display: none;
+	position: absolute;
+	right: 5px;
 	bottom: 0;
 	width: 40px;
 	height: 40px;
@@ -275,8 +284,7 @@ label[for='toggle-all'] {
 #todo-list li .process {
 	display: none;
 	position: absolute;
-	top: 0;
-	right: 50px;
+	right: 45px;
 	bottom: 0;
 	width: 40px;
 	height: 40px;
@@ -308,6 +316,7 @@ label[for='toggle-all'] {
 	content: '✎';
 }
 
+#todo-list li:hover .time-added,
 #todo-list li:hover .process,
 #todo-list li:hover .destroy {
 	display: block;

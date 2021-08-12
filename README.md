@@ -89,6 +89,7 @@ new ModelView.View('view')
 * [Hello World](https://foo123.github.io/examples/modelview/hello-world.html)
 * [Temperature Converter](https://foo123.github.io/examples/modelview/temperature-converter.html) based on [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
 * [TodoMVC with ModelView](https://foo123.github.io/examples/modelview/todomvc.html) based on [TodoMVC by Addy Osmani](http://todomvc.com)
+* [Weather at a Glance](https://foo123.github.io/examples/modelview/weather.html)
 
 #### JavaScript and Browser Support
 
