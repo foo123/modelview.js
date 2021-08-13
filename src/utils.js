@@ -411,7 +411,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://youmightnotneedjquery.com/
     $id = function(id, el) {
-        return [(el || document).getElementById( id )];
+        return [document.getElementById(id)];
     },
     $tag = function(tagname, el) {
         return slice.call((el || document).getElementsByTagName(tagname), 0);
@@ -475,7 +475,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (P.oMatchesSelector) return 'oMatchesSelector';
     }(this.Element ? this.Element[proto] : null)),
 
-    get_textnode = function(txt) { return document.createTextNode(txt||''); },
+    get_textnode = function(txt) {return document.createTextNode(txt||'');},
 
     // http://stackoverflow.com/a/2364000/3591273
     get_style = 'undefined' !== typeof window && window.getComputedStyle
@@ -483,13 +483,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         : function(el) {return el.currentStyle;},
 
     show = function(el) {
-        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
-        el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : 'block';
+        if (!el._displayCached) el._displayCached = /*get_style(el).display*/el[STYLE].display || '';
+        el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : '';
         el._displayCached = undef;
     },
 
     hide = function(el) {
-        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
+        if (!el._displayCached) el._displayCached = /*get_style(el).display*/el[STYLE].display || '';
         el[STYLE].display = 'none';
     },
 

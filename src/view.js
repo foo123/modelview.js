@@ -1065,12 +1065,12 @@ view.sync_model();
     // component lifecycle hooks
     ,$attachComponent: function(name, el) {
         var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onAttach(el, view);
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onAttach(el, view);
         return view;
     }
     ,$detachComponent: function(name, el) {
         var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].onDetach(el, view);
+        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onDetach(el, view);
         return view;
     }
 
