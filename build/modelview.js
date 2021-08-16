@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.1.0
-*   @built on 2021-08-13 10:48:28
+*   @built on 2021-08-16 23:41:46
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.1.0
-*   @built on 2021-08-13 10:48:28
+*   @built on 2021-08-16 23:41:46
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -4744,7 +4744,7 @@ view.component( String componentName, Object props );
         if (HAS.call(view.$components,name))
         {
             c = view.$components[name];
-            if (!c.o && c.c.tpl) c.o = View.parse(c.c.tpl, 'props,component', getFuncsScoped(view));
+            if (!c.o && c.c.tpl) c.o = View.parse(c.c.tpl, 'props,component', getFuncsScoped(view, 'this'));
             return c.o ? c.o.call(view, props || {}, c.c) : '';
         }
         return '';
@@ -4952,22 +4952,29 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self));
+        var self = this, out;
+        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self, 'this'));
         if (self.$out)
         {
             if (!self.$dom)
             {
-                return self.$out.call(self); // return the rendered string
+                out = self.$out.call(self); // return the rendered string
+                // notify any 3rd-party also if needed
+                self.publish('render', {});
+                return out;
             }
             else if (true === immediate)
             {
                 morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                // notify any 3rd-party also if needed
+                self.publish('render', {});
             }
             else
             {
                 debounce(function() {
                     morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                    // notify any 3rd-party also if needed
+                    self.publish('render', {});
                 }, self);
             }
         }
@@ -5353,7 +5360,7 @@ View.Component[proto] = {
     }
     ,render: function(props, view) {
         var self = this;
-        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props,component', getFuncsScoped(view));
+        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props,component', getFuncsScoped(view, 'this'));
         return self.renderer ? self.renderer.call(view || self, props || {}, self) : '';
     }
     // component lifecycle hooks
