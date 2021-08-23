@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.2.0
-*   @built on 2021-08-23 15:03:54
+*   @built on 2021-08-23 18:40:38
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.2.0
-*   @built on 2021-08-23 15:03:54
+*   @built on 2021-08-23 18:40:38
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -74,7 +74,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     del = function(o, k, soft) {
-        o[k] = undef; if ( !soft ) delete o[k];
+        o[k] = undef; if (!soft) delete o[k];
         return o;
     },
 
@@ -966,10 +966,40 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             }
                             else
                             {
-                                // morph attributes/properties
-                                morphAtts(enode, tnode);
-                                // morph children
-                                morph(enode, tnode);
+                                if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
+                                {
+                                    e.replaceChild(tnode, enode);
+                                    // lifecycle hooks
+                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                                else if (view && !tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component'))
+                                {
+                                    // lifecycle hooks
+                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                    e.replaceChild(tnode, enode);
+                                }
+                                else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                                {
+                                    // lifecycle hooks
+                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                    e.replaceChild(tnode, enode);
+                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                                else
+                                {
+                                    // moprh attributes/properties
+                                    morphAtts(enode, tnode);
+                                    // morph children
+                                    morph(enode, tnode, view);
+                                }
                             }
                         }
                     }
@@ -5106,14 +5136,14 @@ view.render( [Boolean immediate=false] );
             }
             else if (true === immediate)
             {
-                morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             }
             else
             {
                 debounce(function() {
-                    morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                    morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }, self);

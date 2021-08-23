@@ -24,7 +24,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     del = function(o, k, soft) {
-        o[k] = undef; if ( !soft ) delete o[k];
+        o[k] = undef; if (!soft) delete o[k];
         return o;
     },
 
@@ -916,10 +916,40 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             }
                             else
                             {
-                                // morph attributes/properties
-                                morphAtts(enode, tnode);
-                                // morph children
-                                morph(enode, tnode);
+                                if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
+                                {
+                                    e.replaceChild(tnode, enode);
+                                    // lifecycle hooks
+                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                                else if (view && !tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component'))
+                                {
+                                    // lifecycle hooks
+                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                    e.replaceChild(tnode, enode);
+                                }
+                                else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                                {
+                                    // lifecycle hooks
+                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                    e.replaceChild(tnode, enode);
+                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                                else
+                                {
+                                    // moprh attributes/properties
+                                    morphAtts(enode, tnode);
+                                    // morph children
+                                    morph(enode, tnode, view);
+                                }
                             }
                         }
                     }
