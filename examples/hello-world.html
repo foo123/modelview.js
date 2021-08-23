@@ -21,7 +21,7 @@
         
 <div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
 <template id="content">
-    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
+    <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>keyup</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" mv-evt mv-on-keyup="update" />
     <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>

@@ -54,7 +54,7 @@ function timeSince(time)
   interval = Math.floor(seconds / 60);
   if (interval > 0) return String(interval) + " "+(1===interval?'minute':'minutes')+" ago";
   interval = Math.floor(seconds);
-  return interval < 20 ? "just now" : String(interval) + " seconds ago";
+  return interval < 30 ? "just now" : String(interval) + " seconds ago";
 }
 
 function route(displayMode)
@@ -152,7 +152,7 @@ View = new ModelView.View('todoview')
         if (completed.length === visible.length)
         {
             // if all completed on current filter, uncomplete them
-            visible.forEach(todo => {todo.completed = false;});
+            completed.forEach(todo => {todo.completed = false;});
             Model.$data.todoList.completed -= completed.length;
             Model.$data.todoList.active += completed.length;
             Model.notify('todoList');
@@ -179,7 +179,7 @@ View = new ModelView.View('todoview')
     }
     ,edit: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid === $todo.getAttribute('todo-id'))[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
 
         if (todo && !todo.editing)
         {
@@ -190,7 +190,7 @@ View = new ModelView.View('todoview')
     }
     ,stopEditing: function(evt, el) {
         var title, $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid === $todo.getAttribute('todo-id'))[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
 
         if (todo && todo.editing)
         {
@@ -216,7 +216,7 @@ View = new ModelView.View('todoview')
     }
     ,complete: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid === $todo.getAttribute('todo-id'))[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
 
         if (!todo) return;
 
@@ -237,7 +237,7 @@ View = new ModelView.View('todoview')
     }
     ,remove: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid === $todo.getAttribute('todo-id'))[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
 
         if (todo)
         {

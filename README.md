@@ -5,7 +5,7 @@ A simple, light-weight, versatile and fast MVVM front-end framework for JavaScri
 
 ![ModelView](/modelview.jpg)
 
-**Version 1.1.0** (51 kB minified)
+**Version 1.2.0** (51 kB minified)
 
 
 **see also:**  
@@ -14,6 +14,7 @@ A simple, light-weight, versatile and fast MVVM front-end framework for JavaScri
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for PHP, Python, JavaScript
 * [Dromeo](https://github.com/foo123/Dromeo) a flexible, agnostic router for PHP, Python, JavaScript
 * [Contemplate](https://github.com/foo123/Contemplate) a fast, flexible &amp; light-weight template engine for JavaScript, PHP, Python
+* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets standalone or as plugins for PHP, JavaScript and Python
 * [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL builder for PHP, Python, JavaScript
 * [DialectORM](https://github.com/foo123/DialectORM) a simple and versatile cross-platform ORM and ODM for PHP, Python and JavaScript based on `Dialect`
 * [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for JavaScript, PHP, Python
@@ -90,6 +91,7 @@ new ModelView.View('view')
 * [Temperature Converter](https://foo123.github.io/examples/modelview/temperature-converter.html) based on [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
 * [TodoMVC with ModelView](https://foo123.github.io/examples/modelview/todomvc.html) based on [TodoMVC by Addy Osmani](http://todomvc.com)
 * [Weather at a Glance](https://foo123.github.io/examples/modelview/weather.html)
+* [ModelView with HtmlWidget](https://foo123.github.io/examples/htmlwidget/)
 
 #### JavaScript and Browser Support
 

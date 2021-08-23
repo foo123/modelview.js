@@ -7,9 +7,9 @@
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function( ModelView, window, undef ) {
+!function(ModelView, window, undef) {
 "use strict";
-ModelView.jquery = function( $ ) {
+ModelView.jquery = function($) {
     "use strict";
 
     if (!$.ModelView)
@@ -17,14 +17,14 @@ ModelView.jquery = function( $ ) {
         // add it to root jQuery object as a jQuery reference
         $.ModelView = ModelView;
 
-        var slice = Function.prototype.call.bind( Array.prototype.slice ),
+        var slice = Function.prototype.call.bind(Array.prototype.slice),
             extend = $.extend, View = ModelView.View, Model = ModelView.Model;
 
         // modelview jQuery plugin
         $.fn.modelview = function(arg0, arg1, arg2) {
             var argslen = arguments.length,
                 method = argslen ? arg0 : null, options = arg0,
-                isInit = true, optionsParsed = false,  map = [ ]
+                isInit = true, optionsParsed = false,  map = []
             ;
 
             // apply for each matched element (better use one element per time)
@@ -52,7 +52,6 @@ ModelView.jquery = function( $ ) {
                             view.model(arg1);
                             return this;
                         }
-
                         map.push(model);
                     }
                     else if ('data' === method)
@@ -62,7 +61,6 @@ ModelView.jquery = function( $ ) {
                             model.data(arg1);
                             return this;
                         }
-
                         map.push(model.data());
                     }
                     else if ('sync' === method)
@@ -74,7 +72,6 @@ ModelView.jquery = function( $ ) {
                         $dom.data('modelview', null);
                         view.dispose();
                     }
-
                     return this;
                 }
 
@@ -95,7 +92,7 @@ ModelView.jquery = function( $ ) {
                         ,modelClass: Model
 
                         ,id: 'view'
-                        ,livebind: null
+                        ,livebind: false
                         ,autobind: false
                         ,autovalidate: true
                         ,events: null
@@ -104,6 +101,7 @@ ModelView.jquery = function( $ ) {
                         ,model: null
                         ,template: null
                         ,actions: { }
+                        ,funcs: { }
                         ,handlers: { }
                         ,shortcuts: { }
                         ,components: { }
@@ -144,6 +142,8 @@ ModelView.jquery = function( $ ) {
                     .shortcuts(options.shortcuts)
                     // custom view actions
                     .actions(options.actions)
+                    // custom view functions
+                    .funcs(options.funcs)
                     // custom view components
                     .components(options.components)
                     // init view
@@ -157,7 +157,7 @@ ModelView.jquery = function( $ ) {
             });
 
             // chainable or values return
-            return !isInit && map.length ? (1 == this.length ? map[ 0 ] : map) : this;
+            return !isInit && map.length ? (1 == this.length ? map[0] : map) : this;
         };
     }
 
@@ -179,10 +179,10 @@ ModelView.jquery = function( $ ) {
                 var self = this;
                 if (1 < arguments.length)
                 {
-                    self.$view.$model.set(k, v, 1);
+                    self.$view.model().set(k, v, 1);
                     return self.element;
                 }
-                return self.$view.$model.get(k);
+                return self.$view.model().get(k);
             },
 
             view: function() {
@@ -190,7 +190,7 @@ ModelView.jquery = function( $ ) {
             },
 
             model: function() {
-                return this.$view.$model;
+                return this.$view.model();
             },
 
             _destroy: function() {

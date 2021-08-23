@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.1.0
-*   @built on 2021-08-16 23:41:46
+*   @version: 1.2.0
+*   @built on 2021-08-23 15:03:54
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.1.0
-*   @built on 2021-08-16 23:41:46
+*   @version: 1.2.0
+*   @built on 2021-08-23 15:03:54
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,7 +38,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.1.0**
+**Version 1.2.0**
 
 ### Contents
 
@@ -307,16 +307,16 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
     trim = SP.trim
-            ? function(s){ return s.trim( ); }
-            : function(s){ return s.replace(/^\s+|\s+$/g, ''); },
+            ? function(s){ return Str(s).trim(); }
+            : function(s){ return Str(s).replace(/^\s+|\s+$/g, ''); },
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     startsWith = SP.startsWith
-            ? function(str, pre, pos){ return str.startsWith(pre, pos||0); }
-            : function(str, pre, pos){ return ( pre === str.slice(pos||0, pre.length) ); },
+            ? function(str, pre, pos){ return Str(str).startsWith(pre, pos||0); }
+            : function(str, pre, pos){ return pre === Str(str).slice(pos||0, pre.length); },
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
-    NOW = Date.now ? Date.now : function() { return new Date( ).getTime( ); },
+    NOW = Date.now ? Date.now : function() {return new Date().getTime();},
 
     // Array multi - sorter utility
     // returns a sorter that can (sub-)sort by multiple (nested) fields
@@ -627,6 +627,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
 
+    is_child_of = function(el, node, finalNode) {
+        var p = el;
+        while (p)
+        {
+            if (p === node) return true;
+            if (finalNode && (p === finalNode)) break;
+            p = p.parentNode;
+        }
+        return false;
+    },
+
     debounce = function(callback, instance) {
         // If there's a pending render, cancel it
         if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
@@ -640,8 +651,39 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
+    morphStyles = function(e, t) {
+        var tstyleMap = /*t.style*/trim(t.style.cssText).split(';').reduce(function(map, style) {
+                style = Str(style);
+                var col = style.indexOf(':');
+                if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
+                return map;
+            }, {}),
+            estyleMap = /*e.style*/trim(e.style.cssText).split(';').reduce(function(map, style) {
+                style = Str(style);
+                var col = style.indexOf(':');
+                if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
+                return map;
+            }, {})
+        ;
+
+        Keys(estyleMap)
+        .reduce(function(rem, s) {
+            if (!HAS.call(tstyleMap, s)) rem.push(s);
+            return rem;
+        }, [])
+        .forEach(function(s) {
+            e.style[s] = '';
+        });
+
+        Keys(tstyleMap)
+        .forEach(function(s){
+            var st = tstyleMap[s];
+            if (e.style[s] !== st)
+                e.style[s] = st;
+        });
+    },
     morphAtts = function morphAtts(e, t) {
-        var T = e[TAG].toUpperCase(), TT = (e.type || '').toLowerCase();
+        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase();
         if (t.hasAttributes())
         {
             var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
@@ -654,6 +696,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 }, [])
                 .concat('OPTION' === T && e.selected && !atts2['selected'] && !atts['selected'] ? ['selected'] : [])
                 .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.disabled && !atts2['disabled'] && !atts['disabled'] ? ['disabled'] : [])
+                .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.required && !atts2['required'] && !atts['required'] ? ['required'] : [])
                 .concat('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && e.checked && !atts2['checked'] && !atts['checked'] ? ['checked'] : [])
                 .concat('INPUT' === T && !atts2['value'] && !atts['value'] ? ['value'] : [])
                 .forEach(function(a) {
@@ -669,7 +712,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a]) e[a] = false;
                     }
-                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (e[a]) e[a] = false;
                     }
@@ -690,24 +733,24 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             if (atts.type && atts.type !== TT)
             {
                 TT = (atts.type || '').toLowerCase();
-                e.setAttribute('type', TT);
+                e.type = TT;
             }
             Keys(atts).forEach(function(a) {
                     if ('type' === a) return;
                     var v = atts[a];
                     if ('class' === a)
                     {
-                        e.className = atts[a];
+                        e.className = v;
                     }
                     else if ('style' === a)
                     {
-                        e[a] = v;
+                        morphStyles(e, t);
                     }
                     else if ('selected' === a && 'OPTION' === T)
                     {
                         if (!e[a]) e[a] = true;
                     }
-                    else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                     {
                         if (!e[a]) e[a] = true;
                     }
@@ -719,9 +762,22 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         if (e[a] !== v) e[a] = v;
                     }
-                    else if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
+                    else
                     {
-                        e[SET_ATTR](a, v);
+                        /*if (a in e)
+                        {
+                            if (v !== e[a])
+                            {
+                                try {
+                                    e[a] = v;
+                                    if (e[a]) e[a] = true;
+                                } catch (err) {}
+                            }
+                        }
+                        else*/ if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
+                        {
+                            e[SET_ATTR](a, v);
+                        }
                     }
             });
         }
@@ -742,7 +798,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 {
                     e[a] = false;
                 }
-                else if ('disabled' === a && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
                     e[a] = false;
                 }
@@ -761,7 +817,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             }
             if ('OPTION' === T) e.selected = false;
             if ('INPUT' === T) e.value = '';
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) e.disabled = false;
+            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) {e.disabled = false; e.required = false;}
             if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
         }
     },
@@ -836,6 +892,87 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     morphAtts(enode, tnode);
                     if (enode.value !== tnode.value)
                         enode.value = tnode.value;
+                }
+                else if ((0 !== count) && tnode[HAS_ATTR]('mv-id') && enode[HAS_ATTR]('mv-id') && (tnode[ATTR]('mv-id') !== enode[ATTR]('mv-id')))
+                {
+                    if (0 > count)
+                    {
+                        e.insertBefore(tnode, enode);
+                        count++;
+                        if (view)
+                        {
+                            // lifecycle hooks
+                            (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                view.$attachComponent(el[ATTR]('mv-component'), el);
+                            });
+                        }
+                    }
+                    else
+                    {
+                        while (0 < count)
+                        {
+                            if (view)
+                            {
+                                // lifecycle hooks
+                                (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                    view.$detachComponent(el[ATTR]('mv-component'), el);
+                                });
+                            }
+                            e.removeChild(enode);
+                            count--;
+                            if (index >= e.childNodes.length) break;
+                            enode = e.childNodes[index];
+                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-id') || (tnode[ATTR]('mv-id') === enode[ATTR]('mv-id'))) break;
+                        }
+                        if (index >= e.childNodes.length)
+                        {
+                            if (tnode[HAS_ATTR]('mv-frozen') && frozen.length)
+                            {
+                                // use original frozen
+                                e.appendChild(frozen.shift());
+                            }
+                            else
+                            {
+                                e.appendChild(tnode);
+                                if (view)
+                                {
+                                    // lifecycle hooks
+                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            t = nodeType(enode);
+                            if (tt !== t)
+                            {
+                                if (view)
+                                {
+                                    // lifecycle hooks
+                                    (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                                e.replaceChild(tnode, enode);
+                                if (view)
+                                {
+                                    // lifecycle hooks
+                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                // morph attributes/properties
+                                morphAtts(enode, tnode);
+                                // morph children
+                                morph(enode, tnode);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -4580,6 +4717,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
     ,id: null
     ,$dom: null
+    ,$renderdom: null
     ,$model: null
     ,$tpl: ''
     ,$out: null
@@ -4600,6 +4738,7 @@ view.dispose( );
         var view = this;
         view.unbind().disposePubSub();
         view.$dom = null;
+        view.$renderdom = null;
         view.$model = null;
         view.$tpl = null;
         view.$out = null;
@@ -4820,10 +4959,11 @@ view.autobind( [Boolean enabled] );
 
 /**[DOC_MARKDOWN]
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
+// optionaly can define a render sub dom of dom where rendering happens (rest dom remains intact), default renderdom=dom
+view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNode renderdom=dom]] );
 
 [/DOC_MARKDOWN]**/
-    ,bind: function(events, dom) {
+    ,bind: function(events, dom, renderdom) {
         var view = this, model = view.$model,
             method, evt, namespaced, autobindSelector, bindSelector,
             autobind = view.$autobind, livebind = view.$livebind,
@@ -4831,6 +4971,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
         ;
 
         view.$dom = dom || (hasDocument ? document.body : null);
+        view.$renderdom = renderdom || view.$dom;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
 
@@ -4956,7 +5097,7 @@ view.render( [Boolean immediate=false] );
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self, 'this'));
         if (self.$out)
         {
-            if (!self.$dom)
+            if (!self.$renderdom)
             {
                 out = self.$out.call(self); // return the rendered string
                 // notify any 3rd-party also if needed
@@ -4965,14 +5106,14 @@ view.render( [Boolean immediate=false] );
             }
             else if (true === immediate)
             {
-                morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             }
             else
             {
                 debounce(function() {
-                    morph(self.$dom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
+                    morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).length ? self : null);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }, self);
@@ -4987,12 +5128,17 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        var view = this, model = view.$model, hasDocument = 'undefined' !== typeof document;
+        var view = this, model = view.$model, hasDocument = 'undefined' !== typeof document, els;
 
         if (hasDocument && view.$dom)
         {
             view.render(true);
-            if (view.$autobind && !view.$livebind) do_auto_bind_action(view, {type:'change'}, $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom), null);
+            if (view.$autobind && (!view.$livebind || view.$dom!==view.$renderdom))
+            {
+                els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
+                //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                do_auto_bind_action(view, {type:'change'}, els, null);
+            }
         }
         return view;
     }
@@ -5035,7 +5181,7 @@ view.sync_model();
 
             if (key /*&& model.has( key )*/)
             {
-                input_type = el[TYPE].toLowerCase( );
+                input_type = (el[TYPE]||'').toLowerCase();
 
                 if ('checkbox' === input_type)
                 {
@@ -5046,7 +5192,7 @@ view.sync_model();
                     {
                         // multiple checkboxes [name="model[key][]"] dynamic array
                         // only checked items are in the list
-                        val = [ ];
+                        val = [];
                         each(checkboxes, function(c) {
                             if (c[CHECKED]) val.push(c[VAL]);
                         });
@@ -5055,7 +5201,7 @@ view.sync_model();
                     {
                         // multiple checkboxes [name="model[key]"] static array
                         // all items are in the list either with values or defaults
-                        val = [ ];
+                        val = [];
                         each(checkboxes, function(c) {
                             if (c[CHECKED]) val.push(c[VAL]);
                             else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
@@ -5166,14 +5312,14 @@ view.sync_model();
 
         if (hasDocument)
         {
-            bindElements = $sel(bindSelector, view.$dom);
+            //bindElements = $sel(bindSelector, view.$dom);
             if (autobind) autoBindElements = $sel(autobindSelector, view.$dom);
 
             // bypass element that triggered the "model:change" event
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = filter(bindElements, notTriggerElem);
+                //bindElements = filter(bindElements, notTriggerElem);
                 if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
@@ -5184,7 +5330,11 @@ view.sync_model();
         // do view action first
         //if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && !livebind && autobind && autoBindElements.length) do_auto_bind_action(view, evt, autoBindElements, data);
+        if (hasDocument && autobind && autoBindElements.length && (!livebind || view.$dom!==view.$renderdom))
+        {
+            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+            do_auto_bind_action(view, evt, autoBindElements, data);
+        }
         // do view live DOM update action
         if (livebind) view.render();
     }
@@ -5203,7 +5353,12 @@ view.sync_model();
         // do view bind action first
         //if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && !livebind && autobind && (autoBindElements=$sel(autobindSelector, view.$dom)).length) do_auto_bind_action(view, evt, autoBindElements, data);
+        if (hasDocument && autobind && (!livebind || view.$dom!==view.$renderdom))
+        {
+            autoBindElements = $sel(autobindSelector, view.$dom);
+            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+            do_auto_bind_action(view, evt, autoBindElements, data);
+        }
         // do view live DOM bindings update action
         if (livebind) view.render();
     }
@@ -5277,7 +5432,7 @@ view.sync_model();
             value, value_type, checkboxes, is_dynamic_array
         ;
 
-        if (view.$livebind) return; // should be updated via new live render
+        if (view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
@@ -5296,7 +5451,7 @@ view.sync_model();
 
         else if ('checkbox' === input_type)
         {
-            is_dynamic_array = empty_brackets_re.test( name );
+            is_dynamic_array = empty_brackets_re.test(name);
 
             if (is_dynamic_array)
             {
@@ -5439,7 +5594,7 @@ new ModelView.View('view')
 // export it
 var ModelView = {
 
-    VERSION: "1.1.0"
+    VERSION: "1.2.0"
     
     ,UUID: uuid
     
@@ -5462,15 +5617,15 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.1.0
+*   @version: 1.2.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function( ModelView, window, undef ) {
+!function(ModelView, window, undef) {
 "use strict";
-ModelView.jquery = function( $ ) {
+ModelView.jquery = function($) {
     "use strict";
 
     if (!$.ModelView)
@@ -5478,14 +5633,14 @@ ModelView.jquery = function( $ ) {
         // add it to root jQuery object as a jQuery reference
         $.ModelView = ModelView;
 
-        var slice = Function.prototype.call.bind( Array.prototype.slice ),
+        var slice = Function.prototype.call.bind(Array.prototype.slice),
             extend = $.extend, View = ModelView.View, Model = ModelView.Model;
 
         // modelview jQuery plugin
         $.fn.modelview = function(arg0, arg1, arg2) {
             var argslen = arguments.length,
                 method = argslen ? arg0 : null, options = arg0,
-                isInit = true, optionsParsed = false,  map = [ ]
+                isInit = true, optionsParsed = false,  map = []
             ;
 
             // apply for each matched element (better use one element per time)
@@ -5513,7 +5668,6 @@ ModelView.jquery = function( $ ) {
                             view.model(arg1);
                             return this;
                         }
-
                         map.push(model);
                     }
                     else if ('data' === method)
@@ -5523,7 +5677,6 @@ ModelView.jquery = function( $ ) {
                             model.data(arg1);
                             return this;
                         }
-
                         map.push(model.data());
                     }
                     else if ('sync' === method)
@@ -5535,7 +5688,6 @@ ModelView.jquery = function( $ ) {
                         $dom.data('modelview', null);
                         view.dispose();
                     }
-
                     return this;
                 }
 
@@ -5556,7 +5708,7 @@ ModelView.jquery = function( $ ) {
                         ,modelClass: Model
 
                         ,id: 'view'
-                        ,livebind: null
+                        ,livebind: false
                         ,autobind: false
                         ,autovalidate: true
                         ,events: null
@@ -5565,6 +5717,7 @@ ModelView.jquery = function( $ ) {
                         ,model: null
                         ,template: null
                         ,actions: { }
+                        ,funcs: { }
                         ,handlers: { }
                         ,shortcuts: { }
                         ,components: { }
@@ -5605,6 +5758,8 @@ ModelView.jquery = function( $ ) {
                     .shortcuts(options.shortcuts)
                     // custom view actions
                     .actions(options.actions)
+                    // custom view functions
+                    .funcs(options.funcs)
                     // custom view components
                     .components(options.components)
                     // init view
@@ -5618,7 +5773,7 @@ ModelView.jquery = function( $ ) {
             });
 
             // chainable or values return
-            return !isInit && map.length ? (1 == this.length ? map[ 0 ] : map) : this;
+            return !isInit && map.length ? (1 == this.length ? map[0] : map) : this;
         };
     }
 
@@ -5640,10 +5795,10 @@ ModelView.jquery = function( $ ) {
                 var self = this;
                 if (1 < arguments.length)
                 {
-                    self.$view.$model.set(k, v, 1);
+                    self.$view.model().set(k, v, 1);
                     return self.element;
                 }
-                return self.$view.$model.get(k);
+                return self.$view.model().get(k);
             },
 
             view: function() {
@@ -5651,7 +5806,7 @@ ModelView.jquery = function( $ ) {
             },
 
             model: function() {
-                return this.$view.$model;
+                return this.$view.model();
             },
 
             _destroy: function() {

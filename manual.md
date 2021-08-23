@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 1.1.0**
+**Version 1.2.0**
 
 ### Contents
 
@@ -579,7 +579,8 @@ view.autobind( [Boolean enabled] );
 
 
 // bind view to dom listening given events (default: ['change', 'click'])
-view.bind( [Array events=['change', 'click'], DOMNode dom=document.body] );
+// optionaly can define a render sub dom of dom where rendering happens (rest dom remains intact), default renderdom=dom
+view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNode renderdom=dom]] );
 
 
 
