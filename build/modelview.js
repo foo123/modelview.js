@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.2.0
-*   @built on 2021-08-23 18:40:38
+*   @built on 2021-08-24 09:55:39
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.2.0
-*   @built on 2021-08-23 18:40:38
+*   @built on 2021-08-24 09:55:39
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -766,7 +766,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         /*if (a in e)
                         {
-                            if (v !== e[a])
+                            if (v != e[a])
                             {
                                 try {
                                     e[a] = v;
@@ -893,7 +893,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     if (enode.value !== tnode.value)
                         enode.value = tnode.value;
                 }
-                else if ((0 !== count) && tnode[HAS_ATTR]('mv-id') && enode[HAS_ATTR]('mv-id') && (tnode[ATTR]('mv-id') !== enode[ATTR]('mv-id')))
+                else if ((0 !== count) && tnode[HAS_ATTR]('mv-key') && enode[HAS_ATTR]('mv-key') && (tnode[ATTR]('mv-key') !== enode[ATTR]('mv-key')))
                 {
                     if (0 > count)
                     {
@@ -922,7 +922,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             count--;
                             if (index >= e.childNodes.length) break;
                             enode = e.childNodes[index];
-                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-id') || (tnode[ATTR]('mv-id') === enode[ATTR]('mv-id'))) break;
+                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-key') || (tnode[ATTR]('mv-key') === enode[ATTR]('mv-key'))) break;
                         }
                         if (index >= e.childNodes.length)
                         {
@@ -5414,7 +5414,7 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -5435,7 +5435,7 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;

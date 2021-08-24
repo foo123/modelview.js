@@ -1108,7 +1108,7 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;
@@ -1129,7 +1129,7 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-key') || data.key,
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
             modelkey, domref, enabled;
 
         if (!key) return;

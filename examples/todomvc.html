@@ -34,7 +34,7 @@
 
 
 <script id="todo-component" type="text/x-template">
-<li mv-id="{%= props.uuid %}" id="{%= props.uuid %}" class="todo {%= props.completed ? 'completed' : '' %}">
+<li mv-key="{%= props.uuid %}" id="{%= props.uuid %}" class="todo {%= props.completed ? 'completed' : '' %}">
     <div class="view">
         <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" {%=props.completed ? 'checked' : ''%}/>
         <label mv-evt mv-on-dblclick="edit">{%= props.title %}</label>

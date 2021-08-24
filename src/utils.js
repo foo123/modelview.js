@@ -716,7 +716,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     {
                         /*if (a in e)
                         {
-                            if (v !== e[a])
+                            if (v != e[a])
                             {
                                 try {
                                     e[a] = v;
@@ -843,7 +843,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     if (enode.value !== tnode.value)
                         enode.value = tnode.value;
                 }
-                else if ((0 !== count) && tnode[HAS_ATTR]('mv-id') && enode[HAS_ATTR]('mv-id') && (tnode[ATTR]('mv-id') !== enode[ATTR]('mv-id')))
+                else if ((0 !== count) && tnode[HAS_ATTR]('mv-key') && enode[HAS_ATTR]('mv-key') && (tnode[ATTR]('mv-key') !== enode[ATTR]('mv-key')))
                 {
                     if (0 > count)
                     {
@@ -872,7 +872,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             count--;
                             if (index >= e.childNodes.length) break;
                             enode = e.childNodes[index];
-                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-id') || (tnode[ATTR]('mv-id') === enode[ATTR]('mv-id'))) break;
+                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-key') || (tnode[ATTR]('mv-key') === enode[ATTR]('mv-key'))) break;
                         }
                         if (index >= e.childNodes.length)
                         {
