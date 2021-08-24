@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.2.0
-*   @built on 2021-08-24 09:55:39
+*   @version: 1.2.1
+*   @built on 2021-08-24 21:02:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.2.0
-*   @built on 2021-08-24 09:55:39
+*   @version: 1.2.1
+*   @built on 2021-08-24 21:02:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,7 +38,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.2.0**
+**Version 1.2.1**
 
 ### Contents
 
@@ -483,23 +483,47 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return (/*ref &&*/ startsWith(ref, "$this::")) ? $sel(ref.slice(7), el/*, true*/) : $sel(ref, null/*, true*/);
     },
 
+    remove_empty_spaces = function remove_empty_spaces(node) {
+        if (1 < node.childNodes.length)
+        {
+            slice.call(node.childNodes).forEach(function(n) {
+                if ((3 === n.nodeType) && !trim(n.nodeValue).length)
+                {
+                    node.removeChild(n);
+                }
+                else if (1 < n.childNodes.length)
+                {
+                    remove_empty_spaces(n);
+                }
+            });
+        }
+        return node;
+    },
+
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
-    str2dom = function(html) {
-        var el, frg, i;
+    str2dom = function(html, without_empty_spaces) {
+        var el, frg, i, ret;
         if (el = isElementSupported('template'))
         {
-            el.innerHTML = trim(Str(html));
-            return el.content;
+            el.innerHTML = trim(html);
+            ret = el.content;
         }
         else
         {
             el = document.createElement('div');
             frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
-            el.innerHTML = trim(Str(html));
-            if (!frg) return el;
-            while (i=el.firstChild) frg.appendChild(i);
-            return frg;
+            el.innerHTML = trim(html);
+            if (!frg)
+            {
+                ret = el;
+            }
+            else
+            {
+                while (i=el.firstChild) frg.appendChild(i);
+                ret = frg;
+            }
         }
+        return true === without_empty_spaces ? remove_empty_spaces(ret) : ret;
     },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
@@ -5136,14 +5160,14 @@ view.render( [Boolean immediate=false] );
             }
             else if (true === immediate)
             {
-                morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             }
             else
             {
                 debounce(function() {
-                    morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }, self);
@@ -5624,7 +5648,7 @@ new ModelView.View('view')
 // export it
 var ModelView = {
 
-    VERSION: "1.2.0"
+    VERSION: "1.2.1"
     
     ,UUID: uuid
     
@@ -5647,7 +5671,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.2.0
+*   @version: 1.2.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

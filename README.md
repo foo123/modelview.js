@@ -5,7 +5,7 @@ A simple, light-weight, versatile and fast MVVM front-end framework for JavaScri
 
 ![ModelView](/modelview.jpg)
 
-**Version 1.2.0** (54 kB minified)
+**Version 1.2.1** (54 kB minified)
 
 
 **see also:**  

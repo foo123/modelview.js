@@ -830,14 +830,14 @@ view.render( [Boolean immediate=false] );
             }
             else if (true === immediate)
             {
-                morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             }
             else
             {
                 debounce(function() {
-                    morph(self.$renderdom, str2dom(self.$out.call(self)), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }, self);

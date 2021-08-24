@@ -433,23 +433,47 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return (/*ref &&*/ startsWith(ref, "$this::")) ? $sel(ref.slice(7), el/*, true*/) : $sel(ref, null/*, true*/);
     },
 
+    remove_empty_spaces = function remove_empty_spaces(node) {
+        if (1 < node.childNodes.length)
+        {
+            slice.call(node.childNodes).forEach(function(n) {
+                if ((3 === n.nodeType) && !trim(n.nodeValue).length)
+                {
+                    node.removeChild(n);
+                }
+                else if (1 < n.childNodes.length)
+                {
+                    remove_empty_spaces(n);
+                }
+            });
+        }
+        return node;
+    },
+
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
-    str2dom = function(html) {
-        var el, frg, i;
+    str2dom = function(html, without_empty_spaces) {
+        var el, frg, i, ret;
         if (el = isElementSupported('template'))
         {
-            el.innerHTML = trim(Str(html));
-            return el.content;
+            el.innerHTML = trim(html);
+            ret = el.content;
         }
         else
         {
             el = document.createElement('div');
             frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
-            el.innerHTML = trim(Str(html));
-            if (!frg) return el;
-            while (i=el.firstChild) frg.appendChild(i);
-            return frg;
+            el.innerHTML = trim(html);
+            if (!frg)
+            {
+                ret = el;
+            }
+            else
+            {
+                while (i=el.firstChild) frg.appendChild(i);
+                ret = frg;
+            }
         }
+        return true === without_empty_spaces ? remove_empty_spaces(ret) : ret;
     },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
