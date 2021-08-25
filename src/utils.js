@@ -615,12 +615,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     debounce = function(callback, instance) {
         // If there's a pending render, cancel it
         if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
-
         // Setup the new render to run at the next animation frame
-        if (instance)
-            instance._dbnc = window.requestAnimationFrame(function() {callback.call(instance); instance._dbnc = null;});
-        else
-            window.requestAnimationFrame(callback);
+        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+        else window.requestAnimationFrame(callback);
     },
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());

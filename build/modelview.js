@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.3.0
-*   @built on 2021-08-25 12:46:11
+*   @built on 2021-08-25 20:09:49
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.3.0
-*   @built on 2021-08-25 12:46:11
+*   @built on 2021-08-25 20:09:49
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -665,12 +665,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     debounce = function(callback, instance) {
         // If there's a pending render, cancel it
         if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
-
         // Setup the new render to run at the next animation frame
-        if (instance)
-            instance._dbnc = window.requestAnimationFrame(function() {callback.call(instance); instance._dbnc = null;});
-        else
-            window.requestAnimationFrame(callback);
+        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+        else window.requestAnimationFrame(callback);
     },
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
@@ -5788,7 +5785,7 @@ View.HtmlWidget = null;
 /**[DOC_MARKDOWN]
 #### Examples 
 
-[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+[See it](https://foo123.github.io/examples/modelview/)
 
 
 **markup**
@@ -5853,8 +5850,7 @@ var ModelView = {
     
     ,Extend: Merge
     
-    //,Field: ModelField
-    // transfered to Model.Field
+    //,Field: ModelField // transfered to Model.Field
     ,Event: DOMEvent
     
     ,Type: Type
