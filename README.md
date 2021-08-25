@@ -34,7 +34,7 @@ A simple, light-weight, versatile and fast MVVM front-end framework for JavaScri
 
 #### Hello World
 
-[See it](https://foo123.github.io/examples/modelview/hello-world.html)
+[See it](https://foo123.github.io/examples/modelview/)
 
 
 ```html
@@ -87,10 +87,10 @@ new ModelView.View('view')
 
 #### Examples
 
-* [Hello World](https://foo123.github.io/examples/modelview/hello-world.html)
+* [Hello World](https://foo123.github.io/examples/modelview/)
 * [Temperature Converter](https://foo123.github.io/examples/modelview/temperature-converter.html) based on [Two Way Data Binding](http://n12v.com/2-way-data-binding/)
-* [TodoMVC with ModelView](https://foo123.github.io/examples/modelview/todomvc.html) based on [TodoMVC by Addy Osmani](http://todomvc.com)
-* [Weather at a Glance](https://foo123.github.io/examples/modelview/weather.html)
+* [TodoMVC with ModelView](https://foo123.github.io/examples/todomvc/) based on [TodoMVC by Addy Osmani](http://todomvc.com)
+* [Weather at a Glance](https://foo123.github.io/examples/weather-modelview/)
 * [ModelView with HtmlWidget](https://foo123.github.io/examples/htmlwidget/)
 
 #### JavaScript and Browser Support

@@ -1,7 +1,7 @@
 /**[DOC_MARKDOWN]
 #### Examples 
 
-[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+[See it](https://foo123.github.io/examples/modelview/)
 
 
 **markup**
@@ -66,8 +66,7 @@ var ModelView = {
     
     ,Extend: Merge
     
-    //,Field: ModelField
-    // transfered to Model.Field
+    //,Field: ModelField // transfered to Model.Field
     ,Event: DOMEvent
     
     ,Type: Type

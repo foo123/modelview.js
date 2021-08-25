@@ -629,7 +629,7 @@ MyComponent.dispose(); // dispose
 
 #### Examples 
 
-[See it](https://foo123.github.io/examples/modelview-todomvc/hello-world.html)
+[See it](https://foo123.github.io/examples/modelview/)
 
 
 **markup**
