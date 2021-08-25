@@ -373,6 +373,8 @@ View.parse = function(str, args, scoped, textOnly) {
     if (scoped && scoped.length) code += "\n" + String(scoped);
     if (true === textOnly)
     {
+        args = 'MODEL';
+        code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
         while (tpl && tpl.length)
         {
             p1 = tpl.indexOf('{%=');
@@ -382,8 +384,13 @@ View.parse = function(str, args, scoped, textOnly) {
                 break;
             }
             p2 = tpl.indexOf('%}', p1+3);
+            if (-1 === p2)
+            {
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
             code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += \'{%=\''+trim(tpl.slice(p1+3, p2))+'\'%}\'';
+            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
             tpl = tpl.slice(p2+2);
         }
     }
@@ -842,24 +849,34 @@ view.render( [Boolean immediate=false] );
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
-            if (self.$renderdom && !self.$map)
+            if (!self.$renderdom)
             {
-                if (self.$out) self.$renderdom.innerHTML = self.$out.call(self);
-                self.add(self.$renderdom);
-            }
-            if (true === immediate)
-            {
-                morphText(self.$map, self.model());
+                out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
+                return out;
             }
             else
             {
-                debounce(function() {
+                if (!self.$map)
+                {
+                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
+                    self.add(self.$renderdom);
+                }
+                if (true === immediate)
+                {
                     morphText(self.$map, self.model());
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
-                }, self);
+                }
+                else
+                {
+                    debounce(function() {
+                        morphText(self.$map, self.model());
+                        // notify any 3rd-party also if needed
+                        self.publish('render', {});
+                    }, self);
+                }
             }
         }
         else if (self.$out)
@@ -1142,7 +1159,7 @@ view.sync_model();
             autobindSelector = 'input[name="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
             bindSelector = '[mv-evt]',
             hasDocument = 'undefined' !== typeof document,
-            bindElements, autoBindElement
+            bindElements, autoBindElements
         ;
 
         // do actions ..

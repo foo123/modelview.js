@@ -1035,20 +1035,26 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     placeholder_re = /\{%=([^%]+)%\}/,
     get_placeholders = function get_placeholders(node, map) {
-        var m, k, t;
+        var m, k, t, s;
         if (node)
         {
             if (3 === node.nodeType)
             {
-                if (m = node.nodeValue.match(placeholder_re))
+                s = n.nodeValue;
+                while (s.length && (m = s.match(placeholder_re)))
                 {
                     k = trim(m[1]);
                     if (k.length)
                     {
-                        t = node.splitText(m.index);
-                        t.splitText(m[0].length);
+                        t = n.splitText(m.index);
+                        n = t.splitText(m[0].length);
+                        s = n.nodeValue;
                         if (!HAS.call(map.txt, k)) map.txt[k] = [];
                         map.txt[k].push(t);
+                    }
+                    else
+                    {
+                        s = s.slice(m.index+m[0].length);
                     }
                 }
             }
@@ -1057,17 +1063,26 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 if (node.attributes && node.attributes.length)
                 {
                     slice.call(node.attributes).forEach(function(a){
-                        var m, k, t;
-                        if (m = a.value.match(placeholder_re))
+                        var m, k, s = a.value, index = 0, txt = [s], keys = [];
+                        while (s.length && (m = s.match(placeholder_re)))
                         {
                             k = trim(m[1]);
                             if (k.length)
                             {
-                                t = {node:node, att:a.name, txt:[a.value.slice(0, m.index), k, a.value.slice(m.index+m[0].length)]};
-                                if (!HAS.call(map.att, k)) map.att[k] = [];
-                                map.att[k].push(t);
+                                if (-1 === keys.indexOf(k)) keys.push(k);
+                                txt.pop();
+                                txt.push(a.value.slice(index, index+m.index));
+                                txt.push({mvKey:k});
+                                txt.push(a.value.slice(index+m.index+m[0].length));
                             }
+                            s = s.slice(m.index+m[0].length);
+                            index += m.index + m[0].length;
                         }
+                        keys.forEach(function(k){
+                            var t = {node:node, att:a.name, txt:txt.slice()};
+                            if (!HAS.call(map.att, k)) map.att[k] = [];
+                            map.att[k].push(t);
+                        });
                     });
                 }
                 if (node.childNodes.length)
@@ -1077,7 +1092,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         if (3 === n.nodeType)
                         {
                             s = n.nodeValue;
-                            while (m = s.match(placeholder_re))
+                            while (s.length && (m = s.match(placeholder_re)))
                             {
                                 k = trim(m[1]);
                                 if (k.length)
@@ -1118,9 +1133,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         Keys(map.att).forEach(function(k){
             if ((null == key) || (key === k) || startsWith(k, key+'.'))
             {
-                var v = Str(model.get(k));
+                //var v = Str(model.get(k));
                 map.att[k].forEach(function(a){
-                    a.node[SET_ATTR](a.att, a.txt[0] + v + a.txt[2]);
+                    a.node[SET_ATTR](a.att, a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join(''));
                 });
             }
         });

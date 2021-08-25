@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.3.0
-*   @built on 2021-08-25 09:15:01
+*   @built on 2021-08-25 12:46:11
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.3.0
-*   @built on 2021-08-25 09:15:01
+*   @built on 2021-08-25 12:46:11
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1085,20 +1085,26 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     placeholder_re = /\{%=([^%]+)%\}/,
     get_placeholders = function get_placeholders(node, map) {
-        var m, k, t;
+        var m, k, t, s;
         if (node)
         {
             if (3 === node.nodeType)
             {
-                if (m = node.nodeValue.match(placeholder_re))
+                s = n.nodeValue;
+                while (s.length && (m = s.match(placeholder_re)))
                 {
                     k = trim(m[1]);
                     if (k.length)
                     {
-                        t = node.splitText(m.index);
-                        t.splitText(m[0].length);
+                        t = n.splitText(m.index);
+                        n = t.splitText(m[0].length);
+                        s = n.nodeValue;
                         if (!HAS.call(map.txt, k)) map.txt[k] = [];
                         map.txt[k].push(t);
+                    }
+                    else
+                    {
+                        s = s.slice(m.index+m[0].length);
                     }
                 }
             }
@@ -1107,17 +1113,26 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 if (node.attributes && node.attributes.length)
                 {
                     slice.call(node.attributes).forEach(function(a){
-                        var m, k, t;
-                        if (m = a.value.match(placeholder_re))
+                        var m, k, s = a.value, index = 0, txt = [s], keys = [];
+                        while (s.length && (m = s.match(placeholder_re)))
                         {
                             k = trim(m[1]);
                             if (k.length)
                             {
-                                t = {node:node, att:a.name, txt:[a.value.slice(0, m.index), k, a.value.slice(m.index+m[0].length)]};
-                                if (!HAS.call(map.att, k)) map.att[k] = [];
-                                map.att[k].push(t);
+                                if (-1 === keys.indexOf(k)) keys.push(k);
+                                txt.pop();
+                                txt.push(a.value.slice(index, index+m.index));
+                                txt.push({mvKey:k});
+                                txt.push(a.value.slice(index+m.index+m[0].length));
                             }
+                            s = s.slice(m.index+m[0].length);
+                            index += m.index + m[0].length;
                         }
+                        keys.forEach(function(k){
+                            var t = {node:node, att:a.name, txt:txt.slice()};
+                            if (!HAS.call(map.att, k)) map.att[k] = [];
+                            map.att[k].push(t);
+                        });
                     });
                 }
                 if (node.childNodes.length)
@@ -1127,7 +1142,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         if (3 === n.nodeType)
                         {
                             s = n.nodeValue;
-                            while (m = s.match(placeholder_re))
+                            while (s.length && (m = s.match(placeholder_re)))
                             {
                                 k = trim(m[1]);
                                 if (k.length)
@@ -1168,9 +1183,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         Keys(map.att).forEach(function(k){
             if ((null == key) || (key === k) || startsWith(k, key+'.'))
             {
-                var v = Str(model.get(k));
+                //var v = Str(model.get(k));
                 map.att[k].forEach(function(a){
-                    a.node[SET_ATTR](a.att, a.txt[0] + v + a.txt[2]);
+                    a.node[SET_ATTR](a.att, a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join(''));
                 });
             }
         });
@@ -4797,6 +4812,8 @@ View.parse = function(str, args, scoped, textOnly) {
     if (scoped && scoped.length) code += "\n" + String(scoped);
     if (true === textOnly)
     {
+        args = 'MODEL';
+        code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
         while (tpl && tpl.length)
         {
             p1 = tpl.indexOf('{%=');
@@ -4806,8 +4823,13 @@ View.parse = function(str, args, scoped, textOnly) {
                 break;
             }
             p2 = tpl.indexOf('%}', p1+3);
+            if (-1 === p2)
+            {
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
             code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += \'{%=\''+trim(tpl.slice(p1+3, p2))+'\'%}\'';
+            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
             tpl = tpl.slice(p2+2);
         }
     }
@@ -5266,24 +5288,34 @@ view.render( [Boolean immediate=false] );
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
-            if (self.$renderdom && !self.$map)
+            if (!self.$renderdom)
             {
-                if (self.$out) self.$renderdom.innerHTML = self.$out.call(self);
-                self.add(self.$renderdom);
-            }
-            if (true === immediate)
-            {
-                morphText(self.$map, self.model());
+                out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
+                return out;
             }
             else
             {
-                debounce(function() {
+                if (!self.$map)
+                {
+                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
+                    self.add(self.$renderdom);
+                }
+                if (true === immediate)
+                {
                     morphText(self.$map, self.model());
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
-                }, self);
+                }
+                else
+                {
+                    debounce(function() {
+                        morphText(self.$map, self.model());
+                        // notify any 3rd-party also if needed
+                        self.publish('render', {});
+                    }, self);
+                }
             }
         }
         else if (self.$out)
@@ -5566,7 +5598,7 @@ view.sync_model();
             autobindSelector = 'input[name="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
             bindSelector = '[mv-evt]',
             hasDocument = 'undefined' !== typeof document,
-            bindElements, autoBindElement
+            bindElements, autoBindElements
         ;
 
         // do actions ..
