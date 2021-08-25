@@ -379,14 +379,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node;
     },
 
-    join_text_nodes = function(nodes) {
-        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
-        if (l > 1) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
-        return txt;
-    },
-
     // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
-    isElementSupported = function isElementSupported(tag) {
+    is_element_supported = function is_element_supported(tag) {
         // Return undefined if `HTMLUnknownElement` interface
         // doesn't exist
         if (!window.HTMLUnknownElement) return undefined;
@@ -410,7 +404,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     // http://youmightnotneedjquery.com/
-    $id = function(id, el) {
+    $id = function(id) {
         return [document.getElementById(id)];
     },
     $tag = function(tagname, el) {
@@ -453,7 +447,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html, without_empty_spaces) {
         var el, frg, i, ret;
-        if (el = isElementSupported('template'))
+        if (el = is_element_supported('template'))
         {
             el.innerHTML = trim(html);
             ret = el.content;
@@ -480,11 +474,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     dom2str = (function() {
         var DIV = document.createElement("div");
         return 'outerHTML' in DIV
-            ? function(node) {return node.outerHTML;}
+            ? function(node) {
+                return trim(node.outerHTML);
+            }
             : function(node) {
                 var div = DIV.cloneNode();
                 div.appendChild(node.cloneNode(true));
-                return div.innerHTML;
+                return trim(div.innerHTML);
             }
         ;
     })(),
@@ -498,8 +494,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (P.msMatchesSelector) return 'msMatchesSelector';
         else if (P.oMatchesSelector) return 'oMatchesSelector';
     }(this.Element ? this.Element[proto] : null)),
-
-    get_textnode = function(txt) {return document.createTextNode(txt||'');},
 
     // http://stackoverflow.com/a/2364000/3591273
     get_style = 'undefined' !== typeof window && window.getComputedStyle
@@ -603,11 +597,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     is_child_of = function(el, node, finalNode) {
         var p = el;
-        while (p)
+        if (p)
         {
-            if (p === node) return true;
-            if (finalNode && (p === finalNode)) break;
-            p = p.parentNode;
+            if (node === p) return true;
+            if (node.contains) return node.contains(p);
+            //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
+            while (p)
+            {
+                if (p === node) return true;
+                if (finalNode && (p === finalNode)) break;
+                p = p.parentNode;
+            }
         }
         return false;
     },
@@ -1032,6 +1032,100 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             e.removeChild(enode);
         }
     },
+
+    placeholder_re = /\{%=([^%]+)%\}/,
+    get_placeholders = function get_placeholders(node, map) {
+        var m, k, t;
+        if (node)
+        {
+            if (3 === node.nodeType)
+            {
+                if (m = node.nodeValue.match(placeholder_re))
+                {
+                    k = trim(m[1]);
+                    if (k.length)
+                    {
+                        t = node.splitText(m.index);
+                        t.splitText(m[0].length);
+                        if (!HAS.call(map.txt, k)) map.txt[k] = [];
+                        map.txt[k].push(t);
+                    }
+                }
+            }
+            else
+            {
+                if (node.attributes && node.attributes.length)
+                {
+                    slice.call(node.attributes).forEach(function(a){
+                        var m, k, t;
+                        if (m = a.value.match(placeholder_re))
+                        {
+                            k = trim(m[1]);
+                            if (k.length)
+                            {
+                                t = {node:node, att:a.name, txt:[a.value.slice(0, m.index), k, a.value.slice(m.index+m[0].length)]};
+                                if (!HAS.call(map.att, k)) map.att[k] = [];
+                                map.att[k].push(t);
+                            }
+                        }
+                    });
+                }
+                if (node.childNodes.length)
+                {
+                    slice.call(node.childNodes).forEach(function(n){
+                        var m, k, t, s;
+                        if (3 === n.nodeType)
+                        {
+                            s = n.nodeValue;
+                            while (m = s.match(placeholder_re))
+                            {
+                                k = trim(m[1]);
+                                if (k.length)
+                                {
+                                    t = n.splitText(m.index);
+                                    n = t.splitText(m[0].length);
+                                    s = n.nodeValue;
+                                    if (!HAS.call(map.txt, k)) map.txt[k] = [];
+                                    map.txt[k].push(t);
+                                }
+                                else
+                                {
+                                    s = s.slice(m.index+m[0].length);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            get_placeholders(n, map);
+                        }
+                    });
+                }
+            }
+        }
+        return node;
+    },
+    morphText = function morphText(map, model, key) {
+        if (!map) return;
+        Keys(map.txt).forEach(function(k){
+            if ((null == key) || (key === k) || startsWith(k, key+'.'))
+            {
+                var v = Str(model.get(k));
+                map.txt[k].forEach(function(t){
+                    t.nodeValue = v;
+                });
+            }
+        });
+        Keys(map.att).forEach(function(k){
+            if ((null == key) || (key === k) || startsWith(k, key+'.'))
+            {
+                var v = Str(model.get(k));
+                map.att[k].forEach(function(a){
+                    a.node[SET_ATTR](a.att, a.txt[0] + v + a.txt[2]);
+                });
+            }
+        });
+    },
+
     notEmpty = function(s) {return 0 < s.length;}, SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
 
     // adapted from jQuery

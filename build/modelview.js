@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.2.1
-*   @built on 2021-08-24 21:02:27
+*   @version: 1.3.0
+*   @built on 2021-08-25 09:15:01
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.2.1
-*   @built on 2021-08-24 21:02:27
+*   @version: 1.3.0
+*   @built on 2021-08-25 09:15:01
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -38,7 +38,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.2.1**
+**Version 1.3.0**
 
 ### Contents
 
@@ -429,14 +429,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         return node;
     },
 
-    join_text_nodes = function(nodes) {
-        var i, l = nodes.length, txt = l ? nodes[0].nodeValue : '';
-        if (l > 1) for (i=1; i<l; i++) txt += nodes[i].nodeValue;
-        return txt;
-    },
-
     // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
-    isElementSupported = function isElementSupported(tag) {
+    is_element_supported = function is_element_supported(tag) {
         // Return undefined if `HTMLUnknownElement` interface
         // doesn't exist
         if (!window.HTMLUnknownElement) return undefined;
@@ -460,7 +454,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     // http://youmightnotneedjquery.com/
-    $id = function(id, el) {
+    $id = function(id) {
         return [document.getElementById(id)];
     },
     $tag = function(tagname, el) {
@@ -503,7 +497,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html, without_empty_spaces) {
         var el, frg, i, ret;
-        if (el = isElementSupported('template'))
+        if (el = is_element_supported('template'))
         {
             el.innerHTML = trim(html);
             ret = el.content;
@@ -530,11 +524,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     dom2str = (function() {
         var DIV = document.createElement("div");
         return 'outerHTML' in DIV
-            ? function(node) {return node.outerHTML;}
+            ? function(node) {
+                return trim(node.outerHTML);
+            }
             : function(node) {
                 var div = DIV.cloneNode();
                 div.appendChild(node.cloneNode(true));
-                return div.innerHTML;
+                return trim(div.innerHTML);
             }
         ;
     })(),
@@ -548,8 +544,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (P.msMatchesSelector) return 'msMatchesSelector';
         else if (P.oMatchesSelector) return 'oMatchesSelector';
     }(this.Element ? this.Element[proto] : null)),
-
-    get_textnode = function(txt) {return document.createTextNode(txt||'');},
 
     // http://stackoverflow.com/a/2364000/3591273
     get_style = 'undefined' !== typeof window && window.getComputedStyle
@@ -653,11 +647,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     is_child_of = function(el, node, finalNode) {
         var p = el;
-        while (p)
+        if (p)
         {
-            if (p === node) return true;
-            if (finalNode && (p === finalNode)) break;
-            p = p.parentNode;
+            if (node === p) return true;
+            if (node.contains) return node.contains(p);
+            //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
+            while (p)
+            {
+                if (p === node) return true;
+                if (finalNode && (p === finalNode)) break;
+                p = p.parentNode;
+            }
         }
         return false;
     },
@@ -1082,6 +1082,100 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             e.removeChild(enode);
         }
     },
+
+    placeholder_re = /\{%=([^%]+)%\}/,
+    get_placeholders = function get_placeholders(node, map) {
+        var m, k, t;
+        if (node)
+        {
+            if (3 === node.nodeType)
+            {
+                if (m = node.nodeValue.match(placeholder_re))
+                {
+                    k = trim(m[1]);
+                    if (k.length)
+                    {
+                        t = node.splitText(m.index);
+                        t.splitText(m[0].length);
+                        if (!HAS.call(map.txt, k)) map.txt[k] = [];
+                        map.txt[k].push(t);
+                    }
+                }
+            }
+            else
+            {
+                if (node.attributes && node.attributes.length)
+                {
+                    slice.call(node.attributes).forEach(function(a){
+                        var m, k, t;
+                        if (m = a.value.match(placeholder_re))
+                        {
+                            k = trim(m[1]);
+                            if (k.length)
+                            {
+                                t = {node:node, att:a.name, txt:[a.value.slice(0, m.index), k, a.value.slice(m.index+m[0].length)]};
+                                if (!HAS.call(map.att, k)) map.att[k] = [];
+                                map.att[k].push(t);
+                            }
+                        }
+                    });
+                }
+                if (node.childNodes.length)
+                {
+                    slice.call(node.childNodes).forEach(function(n){
+                        var m, k, t, s;
+                        if (3 === n.nodeType)
+                        {
+                            s = n.nodeValue;
+                            while (m = s.match(placeholder_re))
+                            {
+                                k = trim(m[1]);
+                                if (k.length)
+                                {
+                                    t = n.splitText(m.index);
+                                    n = t.splitText(m[0].length);
+                                    s = n.nodeValue;
+                                    if (!HAS.call(map.txt, k)) map.txt[k] = [];
+                                    map.txt[k].push(t);
+                                }
+                                else
+                                {
+                                    s = s.slice(m.index+m[0].length);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            get_placeholders(n, map);
+                        }
+                    });
+                }
+            }
+        }
+        return node;
+    },
+    morphText = function morphText(map, model, key) {
+        if (!map) return;
+        Keys(map.txt).forEach(function(k){
+            if ((null == key) || (key === k) || startsWith(k, key+'.'))
+            {
+                var v = Str(model.get(k));
+                map.txt[k].forEach(function(t){
+                    t.nodeValue = v;
+                });
+            }
+        });
+        Keys(map.att).forEach(function(k){
+            if ((null == key) || (key === k) || startsWith(k, key+'.'))
+            {
+                var v = Str(model.get(k));
+                map.att[k].forEach(function(a){
+                    a.node[SET_ATTR](a.att, a.txt[0] + v + a.txt[2]);
+                });
+            }
+        });
+    },
+
     notEmpty = function(s) {return 0 < s.length;}, SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
 
     // adapted from jQuery
@@ -4696,69 +4790,88 @@ View.index = node_index;
 View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = function(str, args, scoped) {
+View.parse = function(str, args, scoped, textOnly) {
     // supports 2 types of template separators 1. {% %} and 2. <script> </script>
     // both can be used simultaneously
     var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
     if (scoped && scoped.length) code += "\n" + String(scoped);
-    while (tpl && tpl.length)
+    if (true === textOnly)
     {
-        p1 = tpl.indexOf('<script>');
-        ps1 = tpl.indexOf('{%');
-        if (-1 === p1 && -1 === ps1)
+        while (tpl && tpl.length)
         {
-            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            break;
-        }
-        else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-        {
-            echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-            p2 = tpl.indexOf('%}', ps1+2+echo);
-            if (-1 === p2)
-            {
-                if (-1 === p1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                else
-                {
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    tpl = tpl.slice(p1);
-                    continue;
-                }
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            if (echo)
-            {
-                code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-            }
-            else
-            {
-                code += "\n"+trim(tpl.slice(ps1+2, p2));
-            }
-            tpl = tpl.slice(p2+2);
-        }
-        else
-        {
-            echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-            p2 = tpl.indexOf('</script>', p1+8+echo);
-            if (-1 === p2)
+            p1 = tpl.indexOf('{%=');
+            if (-1 === p1)
             {
                 code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
                 break;
             }
-
+            p2 = tpl.indexOf('%}', p1+3);
             code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            if (echo)
+            code += "\n"+'_$$_ += \'{%=\''+trim(tpl.slice(p1+3, p2))+'\'%}\'';
+            tpl = tpl.slice(p2+2);
+        }
+    }
+    else
+    {
+        while (tpl && tpl.length)
+        {
+            p1 = tpl.indexOf('<script>');
+            ps1 = tpl.indexOf('{%');
+            if (-1 === p1 && -1 === ps1)
             {
-                code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
+            else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
+            {
+                echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
+                p2 = tpl.indexOf('%}', ps1+2+echo);
+                if (-1 === p2)
+                {
+                    if (-1 === p1)
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        break;
+                    }
+                    else
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        tpl = tpl.slice(p1);
+                        continue;
+                    }
+                }
+                code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                if (echo)
+                {
+                    code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+                }
+                else
+                {
+                    code += "\n"+trim(tpl.slice(ps1+2, p2));
+                }
+                tpl = tpl.slice(p2+2);
             }
             else
             {
-                code += "\n"+trim(tpl.slice(p1+8, p2));
+                echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
+                p2 = tpl.indexOf('</script>', p1+8+echo);
+                if (-1 === p2)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+
+                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                if (echo)
+                {
+                    code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                }
+                else
+                {
+                    code += "\n"+trim(tpl.slice(p1+8, p2));
+                }
+                tpl = tpl.slice(p2+9);
             }
-            tpl = tpl.slice(p2+9);
         }
     }
     code += "\n"+'return _$$_;';
@@ -4775,6 +4888,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$model: null
     ,$tpl: ''
     ,$out: null
+    ,$map: null
     ,$livebind: true
     ,$autobind: true
     ,$shortcuts: null
@@ -4796,6 +4910,7 @@ view.dispose( );
         view.$model = null;
         view.$tpl = null;
         view.$out = null;
+        view.$map = null;
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         view.$components = null;
@@ -4989,7 +5104,7 @@ view.livebind( [Boolean enabled] );
         var view = this;
         if (arguments.length)
         {
-            view.$livebind = !!enable;
+            view.$livebind = 'text' === enable ? 'text' : !!enable;
             return view;
         }
         return view.$livebind;
@@ -5148,8 +5263,30 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self, 'this'));
-        if (self.$out)
+        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
+        if ('text' === self.$livebind)
+        {
+            if (self.$renderdom && !self.$map)
+            {
+                if (self.$out) self.$renderdom.innerHTML = self.$out.call(self);
+                self.add(self.$renderdom);
+            }
+            if (true === immediate)
+            {
+                morphText(self.$map, self.model());
+                // notify any 3rd-party also if needed
+                self.publish('render', {});
+            }
+            else
+            {
+                debounce(function() {
+                    morphText(self.$map, self.model());
+                    // notify any 3rd-party also if needed
+                    self.publish('render', {});
+                }, self);
+            }
+        }
+        else if (self.$out)
         {
             if (!self.$renderdom)
             {
@@ -5176,6 +5313,36 @@ view.render( [Boolean immediate=false] );
         return self;
     }
 
+    ,add: function(node) {
+        var view = this;
+        if (node)
+        {
+            if (!view.$map) view.$map = {att:{}, txt:{}};
+            get_placeholders(node, view.$map);
+        }
+        return node;
+    }
+
+    ,remove: function(node) {
+        var map = this.$map;
+        if (node && map)
+        {
+            Keys(map.att).forEach(function(k){
+                var rem = [];
+                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node)) rem.push(i);});
+                rem.reverse().forEach(function(i){map.att[k].splice(i, 1);});
+                if (!map.att[k].length) delete map.att[k];
+            });
+            Keys(map.txt).forEach(function(k){
+                var rem = [];
+                map.txt[k].forEach(function(t, i){if (is_child_of(t, node)) rem.push(i);});
+                rem.reverse().forEach(function(i){map.txt[k].splice(i, 1);});
+                if (!map.txt[k].length) delete map.txt[k];
+            });
+        }
+        return node;
+    }
+
 /**[DOC_MARKDOWN]
 // synchronize dom to underlying model
 view.sync();
@@ -5187,7 +5354,7 @@ view.sync();
         if (hasDocument && view.$dom)
         {
             view.render(true);
-            if (view.$autobind && (!view.$livebind || view.$dom!==view.$renderdom))
+            if (view.$autobind && (!view.$livebind || 'text'===view.$livebind || view.$dom!==view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -5384,7 +5551,7 @@ view.sync_model();
         // do view action first
         //if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && autoBindElements.length && (!livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && autoBindElements.length && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
             do_auto_bind_action(view, evt, autoBindElements, data);
@@ -5407,7 +5574,7 @@ view.sync_model();
         // do view bind action first
         //if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && (!livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
             autoBindElements = $sel(autobindSelector, view.$dom);
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -5486,7 +5653,7 @@ view.sync_model();
             value, value_type, checkboxes, is_dynamic_array
         ;
 
-        if (view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
+        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
@@ -5648,7 +5815,7 @@ new ModelView.View('view')
 // export it
 var ModelView = {
 
-    VERSION: "1.2.1"
+    VERSION: "1.3.0"
     
     ,UUID: uuid
     
@@ -5671,7 +5838,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.2.1
+*   @version: 1.3.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

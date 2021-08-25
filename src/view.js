@@ -366,69 +366,88 @@ View.index = node_index;
 View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = function(str, args, scoped) {
+View.parse = function(str, args, scoped, textOnly) {
     // supports 2 types of template separators 1. {% %} and 2. <script> </script>
     // both can be used simultaneously
     var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
     if (scoped && scoped.length) code += "\n" + String(scoped);
-    while (tpl && tpl.length)
+    if (true === textOnly)
     {
-        p1 = tpl.indexOf('<script>');
-        ps1 = tpl.indexOf('{%');
-        if (-1 === p1 && -1 === ps1)
+        while (tpl && tpl.length)
         {
-            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            break;
-        }
-        else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-        {
-            echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-            p2 = tpl.indexOf('%}', ps1+2+echo);
-            if (-1 === p2)
-            {
-                if (-1 === p1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                else
-                {
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    tpl = tpl.slice(p1);
-                    continue;
-                }
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            if (echo)
-            {
-                code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-            }
-            else
-            {
-                code += "\n"+trim(tpl.slice(ps1+2, p2));
-            }
-            tpl = tpl.slice(p2+2);
-        }
-        else
-        {
-            echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-            p2 = tpl.indexOf('</script>', p1+8+echo);
-            if (-1 === p2)
+            p1 = tpl.indexOf('{%=');
+            if (-1 === p1)
             {
                 code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
                 break;
             }
-
+            p2 = tpl.indexOf('%}', p1+3);
             code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            if (echo)
+            code += "\n"+'_$$_ += \'{%=\''+trim(tpl.slice(p1+3, p2))+'\'%}\'';
+            tpl = tpl.slice(p2+2);
+        }
+    }
+    else
+    {
+        while (tpl && tpl.length)
+        {
+            p1 = tpl.indexOf('<script>');
+            ps1 = tpl.indexOf('{%');
+            if (-1 === p1 && -1 === ps1)
             {
-                code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
+            else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
+            {
+                echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
+                p2 = tpl.indexOf('%}', ps1+2+echo);
+                if (-1 === p2)
+                {
+                    if (-1 === p1)
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        break;
+                    }
+                    else
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        tpl = tpl.slice(p1);
+                        continue;
+                    }
+                }
+                code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                if (echo)
+                {
+                    code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+                }
+                else
+                {
+                    code += "\n"+trim(tpl.slice(ps1+2, p2));
+                }
+                tpl = tpl.slice(p2+2);
             }
             else
             {
-                code += "\n"+trim(tpl.slice(p1+8, p2));
+                echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
+                p2 = tpl.indexOf('</script>', p1+8+echo);
+                if (-1 === p2)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+
+                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                if (echo)
+                {
+                    code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                }
+                else
+                {
+                    code += "\n"+trim(tpl.slice(p1+8, p2));
+                }
+                tpl = tpl.slice(p2+9);
             }
-            tpl = tpl.slice(p2+9);
         }
     }
     code += "\n"+'return _$$_;';
@@ -445,6 +464,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$model: null
     ,$tpl: ''
     ,$out: null
+    ,$map: null
     ,$livebind: true
     ,$autobind: true
     ,$shortcuts: null
@@ -466,6 +486,7 @@ view.dispose( );
         view.$model = null;
         view.$tpl = null;
         view.$out = null;
+        view.$map = null;
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         view.$components = null;
@@ -659,7 +680,7 @@ view.livebind( [Boolean enabled] );
         var view = this;
         if (arguments.length)
         {
-            view.$livebind = !!enable;
+            view.$livebind = 'text' === enable ? 'text' : !!enable;
             return view;
         }
         return view.$livebind;
@@ -818,8 +839,30 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl,'', getFuncsScoped(self, 'this'));
-        if (self.$out)
+        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
+        if ('text' === self.$livebind)
+        {
+            if (self.$renderdom && !self.$map)
+            {
+                if (self.$out) self.$renderdom.innerHTML = self.$out.call(self);
+                self.add(self.$renderdom);
+            }
+            if (true === immediate)
+            {
+                morphText(self.$map, self.model());
+                // notify any 3rd-party also if needed
+                self.publish('render', {});
+            }
+            else
+            {
+                debounce(function() {
+                    morphText(self.$map, self.model());
+                    // notify any 3rd-party also if needed
+                    self.publish('render', {});
+                }, self);
+            }
+        }
+        else if (self.$out)
         {
             if (!self.$renderdom)
             {
@@ -846,6 +889,36 @@ view.render( [Boolean immediate=false] );
         return self;
     }
 
+    ,add: function(node) {
+        var view = this;
+        if (node)
+        {
+            if (!view.$map) view.$map = {att:{}, txt:{}};
+            get_placeholders(node, view.$map);
+        }
+        return node;
+    }
+
+    ,remove: function(node) {
+        var map = this.$map;
+        if (node && map)
+        {
+            Keys(map.att).forEach(function(k){
+                var rem = [];
+                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node)) rem.push(i);});
+                rem.reverse().forEach(function(i){map.att[k].splice(i, 1);});
+                if (!map.att[k].length) delete map.att[k];
+            });
+            Keys(map.txt).forEach(function(k){
+                var rem = [];
+                map.txt[k].forEach(function(t, i){if (is_child_of(t, node)) rem.push(i);});
+                rem.reverse().forEach(function(i){map.txt[k].splice(i, 1);});
+                if (!map.txt[k].length) delete map.txt[k];
+            });
+        }
+        return node;
+    }
+
 /**[DOC_MARKDOWN]
 // synchronize dom to underlying model
 view.sync();
@@ -857,7 +930,7 @@ view.sync();
         if (hasDocument && view.$dom)
         {
             view.render(true);
-            if (view.$autobind && (!view.$livebind || view.$dom!==view.$renderdom))
+            if (view.$autobind && (!view.$livebind || 'text'===view.$livebind || view.$dom!==view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -1054,7 +1127,7 @@ view.sync_model();
         // do view action first
         //if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && autoBindElements.length && (!livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && autoBindElements.length && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
             do_auto_bind_action(view, evt, autoBindElements, data);
@@ -1077,7 +1150,7 @@ view.sync_model();
         // do view bind action first
         //if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && (!livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
             autoBindElements = $sel(autobindSelector, view.$dom);
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -1156,7 +1229,7 @@ view.sync_model();
             value, value_type, checkboxes, is_dynamic_array
         ;
 
-        if (view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
+        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
