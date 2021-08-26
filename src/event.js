@@ -11,7 +11,7 @@ if (!HTMLElement.prototype.addEventListener) !function(){
     }
 
     // add
-    addToPrototype("addEventListener", function (type, listener) {
+    addToPrototype("addEventListener", function (type, listener, capture) {
         var
         target = this,
         listeners = target.addEventListener.listeners = target.addEventListener.listeners || {},
@@ -54,7 +54,7 @@ if (!HTMLElement.prototype.addEventListener) !function(){
     });
 
     // remove
-    addToPrototype("removeEventListener", function (type, listener) {
+    addToPrototype("removeEventListener", function (type, listener, capture) {
         var
         target = this,
         listeners = target.addEventListener.listeners = target.addEventListener.listeners || {},
@@ -108,7 +108,7 @@ function NSEvent(evt, namespace)
 var EVENTSTOPPED = "DOMEVENT_STOPPED",
     captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
-function captureForType(eventType){ return -1 < captureEvts.indexOf( eventType ); }
+function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); }
 function matchesRoot(root, element){ return root === element; }
 function matchesTag(tagName, element){ return tagName.toLowerCase() === element.tagName.toLowerCase(); }
 function matchesId(id, element){ return id === element.id; }
@@ -193,6 +193,7 @@ DOMEvent.Handler = function(event) {
 };
 DOMEvent.Dispatch = function(event, element, data) {
     var evt; // The custom event that will be created
+    if (!document || !element) return;
     if (document.createEvent)
     {
         evt = document.createEvent("HTMLEvents");
@@ -207,7 +208,7 @@ DOMEvent.Dispatch = function(event, element, data) {
         evt.eventType = event;
         evt.eventName = event;
         if (null != data) evt.data = data;
-        element.fireEvent("on" + evt.eventType, evt);
+        element.fireEvent("on" + event, evt);
     }
 };
 

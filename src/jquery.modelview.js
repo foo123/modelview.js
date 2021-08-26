@@ -134,8 +134,6 @@ ModelView.jquery = function($) {
 
                 view = new options.viewClass(options.id)
                     .model(model)
-                    // custom view template renderer
-                    .template(options.template)
                     // custom view event handlers
                     .events(options.handlers)
                     // custom view hotkeys/keyboard shortcuts
@@ -152,6 +150,8 @@ ModelView.jquery = function($) {
                     .autovalidate(options.autovalidate)
                     .bind(options.events, $dom[0])
                 ;
+                // custom view template renderer
+                if (null != options.template) view.template(options.template);
                 $dom.data('modelview', view);
                 if (options.autoSync) view.sync();
             });

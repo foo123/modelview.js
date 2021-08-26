@@ -501,13 +501,13 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         : function(el) {return el.currentStyle;},
 
     show = function(el) {
-        if (!el._displayCached) el._displayCached = /*get_style(el).display*/el[STYLE].display || '';
-        el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : '';
+        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
+        el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : 'block';
         el._displayCached = undef;
     },
 
     hide = function(el) {
-        if (!el._displayCached) el._displayCached = /*get_style(el).display*/el[STYLE].display || '';
+        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
         el[STYLE].display = 'none';
     },
 
@@ -553,25 +553,28 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     select_set = function(el, v) {
         var values = map([].concat(v), tostr),
-            options = el[OPTIONS],
-            opt, i, sel_index = -1
+            options = el[OPTIONS], selected,
+            opt, i, sel_index = -1, ret = false
         ;
 
         for (i=0; i<options.length; i++ )
         {
-            opt = options[ i ];
-            opt[SELECTED] = -1 < values.indexOf( opt_val( opt ) );
+            opt = options[i];
+            selected = opt[SELECTED];
+            opt[SELECTED] = -1 < values.indexOf(opt_val(opt));
+            if (selected !== opt[SELECTED]) ret = true;
         }
         if (!values.length) el[SELECTED_INDEX] = -1;
+        return ret;
     },
 
     get_val = function(el) {
         if (!el) return;
         var value_alt = null;
         if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
-        switch(el[TAG])
+        switch((el[TAG]||'').toUpperCase())
         {
-            case 'INPUT': return 'file' === el.type.toLowerCase() ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
+            case 'INPUT': return 'file' === (el.type||'').toLowerCase() ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
             case 'TEXTAREA':return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL];
             case 'SELECT': return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : select_get(el);
             default: return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : ((TEXTC in el) ? el[TEXTC] : el[TEXT]);
@@ -580,24 +583,50 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     set_val = function(el, v) {
         if (!el) return;
-        var value_alt = null;
+        var value_alt = null, sv = Str(v), ret = false;
         if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
-        switch(el[TAG])
+        switch((el[TAG]||'').toUpperCase())
         {
-            case 'INPUT': if ('file' === el.type.toLowerCase( )) {} else { el[VAL] = Str(v); if (!!value_alt) el[value_alt] = null; } break;
-            case 'TEXTAREA': el[VAL] = Str(v);  if (!!value_alt) el[value_alt] = null; break;
-            case 'SELECT': select_set(el, v);  if (!!value_alt) el[value_alt] = null; break;
+            case 'INPUT':
+                if ('file' === (el.type||'').toLowerCase())
+                {
+                }
+                else
+                {
+                    ret = el[VAL] !== sv;
+                    if (ret) el[VAL] = sv;
+                    if (!!value_alt) el[value_alt] = null;
+                }
+                break;
+            case 'TEXTAREA':
+                ret = el[VAL] !== sv;
+                if (ret) el[VAL] = sv;
+                if (!!value_alt) el[value_alt] = null;
+                break;
+            case 'SELECT':
+                ret = select_set(el, v);
+                if (!!value_alt) el[value_alt] = null;
+                break;
             default:
-                if (TEXTC in el) el[TEXTC] = Str(v);
-                else el[TEXT] = Str(v);
-                 if (!!value_alt) el[value_alt] = null;
+                if (TEXTC in el)
+                {
+                    ret = el[TEXTC] !== sv;
+                    if (ret) el[TEXTC] = sv;
+                }
+                else
+                {
+                    ret = el[TEXT] !== sv;
+                    if (ret) el[TEXT] = sv;
+                }
+                if (!!value_alt) el[value_alt] = null;
                 break;
         }
+        return ret;
     },
 
     is_child_of = function(el, node, finalNode) {
         var p = el;
-        if (p)
+        if (p && node)
         {
             if (node === p) return true;
             if (node.contains) return node.contains(p);

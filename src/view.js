@@ -222,16 +222,22 @@ var namedKeyProp = "mv_namedkey",
     do_bind_action = function(view, evt, elements, fromModel) {
         var model = view.$model, event = evt.type;
 
+        if ('sync' === event) event = 'change';
         iterate(function(i) {
-            var el, do_action, name, key;
+            var el, do_action, name, key, data = {};
             el = elements[i]; if (!el) return;
-            do_action = el[ATTR]('mv-on-'+event);
+            do_action = el[ATTR]('mv-on-'+(fromModel ? 'model-' : '')+event);
             if (!do_action) return;
+            if ('text' === do_action)
+            {
+                do_action = 'html';
+                data.text = true;
+            }
 
             do_action = 'do_' + do_action;
             if (!is_type(view[do_action], T_FUNC)) return;
 
-            view[do_action](evt, el);
+            view[do_action](evt, el, data);
         }, 0, elements.length-1);
     },
 
@@ -947,6 +953,7 @@ view.sync();
         if (hasDocument && view.$dom)
         {
             view.render(true);
+            do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt]', view.$dom), {});
             if (view.$autobind && (!view.$livebind || 'text'===view.$livebind || view.$dom!==view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
@@ -986,6 +993,9 @@ view.sync_model();
             checkboxes, is_dynamic_array, input_type, alternative,
             modeldata = { }
         ;
+
+        // evt triggered by view itself, ignore
+        if (evt.data && (view === evt.data.trigger)) return;
 
         // update model and propagate to other elements of same view (via model publish hook)
         if (data.isAutoBind && !!(name=el[NAME]))
@@ -1056,9 +1066,11 @@ view.sync_model();
             el = data.el, callback, ret, input_type,
             key, code, character, modifiers;
 
+        // evt triggered by view itself, ignore
+        if (evt.data && (view === evt.data.trigger)) return;
         // adapted from shortcuts.js, http://www.openjs.com/scripts/events/keyboard_shortcuts/
         //
-        input_type = 'TEXTAREA' === el.tagName ? 'text' : ('INPUT' === el.tagName ? el[TYPE].toLowerCase( ) : '');
+        input_type = 'TEXTAREA' === el[TAG].toUpperCase() ? 'text' : ('INPUT' === el[TAG].toUpperCase() ? (el[TYPE]||'').toLowerCase() : '');
         // no hotkeys assigned or text input element is the target, bypass
         if (!view.$num_shortcuts || 'text' === input_type || 'email' === input_type || 'url' === input_type || 'number' === input_type) return;
 
@@ -1118,22 +1130,22 @@ view.sync_model();
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
-            autobindSelector = 'input[name="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-evt]', bindElements, autoBindElements,
+            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
+            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements, autoBindElements,
             hasDocument = 'undefined' !== typeof document,
             notTriggerElem
         ;
 
         if (hasDocument)
         {
-            //bindElements = $sel(bindSelector, view.$dom);
+            bindElements = $sel(bindSelector, view.$dom);
             if (autobind) autoBindElements = $sel(autobindSelector, view.$dom);
 
             // bypass element that triggered the "model:change" event
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                //bindElements = filter(bindElements, notTriggerElem);
+                bindElements = filter(bindElements, notTriggerElem);
                 if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
@@ -1142,7 +1154,7 @@ view.sync_model();
         // do actions ..
 
         // do view action first
-        //if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
+        if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
         if (hasDocument && autobind && autoBindElements.length && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
@@ -1156,8 +1168,8 @@ view.sync_model();
     ,on_model_error: function(evt, data) {
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
-            autobindSelector = 'input[name="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-evt]',
+            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
+            bindSelector = '[mv-model-evt][mv-on-model-error]',
             hasDocument = 'undefined' !== typeof document,
             bindElements, autoBindElements
         ;
@@ -1165,7 +1177,7 @@ view.sync_model();
         // do actions ..
 
         // do view bind action first
-        //if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
+        if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
         // do view autobind action to bind input elements that map to the model, afterwards
         if (hasDocument && autobind && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
         {
@@ -1196,57 +1208,114 @@ view.sync_model();
     // NOP action
     ,do_nop: null
 
-    // show/hide element(s) according to binding
-    ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
-            modelkey, domref, enabled;
+    // set element(s) html/text prop based on model key value
+    ,do_html: function(evt, el, data) {
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
 
         if (!key) return;
         if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
-        modelkey = model.get(key);
-        // show if data[key] is value, else hide
-        // show if data[key] is true, else hide
-        enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-        each(el, function(el){
-            if (!el) return;
-            if (enabled) show(el);
-            else hide(el);
-        });
+        callback = function(){
+            var html = Str(model.get(key));
+            each(el, function(el){
+                if (!el || !is_child_of(el, view.$dom)) return;
+                var val = el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML];
+                if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
+            });
+        };
+        if (!view.$livebind || ('sync' === evt.type)) callback();
+        else if ('text' === view.$livebind) view.on('render', callback, true);
+    }
+
+    // set element(s) css props based on model key value
+    ,do_css: function(evt, el, data) {
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+
+        if (!key) return;
+        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        else el = [el];
+        if (!el || !el.length) return;
+
+        callback = function(){
+            var style = model.get(key);
+            if (!is_type(style, T_OBJ)) return;
+            each(el, function(el){
+                if (!el || !is_child_of(el, view.$dom)) return;
+                // css attributes
+                for (var p in style)
+                {
+                    if (HAS.call(style, p))
+                    {
+                        if (el.style[p] != style[p])
+                            el.style[p] = style[p];
+                    }
+                }
+            });
+        };
+        if (!view.$livebind || ('sync' === evt.type)) callback();
+        else if ('text' === view.$livebind) view.on('render', callback, true);
+    }
+
+    // show/hide element(s) according to binding
+    ,do_show: function(evt, el, data) {
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+
+        if (!key) return;
+        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        else el = [el];
+        if (!el || !el.length) return;
+
+        callback = function(){
+            var modelkey = model.get(key);
+            // show if data[key] is value, else hide
+            // show if data[key] is true, else hide
+            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            each(el, function(el){
+                if (!el || !is_child_of(el, view.$dom)) return;
+                if (enabled) show(el);
+                else hide(el);
+            });
+        };
+        if (!view.$livebind || ('sync' === evt.type)) callback();
+        else if (view.$livebind) view.on('render', callback, true);
     }
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key,
-            modelkey, domref, enabled;
+        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
 
         if (!key) return;
         if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
-        modelkey = model.get(key);
-        // hide if data[key] is value, else show
-        // hide if data[key] is true, else show
-        enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-        each(el, function(el){
-            if (!el) return;
-            if (enabled) hide(el);
-            else show(el);
-        });
+        callback = function(){
+            var modelkey = model.get(key);
+            // hide if data[key] is value, else show
+            // hide if data[key] is true, else show
+            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            each(el, function(el){
+                if (!el || !is_child_of(el, view.$dom)) return;
+                if (enabled) hide(el);
+                else show(el);
+            });
+        };
+        if (!view.$livebind || ('sync' === evt.type)) callback();
+        else if (view.$livebind) view.on('render', callback, true);
     }
 
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function(evt, el, data) {
-        var view = this, model = view.$model,
+        var view = this, model = view.$model, trigger = DOMEvent.Dispatch,
             name = data.name, key = data.key,
-            input_type = el[TYPE].toLowerCase(),
-            value, value_type, checkboxes, is_dynamic_array
+            input_type = (el[TYPE]||'').toLowerCase(),
+            value, value_type, checked, checkboxes, is_dynamic_array
         ;
 
-        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return; // should be updated via new live render
+        // if should be updated via new live render, ignore
+        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return;
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
@@ -1259,7 +1328,10 @@ view.sync_model();
                 each($sel('input[name="'+name+'"]', view.$dom), function(ele) {
                     if (el !== ele) ele[CHECKED] = false;
                 });
+                checked = el[CHECKED];
                 el[CHECKED] = true;
+                if (checked !== el[CHECKED])
+                    trigger('change', el, {trigger:view});
             }
         }
 
@@ -1270,21 +1342,31 @@ view.sync_model();
             if (is_dynamic_array)
             {
                 value = T_ARRAY === value_type ? value : [value];
+                checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
+                if (checked !== el[CHECKED])
+                    trigger('change', el, {trigger:view});
             }
             else if (/*checkboxes.length > 1 &&*/ (T_ARRAY === value_type))
             {
+                checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
+                if (checked !== el[CHECKED])
+                    trigger('change', el, {trigger:view});
             }
 
             else
             {
+                checked = el[CHECKED];
                 el[CHECKED] = T_BOOL === value_type ? value : (Str(value) == el[VAL]);
+                if (checked !== el[CHECKED])
+                    trigger('change', el, {trigger:view});
             }
         }
         else
         {
-            set_val(el, value);
+            if (set_val(el, value))
+                trigger('change', el, {trigger:view});
         }
     }
 
