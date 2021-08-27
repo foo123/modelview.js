@@ -504,7 +504,7 @@ var view = new ModelView.View( [String id=UUID] );
 
 
 
-// dispose view (and model)
+// dispose view
 view.dispose( );
 
 

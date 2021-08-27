@@ -487,7 +487,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,_dbnc: null
 
 /**[DOC_MARKDOWN]
-// dispose view (and model)
+// dispose view
 view.dispose( );
 
 [/DOC_MARKDOWN]**/
@@ -748,6 +748,8 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                 autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
 
                 function(evt) {
+                    // event triggered by view itself, ignore
+                    if (evt.data && (view === evt.data.trigger)) return;
                     // avoid "ghosting" events on other elements which may be inside a bind element
                     // Chrome issue on nested button clicked, when bind on original button
                     // add "bubble" option in modelview bind params
@@ -755,7 +757,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     // view/dom change events
                     isBind = el[MATCHES]('[mv-evt]') && el[ATTR]('mv-on-'+evt.type);
                     // view change autobind events
-                    isAutoBind = autobind && "change" == evt.type && el[MATCHES](autobindSelector);
+                    isAutoBind = autobind && ("change" == evt.type) && el[MATCHES](autobindSelector);
                     if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
                     return true;
                 },
@@ -923,18 +925,18 @@ view.render( [Boolean immediate=false] );
     }
 
     ,remove: function(node) {
-        var map = this.$map;
+        var view = this, map = view.$map;
         if (node && map)
         {
             Keys(map.att).forEach(function(k){
                 var rem = [];
-                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node)) rem.push(i);});
+                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node, view.$dom)) rem.push(i);});
                 rem.reverse().forEach(function(i){map.att[k].splice(i, 1);});
                 if (!map.att[k].length) delete map.att[k];
             });
             Keys(map.txt).forEach(function(k){
                 var rem = [];
-                map.txt[k].forEach(function(t, i){if (is_child_of(t, node)) rem.push(i);});
+                map.txt[k].forEach(function(t, i){if (is_child_of(t, node, view.$dom)) rem.push(i);});
                 rem.reverse().forEach(function(i){map.txt[k].splice(i, 1);});
                 if (!map.txt[k].length) delete map.txt[k];
             });
@@ -953,8 +955,8 @@ view.sync();
         if (hasDocument && view.$dom)
         {
             view.render(true);
-            do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt]', view.$dom), {});
-            if (view.$autobind && (!view.$livebind || 'text'===view.$livebind || view.$dom!==view.$renderdom))
+            if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt][mv-on-model-change]', view.$dom), {});
+            if (view.$autobind && (true !== view.$livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -1131,15 +1133,15 @@ view.sync_model();
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements, autoBindElements,
+            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [],
             hasDocument = 'undefined' !== typeof document,
             notTriggerElem
         ;
 
         if (hasDocument)
         {
-            bindElements = $sel(bindSelector, view.$dom);
-            if (autobind) autoBindElements = $sel(autobindSelector, view.$dom);
+            bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
+            if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
 
             // bypass element that triggered the "model:change" event
             if (data.$callData && data.$callData.$trigger)
@@ -1154,15 +1156,21 @@ view.sync_model();
         // do actions ..
 
         // do view action first
-        if (hasDocument && bindElements.length) do_bind_action(view, evt, bindElements, data);
+        if (hasDocument && bindElements.length)
+        {
+            do_bind_action(view, evt, bindElements, data);
+        }
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && autoBindElements.length && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && autoBindElements.length)
         {
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
             do_auto_bind_action(view, evt, autoBindElements, data);
         }
         // do view live DOM update action
-        if (livebind) view.render();
+        if (livebind)
+        {
+            view.render();
+        }
     }
 
     ,on_model_error: function(evt, data) {
@@ -1177,16 +1185,22 @@ view.sync_model();
         // do actions ..
 
         // do view bind action first
-        if (hasDocument && (bindElements=$sel(bindSelector, view.$dom)).length) do_bind_action(view, evt, bindElements, data);
+        if (hasDocument && (true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
+        {
+            do_bind_action(view, evt, bindElements, data);
+        }
         // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && (!livebind || 'text'===livebind || view.$dom!==view.$renderdom))
+        if (hasDocument && autobind && (true !== livebind || view.$dom !== view.$renderdom))
         {
             autoBindElements = $sel(autobindSelector, view.$dom);
             //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
             do_auto_bind_action(view, evt, autoBindElements, data);
         }
         // do view live DOM bindings update action
-        if (livebind) view.render();
+        if (livebind)
+        {
+            view.render();
+        }
     }
 
     // component lifecycle hooks
@@ -1225,8 +1239,11 @@ view.sync_model();
                 if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
             });
         };
-        if (!view.$livebind || ('sync' === evt.type)) callback();
-        else if ('text' === view.$livebind) view.on('render', callback, true);
+        if (true !== view.$livebind)
+        {
+            if (!view.$livebind || ('sync' === evt.type)) callback();
+            else if ('text' === view.$livebind) view.on('render', callback, true);
+        }
     }
 
     // set element(s) css props based on model key value
@@ -1254,8 +1271,11 @@ view.sync_model();
                 }
             });
         };
-        if (!view.$livebind || ('sync' === evt.type)) callback();
-        else if ('text' === view.$livebind) view.on('render', callback, true);
+        if (true !== view.$livebind)
+        {
+            if (!view.$livebind || ('sync' === evt.type)) callback();
+            else if ('text' === view.$livebind) view.on('render', callback, true);
+        }
     }
 
     // show/hide element(s) according to binding
@@ -1278,8 +1298,11 @@ view.sync_model();
                 else hide(el);
             });
         };
-        if (!view.$livebind || ('sync' === evt.type)) callback();
-        else if (view.$livebind) view.on('render', callback, true);
+        if (true !== view.$livebind)
+        {
+            if (!view.$livebind || ('sync' === evt.type)) callback();
+            else if ('text' === view.$livebind) view.on('render', callback, true);
+        }
     }
 
     // hide/show element(s) according to binding
@@ -1302,8 +1325,11 @@ view.sync_model();
                 else show(el);
             });
         };
-        if (!view.$livebind || ('sync' === evt.type)) callback();
-        else if (view.$livebind) view.on('render', callback, true);
+        if (true !== view.$livebind)
+        {
+            if (!view.$livebind || ('sync' === evt.type)) callback();
+            else if ('text' === view.$livebind) view.on('render', callback, true);
+        }
     }
 
     // default bind/update element(s) values according to binding on model:change
