@@ -585,8 +585,8 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
 
 
 
-// unbind view from dom listening to events or all events (if no events given)
-view.unbind( [Array events=null, DOMNode dom=view.$dom] );
+// unbind view from underlying dom
+view.unbind( );
 
 
 

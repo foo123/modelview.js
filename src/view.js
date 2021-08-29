@@ -769,7 +769,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (startsWith(method, 'on_model_'))
+            if (view.$dom && startsWith(method, 'on_model_'))
             {
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, bindF(view[method], view));
@@ -809,8 +809,8 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
     }
 
 /**[DOC_MARKDOWN]
-// unbind view from dom listening to events or all events (if no events given)
-view.unbind( [Array events=null, DOMNode dom=view.$dom] );
+// unbind view from underlying dom
+view.unbind( );
 
 [/DOC_MARKDOWN]**/
     ,unbind: function() {
@@ -1132,7 +1132,7 @@ view.sync_model();
             bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (HASDOC)
+        if (HASDOC && view.$dom)
         {
             bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
             if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
@@ -1173,7 +1173,7 @@ view.sync_model();
             bindSelector = '[mv-model-evt][mv-on-model-error]', bindElements, autoBindElements
         ;
 
-        if (HASDOC)
+        if (HASDOC && view.$dom)
         {
             // do actions ..
 

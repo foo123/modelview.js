@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-29 11:13:08
+*   @built on 2021-08-29 13:39:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-29 11:13:08
+*   @built on 2021-08-29 13:39:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -713,17 +713,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     morphAtts = function morphAtts(e, t) {
         var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
-            tAtts = t.attributes, eAtts = e.attributes, i, l, a, n, v;
+            tAtts = t.attributes, eAtts = e.attributes, i, a, n, v, NS;
 
         // remove non-existent attributes
         for (i=eAtts.length-1; i>=0; i--)
         {
-            a = eAtts[i]; n = a.name;
-            if (a.namespaceURI)
+            a = eAtts[i]; n = a.name; NS = a.namespaceURI;
+            if (NS)
             {
                 n = a.localName || n;
-                if (!t.hasAttributeNS(a.namespaceURI, n))
-                    e.removeAttributeNS(a.namespaceURI, n);
+                if (!t.hasAttributeNS(NS, n))
+                    e.removeAttributeNS(NS, n);
             }
             else if (!t[HAS_ATTR](n))
             {
@@ -773,14 +773,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // add/update existent attributes
         for (i=tAtts.length-1; i>=0; i--)
         {
-            a = tAtts[i]; n = a.name; v = a.value;
-            if (a.namespaceURI)
+            a = tAtts[i]; n = a.name; v = a.value; NS = a.namespaceURI;
+            if (NS)
             {
                 n = a.localName || n;
-                if (!e.hasAttributeNS(a.namespaceURI, n) || (e.getAttributeNS(a.namespaceURI, n) !== v))
-                    e.setAttributeNS(a.namespaceURI, n, v);
+                if (!e.hasAttributeNS(NS, n) || (e.getAttributeNS(NS, n) !== v))
+                    e.setAttributeNS(NS, n, v);
             }
-            else if (!e[HAS_ATTR](n) || (e[ATTR](n) !== v))
+            else
             {
                 if ('class' === n)
                 {
@@ -806,7 +806,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if (e[n] !== v) e[n] = v;
                 }
-                else
+                else if (!e[HAS_ATTR](n) || (e[ATTR](n) !== v))
                 {
                     e[SET_ATTR](n, v);
                 }
@@ -888,9 +888,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if ('script' === T1 || 'style' === T1)
                 {
-                    morphAtts(enode, tnode);
+                    /*morphAtts(enode, tnode);
                     if (enode.textContent !== tnode.textContent)
-                        enode.textContent = tnode.textContent;
+                        enode.textContent = tnode.textContent;*/
+                    e.replaceChild(tnode, enode);
+                    offset++;
                 }
                 else if ('textarea' === T1)
                 {
@@ -1008,7 +1010,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 }
                                 else
                                 {
-                                    // moprh attributes/properties
+                                    // morph attributes/properties
                                     morphAtts(enode, tnode);
                                     // morph children
                                     morph(enode, tnode, view);
@@ -1051,7 +1053,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        // moprh attributes/properties
+                        // morph attributes/properties
                         morphAtts(enode, tnode);
                         // morph children
                         morph(enode, tnode, view);
@@ -5193,7 +5195,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (startsWith(method, 'on_model_'))
+            if (view.$dom && startsWith(method, 'on_model_'))
             {
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, bindF(view[method], view));
@@ -5233,8 +5235,8 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
     }
 
 /**[DOC_MARKDOWN]
-// unbind view from dom listening to events or all events (if no events given)
-view.unbind( [Array events=null, DOMNode dom=view.$dom] );
+// unbind view from underlying dom
+view.unbind( );
 
 [/DOC_MARKDOWN]**/
     ,unbind: function() {
@@ -5556,7 +5558,7 @@ view.sync_model();
             bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (HASDOC)
+        if (HASDOC && view.$dom)
         {
             bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
             if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
@@ -5597,7 +5599,7 @@ view.sync_model();
             bindSelector = '[mv-model-evt][mv-on-model-error]', bindElements, autoBindElements
         ;
 
-        if (HASDOC)
+        if (HASDOC && view.$dom)
         {
             // do actions ..
 
