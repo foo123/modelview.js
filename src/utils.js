@@ -736,7 +736,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if ('style' === n)
                 {
-                    morphStyles(e, t);
+                    //morphStyles(e, t);
+                    e[n] = v;
                 }
                 else if ('selected' === n && 'OPTION' === T)
                 {
