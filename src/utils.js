@@ -5,7 +5,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 
-var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
+var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
@@ -60,8 +60,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (T_ARRAY === T || v instanceof Array)    T = T_ARRAY;
         else if (T_REGEX === T || v instanceof RegExp)   T = T_REGEX;
         else if (T_DATE === T  || v instanceof Date)     T = T_DATE;
-        else if (T_FILE === T  || v instanceof File)     T = T_FILE;
-        else if (T_BLOB === T  || v instanceof Blob)     T = T_BLOB;
+        else if (T_FILE === T  || ('undefined' !== typeof(File) && (v instanceof File)))     T = T_FILE;
+        else if (T_BLOB === T  || ('undefined' !== typeof(Blob) && (v instanceof Blob)))     T = T_BLOB;
         else if (T_FUNC === T  || v instanceof Function) T = T_FUNC;
         else if (T_OBJ === T)                            T = T_OBJ;
         else                                             T = T_UNKNOWN;
@@ -347,38 +347,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
 
-    // http://stackoverflow.com/a/11762728/3591273
-    node_index = function(node) {
-        var index = 0;
-        while ((node=node.previousSibling)) index++;
-        return index;
-    },
-
-    node_closest_index = function(node, root) {
-        var closest = node;
-        if (root) while (closest[PARENT] && closest[PARENT] !== root) closest = closest[PARENT];
-        return node_index(closest);
-    },
-
-    find_node = function(root, node_type, node_index) {
-        var ndList = root.childNodes, len = ndList.length,
-            n, node = null, i = 0, node_ith = 0;
-        node_index = node_index || 1;
-        // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
-        // TEXT_NODE = 3, COMMENT_NODE = 8
-        // return node.nodeValue
-        while (i < len)
-        {
-            n = ndList[i++];
-            if (node_type === n.nodeType)
-            {
-                node = n;
-                if (++node_ith === node_index) break;
-            }
-        }
-        return node;
-    },
-
     // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
     is_element_supported = function is_element_supported(tag) {
         // Return undefined if `HTMLUnknownElement` interface
@@ -405,17 +373,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://youmightnotneedjquery.com/
     $id = function(id) {
-        return [document.getElementById(id)];
+        return HASDOC ? [document.getElementById(id)] : [];
     },
     $tag = function(tagname, el) {
-        return slice.call((el || document).getElementsByTagName(tagname), 0);
+        return HASDOC ? slice.call((el || document).getElementsByTagName(tagname), 0) : [];
     },
     $class = function(classname, el) {
-        return slice.call((el || document).getElementsByClassName(classname), 0);
+        return HASDOC ? slice.call((el || document).getElementsByClassName(classname), 0) : [];
     },
     $sel = function(selector, el, single) {
         el = el || document;
-        return el.querySelector ? (true === single
+        return HASDOC && el.querySelector ? (true === single
             ? [el.querySelector(selector)]
             : slice.call(el.querySelectorAll(selector), 0))
             : []
@@ -446,6 +414,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html, without_empty_spaces) {
+        if (!HASDOC) return null;
         var el, frg, i, ret;
         if (el = is_element_supported('template'))
         {
@@ -472,6 +441,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
     dom2str = (function() {
+        if (!HASDOC) return function(){return '';};
         var DIV = document.createElement("div");
         return 'outerHTML' in DIV
             ? function(node) {
@@ -493,10 +463,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (P.mozMatchesSelector) return 'mozMatchesSelector';
         else if (P.msMatchesSelector) return 'msMatchesSelector';
         else if (P.oMatchesSelector) return 'oMatchesSelector';
-    }(this.Element ? this.Element[proto] : null)),
+    }(HASDOC && window.Element ? window.Element[proto] : null)),
 
     // http://stackoverflow.com/a/2364000/3591273
-    get_style = 'undefined' !== typeof window && window.getComputedStyle
+    get_style = HASDOC && 'undefined' !== typeof window && window.getComputedStyle
         ? function(el){return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
 
@@ -642,11 +612,18 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     debounce = function(callback, instance) {
-        // If there's a pending render, cancel it
-        if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
-        // Setup the new render to run at the next animation frame
-        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
-        else window.requestAnimationFrame(callback);
+        if ('undefined' !== typeof window && window.requestAnimationFrame)
+        {
+            // If there's a pending render, cancel it
+            if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
+            // Setup the new render to run at the next animation frame
+            if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+            else window.requestAnimationFrame(callback);
+        }
+        else
+        {
+            callback();
+        }
     },
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
@@ -683,151 +660,117 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         });
     },
     morphAtts = function morphAtts(e, t) {
-        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase();
-        if (t.hasAttributes())
-        {
-            var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
-                atts2 = AP.reduce.call(e.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {});
+        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
+            tAtts = t.attributes, eAtts = e.attributes, i, l, a, n, v;
 
-            Keys(atts2)
-                .reduce(function(rem, a) {
-                    if (!HAS.call(atts, a)) rem.push(a);
-                    return rem;
-                }, [])
-                .concat('OPTION' === T && e.selected && !atts2['selected'] && !atts['selected'] ? ['selected'] : [])
-                .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.disabled && !atts2['disabled'] && !atts['disabled'] ? ['disabled'] : [])
-                .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.required && !atts2['required'] && !atts['required'] ? ['required'] : [])
-                .concat('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && e.checked && !atts2['checked'] && !atts['checked'] ? ['checked'] : [])
-                .concat('INPUT' === T && !atts2['value'] && !atts['value'] ? ['value'] : [])
-                .forEach(function(a) {
-                    if ('class' === a)
-                    {
-                        e.className = '';
-                    }
-                    else if ('style' === a)
-                    {
-                        e[a] = '';
-                    }
-                    else if ('selected' === a && 'OPTION' === T)
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if ('value' === a && 'INPUT' === T)
-                    {
-                        if (e[a] !== '') e[a] = '';
-                    }
-                    else
-                    {
-                        e[DEL_ATTR](a);
-                    }
-                })
-            ;
-            if (atts.type && atts.type !== TT)
-            {
-                TT = (atts.type || '').toLowerCase();
-                e.type = TT;
-            }
-            Keys(atts).forEach(function(a) {
-                    if ('type' === a) return;
-                    var v = atts[a];
-                    if ('class' === a)
-                    {
-                        e.className = v;
-                    }
-                    else if ('style' === a)
-                    {
-                        morphStyles(e, t);
-                    }
-                    else if ('selected' === a && 'OPTION' === T)
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if ('value' === a && 'INPUT' === T)
-                    {
-                        if (e[a] !== v) e[a] = v;
-                    }
-                    else
-                    {
-                        /*if (a in e)
-                        {
-                            if (v != e[a])
-                            {
-                                try {
-                                    e[a] = v;
-                                    if (e[a]) e[a] = true;
-                                } catch (err) {}
-                            }
-                        }
-                        else*/ if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
-                        {
-                            e[SET_ATTR](a, v);
-                        }
-                    }
-            });
-        }
-        else if (e.hasAttributes())
+        // remove non-existent attributes
+        for (i=eAtts.length-1; i>=0; i--)
         {
-            for (var a,atts2=e.attributes,i=0; i<atts2.length; i++)
+            a = eAtts[i]; n = a.name;
+            if (a.namespaceURI)
             {
-                a = atts2[i].name;
-                if ('class' === a)
+                n = a.localName || n;
+                if (!t.hasAttributeNS(a.namespaceURI, n))
+                    e.removeAttributeNS(a.namespaceURI, n);
+            }
+            else if (!t[HAS_ATTR](n))
+            {
+                if ('class' === n)
                 {
                     e.className = '';
                 }
-                else if ('style' === a)
+                else if ('style' === n)
                 {
-                    e[a] = '';
+                    e[n] = '';
                 }
-                else if ('selected' === a && 'OPTION' === T)
+                else if ('selected' === n && 'OPTION' === T)
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+                else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if ('value' === a && 'INPUT' === T)
+                else if ('value' === n && 'INPUT' === T)
                 {
-                    e[a] = '';
+                    e[n] = '';
                 }
                 else
                 {
-                    e[DEL_ATTR](a);
+                    e[DEL_ATTR](n);
                 }
             }
-            if ('OPTION' === T) e.selected = false;
-            if ('INPUT' === T) e.value = '';
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) {e.disabled = false; e.required = false;}
-            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
+        }
+        if ('OPTION' === T)
+        {
+            e.selected = t.selected;
+        }
+        if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+        {
+            e.checked = t.checked;
+        }
+        if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)
+        {
+            e.disabled = t.disabled;
+            e.required = t.required;
+        }
+        // add/update existent attributes
+        for (i=tAtts.length-1; i>=0; i--)
+        {
+            a = tAtts[i]; n = a.name; v = a.value;
+            if (a.namespaceURI)
+            {
+                n = a.localName || n;
+                if (!e.hasAttributeNS(a.namespaceURI, n) || (e.getAttributeNS(a.namespaceURI, n) !== v))
+                    e.setAttributeNS(a.namespaceURI, n, v);
+            }
+            else if (!e[HAS_ATTR](n) || (e[ATTR](n) !== v))
+            {
+                if ('class' === n)
+                {
+                    e.className = v;
+                }
+                else if ('style' === n)
+                {
+                    morphStyles(e, t);
+                }
+                else if ('selected' === n && 'OPTION' === T)
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if ('value' === n && 'INPUT' === T)
+                {
+                    if (e[n] !== v) e[n] = v;
+                }
+                else
+                {
+                    e[SET_ATTR](n, v);
+                }
+            }
         }
     },
     morph = function morph(e, t, view) {
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
+            index, offset, tnode, enode, T1, T2,
             frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR]('mv-frozen');});
         frozen.forEach(function(n) {e.removeChild(n);});
-        slice.call(t.childNodes).forEach(function(tnode, index) {
+        for (offset=0,index=0; index<tc; index++)
+        {
+            tnode = t.childNodes[index-offset];
             if (index >= e.childNodes.length)
             {
                 if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
@@ -838,6 +781,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 else
                 {
                     e.appendChild(tnode);
+                    offset++;
                     if (view)
                     {
                         // lifecycle hooks
@@ -849,7 +793,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             }
             else
             {
-                var enode = e.childNodes[index], tt = nodeType(tnode), t = nodeType(enode), k, j, jj;
+                enode = e.childNodes[index];
+                T2 = nodeType(tnode);
+                T1 = nodeType(enode);
 
                 if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
@@ -862,9 +808,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                     // use original frozen
                     e.replaceChild(frozen.shift(), enode);
-                    return;
+                    continue;
                 }
-                if (tt !== t)
+                if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
                 {
                     if (view)
                     {
@@ -874,6 +820,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         });
                     }
                     e.replaceChild(tnode, enode);
+                    offset++;
                     if (view)
                     {
                         // lifecycle hooks
@@ -882,22 +829,31 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         });
                     }
                 }
-                else if ('text' === t || 'comment' === t)
+                else if ('text' === T1 || 'comment' === T1)
                 {
+                    if (enode.nodeValue !== tnode.nodeValue)
+                        enode.nodeValue = tnode.nodeValue;
+                }
+                else if ('script' === T1 || 'style' === T1)
+                {
+                    morphAtts(enode, tnode);
                     if (enode.textContent !== tnode.textContent)
                         enode.textContent = tnode.textContent;
                 }
-                else if ('textarea' === t)
+                else if ('textarea' === T1)
                 {
                     morphAtts(enode, tnode);
                     if (enode.value !== tnode.value)
                         enode.value = tnode.value;
+                    if (enode.firstChild && (enode.firstChild.nodeValue !== tnode.value))
+                        enode.firstChild.nodeValue = tnode.value;
                 }
                 else if ((0 !== count) && tnode[HAS_ATTR]('mv-key') && enode[HAS_ATTR]('mv-key') && (tnode[ATTR]('mv-key') !== enode[ATTR]('mv-key')))
                 {
                     if (0 > count)
                     {
                         e.insertBefore(tnode, enode);
+                        offset++;
                         count++;
                         if (view)
                         {
@@ -934,6 +890,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             else
                             {
                                 e.appendChild(tnode);
+                                offset++;
                                 if (view)
                                 {
                                     // lifecycle hooks
@@ -945,8 +902,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         }
                         else
                         {
-                            t = nodeType(enode);
-                            if (tt !== t)
+                            T1 = nodeType(enode);
+                            if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
                             {
                                 if (view)
                                 {
@@ -956,6 +913,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                     });
                                 }
                                 e.replaceChild(tnode, enode);
+                                offset++;
                                 if (view)
                                 {
                                     // lifecycle hooks
@@ -969,6 +927,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                 if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
                                 {
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                     // lifecycle hooks
                                     ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                                         view.$attachComponent(el[ATTR]('mv-component'), el);
@@ -981,6 +940,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                         view.$detachComponent(el[ATTR]('mv-component'), el);
                                     });
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                 }
                                 else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
                                 {
@@ -989,6 +949,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                         view.$detachComponent(el[ATTR]('mv-component'), el);
                                     });
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                     ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                                         view.$attachComponent(el[ATTR]('mv-component'), el);
                                     });
@@ -1009,6 +970,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
                     {
                         e.replaceChild(tnode, enode);
+                        offset++;
                         // lifecycle hooks
                         ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                             view.$attachComponent(el[ATTR]('mv-component'), el);
@@ -1021,6 +983,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             view.$detachComponent(el[ATTR]('mv-component'), el);
                         });
                         e.replaceChild(tnode, enode);
+                        offset++;
                     }
                     else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
                     {
@@ -1029,6 +992,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             view.$detachComponent(el[ATTR]('mv-component'), el);
                         });
                         e.replaceChild(tnode, enode);
+                        offset++;
                         ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                             view.$attachComponent(el[ATTR]('mv-component'), el);
                         });
@@ -1042,10 +1006,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                 }
             }
-        });
+        }
         // If extra elements, remove them
         count = e.childNodes.length - tc;
-        for (; 0 < count; count--)
+        for (; 0<count; count--)
         {
             var enode = e.childNodes[e.childNodes.length - count];
             if (view)
@@ -1152,7 +1116,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 var v = Str(model.get(k));
                 map.txt[k].forEach(function(t){
-                    t.nodeValue = v;
+                    if (t.nodeValue !== v)
+                        t.nodeValue = v;
                 });
             }
         });
@@ -1161,7 +1126,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 //var v = Str(model.get(k));
                 map.att[k].forEach(function(a){
-                    a.node[SET_ATTR](a.att, a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join(''));
+                    var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                    if (a.node[ATTR](a.att) !== v)
+                        a.node[SET_ATTR](a.att, v);
                 });
             }
         });

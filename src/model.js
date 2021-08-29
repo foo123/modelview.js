@@ -547,10 +547,10 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
 };
 // STATIC
 Model.count = function(o) {
-    if ( !arguments.length ) return 0;
-    var T = get_type( o );
+    if (!arguments.length) return 0;
+    var T = get_type(o);
 
-    if (T_OBJ === T) return Keys( o ).length;
+    if (T_OBJ === T) return Keys(o).length;
     else if (T_ARRAY === T) return o.length;
     else if (T_UNDEF !== T) return 1; //  is scalar value, set count to 1
     return 0;
@@ -566,7 +566,6 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
     ,id: null
     ,$id: null
-    ,$view: null
     ,$data: null
     ,$types: null
     ,$idependencies: null
@@ -587,7 +586,7 @@ model.dispose( );
 [/DOC_MARKDOWN]**/
     ,dispose: function( ) {
         var model = this;
-        model.disposePubSub( ).$view = null;
+        model.disposePubSub();
         model.$data = null;
         model.$types = null;
         model.$idependencies = null;
@@ -602,16 +601,6 @@ model.dispose( );
         model.$syncHandler = null;
         model.__syncing = null;
         return model;
-    }
-
-    ,view: function(v) {
-        var model = this;
-        if (arguments.length)
-        {
-            model.$view = v;
-            return model;
-        }
-        return model.$view;
     }
 
 /**[DOC_MARKDOWN]

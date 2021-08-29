@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.4.0
-*   @built on 2021-08-27 23:36:48
+*   @version: 1.5.0
+*   @built on 2021-08-29 11:13:08
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.4.0
-*   @built on 2021-08-27 23:36:48
+*   @version: 1.5.0
+*   @built on 2021-08-29 11:13:08
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -35,10 +35,12 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 
 "use strict";
 
+var HASDOC = 'undefined' !== typeof (document);
+
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.4.0**
+**Version 1.5.0**
 
 ### Contents
 
@@ -55,7 +57,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 
-var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
+var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
@@ -110,8 +112,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (T_ARRAY === T || v instanceof Array)    T = T_ARRAY;
         else if (T_REGEX === T || v instanceof RegExp)   T = T_REGEX;
         else if (T_DATE === T  || v instanceof Date)     T = T_DATE;
-        else if (T_FILE === T  || v instanceof File)     T = T_FILE;
-        else if (T_BLOB === T  || v instanceof Blob)     T = T_BLOB;
+        else if (T_FILE === T  || ('undefined' !== typeof(File) && (v instanceof File)))     T = T_FILE;
+        else if (T_BLOB === T  || ('undefined' !== typeof(Blob) && (v instanceof Blob)))     T = T_BLOB;
         else if (T_FUNC === T  || v instanceof Function) T = T_FUNC;
         else if (T_OBJ === T)                            T = T_OBJ;
         else                                             T = T_UNKNOWN;
@@ -397,38 +399,6 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         }
     },
 
-    // http://stackoverflow.com/a/11762728/3591273
-    node_index = function(node) {
-        var index = 0;
-        while ((node=node.previousSibling)) index++;
-        return index;
-    },
-
-    node_closest_index = function(node, root) {
-        var closest = node;
-        if (root) while (closest[PARENT] && closest[PARENT] !== root) closest = closest[PARENT];
-        return node_index(closest);
-    },
-
-    find_node = function(root, node_type, node_index) {
-        var ndList = root.childNodes, len = ndList.length,
-            n, node = null, i = 0, node_ith = 0;
-        node_index = node_index || 1;
-        // https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
-        // TEXT_NODE = 3, COMMENT_NODE = 8
-        // return node.nodeValue
-        while (i < len)
-        {
-            n = ndList[i++];
-            if (node_type === n.nodeType)
-            {
-                node = n;
-                if (++node_ith === node_index) break;
-            }
-        }
-        return node;
-    },
-
     // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
     is_element_supported = function is_element_supported(tag) {
         // Return undefined if `HTMLUnknownElement` interface
@@ -455,17 +425,17 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://youmightnotneedjquery.com/
     $id = function(id) {
-        return [document.getElementById(id)];
+        return HASDOC ? [document.getElementById(id)] : [];
     },
     $tag = function(tagname, el) {
-        return slice.call((el || document).getElementsByTagName(tagname), 0);
+        return HASDOC ? slice.call((el || document).getElementsByTagName(tagname), 0) : [];
     },
     $class = function(classname, el) {
-        return slice.call((el || document).getElementsByClassName(classname), 0);
+        return HASDOC ? slice.call((el || document).getElementsByClassName(classname), 0) : [];
     },
     $sel = function(selector, el, single) {
         el = el || document;
-        return el.querySelector ? (true === single
+        return HASDOC && el.querySelector ? (true === single
             ? [el.querySelector(selector)]
             : slice.call(el.querySelectorAll(selector), 0))
             : []
@@ -496,6 +466,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
     str2dom = function(html, without_empty_spaces) {
+        if (!HASDOC) return null;
         var el, frg, i, ret;
         if (el = is_element_supported('template'))
         {
@@ -522,6 +493,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 
     // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
     dom2str = (function() {
+        if (!HASDOC) return function(){return '';};
         var DIV = document.createElement("div");
         return 'outerHTML' in DIV
             ? function(node) {
@@ -543,10 +515,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         else if (P.mozMatchesSelector) return 'mozMatchesSelector';
         else if (P.msMatchesSelector) return 'msMatchesSelector';
         else if (P.oMatchesSelector) return 'oMatchesSelector';
-    }(this.Element ? this.Element[proto] : null)),
+    }(HASDOC && window.Element ? window.Element[proto] : null)),
 
     // http://stackoverflow.com/a/2364000/3591273
-    get_style = 'undefined' !== typeof window && window.getComputedStyle
+    get_style = HASDOC && 'undefined' !== typeof window && window.getComputedStyle
         ? function(el){return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
 
@@ -692,11 +664,18 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
     },
 
     debounce = function(callback, instance) {
-        // If there's a pending render, cancel it
-        if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
-        // Setup the new render to run at the next animation frame
-        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
-        else window.requestAnimationFrame(callback);
+        if ('undefined' !== typeof window && window.requestAnimationFrame)
+        {
+            // If there's a pending render, cancel it
+            if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
+            // Setup the new render to run at the next animation frame
+            if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+            else window.requestAnimationFrame(callback);
+        }
+        else
+        {
+            callback();
+        }
     },
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
@@ -733,151 +712,117 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
         });
     },
     morphAtts = function morphAtts(e, t) {
-        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase();
-        if (t.hasAttributes())
-        {
-            var atts = AP.reduce.call(t.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {}),
-                atts2 = AP.reduce.call(e.attributes, function(atts, a) {atts[a.name] = a.value; return atts;}, {});
+        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
+            tAtts = t.attributes, eAtts = e.attributes, i, l, a, n, v;
 
-            Keys(atts2)
-                .reduce(function(rem, a) {
-                    if (!HAS.call(atts, a)) rem.push(a);
-                    return rem;
-                }, [])
-                .concat('OPTION' === T && e.selected && !atts2['selected'] && !atts['selected'] ? ['selected'] : [])
-                .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.disabled && !atts2['disabled'] && !atts['disabled'] ? ['disabled'] : [])
-                .concat(('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && e.required && !atts2['required'] && !atts['required'] ? ['required'] : [])
-                .concat('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && e.checked && !atts2['checked'] && !atts['checked'] ? ['checked'] : [])
-                .concat('INPUT' === T && !atts2['value'] && !atts['value'] ? ['value'] : [])
-                .forEach(function(a) {
-                    if ('class' === a)
-                    {
-                        e.className = '';
-                    }
-                    else if ('style' === a)
-                    {
-                        e[a] = '';
-                    }
-                    else if ('selected' === a && 'OPTION' === T)
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
-                    {
-                        if (e[a]) e[a] = false;
-                    }
-                    else if ('value' === a && 'INPUT' === T)
-                    {
-                        if (e[a] !== '') e[a] = '';
-                    }
-                    else
-                    {
-                        e[DEL_ATTR](a);
-                    }
-                })
-            ;
-            if (atts.type && atts.type !== TT)
-            {
-                TT = (atts.type || '').toLowerCase();
-                e.type = TT;
-            }
-            Keys(atts).forEach(function(a) {
-                    if ('type' === a) return;
-                    var v = atts[a];
-                    if ('class' === a)
-                    {
-                        e.className = v;
-                    }
-                    else if ('style' === a)
-                    {
-                        morphStyles(e, t);
-                    }
-                    else if ('selected' === a && 'OPTION' === T)
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
-                    {
-                        if (!e[a]) e[a] = true;
-                    }
-                    else if ('value' === a && 'INPUT' === T)
-                    {
-                        if (e[a] !== v) e[a] = v;
-                    }
-                    else
-                    {
-                        /*if (a in e)
-                        {
-                            if (v != e[a])
-                            {
-                                try {
-                                    e[a] = v;
-                                    if (e[a]) e[a] = true;
-                                } catch (err) {}
-                            }
-                        }
-                        else*/ if (!e[HAS_ATTR](a) || v !== e[ATTR](a))
-                        {
-                            e[SET_ATTR](a, v);
-                        }
-                    }
-            });
-        }
-        else if (e.hasAttributes())
+        // remove non-existent attributes
+        for (i=eAtts.length-1; i>=0; i--)
         {
-            for (var a,atts2=e.attributes,i=0; i<atts2.length; i++)
+            a = eAtts[i]; n = a.name;
+            if (a.namespaceURI)
             {
-                a = atts2[i].name;
-                if ('class' === a)
+                n = a.localName || n;
+                if (!t.hasAttributeNS(a.namespaceURI, n))
+                    e.removeAttributeNS(a.namespaceURI, n);
+            }
+            else if (!t[HAS_ATTR](n))
+            {
+                if ('class' === n)
                 {
                     e.className = '';
                 }
-                else if ('style' === a)
+                else if ('style' === n)
                 {
-                    e[a] = '';
+                    e[n] = '';
                 }
-                else if ('selected' === a && 'OPTION' === T)
+                else if ('selected' === n && 'OPTION' === T)
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if (('disabled' === a || 'required' === a) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if ('checked' === a && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+                else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
                 {
-                    e[a] = false;
+                    e[n] = false;
                 }
-                else if ('value' === a && 'INPUT' === T)
+                else if ('value' === n && 'INPUT' === T)
                 {
-                    e[a] = '';
+                    e[n] = '';
                 }
                 else
                 {
-                    e[DEL_ATTR](a);
+                    e[DEL_ATTR](n);
                 }
             }
-            if ('OPTION' === T) e.selected = false;
-            if ('INPUT' === T) e.value = '';
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) {e.disabled = false; e.required = false;}
-            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT)) e.checked = false;
+        }
+        if ('OPTION' === T)
+        {
+            e.selected = t.selected;
+        }
+        if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+        {
+            e.checked = t.checked;
+        }
+        if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)
+        {
+            e.disabled = t.disabled;
+            e.required = t.required;
+        }
+        // add/update existent attributes
+        for (i=tAtts.length-1; i>=0; i--)
+        {
+            a = tAtts[i]; n = a.name; v = a.value;
+            if (a.namespaceURI)
+            {
+                n = a.localName || n;
+                if (!e.hasAttributeNS(a.namespaceURI, n) || (e.getAttributeNS(a.namespaceURI, n) !== v))
+                    e.setAttributeNS(a.namespaceURI, n, v);
+            }
+            else if (!e[HAS_ATTR](n) || (e[ATTR](n) !== v))
+            {
+                if ('class' === n)
+                {
+                    e.className = v;
+                }
+                else if ('style' === n)
+                {
+                    morphStyles(e, t);
+                }
+                else if ('selected' === n && 'OPTION' === T)
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+                {
+                    if (!e[n]) e[n] = true;
+                }
+                else if ('value' === n && 'INPUT' === T)
+                {
+                    if (e[n] !== v) e[n] = v;
+                }
+                else
+                {
+                    e[SET_ATTR](n, v);
+                }
+            }
         }
     },
     morph = function morph(e, t, view) {
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
+            index, offset, tnode, enode, T1, T2,
             frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR]('mv-frozen');});
         frozen.forEach(function(n) {e.removeChild(n);});
-        slice.call(t.childNodes).forEach(function(tnode, index) {
+        for (offset=0,index=0; index<tc; index++)
+        {
+            tnode = t.childNodes[index-offset];
             if (index >= e.childNodes.length)
             {
                 if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
@@ -888,6 +833,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                 else
                 {
                     e.appendChild(tnode);
+                    offset++;
                     if (view)
                     {
                         // lifecycle hooks
@@ -899,7 +845,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             }
             else
             {
-                var enode = e.childNodes[index], tt = nodeType(tnode), t = nodeType(enode), k, j, jj;
+                enode = e.childNodes[index];
+                T2 = nodeType(tnode);
+                T1 = nodeType(enode);
 
                 if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
                 {
@@ -912,9 +860,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                     // use original frozen
                     e.replaceChild(frozen.shift(), enode);
-                    return;
+                    continue;
                 }
-                if (tt !== t)
+                if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
                 {
                     if (view)
                     {
@@ -924,6 +872,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         });
                     }
                     e.replaceChild(tnode, enode);
+                    offset++;
                     if (view)
                     {
                         // lifecycle hooks
@@ -932,22 +881,31 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         });
                     }
                 }
-                else if ('text' === t || 'comment' === t)
+                else if ('text' === T1 || 'comment' === T1)
                 {
+                    if (enode.nodeValue !== tnode.nodeValue)
+                        enode.nodeValue = tnode.nodeValue;
+                }
+                else if ('script' === T1 || 'style' === T1)
+                {
+                    morphAtts(enode, tnode);
                     if (enode.textContent !== tnode.textContent)
                         enode.textContent = tnode.textContent;
                 }
-                else if ('textarea' === t)
+                else if ('textarea' === T1)
                 {
                     morphAtts(enode, tnode);
                     if (enode.value !== tnode.value)
                         enode.value = tnode.value;
+                    if (enode.firstChild && (enode.firstChild.nodeValue !== tnode.value))
+                        enode.firstChild.nodeValue = tnode.value;
                 }
                 else if ((0 !== count) && tnode[HAS_ATTR]('mv-key') && enode[HAS_ATTR]('mv-key') && (tnode[ATTR]('mv-key') !== enode[ATTR]('mv-key')))
                 {
                     if (0 > count)
                     {
                         e.insertBefore(tnode, enode);
+                        offset++;
                         count++;
                         if (view)
                         {
@@ -984,6 +942,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             else
                             {
                                 e.appendChild(tnode);
+                                offset++;
                                 if (view)
                                 {
                                     // lifecycle hooks
@@ -995,8 +954,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                         }
                         else
                         {
-                            t = nodeType(enode);
-                            if (tt !== t)
+                            T1 = nodeType(enode);
+                            if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
                             {
                                 if (view)
                                 {
@@ -1006,6 +965,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                     });
                                 }
                                 e.replaceChild(tnode, enode);
+                                offset++;
                                 if (view)
                                 {
                                     // lifecycle hooks
@@ -1019,6 +979,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                 if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
                                 {
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                     // lifecycle hooks
                                     ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                                         view.$attachComponent(el[ATTR]('mv-component'), el);
@@ -1031,6 +992,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                         view.$detachComponent(el[ATTR]('mv-component'), el);
                                     });
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                 }
                                 else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
                                 {
@@ -1039,6 +1001,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                                         view.$detachComponent(el[ATTR]('mv-component'), el);
                                     });
                                     e.replaceChild(tnode, enode);
+                                    offset++;
                                     ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                                         view.$attachComponent(el[ATTR]('mv-component'), el);
                                     });
@@ -1059,6 +1022,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
                     {
                         e.replaceChild(tnode, enode);
+                        offset++;
                         // lifecycle hooks
                         ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                             view.$attachComponent(el[ATTR]('mv-component'), el);
@@ -1071,6 +1035,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             view.$detachComponent(el[ATTR]('mv-component'), el);
                         });
                         e.replaceChild(tnode, enode);
+                        offset++;
                     }
                     else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
                     {
@@ -1079,6 +1044,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                             view.$detachComponent(el[ATTR]('mv-component'), el);
                         });
                         e.replaceChild(tnode, enode);
+                        offset++;
                         ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
                             view.$attachComponent(el[ATTR]('mv-component'), el);
                         });
@@ -1092,10 +1058,10 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
                     }
                 }
             }
-        });
+        }
         // If extra elements, remove them
         count = e.childNodes.length - tc;
-        for (; 0 < count; count--)
+        for (; 0<count; count--)
         {
             var enode = e.childNodes[e.childNodes.length - count];
             if (view)
@@ -1202,7 +1168,8 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 var v = Str(model.get(k));
                 map.txt[k].forEach(function(t){
-                    t.nodeValue = v;
+                    if (t.nodeValue !== v)
+                        t.nodeValue = v;
                 });
             }
         });
@@ -1211,7 +1178,9 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
             {
                 //var v = Str(model.get(k));
                 map.att[k].forEach(function(a){
-                    a.node[SET_ATTR](a.att, a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join(''));
+                    var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                    if (a.node[ATTR](a.att) !== v)
+                        a.node[SET_ATTR](a.att, v);
                 });
             }
         });
@@ -1253,7 +1222,7 @@ var undef = undefined, bindF = function( f, scope ) { return f.bind(scope); },
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if (!HTMLElement.prototype.addEventListener) !function(){
+if (HASDOC && !HTMLElement.prototype.addEventListener) !function(){
 
     function addToPrototype(name, method)
     {
@@ -1443,7 +1412,7 @@ DOMEvent.Handler = function(event) {
 };
 DOMEvent.Dispatch = function(event, element, data) {
     var evt; // The custom event that will be created
-    if (!document || !element) return;
+    if (!HASDOC || !element) return;
     if (document.createEvent)
     {
         evt = document.createEvent("HTMLEvents");
@@ -3052,10 +3021,10 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
 };
 // STATIC
 Model.count = function(o) {
-    if ( !arguments.length ) return 0;
-    var T = get_type( o );
+    if (!arguments.length) return 0;
+    var T = get_type(o);
 
-    if (T_OBJ === T) return Keys( o ).length;
+    if (T_OBJ === T) return Keys(o).length;
     else if (T_ARRAY === T) return o.length;
     else if (T_UNDEF !== T) return 1; //  is scalar value, set count to 1
     return 0;
@@ -3071,7 +3040,6 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
     ,id: null
     ,$id: null
-    ,$view: null
     ,$data: null
     ,$types: null
     ,$idependencies: null
@@ -3092,7 +3060,7 @@ model.dispose( );
 [/DOC_MARKDOWN]**/
     ,dispose: function( ) {
         var model = this;
-        model.disposePubSub( ).$view = null;
+        model.disposePubSub();
         model.$data = null;
         model.$types = null;
         model.$idependencies = null;
@@ -3107,16 +3075,6 @@ model.dispose( );
         model.$syncHandler = null;
         model.__syncing = null;
         return model;
-    }
-
-    ,view: function(v) {
-        var model = this;
-        if (arguments.length)
-        {
-            model.$view = v;
-            return model;
-        }
-        return model.$view;
     }
 
 /**[DOC_MARKDOWN]
@@ -4805,6 +4763,101 @@ var namedKeyProp = "mv_namedkey",
                 code += 'var '+k+'='+viewvar+'.$funcs["'+k+'"];'
         }
         return code;
+    },
+
+    parse = function parse(str, args, scoped, textOnly) {
+        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
+        // both can be used simultaneously
+        var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
+        if (scoped && scoped.length) code += "\n" + Str(scoped);
+        if (true === textOnly)
+        {
+            args = 'MODEL';
+            code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('{%=');
+                if (-1 === p1)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                p2 = tpl.indexOf('%}', p1+3);
+                if (-1 === p2)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
+                tpl = tpl.slice(p2+2);
+            }
+        }
+        else
+        {
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('<script>');
+                ps1 = tpl.indexOf('{%');
+                if (-1 === p1 && -1 === ps1)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
+                {
+                    echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
+                    p2 = tpl.indexOf('%}', ps1+2+echo);
+                    if (-1 === p2)
+                    {
+                        if (-1 === p1)
+                        {
+                            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                            break;
+                        }
+                        else
+                        {
+                            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                            tpl = tpl.slice(p1);
+                            continue;
+                        }
+                    }
+                    code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    if (echo)
+                    {
+                        code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+                    }
+                    else
+                    {
+                        code += "\n"+trim(tpl.slice(ps1+2, p2));
+                    }
+                    tpl = tpl.slice(p2+2);
+                }
+                else
+                {
+                    echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
+                    p2 = tpl.indexOf('</script>', p1+8+echo);
+                    if (-1 === p2)
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        break;
+                    }
+
+                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    if (echo)
+                    {
+                        code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                    }
+                    else
+                    {
+                        code += "\n"+trim(tpl.slice(p1+8, p2));
+                    }
+                    tpl = tpl.slice(p2+9);
+                }
+            }
+        }
+        code += "\n"+'return _$$_;';
+        return newFunc(Str(args||''), code);
     }
 ;
 
@@ -4833,105 +4886,9 @@ var View = function View(id) {
     view.initPubSub();
 };
 // STATIC
-View.node = find_node;
-View.index = node_index;
-View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = function(str, args, scoped, textOnly) {
-    // supports 2 types of template separators 1. {% %} and 2. <script> </script>
-    // both can be used simultaneously
-    var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
-    if (scoped && scoped.length) code += "\n" + String(scoped);
-    if (true === textOnly)
-    {
-        args = 'MODEL';
-        code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('{%=');
-            if (-1 === p1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            p2 = tpl.indexOf('%}', p1+3);
-            if (-1 === p2)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
-            tpl = tpl.slice(p2+2);
-        }
-    }
-    else
-    {
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('<script>');
-            ps1 = tpl.indexOf('{%');
-            if (-1 === p1 && -1 === ps1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-            {
-                echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-                p2 = tpl.indexOf('%}', ps1+2+echo);
-                if (-1 === p2)
-                {
-                    if (-1 === p1)
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        break;
-                    }
-                    else
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        tpl = tpl.slice(p1);
-                        continue;
-                    }
-                }
-                code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                if (echo)
-                {
-                    code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-                }
-                else
-                {
-                    code += "\n"+trim(tpl.slice(ps1+2, p2));
-                }
-                tpl = tpl.slice(p2+2);
-            }
-            else
-            {
-                echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-                p2 = tpl.indexOf('</script>', p1+8+echo);
-                if (-1 === p2)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-
-                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                if (echo)
-                {
-                    code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
-                }
-                else
-                {
-                    code += "\n"+trim(tpl.slice(p1+8, p2));
-                }
-                tpl = tpl.slice(p2+9);
-            }
-        }
-    }
-    code += "\n"+'return _$$_;';
-    return newFunc(Str(args||''), code);
-};
+View.parse = parse;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
@@ -4982,7 +4939,7 @@ view.model( [Model model] );
         var view = this;
         if (arguments.length)
         {
-            view.$model = model.view(view);
+            view.$model = model;
             return view;
         }
         return view.$model;
@@ -5190,11 +5147,10 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
     ,bind: function(events, dom, renderdom) {
         var view = this, model = view.$model,
             method, evt, namespaced, autobindSelector, bindSelector,
-            autobind = view.$autobind, livebind = view.$livebind,
-            hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, livebind = view.$livebind
         ;
 
-        view.$dom = dom || (hasDocument ? document.body : null);
+        view.$dom = dom || (HASDOC ? document.body : null);
         view.$renderdom = renderdom || view.$dom;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
@@ -5204,7 +5160,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
         bindSelector = '[mv-evt]';
 
-        if (hasDocument && view.on_view_change && events.length)
+        if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
@@ -5242,7 +5198,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, bindF(view[method], view));
             }
-            else if (hasDocument)
+            else if (HASDOC)
             {
                 if (startsWith(method, 'on_document_'))
                 {
@@ -5252,7 +5208,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         viewHandler(view, method)
                     );
                 }
-                else if (startsWith(method, 'on_view_') && 'on_view_change' !== method)
+                else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
                 {
                     evt = method.slice(8);
                     evt.length && DOMEvent(view.$dom).on(
@@ -5262,7 +5218,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         true
                     );
                 }
-                else if (startsWith(method, 'on_dom_'))
+                else if (view.$dom && startsWith(method, 'on_dom_'))
                 {
                     evt = method.slice(7);
                     evt.length && DOMEvent(view.$dom).on(
@@ -5285,8 +5241,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         var view = this, model = view.$model,
             autobindSelector, bindSelector,
             namespaced, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind,
-            hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, livebind = !!view.$livebind
         ;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
@@ -5294,7 +5249,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         bindSelector = '[mv-evt]';
 
         // view/dom change events
-        if (hasDocument && view.$dom && view.on_view_change)
+        if (HASDOC && view.$dom && view.on_view_change)
         {
             DOMEvent(view.$dom).off(
                 viewEvent,
@@ -5304,7 +5259,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
         // model events
         if (model) view.offFrom(model);
-        if (hasDocument && view.$dom)
+        if (HASDOC && view.$dom)
         {
             DOMEvent(view.$dom).off(viewEvent);
             DOMEvent(document.body).off(viewEvent);
@@ -5382,7 +5337,7 @@ view.render( [Boolean immediate=false] );
 
     ,add: function(node) {
         var view = this;
-        if (node)
+        if (view.$dom && node)
         {
             if (!view.$map) view.$map = {att:{}, txt:{}};
             get_placeholders(node, view.$map);
@@ -5392,7 +5347,7 @@ view.render( [Boolean immediate=false] );
 
     ,remove: function(node) {
         var view = this, map = view.$map;
-        if (node && map)
+        if (view.$dom && node && map)
         {
             Keys(map.att).forEach(function(k){
                 var rem = [];
@@ -5416,9 +5371,9 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        var view = this, model = view.$model, hasDocument = 'undefined' !== typeof document, els;
+        var view = this, model = view.$model, els;
 
-        if (hasDocument && view.$dom)
+        if (HASDOC && view.$dom)
         {
             view.render(true);
             if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt][mv-on-model-change]', view.$dom), {});
@@ -5439,11 +5394,10 @@ view.sync_model();
 [/DOC_MARKDOWN]**/
     ,sync_model: function() {
         var view = this, model = view.$model,
-            autobind = view.$autobind,
-            autobinds, hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, autobinds
         ;
 
-        if (hasDocument && view.$dom && autobind)
+        if (HASDOC && view.$dom && autobind)
         {
             autobinds = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
             if (autobinds.length) fields2model(view, autobinds);
@@ -5599,12 +5553,10 @@ view.sync_model();
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [],
-            hasDocument = 'undefined' !== typeof document,
-            notTriggerElem
+            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (hasDocument)
+        if (HASDOC)
         {
             bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
             if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
@@ -5617,25 +5569,24 @@ view.sync_model();
                 if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
-        }
+            // do actions ..
 
-        // do actions ..
-
-        // do view action first
-        if (hasDocument && bindElements.length)
-        {
-            do_bind_action(view, evt, bindElements, data);
-        }
-        // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && autoBindElements.length)
-        {
-            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-            do_auto_bind_action(view, evt, autoBindElements, data);
-        }
-        // do view live DOM update action
-        if (livebind)
-        {
-            view.render();
+            // do view action first
+            if (bindElements.length)
+            {
+                do_bind_action(view, evt, bindElements, data);
+            }
+            // do view autobind action to bind input elements that map to the model, afterwards
+            if (autobind && autoBindElements.length)
+            {
+                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                do_auto_bind_action(view, evt, autoBindElements, data);
+            }
+            // do view live DOM update action
+            if (livebind)
+            {
+                view.render();
+            }
         }
     }
 
@@ -5643,29 +5594,30 @@ view.sync_model();
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-error]',
-            hasDocument = 'undefined' !== typeof document,
-            bindElements, autoBindElements
+            bindSelector = '[mv-model-evt][mv-on-model-error]', bindElements, autoBindElements
         ;
 
-        // do actions ..
+        if (HASDOC)
+        {
+            // do actions ..
 
-        // do view bind action first
-        if (hasDocument && (true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
-        {
-            do_bind_action(view, evt, bindElements, data);
-        }
-        // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && (true !== livebind || view.$dom !== view.$renderdom))
-        {
-            autoBindElements = $sel(autobindSelector, view.$dom);
-            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-            do_auto_bind_action(view, evt, autoBindElements, data);
-        }
-        // do view live DOM bindings update action
-        if (livebind)
-        {
-            view.render();
+            // do view bind action first
+            if ((true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
+            {
+                do_bind_action(view, evt, bindElements, data);
+            }
+            // do view autobind action to bind input elements that map to the model, afterwards
+            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
+            {
+                autoBindElements = $sel(autobindSelector, view.$dom);
+                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                do_auto_bind_action(view, evt, autoBindElements, data);
+            }
+            // do view live DOM bindings update action
+            if (livebind)
+            {
+                view.render();
+            }
         }
     }
 
@@ -5898,6 +5850,7 @@ View.Component[proto] = {
         var self = this;
         self.tpl = null;
         self.opts = null;
+        self.model = null;
         self.renderer = null;
         return self;
     }
@@ -5982,7 +5935,7 @@ new ModelView.View('view')
 // export it
 var ModelView = {
 
-    VERSION: "1.4.0"
+    VERSION: "1.5.0"
     
     ,UUID: uuid
     
@@ -6004,7 +5957,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.4.0
+*   @version: 1.5.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

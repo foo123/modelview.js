@@ -3,7 +3,7 @@
 // DOM Events polyfils and delegation
 
 // adapted from https://github.com/jonathantneal/EventListener
-if (!HTMLElement.prototype.addEventListener) !function(){
+if (HASDOC && !HTMLElement.prototype.addEventListener) !function(){
 
     function addToPrototype(name, method)
     {
@@ -193,7 +193,7 @@ DOMEvent.Handler = function(event) {
 };
 DOMEvent.Dispatch = function(event, element, data) {
     var evt; // The custom event that will be created
-    if (!document || !element) return;
+    if (!HASDOC || !element) return;
     if (document.createEvent)
     {
         evt = document.createEvent("HTMLEvents");

@@ -339,6 +339,101 @@ var namedKeyProp = "mv_namedkey",
                 code += 'var '+k+'='+viewvar+'.$funcs["'+k+'"];'
         }
         return code;
+    },
+
+    parse = function parse(str, args, scoped, textOnly) {
+        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
+        // both can be used simultaneously
+        var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
+        if (scoped && scoped.length) code += "\n" + Str(scoped);
+        if (true === textOnly)
+        {
+            args = 'MODEL';
+            code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('{%=');
+                if (-1 === p1)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                p2 = tpl.indexOf('%}', p1+3);
+                if (-1 === p2)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
+                tpl = tpl.slice(p2+2);
+            }
+        }
+        else
+        {
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('<script>');
+                ps1 = tpl.indexOf('{%');
+                if (-1 === p1 && -1 === ps1)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
+                {
+                    echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
+                    p2 = tpl.indexOf('%}', ps1+2+echo);
+                    if (-1 === p2)
+                    {
+                        if (-1 === p1)
+                        {
+                            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                            break;
+                        }
+                        else
+                        {
+                            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                            tpl = tpl.slice(p1);
+                            continue;
+                        }
+                    }
+                    code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    if (echo)
+                    {
+                        code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
+                    }
+                    else
+                    {
+                        code += "\n"+trim(tpl.slice(ps1+2, p2));
+                    }
+                    tpl = tpl.slice(p2+2);
+                }
+                else
+                {
+                    echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
+                    p2 = tpl.indexOf('</script>', p1+8+echo);
+                    if (-1 === p2)
+                    {
+                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                        break;
+                    }
+
+                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    if (echo)
+                    {
+                        code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
+                    }
+                    else
+                    {
+                        code += "\n"+trim(tpl.slice(p1+8, p2));
+                    }
+                    tpl = tpl.slice(p2+9);
+                }
+            }
+        }
+        code += "\n"+'return _$$_;';
+        return newFunc(Str(args||''), code);
     }
 ;
 
@@ -367,105 +462,9 @@ var View = function View(id) {
     view.initPubSub();
 };
 // STATIC
-View.node = find_node;
-View.index = node_index;
-View.indexClosest = node_closest_index;
 View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = function(str, args, scoped, textOnly) {
-    // supports 2 types of template separators 1. {% %} and 2. <script> </script>
-    // both can be used simultaneously
-    var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
-    if (scoped && scoped.length) code += "\n" + String(scoped);
-    if (true === textOnly)
-    {
-        args = 'MODEL';
-        code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('{%=');
-            if (-1 === p1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            p2 = tpl.indexOf('%}', p1+3);
-            if (-1 === p2)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
-            tpl = tpl.slice(p2+2);
-        }
-    }
-    else
-    {
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('<script>');
-            ps1 = tpl.indexOf('{%');
-            if (-1 === p1 && -1 === ps1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-            {
-                echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-                p2 = tpl.indexOf('%}', ps1+2+echo);
-                if (-1 === p2)
-                {
-                    if (-1 === p1)
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        break;
-                    }
-                    else
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        tpl = tpl.slice(p1);
-                        continue;
-                    }
-                }
-                code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                if (echo)
-                {
-                    code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-                }
-                else
-                {
-                    code += "\n"+trim(tpl.slice(ps1+2, p2));
-                }
-                tpl = tpl.slice(p2+2);
-            }
-            else
-            {
-                echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-                p2 = tpl.indexOf('</script>', p1+8+echo);
-                if (-1 === p2)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-
-                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                if (echo)
-                {
-                    code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
-                }
-                else
-                {
-                    code += "\n"+trim(tpl.slice(p1+8, p2));
-                }
-                tpl = tpl.slice(p2+9);
-            }
-        }
-    }
-    code += "\n"+'return _$$_;';
-    return newFunc(Str(args||''), code);
-};
+View.parse = parse;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
@@ -516,7 +515,7 @@ view.model( [Model model] );
         var view = this;
         if (arguments.length)
         {
-            view.$model = model.view(view);
+            view.$model = model;
             return view;
         }
         return view.$model;
@@ -724,11 +723,10 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
     ,bind: function(events, dom, renderdom) {
         var view = this, model = view.$model,
             method, evt, namespaced, autobindSelector, bindSelector,
-            autobind = view.$autobind, livebind = view.$livebind,
-            hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, livebind = view.$livebind
         ;
 
-        view.$dom = dom || (hasDocument ? document.body : null);
+        view.$dom = dom || (HASDOC ? document.body : null);
         view.$renderdom = renderdom || view.$dom;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
@@ -738,7 +736,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
         bindSelector = '[mv-evt]';
 
-        if (hasDocument && view.on_view_change && events.length)
+        if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
@@ -776,7 +774,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, bindF(view[method], view));
             }
-            else if (hasDocument)
+            else if (HASDOC)
             {
                 if (startsWith(method, 'on_document_'))
                 {
@@ -786,7 +784,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         viewHandler(view, method)
                     );
                 }
-                else if (startsWith(method, 'on_view_') && 'on_view_change' !== method)
+                else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
                 {
                     evt = method.slice(8);
                     evt.length && DOMEvent(view.$dom).on(
@@ -796,7 +794,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         true
                     );
                 }
-                else if (startsWith(method, 'on_dom_'))
+                else if (view.$dom && startsWith(method, 'on_dom_'))
                 {
                     evt = method.slice(7);
                     evt.length && DOMEvent(view.$dom).on(
@@ -819,8 +817,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         var view = this, model = view.$model,
             autobindSelector, bindSelector,
             namespaced, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind,
-            hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, livebind = !!view.$livebind
         ;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
@@ -828,7 +825,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
         bindSelector = '[mv-evt]';
 
         // view/dom change events
-        if (hasDocument && view.$dom && view.on_view_change)
+        if (HASDOC && view.$dom && view.on_view_change)
         {
             DOMEvent(view.$dom).off(
                 viewEvent,
@@ -838,7 +835,7 @@ view.unbind( [Array events=null, DOMNode dom=view.$dom] );
 
         // model events
         if (model) view.offFrom(model);
-        if (hasDocument && view.$dom)
+        if (HASDOC && view.$dom)
         {
             DOMEvent(view.$dom).off(viewEvent);
             DOMEvent(document.body).off(viewEvent);
@@ -916,7 +913,7 @@ view.render( [Boolean immediate=false] );
 
     ,add: function(node) {
         var view = this;
-        if (node)
+        if (view.$dom && node)
         {
             if (!view.$map) view.$map = {att:{}, txt:{}};
             get_placeholders(node, view.$map);
@@ -926,7 +923,7 @@ view.render( [Boolean immediate=false] );
 
     ,remove: function(node) {
         var view = this, map = view.$map;
-        if (node && map)
+        if (view.$dom && node && map)
         {
             Keys(map.att).forEach(function(k){
                 var rem = [];
@@ -950,9 +947,9 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        var view = this, model = view.$model, hasDocument = 'undefined' !== typeof document, els;
+        var view = this, model = view.$model, els;
 
-        if (hasDocument && view.$dom)
+        if (HASDOC && view.$dom)
         {
             view.render(true);
             if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt][mv-on-model-change]', view.$dom), {});
@@ -973,11 +970,10 @@ view.sync_model();
 [/DOC_MARKDOWN]**/
     ,sync_model: function() {
         var view = this, model = view.$model,
-            autobind = view.$autobind,
-            autobinds, hasDocument = 'undefined' !== typeof document
+            autobind = view.$autobind, autobinds
         ;
 
-        if (hasDocument && view.$dom && autobind)
+        if (HASDOC && view.$dom && autobind)
         {
             autobinds = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
             if (autobinds.length) fields2model(view, autobinds);
@@ -1133,12 +1129,10 @@ view.sync_model();
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [],
-            hasDocument = 'undefined' !== typeof document,
-            notTriggerElem
+            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (hasDocument)
+        if (HASDOC)
         {
             bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
             if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
@@ -1151,25 +1145,24 @@ view.sync_model();
                 if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
-        }
+            // do actions ..
 
-        // do actions ..
-
-        // do view action first
-        if (hasDocument && bindElements.length)
-        {
-            do_bind_action(view, evt, bindElements, data);
-        }
-        // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && autoBindElements.length)
-        {
-            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-            do_auto_bind_action(view, evt, autoBindElements, data);
-        }
-        // do view live DOM update action
-        if (livebind)
-        {
-            view.render();
+            // do view action first
+            if (bindElements.length)
+            {
+                do_bind_action(view, evt, bindElements, data);
+            }
+            // do view autobind action to bind input elements that map to the model, afterwards
+            if (autobind && autoBindElements.length)
+            {
+                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                do_auto_bind_action(view, evt, autoBindElements, data);
+            }
+            // do view live DOM update action
+            if (livebind)
+            {
+                view.render();
+            }
         }
     }
 
@@ -1177,29 +1170,30 @@ view.sync_model();
         var view = this, model = view.$model, key = model.id + bracketed(data.key),
             autobind = view.$autobind, livebind = view.$livebind,
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-error]',
-            hasDocument = 'undefined' !== typeof document,
-            bindElements, autoBindElements
+            bindSelector = '[mv-model-evt][mv-on-model-error]', bindElements, autoBindElements
         ;
 
-        // do actions ..
+        if (HASDOC)
+        {
+            // do actions ..
 
-        // do view bind action first
-        if (hasDocument && (true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
-        {
-            do_bind_action(view, evt, bindElements, data);
-        }
-        // do view autobind action to bind input elements that map to the model, afterwards
-        if (hasDocument && autobind && (true !== livebind || view.$dom !== view.$renderdom))
-        {
-            autoBindElements = $sel(autobindSelector, view.$dom);
-            //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-            do_auto_bind_action(view, evt, autoBindElements, data);
-        }
-        // do view live DOM bindings update action
-        if (livebind)
-        {
-            view.render();
+            // do view bind action first
+            if ((true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
+            {
+                do_bind_action(view, evt, bindElements, data);
+            }
+            // do view autobind action to bind input elements that map to the model, afterwards
+            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
+            {
+                autoBindElements = $sel(autobindSelector, view.$dom);
+                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                do_auto_bind_action(view, evt, autoBindElements, data);
+            }
+            // do view live DOM bindings update action
+            if (livebind)
+            {
+                view.render();
+            }
         }
     }
 
@@ -1432,6 +1426,7 @@ View.Component[proto] = {
         var self = this;
         self.tpl = null;
         self.opts = null;
+        self.model = null;
         self.renderer = null;
         return self;
     }

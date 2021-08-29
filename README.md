@@ -1,11 +1,11 @@
 modelview.js
 ============
 
-A simple, light-weight, versatile and fast MVVM front-end framework for JavaScript
+A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript
 
 ![ModelView](/modelview.jpg)
 
-**Version 1.4.0** (59 kB minified)
+**Version 1.5.0** (59 kB minified)
 
 
 **see also:**  
@@ -83,6 +83,26 @@ new ModelView.View('view')
 .bind(['click', 'change'], document.getElementById('app'))
 .sync()
 ;
+```
+
+**Server-Side Rendering**
+
+```javascript
+var ModelView = require('../build/modelview.js');
+
+var view = new ModelView.View('view')
+    .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
+    .components({
+        'hello': new ModelView.View.Component(`<div title="Hello {%= view.model().get('msg') %}">Hello {%= view.model().get('msg') %}</div>`)
+    })
+    .template(`{%= view.component('hello') %}`)
+;
+
+console.log(view.render());
+/*
+output:
+<div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
+*/
 ```
 
 #### Examples

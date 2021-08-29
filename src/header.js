@@ -12,6 +12,8 @@
 
 "use strict";
 
+var HASDOC = 'undefined' !== typeof (document);
+
 /**[DOC_MARKDOWN]
 ### ModelView API
 
