@@ -628,14 +628,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
-    morphStyles = function(e, t) {
-        var tstyleMap = /*t.style*/trim(t.style.cssText).split(';').reduce(function(map, style) {
+    /*morphStyles = function(e, t) {
+        var tstyleMap = /*t.style* /trim(t.style.cssText).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
                 return map;
             }, {}),
-            estyleMap = /*e.style*/trim(e.style.cssText).split(';').reduce(function(map, style) {
+            estyleMap = /*e.style* /trim(e.style.cssText).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
@@ -658,7 +658,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (e.style[s] !== st)
                 e.style[s] = st;
         });
-    },
+    },*/
     morphAtts = function morphAtts(e, t) {
         var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
             tAtts = t.attributes, eAtts = e.attributes, i, a, n, v, NS;
@@ -1039,6 +1039,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         });
     },
+    del_map = function del_map(m, del) {
+        if (!m) return;
+        if (m.v)
+        {
+            del(m.v);
+        }
+        if (m.c)
+        {
+            Keys(m.c).forEach(function(k){
+                if (m.c[k].c) del_map(m.c[k], del);
+                else if (m.c[k].v) del(m.c[k].v);
+            });
+        }
+    },
     walk_map = function walk_map(m, f, key) {
         if (!m) return;
         key = key || '';
@@ -1050,8 +1064,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             Keys(m.c).forEach(function(k){
                 var kk = key + (key.length ? '.' : '') + k;
-                if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
                 if (m.c[k].c) walk_map(m.c[k], f, kk);
+                else if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
             });
         }
     },
@@ -1145,8 +1159,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             keys.forEach(function(ks){
                 var kk = ks.split('.'), mt = map.txt, ma = map.att;
                 kk.forEach(function(k, i){
-                    mt = mt && HAS.call(mt.c, k) ? mt.c[k] : null;
-                    ma = ma && HAS.call(ma.c, k) ? ma.c[k] : null;
+                    mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
+                    ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
                     if (kk.length-1 === i)
                     {
                         walk_map(mt, function(t, k){

@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-30 21:06:02
+*   @built on 2021-08-30 22:05:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-30 21:06:02
+*   @built on 2021-08-30 22:05:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -680,14 +680,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     nodeType = function(node) {
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
     },
-    morphStyles = function(e, t) {
-        var tstyleMap = /*t.style*/trim(t.style.cssText).split(';').reduce(function(map, style) {
+    /*morphStyles = function(e, t) {
+        var tstyleMap = /*t.style* /trim(t.style.cssText).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
                 return map;
             }, {}),
-            estyleMap = /*e.style*/trim(e.style.cssText).split(';').reduce(function(map, style) {
+            estyleMap = /*e.style* /trim(e.style.cssText).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
@@ -710,7 +710,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (e.style[s] !== st)
                 e.style[s] = st;
         });
-    },
+    },*/
     morphAtts = function morphAtts(e, t) {
         var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
             tAtts = t.attributes, eAtts = e.attributes, i, a, n, v, NS;
@@ -1091,6 +1091,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         });
     },
+    del_map = function del_map(m, del) {
+        if (!m) return;
+        if (m.v)
+        {
+            del(m.v);
+        }
+        if (m.c)
+        {
+            Keys(m.c).forEach(function(k){
+                if (m.c[k].c) del_map(m.c[k], del);
+                else if (m.c[k].v) del(m.c[k].v);
+            });
+        }
+    },
     walk_map = function walk_map(m, f, key) {
         if (!m) return;
         key = key || '';
@@ -1102,8 +1116,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             Keys(m.c).forEach(function(k){
                 var kk = key + (key.length ? '.' : '') + k;
-                if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
                 if (m.c[k].c) walk_map(m.c[k], f, kk);
+                else if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
             });
         }
     },
@@ -1197,8 +1211,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             keys.forEach(function(ks){
                 var kk = ks.split('.'), mt = map.txt, ma = map.att;
                 kk.forEach(function(k, i){
-                    mt = mt && HAS.call(mt.c, k) ? mt.c[k] : null;
-                    ma = ma && HAS.call(ma.c, k) ? ma.c[k] : null;
+                    mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
+                    ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
                     if (kk.length-1 === i)
                     {
                         walk_map(mt, function(t, k){
@@ -5422,17 +5436,25 @@ view.render( [Boolean immediate=false] );
         var view = this, map = view.$map;
         if (view.$dom && node && map)
         {
-            Keys(map.att).forEach(function(k){
-                var rem = [];
-                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node, view.$dom)) rem.push(i);});
-                rem.reverse().forEach(function(i){map.att[k].splice(i, 1);});
-                if (!map.att[k].length) delete map.att[k];
+            del_map(map.txt, function(v){
+                v.reduce(function(rem, t, i){
+                    if (is_child_of(t, node, view.$dom)) rem.push(i);
+                    return rem;
+                }, [])
+                .reverse()
+                .forEach(function(i){
+                    v.splice(i, 1);
+                });
             });
-            Keys(map.txt).forEach(function(k){
-                var rem = [];
-                map.txt[k].forEach(function(t, i){if (is_child_of(t, node, view.$dom)) rem.push(i);});
-                rem.reverse().forEach(function(i){map.txt[k].splice(i, 1);});
-                if (!map.txt[k].length) delete map.txt[k];
+            del_map(map.att, function(v){
+                v.reduce(function(rem, a, i){
+                    if (is_child_of(a.node, node, view.$dom)) rem.push(i);
+                    return rem;
+                }, [])
+                .reverse()
+                .forEach(function(i){
+                    v.splice(i, 1);
+                });
             });
         }
         return node;

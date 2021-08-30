@@ -954,17 +954,25 @@ view.render( [Boolean immediate=false] );
         var view = this, map = view.$map;
         if (view.$dom && node && map)
         {
-            Keys(map.att).forEach(function(k){
-                var rem = [];
-                map.att[k].forEach(function(a, i){if (is_child_of(a.node, node, view.$dom)) rem.push(i);});
-                rem.reverse().forEach(function(i){map.att[k].splice(i, 1);});
-                if (!map.att[k].length) delete map.att[k];
+            del_map(map.txt, function(v){
+                v.reduce(function(rem, t, i){
+                    if (is_child_of(t, node, view.$dom)) rem.push(i);
+                    return rem;
+                }, [])
+                .reverse()
+                .forEach(function(i){
+                    v.splice(i, 1);
+                });
             });
-            Keys(map.txt).forEach(function(k){
-                var rem = [];
-                map.txt[k].forEach(function(t, i){if (is_child_of(t, node, view.$dom)) rem.push(i);});
-                rem.reverse().forEach(function(i){map.txt[k].splice(i, 1);});
-                if (!map.txt[k].length) delete map.txt[k];
+            del_map(map.att, function(v){
+                v.reduce(function(rem, a, i){
+                    if (is_child_of(a.node, node, view.$dom)) rem.push(i);
+                    return rem;
+                }, [])
+                .reverse()
+                .forEach(function(i){
+                    v.splice(i, 1);
+                });
             });
         }
         return node;
