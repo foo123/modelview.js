@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-29 18:40:07
+*   @built on 2021-08-30 21:06:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-29 18:40:07
+*   @built on 2021-08-30 21:06:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -814,19 +814,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         }
     },
-    morph = function morph(e, t, view) {
+    morph = function morph(e, t, view, ID, COMP, FROZ) {
         // morph e DOM to match t DOM
         // take care of frozen elements
         var tc = t.childNodes.length, count = e.childNodes.length - tc,
             index, offset, tnode, enode, T1, T2,
-            frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR]('mv-frozen');});
+            frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR](FROZ);});
         frozen.forEach(function(n) {e.removeChild(n);});
         for (offset=0,index=0; index<tc; index++)
         {
             tnode = t.childNodes[index-offset];
             if (index >= e.childNodes.length)
             {
-                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR](FROZ) && frozen.length)
                 {
                     // use original frozen
                     e.appendChild(frozen.shift());
@@ -838,8 +838,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (view)
                     {
                         // lifecycle hooks
-                        (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR](COMP), el);
                         });
                     }
                 }
@@ -850,13 +850,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 T2 = nodeType(tnode);
                 T1 = nodeType(enode);
 
-                if (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-frozen') && frozen.length)
+                if (tnode[HAS_ATTR] && tnode[HAS_ATTR](FROZ) && frozen.length)
                 {
                     if (view)
                     {
                         // lifecycle hooks
-                        (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR](COMP), el);
                         });
                     }
                     // use original frozen
@@ -868,8 +868,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (view)
                     {
                         // lifecycle hooks
-                        (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR](COMP), el);
                         });
                     }
                     e.replaceChild(tnode, enode);
@@ -877,8 +877,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (view)
                     {
                         // lifecycle hooks
-                        (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR](COMP), el);
                         });
                     }
                 }
@@ -903,7 +903,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (enode.firstChild && (enode.firstChild.nodeValue !== tnode.value))
                         enode.firstChild.nodeValue = tnode.value;
                 }
-                else if ((0 !== count) && tnode[HAS_ATTR]('mv-key') && enode[HAS_ATTR]('mv-key') && (tnode[ATTR]('mv-key') !== enode[ATTR]('mv-key')))
+                else if ((0 !== count) && tnode[HAS_ATTR](ID) && enode[HAS_ATTR](ID) && (tnode[ATTR](ID) !== enode[ATTR](ID)))
                 {
                     if (0 > count)
                     {
@@ -913,8 +913,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (view)
                         {
                             // lifecycle hooks
-                            (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                                view.$attachComponent(el[ATTR]('mv-component'), el);
+                            (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                                view.$attachComponent(el[ATTR](COMP), el);
                             });
                         }
                     }
@@ -925,19 +925,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             if (view)
                             {
                                 // lifecycle hooks
-                                (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                                    view.$detachComponent(el[ATTR]('mv-component'), el);
+                                (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                                    view.$detachComponent(el[ATTR](COMP), el);
                                 });
                             }
                             e.removeChild(enode);
                             count--;
                             if (index >= e.childNodes.length) break;
                             enode = e.childNodes[index];
-                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR]('mv-key') || (tnode[ATTR]('mv-key') === enode[ATTR]('mv-key'))) break;
+                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR](ID) || (tnode[ATTR](ID) === enode[ATTR](ID))) break;
                         }
                         if (index >= e.childNodes.length)
                         {
-                            if (tnode[HAS_ATTR]('mv-frozen') && frozen.length)
+                            if (tnode[HAS_ATTR](FROZ) && frozen.length)
                             {
                                 // use original frozen
                                 e.appendChild(frozen.shift());
@@ -949,8 +949,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (view)
                                 {
                                     // lifecycle hooks
-                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR](COMP), el);
                                     });
                                 }
                             }
@@ -963,8 +963,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (view)
                                 {
                                     // lifecycle hooks
-                                    (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR](COMP), el);
                                     });
                                 }
                                 e.replaceChild(tnode, enode);
@@ -972,41 +972,41 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (view)
                                 {
                                     // lifecycle hooks
-                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR]('mv-component') ? [tnode] : []).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR](COMP), el);
                                     });
                                 }
                             }
                             else
                             {
-                                if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
+                                if (view && tnode[HAS_ATTR](COMP) && !enode[HAS_ATTR](COMP))
                                 {
                                     e.replaceChild(tnode, enode);
                                     offset++;
                                     // lifecycle hooks
-                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR](COMP), el);
                                     });
                                 }
-                                else if (view && !tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component'))
+                                else if (view && !tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP))
                                 {
                                     // lifecycle hooks
-                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR](COMP), el);
                                     });
                                     e.replaceChild(tnode, enode);
                                     offset++;
                                 }
-                                else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                                else if (view && tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP) && tnode[ATTR](COMP) !== enode[ATTR](COMP))
                                 {
                                     // lifecycle hooks
-                                    ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR]('mv-component'), el);
+                                    ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                                        view.$detachComponent(el[ATTR](COMP), el);
                                     });
                                     e.replaceChild(tnode, enode);
                                     offset++;
-                                    ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR]('mv-component'), el);
+                                    ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                                        view.$attachComponent(el[ATTR](COMP), el);
                                     });
                                 }
                                 else
@@ -1014,7 +1014,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     // morph attributes/properties
                                     morphAtts(enode, tnode);
                                     // morph children
-                                    morph(enode, tnode, view);
+                                    morph(enode, tnode, view, ID, COMP, FROZ);
                                 }
                             }
                         }
@@ -1022,34 +1022,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else
                 {
-                    if (view && tnode[HAS_ATTR]('mv-component') && !enode[HAS_ATTR]('mv-component'))
+                    if (view && tnode[HAS_ATTR](COMP) && !enode[HAS_ATTR](COMP))
                     {
                         e.replaceChild(tnode, enode);
                         offset++;
                         // lifecycle hooks
-                        ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR](COMP), el);
                         });
                     }
-                    else if (view && !tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component'))
+                    else if (view && !tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP))
                     {
                         // lifecycle hooks
-                        ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR](COMP), el);
                         });
                         e.replaceChild(tnode, enode);
                         offset++;
                     }
-                    else if (view && tnode[HAS_ATTR]('mv-component') && enode[HAS_ATTR]('mv-component') && tnode[ATTR]('mv-component') !== enode[ATTR]('mv-component'))
+                    else if (view && tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP) && tnode[ATTR](COMP) !== enode[ATTR](COMP))
                     {
                         // lifecycle hooks
-                        ([enode]).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR]('mv-component'), el);
+                        ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                            view.$detachComponent(el[ATTR](COMP), el);
                         });
                         e.replaceChild(tnode, enode);
                         offset++;
-                        ([tnode]).concat($sel('[mv-component]', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR]('mv-component'), el);
+                        ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
+                            view.$attachComponent(el[ATTR](COMP), el);
                         });
                     }
                     else
@@ -1057,7 +1057,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         // morph attributes/properties
                         morphAtts(enode, tnode);
                         // morph children
-                        morph(enode, tnode, view);
+                        morph(enode, tnode, view, ID, COMP, FROZ);
                     }
                 }
             }
@@ -1070,14 +1070,43 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (view)
             {
                 // lifecycle hooks
-                (enode[HAS_ATTR] && enode[HAS_ATTR]('mv-component') ? [enode] : []).concat($sel('[mv-component]', enode)).forEach(function(el) {
-                    view.$detachComponent(el[ATTR]('mv-component'), el);
+                (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
+                    view.$detachComponent(el[ATTR](COMP), el);
                 });
             }
             e.removeChild(enode);
         }
     },
 
+    insert_map = function(map, ks, v) {
+        var m = map;
+        ks.forEach(function(k, i){
+            if (!HAS.call(m, 'c')) m.c = {};
+            if (!HAS.call(m.c, k)) m.c[k] = {};
+            m = m.c[k];
+            if (ks.length-1 === i)
+            {
+                if (!HAS.call(m, 'v')) m.v = [];
+                m.v.push(v);
+            }
+        });
+    },
+    walk_map = function walk_map(m, f, key) {
+        if (!m) return;
+        key = key || '';
+        if (m.v)
+        {
+            m.v.forEach(function(v){f(v, key);});
+        }
+        if (m.c)
+        {
+            Keys(m.c).forEach(function(k){
+                var kk = key + (key.length ? '.' : '') + k;
+                if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
+                if (m.c[k].c) walk_map(m.c[k], f, kk);
+            });
+        }
+    },
     placeholder_re = /\{%=([^%]+)%\}/,
     get_placeholders = function get_placeholders(node, map) {
         var m, k, t, s;
@@ -1094,8 +1123,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         t = n.splitText(m.index);
                         n = t.splitText(m[0].length);
                         s = n.nodeValue;
-                        if (!HAS.call(map.txt, k)) map.txt[k] = [];
-                        map.txt[k].push(t);
+                        insert_map(map.txt, k.split('.'), t);
                     }
                     else
                     {
@@ -1125,8 +1153,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         keys.forEach(function(k){
                             var t = {node:node, att:a.name, txt:txt.slice()};
-                            if (!HAS.call(map.att, k)) map.att[k] = [];
-                            map.att[k].push(t);
+                            insert_map(map.att, k.split('.'), t);
                         });
                     });
                 }
@@ -1145,8 +1172,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     t = n.splitText(m.index);
                                     n = t.splitText(m[0].length);
                                     s = n.nodeValue;
-                                    if (!HAS.call(map.txt, k)) map.txt[k] = [];
-                                    map.txt[k].push(t);
+                                    insert_map(map.txt, k.split('.'), t);
                                 }
                                 else
                                 {
@@ -1164,29 +1190,44 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return node;
     },
-    morphText = function morphText(map, model, key) {
-        if (!map) return;
-        Keys(map.txt).forEach(function(k){
-            if ((null == key) || (key === k) || startsWith(k, key+'.'))
-            {
+    morphText = function morphText(map, model, keys) {
+        if (!map || !map.txt || !map.att) return;
+        if (keys)
+        {
+            keys.forEach(function(ks){
+                var kk = ks.split('.'), mt = map.txt, ma = map.att;
+                kk.forEach(function(k, i){
+                    mt = mt && HAS.call(mt.c, k) ? mt.c[k] : null;
+                    ma = ma && HAS.call(ma.c, k) ? ma.c[k] : null;
+                    if (kk.length-1 === i)
+                    {
+                        walk_map(mt, function(t, k){
+                            var v = Str(model.get(k));
+                            if (t.nodeValue !== v)
+                                t.nodeValue = v;
+                        }, ks);
+                        walk_map(ma, function(a){
+                            var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                            if (a.node[ATTR](a.att) !== v)
+                                a.node[SET_ATTR](a.att, v);
+                        }, ks);
+                    }
+                });
+            });
+        }
+        else
+        {
+            walk_map(map.txt, function(t, k){
                 var v = Str(model.get(k));
-                map.txt[k].forEach(function(t){
-                    if (t.nodeValue !== v)
-                        t.nodeValue = v;
-                });
-            }
-        });
-        Keys(map.att).forEach(function(k){
-            if ((null == key) || (key === k) || startsWith(k, key+'.'))
-            {
-                //var v = Str(model.get(k));
-                map.att[k].forEach(function(a){
-                    var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                    if (a.node[ATTR](a.att) !== v)
-                        a.node[SET_ATTR](a.att, v);
-                });
-            }
-        });
+                if (t.nodeValue !== v)
+                    t.nodeValue = v;
+            }, '');
+            walk_map(map.att, function(a){
+                var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                if (a.node[ATTR](a.att) !== v)
+                    a.node[SET_ATTR](a.att, v);
+            }, '');
+        }
     },
 
     notEmpty = function(s) {return 0 < s.length;}, SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
@@ -4653,7 +4694,7 @@ var namedKeyProp = "mv_namedkey",
         iterate(function(i) {
             var el, do_action, name, key, data = {};
             el = elements[i]; if (!el) return;
-            do_action = el[ATTR]('mv-on-'+(fromModel ? 'model-' : '')+event);
+            do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
             if (!do_action) return;
             if ('text' === do_action)
             {
@@ -4886,6 +4927,7 @@ var View = function View(id) {
     view.$num_shortcuts = 0;
     view.$components = {};
     view.$funcs = {};
+    view.$upds = [];
     view.initPubSub();
 };
 // STATIC
@@ -4910,6 +4952,8 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$num_shortcuts: null
     ,$components: null
     ,$funcs: null
+    ,$upds: null
+    ,$prat: ''
     ,_dbnc: null
 
 /**[DOC_MARKDOWN]
@@ -4930,6 +4974,7 @@ view.dispose( );
         view.$num_shortcuts = null;
         view.$components = null;
         view.$funcs = null;
+        view.$upds = null;
         return view;
     }
 
@@ -5095,6 +5140,19 @@ view.actions( Object actions );
         return view;
     }
 
+    ,attribute: function(prefix) {
+        if (arguments.length)
+        {
+            this.$prat = trim(prefix);
+            return this;
+        }
+        return this.$prat;
+    }
+
+    ,attr: function(attr) {
+        return this.$prat + Str(attr);
+    }
+
 /**[DOC_MARKDOWN]
 // get/set associated model auto-validate flag
 view.autovalidate( [Boolean enabled] );
@@ -5161,7 +5219,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         // default view/dom binding events
         events = events || ['change', 'click'];
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        bindSelector = '[mv-evt]';
+        bindSelector = '['+view.attr('mv-evt')+']';
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
@@ -5180,7 +5238,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     // add "bubble" option in modelview bind params
                     var el = this, isAutoBind = false, isBind = false;
                     // view/dom change events
-                    isBind = el[MATCHES]('[mv-evt]') && el[ATTR]('mv-on-'+evt.type);
+                    isBind = el[MATCHES]('['+view.attr('mv-evt')+']') && el[ATTR](view.attr('mv-on-'+evt.type));
                     // view change autobind events
                     isAutoBind = autobind && ("change" == evt.type) && el[MATCHES](autobindSelector);
                     if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
@@ -5249,7 +5307,7 @@ view.unbind( );
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        bindSelector = '[mv-evt]';
+        bindSelector = '['+view.attr('mv-evt')+']';
 
         // view/dom change events
         if (HASDOC && view.$dom && view.on_view_change)
@@ -5277,12 +5335,13 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out;
+        var self = this, out, upds;
         if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
             {
+                self.$upds = [];
                 out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
@@ -5295,16 +5354,20 @@ view.render( [Boolean immediate=false] );
                     if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
                     self.add(self.$renderdom);
                 }
-                if (true === immediate)
+                if (true === immediate || 'sync' === immediate)
                 {
-                    morphText(self.$map, self.model());
+                    upds = self.$upds;
+                    self.$upds = [];
+                    morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }
                 else
                 {
                     debounce(function() {
-                        morphText(self.$map, self.model());
+                        upds = self.$upds;
+                        self.$upds = [];
+                        morphText(self.$map, self.model(), upds);
                         // notify any 3rd-party also if needed
                         self.publish('render', {});
                     }, self);
@@ -5315,25 +5378,32 @@ view.render( [Boolean immediate=false] );
         {
             if (!self.$renderdom)
             {
+                self.$upds = [];
                 out = self.$out.call(self); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
-            else if (true === immediate)
+            else if (true === immediate || 'sync' === immediate)
             {
-                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                self.$upds = [];
+                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             }
             else
             {
                 debounce(function() {
-                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null);
+                    self.$upds = [];
+                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
                 }, self);
             }
+        }
+        else
+        {
+            self.$upds = [];
         }
         return self;
     }
@@ -5378,8 +5448,8 @@ view.sync();
 
         if (HASDOC && view.$dom)
         {
-            view.render(true);
-            if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('[mv-model-evt][mv-on-model-change]', view.$dom), {});
+            view.render('sync');
+            if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
             if (view.$autobind && (true !== view.$livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
@@ -5553,14 +5623,18 @@ view.sync_model();
     }
 
     ,on_model_change: function(evt, data) {
-        var view = this, model = view.$model, key = model.id + bracketed(data.key),
+        var view = this, model = view.$model,
             autobind = view.$autobind, livebind = view.$livebind,
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-change]', bindElements = [], autoBindElements = [], notTriggerElem
+            key, autobindSelector, bindSelector,
+            bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
         if (HASDOC && view.$dom)
         {
+            key = model.id + bracketed(data.key);
+            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
+            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+
             bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
             if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
 
@@ -5588,20 +5662,24 @@ view.sync_model();
             // do view live DOM update action
             if (livebind)
             {
+                if (-1 === view.$upds.indexOf(data.key)) view.$upds.push(data.key);
                 view.render();
             }
         }
     }
 
     ,on_model_error: function(evt, data) {
-        var view = this, model = view.$model, key = model.id + bracketed(data.key),
+        var view = this, model = view.$model,
             autobind = view.$autobind, livebind = view.$livebind,
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]',
-            bindSelector = '[mv-model-evt][mv-on-model-error]', bindElements, autoBindElements
+            key, autobindSelector, bindSelector,
+            bindElements, autoBindElements
         ;
 
         if (HASDOC && view.$dom)
         {
+            key = model.id + bracketed(data.key);
+            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
+            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-error')+']';
             // do actions ..
 
             // do view bind action first
@@ -5645,10 +5723,10 @@ view.sync_model();
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
 
         if (!key) return;
-        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
@@ -5669,10 +5747,10 @@ view.sync_model();
 
     // set element(s) css props based on model key value
     ,do_css: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
 
         if (!key) return;
-        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
@@ -5701,10 +5779,10 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
 
         if (!key) return;
-        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
@@ -5728,10 +5806,10 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR]('mv-model') || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
 
         if (!key) return;
-        if (!!(domref=el[ATTR]('mv-domref'))) el = View.getDomRef(el, domref);
+        if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
         if (!el || !el.length) return;
 
