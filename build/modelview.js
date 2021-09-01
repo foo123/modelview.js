@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-30 22:05:27
+*   @built on 2021-09-01 20:00:43
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 1.5.0
-*   @built on 2021-08-30 22:05:27
+*   @built on 2021-09-01 20:00:43
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1100,8 +1100,22 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (m.c)
         {
             Keys(m.c).forEach(function(k){
-                if (m.c[k].c) del_map(m.c[k], del);
-                else if (m.c[k].v) del(m.c[k].v);
+                if (m.c[k].c)
+                {
+                    del_map(m.c[k], del);
+                    if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
+                    {
+                        delete m.c[k];
+                    }
+                }
+                else if (m.c[k].v)
+                {
+                    del(m.c[k].v);
+                    if (!m.c[k].v.length)
+                    {
+                        delete m.c[k];
+                    }
+                }
             });
         }
     },
@@ -1110,14 +1124,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         key = key || '';
         if (m.v)
         {
-            m.v.forEach(function(v){f(v, key);});
+            f(m.v, key);
         }
         if (m.c)
         {
             Keys(m.c).forEach(function(k){
                 var kk = key + (key.length ? '.' : '') + k;
                 if (m.c[k].c) walk_map(m.c[k], f, kk);
-                else if (m.c[k].v) m.c[k].v.forEach(function(v){f(v, kk);});
+                else if (m.c[k].v) f(m.c[k].v, kk);
             });
         }
     },
@@ -1215,15 +1229,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
                     if (kk.length-1 === i)
                     {
-                        walk_map(mt, function(t, k){
+                        walk_map(mt, function(list, k){
                             var v = Str(model.get(k));
-                            if (t.nodeValue !== v)
-                                t.nodeValue = v;
+                            list.forEach(function(t){
+                                if (t.nodeValue !== v)
+                                    t.nodeValue = v;
+                            });
                         }, ks);
-                        walk_map(ma, function(a){
-                            var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                            if (a.node[ATTR](a.att) !== v)
-                                a.node[SET_ATTR](a.att, v);
+                        walk_map(ma, function(list){
+                            list.forEach(function(a){
+                                var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                                if (a.node[ATTR](a.att) !== v)
+                                    a.node[SET_ATTR](a.att, v);
+                            });
                         }, ks);
                     }
                 });
@@ -1231,15 +1249,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else
         {
-            walk_map(map.txt, function(t, k){
+            walk_map(map.txt, function(list, k){
                 var v = Str(model.get(k));
-                if (t.nodeValue !== v)
-                    t.nodeValue = v;
+                list.forEach(function(t){
+                    if (t.nodeValue !== v)
+                        t.nodeValue = v;
+                });
             }, '');
-            walk_map(map.att, function(a){
-                var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                if (a.node[ATTR](a.att) !== v)
-                    a.node[SET_ATTR](a.att, v);
+            walk_map(map.att, function(list){
+                list.forEach(function(a){
+                    var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+                    if (a.node[ATTR](a.att) !== v)
+                        a.node[SET_ATTR](a.att, v);
+                });
             }, '');
         }
     },
