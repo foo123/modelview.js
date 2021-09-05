@@ -330,110 +330,15 @@ var namedKeyProp = "mv_namedkey",
         return function(evt){return view[method](evt, {el:this});};
     },
 
-    getFuncsScoped = function(view, viewvar) {
-        var code = '';
-        viewvar = viewvar || 'view';
-        for (var k in view.$funcs)
+    getCtxScoped = function(view, viewvar) {
+        var k, code = '';
+        viewvar = viewvar || 'this';
+        for (k in view.$ctx)
         {
-            if (HAS.call(view.$funcs,k))
-                code += 'var '+k+'='+viewvar+'.$funcs["'+k+'"];'
+            if (HAS.call(view.$ctx,k))
+                code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
         }
         return code;
-    },
-
-    parse = function parse(str, args, scoped, textOnly) {
-        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
-        // both can be used simultaneously
-        var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
-        if (scoped && scoped.length) code += "\n" + Str(scoped);
-        if (true === textOnly)
-        {
-            args = 'MODEL';
-            code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('{%=');
-                if (-1 === p1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                p2 = tpl.indexOf('%}', p1+3);
-                if (-1 === p2)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
-                tpl = tpl.slice(p2+2);
-            }
-        }
-        else
-        {
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('<script>');
-                ps1 = tpl.indexOf('{%');
-                if (-1 === p1 && -1 === ps1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-                {
-                    echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-                    p2 = tpl.indexOf('%}', ps1+2+echo);
-                    if (-1 === p2)
-                    {
-                        if (-1 === p1)
-                        {
-                            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                            break;
-                        }
-                        else
-                        {
-                            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                            tpl = tpl.slice(p1);
-                            continue;
-                        }
-                    }
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    if (echo)
-                    {
-                        code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-                    }
-                    else
-                    {
-                        code += "\n"+trim(tpl.slice(ps1+2, p2));
-                    }
-                    tpl = tpl.slice(p2+2);
-                }
-                else
-                {
-                    echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-                    p2 = tpl.indexOf('</script>', p1+8+echo);
-                    if (-1 === p2)
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        break;
-                    }
-
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    if (echo)
-                    {
-                        code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
-                    }
-                    else
-                    {
-                        code += "\n"+trim(tpl.slice(p1+8, p2));
-                    }
-                    tpl = tpl.slice(p2+9);
-                }
-            }
-        }
-        code += "\n"+'return _$$_;';
-        return newFunc(Str(args||''), code);
     }
 ;
 
@@ -458,14 +363,12 @@ var View = function View(id) {
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
     view.$components = {};
-    view.$funcs = {};
+    view.$ctx = {};
     view.$upds = [];
     view.initPubSub();
 };
 // STATIC
-View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = parse;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
@@ -483,8 +386,10 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$shortcuts: null
     ,$num_shortcuts: null
     ,$components: null
-    ,$funcs: null
+    ,$ctx: null
     ,$upds: null
+    ,$cache: null
+    ,$cnt: 0
     ,$prat: ''
     ,_dbnc: null
 
@@ -505,7 +410,8 @@ view.dispose( );
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         view.$components = null;
-        view.$funcs = null;
+        view.$ctx = null;
+        view.$cache = null;
         view.$upds = null;
         return view;
     }
@@ -534,7 +440,7 @@ view.template( [String html] );
         var view = this;
         if (arguments.length)
         {
-            view.$tpl = trim(Str(html));
+            view.$tpl = trim(html);
             view.$out = null;
             return view;
         }
@@ -613,23 +519,23 @@ view.components( Object components );
         {
             for (k in components)
                 if (HAS.call(components,k) && is_instance(components[k], View.Component))
-                    view.$components[k] = {c:components[k], o:null};
+                    view.$components[k] = components[k];
         }
         return view;
     }
 
 /**[DOC_MARKDOWN]
-// register custom view functions (which can be used in templates) in {funcName: function} format
-view.funcs( Object funcs );
+// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
+view.context( Object funcs );
 
 [/DOC_MARKDOWN]**/
-    ,funcs: function(funcs) {
+    ,context: function(ctx) {
         var view = this, k;
-        if (is_type(funcs, T_OBJ))
+        if (is_type(ctx, T_OBJ))
         {
-            for (k in funcs)
-                if (HAS.call(funcs,k) && ('function' === typeof(funcs[k])))
-                    view.$funcs[k] = funcs[k];
+            for (k in ctx)
+                if (HAS.call(ctx,k))
+                    view.$ctx[k] = ctx[k];
         }
         return view;
     }
@@ -640,14 +546,42 @@ view.component( String componentName, Object props );
 
 [/DOC_MARKDOWN]**/
     ,component: function(name, props) {
-        var view = this, c;
-        if (HAS.call(view.$components,name))
+        var view = this, propsKey;
+        if (name && HAS.call(view.$components, name))
         {
-            c = view.$components[name];
-            if (!c.o && c.c.tpl) c.o = View.parse(c.c.tpl, 'props,component', getFuncsScoped(view, 'this'));
-            return c.o ? c.o.call(view, props || {}, c.c) : '';
+            if (view.$components[name].tpl && !view.$components[name].out)
+            {
+                view.$components[name].out = tpl2code(view.$components[name].tpl, 'props,', getCtxScoped(view, 'this'));
+            }
+            if (view.$components[name].out)
+            {
+                view.$cnt++;
+                propsKey = 'props_'+name+'_'+Str(view.$cnt);
+                view.$cache[propsKey] = props;
+                return '<mv-component name="'+name+'" props="'+propsKey+'"/>';
+            }
         }
         return '';
+    }
+    ,$component: function(name, propsKey, state) {
+        var view = this, props;
+        if (name && HAS.call(view.$components, name))
+        {
+            if (propsKey && HAS.call(view.$cache, propsKey))
+            {
+                props = view.$cache[propsKey];
+                del(view.$cache, propsKey);
+            }
+            else
+            {
+                props = undef;
+            }
+            if (view.$components[name].out)
+            {
+                return view.$components[name].out.call(view, props, state);
+            }
+        }
+        return function(props, state) {return state;};
     }
 
     // can integrate with HtmlWidget
@@ -672,6 +606,11 @@ view.actions( Object actions );
         return view;
     }
 
+/**[DOC_MARKDOWN]
+// register custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
+view.attribute( String prefix='' );
+
+[/DOC_MARKDOWN]**/
     ,attribute: function(prefix) {
         if (arguments.length)
         {
@@ -867,14 +806,14 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out, upds;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
+        var self = this, out = '', upds, callback;
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
             {
                 self.$upds = [];
-                out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
+                if (self.$out) out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
@@ -886,23 +825,20 @@ view.render( [Boolean immediate=false] );
                     if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
                     self.add(self.$renderdom);
                 }
-                if (true === immediate || 'sync' === immediate)
-                {
+                callback = function() {
                     upds = self.$upds;
                     self.$upds = [];
                     morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
+                };
+                if (true === immediate || 'sync' === immediate)
+                {
+                    callback();
                 }
                 else
                 {
-                    debounce(function() {
-                        upds = self.$upds;
-                        self.$upds = [];
-                        morphText(self.$map, self.model(), upds);
-                        // notify any 3rd-party also if needed
-                        self.publish('render', {});
-                    }, self);
+                    debounce(callback, self);
                 }
             }
         }
@@ -910,27 +846,25 @@ view.render( [Boolean immediate=false] );
         {
             if (!self.$renderdom)
             {
-                self.$upds = [];
-                out = self.$out.call(self); // return the rendered string
+                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                out = to_string(getRoot(finState(self.$out.call(self, initState({trim:true}))))); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
-            else if (true === immediate || 'sync' === immediate)
-            {
-                self.$upds = [];
-                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
+            callback = function() {
+                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                morph(self.$renderdom, getRoot(finState(self.$out.call(self, initState({trim:true})))), self.attr('mv-id'));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
+            };
+            if (true === immediate || 'sync' === immediate)
+            {
+                callback();
             }
             else
             {
-                debounce(function() {
-                    self.$upds = [];
-                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
-                    // notify any 3rd-party also if needed
-                    self.publish('render', {});
-                }, self);
+                debounce(callback, self);
             }
         }
         else
@@ -1242,18 +1176,6 @@ view.sync_model();
         }
     }
 
-    // component lifecycle hooks
-    ,$attachComponent: function(name, el) {
-        var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onAttach(el, view);
-        return view;
-    }
-    ,$detachComponent: function(name, el) {
-        var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onDetach(el, view);
-        return view;
-    }
-
     //
     // view "do_action" methods
     //
@@ -1448,47 +1370,32 @@ view.sync_model();
 #### View.Component
 
 ```javascript
-
-var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
-MyComponent.render(Object props={} [, View view=null]); // render
+// **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
+var MyComponent = new ModelView.View.Component(String name, String htmlTpl);
 MyComponent.dispose(); // dispose
 
 ```
 [/DOC_MARKDOWN]**/
-View.Component = function Component(tpl, opts) {
+View.Component = function Component(name, tpl, opts) {
   var self = this;
-  if (!(self instanceof Component)) return new Component(tpl, opts);
-  self.tpl = trim(Str(tpl));
+  if (!(self instanceof Component)) return new Component(name, tpl, opts);
+  self.name = trim(name);
+  self.tpl = trim(tpl);
+  self.out = null;
   self.opts = opts || {};
 };
 View.Component[proto] = {
     constructor: View.Component
-    ,tpl: ''
+    ,name: ''
     ,opts: null
-    ,model: null
-    ,renderer: null
+    ,tpl: ''
+    ,out: null
+
     ,dispose: function() {
         var self = this;
-        self.tpl = null;
         self.opts = null;
-        self.model = null;
-        self.renderer = null;
-        return self;
-    }
-    ,render: function(props, view) {
-        var self = this;
-        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props,component', getFuncsScoped(view, 'this'));
-        return self.renderer ? self.renderer.call(view || self, props || {}, self) : '';
-    }
-    // component lifecycle hooks
-    ,onAttach: function(el, view) {
-        var self = this;
-        if (self.opts && is_type(self.opts.attach, T_FUNC)) self.opts.attach.call(self, el, view);
-        return self;
-    }
-    ,onDetach: function(el, view) {
-        var self = this;
-        if (self.opts && is_type(self.opts.detach, T_FUNC)) self.opts.detach.call(self, el, view);
+        self.tpl = null;
+        self.out = null;
         return self;
     }
 };

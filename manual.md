@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 1.5.0**
+**Version 2.0.0**
 
 ### Contents
 
@@ -540,8 +540,8 @@ view.components( Object components );
 
 
 
-// register custom view functions (which can be used in templates) in {funcName: function} format
-view.funcs( Object funcs );
+// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
+view.context( Object funcs );
 
 
 
@@ -554,6 +554,12 @@ view.component( String componentName, Object props );
 
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
+
+
+
+
+// register custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
+view.attribute( String prefix='' );
 
 
 
@@ -618,9 +624,8 @@ view.sync_model();
 #### View.Component
 
 ```javascript
-
-var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
-MyComponent.render(Object props={} [, View view=null]); // render
+// **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
+var MyComponent = new ModelView.View.Component(String name, String htmlTpl);
 MyComponent.dispose(); // dispose
 
 ```
@@ -632,20 +637,19 @@ MyComponent.dispose(); // dispose
 [See it](https://foo123.github.io/examples/modelview/)
 
 
-**markup**
-
 ```html
-<template id="content">
+<script id="content" type="text/x-template">
+    <b>Note:</b> Arbitrary JavaScript Code can be run inside &#123;% and %&#125; template placeholders
+    <br /><br />
     <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
     <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
-</template>
+</script>
 <div id="app"></div>
 ```
 
-**javascript** (*standalone*)
 ```javascript
 // standalone
 new ModelView.View('view')
@@ -681,4 +685,29 @@ new ModelView.View('view')
 .bind(['click', 'change'], document.getElementById('app'))
 .sync()
 ;
+```
+
+**Server-Side Rendering**
+
+```javascript
+var ModelView = require('../build/modelview.js');
+
+var view = new ModelView.View('view')
+    .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
+    .components({
+        'hello': new ModelView.View.Component('hello', `<div title="Hello {%= view.model().get('msg') %}">Hello {%= view.model().get('msg') %}</div>`)
+    })
+    .template(`{%= view.component('hello') %}`)
+    .livebind(true)
+;
+
+var viewText = new ModelView.View('view')
+    .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
+    .template(`<div title="Hello {%= msg %}">Hello {%= msg %}</div>`)
+    .livebind('text')
+;
+
+console.log(view.render());
+console.log(viewText.render());
+// output: <div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
 ```

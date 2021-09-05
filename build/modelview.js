@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 1.5.0
-*   @built on 2021-09-01 20:00:43
+*   @version: 2.0.0
+*   @built on 2021-09-05 13:00:45
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 1.5.0
-*   @built on 2021-09-01 20:00:43
+*   @version: 2.0.0
+*   @built on 2021-09-05 13:00:45
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = 'undefined' !== typeof (document);
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 1.5.0**
+**Version 2.0.0**
 
 ### Contents
 
@@ -59,7 +59,7 @@ var HASDOC = 'undefined' !== typeof (document);
 
 var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
-    Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys,
+    Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
@@ -68,7 +68,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     newFunc = function(args, code){return new Func(args, code);},
     is_instance = function(o, T){return o instanceof T;},
 
-    INF = Infinity, rnd = Math.random,
+    err = function(msg, data) {
+        var e = new Error(msg);
+        if (null != data) e.data = data;
+        return e;
+    },
+
+    INF = Infinity, rnd = stdMath.random,
 
     ESCAPED_RE = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g,
     esc_re = function(s) {
@@ -309,13 +315,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
     trim = SP.trim
-            ? function(s){ return Str(s).trim(); }
-            : function(s){ return Str(s).replace(/^\s+|\s+$/g, ''); },
+            ? function(s) {return Str(s).trim();}
+            : function(s) {return Str(s).replace(/^\s+|\s+$/g, '');},
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     startsWith = SP.startsWith
-            ? function(str, pre, pos){ return Str(str).startsWith(pre, pos||0); }
-            : function(str, pre, pos){ return pre === Str(str).slice(pos||0, pre.length); },
+            ? function(str, pre, pos) {return Str(str).startsWith(pre, pos||0);}
+            : function(str, pre, pos) {return pre === Str(str).slice(pos||0, pre.length);},
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
     NOW = Date.now ? Date.now : function() {return new Date().getTime();},
@@ -446,66 +452,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
         return (/*ref &&*/ startsWith(ref, "$this::")) ? $sel(ref.slice(7), el/*, true*/) : $sel(ref, null/*, true*/);
     },
-
-    remove_empty_spaces = function remove_empty_spaces(node) {
-        if (1 < node.childNodes.length)
-        {
-            slice.call(node.childNodes).forEach(function(n) {
-                if ((3 === n.nodeType) && !trim(n.nodeValue).length)
-                {
-                    node.removeChild(n);
-                }
-                else if (1 < n.childNodes.length)
-                {
-                    remove_empty_spaces(n);
-                }
-            });
-        }
-        return node;
-    },
-
-    // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
-    str2dom = function(html, without_empty_spaces) {
-        if (!HASDOC) return null;
-        var el, frg, i, ret;
-        if (el = is_element_supported('template'))
-        {
-            el.innerHTML = trim(html);
-            ret = el.content;
-        }
-        else
-        {
-            el = document.createElement('div');
-            frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
-            el.innerHTML = trim(html);
-            if (!frg)
-            {
-                ret = el;
-            }
-            else
-            {
-                while (i=el.firstChild) frg.appendChild(i);
-                ret = frg;
-            }
-        }
-        return true === without_empty_spaces ? remove_empty_spaces(ret) : ret;
-    },
-
-    // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
-    dom2str = (function() {
-        if (!HASDOC) return function(){return '';};
-        var DIV = document.createElement("div");
-        return 'outerHTML' in DIV
-            ? function(node) {
-                return trim(node.outerHTML);
-            }
-            : function(node) {
-                var div = DIV.cloneNode();
-                div.appendChild(node.cloneNode(true));
-                return trim(div.innerHTML);
-            }
-        ;
-    })(),
 
     // http://youmightnotneedjquery.com/
     MATCHES = (function(P) {
@@ -651,7 +597,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (p && node)
         {
             if (node === p) return true;
-            if (node.contains) return node.contains(p);
+            else if (node.contains) return node.contains(p);
             //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
             while (p)
             {
@@ -677,17 +623,557 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             callback();
         }
     },
-    nodeType = function(node) {
-        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (node[TAG]||'').toLowerCase());
+
+    remove_empty_spaces = function remove_empty_spaces(node) {
+        if (1 < node.childNodes.length)
+        {
+            slice.call(node.childNodes).forEach(function(n) {
+                if ((3 === n.nodeType) && !trim(n.nodeValue).length)
+                {
+                    node.removeChild(n);
+                }
+                else if (1 < n.childNodes.length)
+                {
+                    remove_empty_spaces(n);
+                }
+            });
+        }
+        return node;
     },
-    /*morphStyles = function(e, t) {
-        var tstyleMap = /*t.style* /trim(t.style.cssText).split(';').reduce(function(map, style) {
+
+    // http://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
+    str2dom = function(html, trim_empty_spaces) {
+        if (!HASDOC) return null;
+        var el, frg, i, ret;
+        if (el = is_element_supported('template'))
+        {
+            el.innerHTML = trim(html);
+            ret = el.content;
+        }
+        else
+        {
+            el = document.createElement('div');
+            frg = 'function' === typeof(document.createDocumentFragment) ? document.createDocumentFragment() : null;
+            el.innerHTML = trim(html);
+            if (!frg)
+            {
+                ret = el;
+            }
+            else
+            {
+                while (i=el.firstChild) frg.appendChild(i);
+                ret = frg;
+            }
+        }
+        return true === trim_empty_spaces ? remove_empty_spaces(ret) : ret;
+    },
+
+    // http://stackoverflow.com/questions/1750815/get-the-string-representation-of-a-dom-node
+    dom2str = (function() {
+        if (!HASDOC) return function() {return '';};
+        return 'outerHTML' in document.createElement("div")
+            ? function(node) {
+                return trim(node.outerHTML);
+            }
+            : function(node) {
+                var div = document.createElement("div");
+                div.appendChild(node.cloneNode(true));
+                return trim(div.innerHTML);
+            }
+        ;
+    })(),
+
+    tpl2code = function tpl2code(tpl, args, scoped, textOnly) {
+        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
+        // both can be used simultaneously
+        var p1, p2, code = 'var view = this;', echo = 0, codefrag = '', marker = 0;
+        tpl = trim(tpl);
+        if (true === textOnly)
+        {
+            args = 'MODEL';
+            code += "\n var _$$_ = '';\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('{%=');
+                if (-1 === p1)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                p2 = tpl.indexOf('%}', p1+3);
+                if (-1 === p2)
+                {
+                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                    break;
+                }
+                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
+                tpl = tpl.slice(p2+2);
+            }
+        }
+        else
+        {
+            args = (args || '') + '_$$_';
+            if (scoped && scoped.length) code += "\n" + Str(scoped);
+            while (tpl && tpl.length)
+            {
+                p1 = tpl.indexOf('{%');
+                if (-1 === p1)
+                {
+                    code += "\n"+'_$$_.parse(this, \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
+                    break;
+                }
+                else
+                {
+                    echo = '=' === tpl.charAt(p1+2) ? 1 : 0;
+                    p2 = tpl.indexOf('%}', p1+2+echo);
+                    if (-1 === p2)
+                    {
+                        code += "\n"+'_$$_.parse(this, \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
+                        break;
+                    }
+
+                    code += "\n"+'_$$_.parse(this, \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
+                    if (echo)
+                    {
+                        if (!marker)
+                        {
+                            code += "\n_$$_.s(_$$_);";
+                        }
+                        code += "\n"+'_$$_.parse(this, String('+trim(tpl.slice(p1+3, p2))+'), _$$_);';
+                        if (!marker)
+                        {
+                            code += "\n_$$_.e(_$$_);";
+                        }
+                    }
+                    else
+                    {
+                        codefrag = trim(tpl.slice(p1+2, p2));
+                        if (!marker && '}' !== codefrag)
+                        {
+                            marker = 1;
+                            code += "\n_$$_.s(_$$_);";
+                        }
+                        code += "\n"+codefrag;
+                        if (marker && '}' === codefrag)
+                        {
+                            marker = 0;
+                            code += "\n_$$_.e(_$$_);";
+                        }
+                    }
+                    tpl = tpl.slice(p2+2);
+                }
+            }
+            if (marker) code += "\n_$$_.e(_$$_);";
+        }
+        code += "\nreturn _$$_;";
+        return newFunc(args, code);
+    },
+    autoclosedTags = {
+        '<area>':1,
+        '<base>':1,
+        '<br>':1,
+        '<col>':1,
+        '<embed>':1,
+        '<hr>':1,
+        '<img>':1,
+        '<input>':1,
+        '<keygen>':1,
+        '<link>':1,
+        '<meta>':1,
+        '<param>':1,
+        '<source>':1,
+        '<track>':1,
+        '<wbr>':1
+    },
+    initVNode = function(nodeType, nodeValue, parentNode, index) {
+        return {nodeType: nodeType, nodeValue: nodeValue || '', parentNode: parentNode || null, index: index || 0, modified: null, attributes: [], atts: null, childNodes: []};
+    },
+    initState = function(opts) {
+        return {
+            dom: {parentNode: null, modified: null, childNodes: []},
+            opts: opts || {},
+            parse: html2ast,
+            s: startMod,
+            e: endMod,
+            incomment: false,
+            intag: false,
+            inatt: false,
+            closetag: false,
+            tag: '',
+            att: '',
+            q: '',
+            val: '',
+            text: ''
+        };
+    },
+    finState = function(state) {
+        if ((!state.opts.trim && state.text.length) || (state.opts.trim && trim(state.text).length))
+            state.dom.childNodes.push(initVNode('text', state.text, state.dom, state.dom.childNodes.length));
+        state.text = '';
+        return state;
+    },
+    getRoot = function(state) {
+        if (!state.dom) throw err('No root node!');
+        else if (state.dom.parentNode) throw err('Unclosed tag '+state.dom.parentNode.nodeType);
+        //while (state.dom && state.dom.parentNode) state.dom = state.dom.parentNode;
+        return state.dom;
+    },
+
+    SPACE = /\s/,
+    TAGCHAR = /[a-zA-Z0-9\-_:]/,
+    ATTCHAR = TAGCHAR,
+
+    attr = function(vnode, name) {
+        if (!vnode.atts)
+        {
+            vnode.atts = {};
+            vnode.attributes.forEach(function(att) {
+                vnode.atts[att.name] = att.value;
+            });
+        }
+        return HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
+    },
+    startMod = function(state) {
+        if (state.dom)
+        {
+            if (!state.dom.modified) state.dom.modified = {atts: [], nodes: []};
+            if (state.intag)
+            {
+                if (!state.dom.modified.atts.length || (null !== state.dom.modified.atts[state.dom.modified.atts.length-1].to))
+                {
+                    if (state.dom.modified.atts.length && (state.dom.attributes.length-1 <= state.dom.modified.atts[state.dom.modified.atts.length-1].to))
+                        state.dom.modified.atts[state.dom.modified.atts.length-1].to = null; // extends previous modification
+                    else
+                        state.dom.modified.atts.push({from: state.dom.attributes.length-(state.inatt ? 1 : 0), to: null});
+                }
+            }
+            else
+            {
+                if (!state.dom.modified.nodes.length || (null !== state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
+                {
+                    if (state.dom.modified.nodes.length && (state.dom.childNodes.length-1 <= state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
+                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = null; // extends previous modification
+                    else
+                        state.dom.modified.nodes.push({from: state.dom.childNodes.length, to: null});
+                }
+            }
+        }
+        return state;
+    },
+    endMod = function(state) {
+        if (state.dom && state.dom.modified)
+        {
+            if (state.intag)
+            {
+                if (state.dom.modified.atts.length && (null === state.dom.modified.atts[state.dom.modified.atts.length-1].to))
+                {
+                    state.dom.modified.atts[state.dom.modified.atts.length-1].to = state.dom.attributes.length-1;
+                }
+            }
+            else
+            {
+                if (state.dom.modified.nodes.length && (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
+                {
+                    if ((!state.opts.trim && state.text.length) || (state.opts.trim && trim(state.text).length))
+                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length;
+                    else
+                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length-1;
+                }
+            }
+        }
+        return state;
+    },
+    to_string = function to_string(vnode) {
+        var out = '', selfclosed = true;
+        if (vnode.nodeType)
+        {
+            if ('text' === vnode.nodeType)
+            {
+                out = vnode.nodeValue;
+            }
+            else if ('comment' === vnode.nodeType)
+            {
+                out = '<!--'+vnode.nodeValue+'-->';
+            }
+            else
+            {
+                selfclosed = HAS.call(autoclosedTags, vnode.nodeType);
+                out = vnode.nodeType.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.map(function(att) {return true === att.value ? att.name : att.name+'="'+att.value+'"';}).join(' ') : '')+(selfclosed ? '/>' : '>');
+                if (!selfclosed) out += vnode.childNodes.map(to_string).join('')+'</'+vnode.nodeType.slice(1);
+            }
+        }
+        else if (vnode.childNodes.length)
+        {
+            out = vnode.childNodes.map(to_string).join('');
+        }
+        return out;
+    },
+    attach_meta = function attach_meta(rnode, vnode) {
+        if (vnode.modified && vnode.modified.nodes)
+            rnode._mvModifiedNodes = vnode.modified.nodes;
+        for (var i=0,l=vnode.childNodes.length; i<l; i++)
+            attach_meta(rnode.childNodes[i], vnode.childNodes[i]);
+    },
+    to_node = function to_node(vnode, with_meta) {
+        var rnode = 'text' === vnode.nodeType ? document.createTextNode(enc(vnode.nodeValue)) : ('comment' === vnode.nodeType ? document.createComment(vnode.nodevalue) : str2dom(to_string(vnode), false).firstChild);
+        if (true === with_meta) attach_meta(rnode, vnode);
+        return rnode;
+    },
+    html2ast = function html2ast(view, html, state) {
+        var c = '', l = html.length, i = 0, dom, currdom;
+        while (i<l)
+        {
+            if (state.inatt)
+            {
+                while(i<l && state.q !== (c=html.charAt(i)))
+                {
+                    state.val += c;
+                    i++;
+                }
+                if (state.q === c)
+                {
+                    if (true === state.dom.attributes[state.dom.attributes.length-1].value)
+                        state.dom.attributes[state.dom.attributes.length-1].value = state.val;
+                    else
+                        state.dom.attributes[state.dom.attributes.length-1].value += state.val;
+                    state.inatt = false;
+                    state.q = '';
+                    state.val = '';
+                    i++;
+                }
+                continue;
+            }
+            if (state.intag)
+            {
+                while (i<l && ('>' !== (c=html.charAt(i))))
+                {
+                    if (SPACE.test(c))
+                    {
+                        if (state.att.length)
+                        {
+                            state.dom.attributes.push({name: state.att, value: true});
+                            state.att = '';
+                        }
+                    }
+                    else if (ATTCHAR.test(c))
+                    {
+                        state.att += c;
+                    }
+                    else if ('=' === c)
+                    {
+                        if (state.att.length)
+                        {
+                            state.dom.attributes.push({name: state.att, value: true});
+                            state.att = '';
+                        }
+                        if (state.dom.attributes.length && (true === state.dom.attributes[state.dom.attributes.length-1].value))
+                        {
+                            i++;
+                            while(i<l && SPACE.test(c=html.charAt(i))) i++;
+                            if ('"' === c || '\'' === c)
+                            {
+                                i++; state.inatt = true; state.q = c; state.val = '';
+                                break;
+                            }
+                            else
+                            {
+                                throw err('Invalid attribute value "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                            }
+                        }
+                        else
+                        {
+                            throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                        }
+                    }
+                    else if ('/' === c && '>' === html.charAt(i+1))
+                    {
+                    }
+                    else
+                    {
+                        throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                    }
+                    i++;
+                }
+                if (state.inatt) continue;
+                if ('>' === c)
+                {
+                    state.intag = false;
+                    state.inatt = false;
+                    if (state.att.length)
+                    {
+                        state.dom.attributes.push({name: state.att, value: true});
+                        state.att = '';
+                    }
+                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags,state.dom.nodeType)))
+                    {
+                        // closed
+                        if ('<mv-component>' === state.dom.nodeType)
+                        {
+                            // special handling
+                            currdom = state.dom;
+                            dom = getRoot(finState(view.$component(attr(currdom, 'name'), attr(currdom, 'props'), initState(state.opts))));
+                            state.dom = currdom.parentNode;
+                            state.dom.childNodes.splice.apply(state.dom.childNodes, [currdom.index, 1].concat(dom.childNodes));
+                        }
+                        else
+                        {
+                            state.dom = state.dom.parentNode;
+                        }
+                    }
+                    i++;
+                }
+                continue;
+            }
+            while (i<l && SPACE.test(c=html.charAt(i)))
+            {
+                state.text += c;
+                i++;
+            }
+            if (i >= l) break;
+            if (state.incomment && '-->' === html.slice(i, i+3))
+            {
+                // close comment
+                state.incomment = false;
+                i += 3;
+                state.dom.childNodes.push(initVNode('comment', state.text, state.dom, state.dom.childNodes.length));
+                state.text = '';
+                continue;
+            }
+            c = html.charAt(i++);
+            if ('<' === c)
+            {
+                if (state.incomment)
+                {
+                    state.text += c;
+                    continue;
+                }
+                if ('<script>' === state.dom.nodeType)
+                {
+                    if ('/script>' === html.slice(i, i+8).toLowerCase())
+                    {
+                        state.dom.childNodes.push(initVNode('text', state.text, state.dom, state.dom.childNodes.length));
+                        state.text = '';
+                    }
+                    else
+                    {
+                        state.text += c;
+                        continue;
+                    }
+                }
+                if ('<style>' === state.dom.nodeType)
+                {
+                    if ('/style>' === html.slice(i, i+7).toLowerCase())
+                    {
+                        state.dom.childNodes.push(initVNode('text', state.text, state.dom, state.dom.childNodes.length));
+                        state.text = '';
+                    }
+                    else
+                    {
+                        state.text += c;
+                        continue;
+                    }
+                }
+                if ('<textarea>' === state.dom.nodeType)
+                {
+                    if ('/textarea>' === html.slice(i, i+10).toLowerCase())
+                    {
+                        state.dom.nodeValue = state.text;
+                        state.dom.childNodes.push(initVNode('text', state.text, state.dom, state.dom.childNodes.length));
+                        state.text = '';
+                    }
+                    else
+                    {
+                        state.text += c;
+                        continue;
+                    }
+                }
+                if ((!state.opts.trim && state.text.length) || (state.opts.trim && trim(state.text).length))
+                {
+                    state.dom.childNodes.push(initVNode('text', state.text, state.dom, state.dom.childNodes.length));
+                }
+                state.text = '';
+                if ('!--' === html.slice(i, i+3))
+                {
+                    // open comment
+                    state.incomment = true;
+                    i += 3;
+                    continue;
+                }
+
+                // open tag
+                state.intag = true;
+                state.inatt = false;
+                state.tag = '';
+                state.att = '';
+                if ('/' === html.charAt(i))
+                {
+                    i++;
+                    state.closetag = true;
+                }
+                else
+                {
+                    state.closetag = false;
+                }
+                while (i<l && TAGCHAR.test(c=html.charAt(i)))
+                {
+                    state.tag += c;
+                    i++;
+                }
+                if (!state.tag.length)
+                {
+                    throw err('No tag name around .. '+html.slice(i-20,i+50)+' ..');
+                }
+                state.tag = '<'+state.tag.toLowerCase()+'>';
+                if (state.closetag)
+                {
+                    while (i<l && '>' !== html.charAt(i)) i++;
+                    if ('>' === html.charAt(i)) i++;
+
+                    if (!HAS.call(autoclosedTags,state.tag))
+                    {
+                        if (state.dom.nodeType !== state.tag)
+                        {
+                            throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                        }
+                        else
+                        {
+                            state.intag = false;
+                            state.dom = state.dom.parentNode;
+                        }
+                    }
+                    else
+                    {
+                        throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(i-20,i+50)+' ..');
+                    }
+                }
+                else //if (!HAS.call(autoclosedTags,state.tag))
+                {
+                    state.dom.childNodes.push(initVNode(state.tag, '', state.dom, state.dom.childNodes.length));
+                    state.dom = state.dom.childNodes[state.dom.childNodes.length-1];
+                }
+                continue;
+            }
+            state.text += c;
+        }
+        return state;
+    },
+    nodeType = function(node) {
+        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : '<'+(node[TAG]||'').toLowerCase()+'>');
+    },
+    enc = function(txt) {
+        var container = document.createElement('span');
+        container.innerHTML = txt;
+        return container.innerText || container.textContent || txt;
+    },
+    /*morphStyles = function(r, v) {
+        var vstyleMap = trim(attr(v,'style')).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
                 return map;
             }, {}),
-            estyleMap = /*e.style* /trim(e.style.cssText).split(';').reduce(function(map, style) {
+            rstyleMap = /*e.style* /trim(e.style.cssText).split(';').reduce(function(map, style) {
                 style = Str(style);
                 var col = style.indexOf(':');
                 if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
@@ -695,387 +1181,396 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }, {})
         ;
 
-        Keys(estyleMap)
+        Keys(rstyleMap)
         .reduce(function(rem, s) {
-            if (!HAS.call(tstyleMap, s)) rem.push(s);
+            if (!HAS.call(vstyleMap, s)) rem.push(s);
             return rem;
         }, [])
         .forEach(function(s) {
-            e.style[s] = '';
+            r.style[s] = '';
         });
 
-        Keys(tstyleMap)
+        Keys(vstyleMap)
         .forEach(function(s){
-            var st = tstyleMap[s];
-            if (e.style[s] !== st)
-                e.style[s] = st;
+            var st = vstyleMap[s];
+            if (r.style[s] !== st)
+                r.style[s] = st;
         });
     },*/
-    morphAtts = function morphAtts(e, t) {
-        var T = (e[TAG] || '').toUpperCase(), TT = (e[TYPE] || '').toLowerCase(),
-            tAtts = t.attributes, eAtts = e.attributes, i, a, n, v, NS;
+    morphAtts = function morphAtts(r, v) {
+        var T = (r[TAG] || '').toUpperCase(), TT = (r[TYPE] || '').toLowerCase(),
+            vAtts = v.attributes, rAtts = r.attributes, i, a, n, s, ss, NS;
 
         // remove non-existent attributes
-        for (i=eAtts.length-1; i>=0; i--)
+        for (i=rAtts.length-1; i>=0; i--)
         {
-            a = eAtts[i]; n = a.name; NS = a.namespaceURI;
+            a = rAtts[i]; n = a.name; NS = a.namespaceURI;
             if (NS)
             {
                 n = a.localName || n;
-                if (!t.hasAttributeNS(NS, n))
-                    e.removeAttributeNS(NS, n);
+                if (!attr(v, n))
+                    r.removeAttributeNS(NS, n);
             }
-            else if (!t[HAS_ATTR](n))
+            else if (!attr(v,n))
             {
                 if ('class' === n)
                 {
-                    e.className = '';
+                    r.className = '';
                 }
                 else if ('style' === n)
                 {
-                    e[n] = '';
+                    r[n] = '';
                 }
                 else if ('selected' === n && 'OPTION' === T)
                 {
-                    e[n] = false;
+                    r[n] = false;
                 }
                 else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
-                    e[n] = false;
+                    r[n] = false;
                 }
                 else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
                 {
-                    e[n] = false;
+                    r[n] = false;
                 }
                 else if ('value' === n && 'INPUT' === T)
                 {
-                    e[n] = '';
+                    r[n] = '';
                 }
                 else
                 {
-                    e[DEL_ATTR](n);
+                    r[DEL_ATTR](n);
                 }
             }
         }
         if ('OPTION' === T)
         {
-            e.selected = t.selected;
+            r.selected = !!attr(v, 'selected');
         }
         if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT))
         {
-            e.checked = t.checked;
+            r.checked = !!attr(v, 'checked');
         }
         if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)
         {
-            e.disabled = t.disabled;
-            e.required = t.required;
+            r.disabled = !!attr(v, 'disabled');
+            r.required = !!attr(v, 'required');
         }
         // add/update existent attributes
-        for (i=tAtts.length-1; i>=0; i--)
+        for (i=vAtts.length-1; i>=0; i--)
         {
-            a = tAtts[i]; n = a.name; v = a.value; NS = a.namespaceURI;
+            a = vAtts[i]; n = a.name; s = a.value; ss = true === s ? n : s; NS = a.namespaceURI;
             if (NS)
             {
                 n = a.localName || n;
-                if (!e.hasAttributeNS(NS, n) || (e.getAttributeNS(NS, n) !== v))
-                    e.setAttributeNS(NS, n, v);
+                if (!r.hasAttributeNS(NS, n) || (r.getAttributeNS(NS, n) !== ss))
+                    r.setAttributeNS(NS, n, ss);
             }
             else
             {
                 if ('class' === n)
                 {
-                    e.className = v;
+                    r.className = s;
                 }
                 else if ('style' === n)
                 {
-                    //morphStyles(e, t);
-                    e[n] = v;
+                    //morphStyles(r, v);
+                    r[n] = s;
                 }
                 else if ('selected' === n && 'OPTION' === T)
                 {
-                    if (!e[n]) e[n] = true;
+                    if (!r[n]) r[n] = true;
                 }
                 else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
-                    if (!e[n]) e[n] = true;
+                    if (!r[n]) r[n] = true;
                 }
                 else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
                 {
-                    if (!e[n]) e[n] = true;
+                    if (!r[n]) r[n] = true;
                 }
                 else if ('value' === n && 'INPUT' === T)
                 {
-                    if (e[n] !== v) e[n] = v;
+                    if (r[n] !== s) r[n] = s;
                 }
-                else if (!e[HAS_ATTR](n) || (e[ATTR](n) !== v))
+                else if (!r[HAS_ATTR](n) || (r[ATTR](n) !== ss))
                 {
-                    e[SET_ATTR](n, v);
+                    r[SET_ATTR](n, ss);
                 }
             }
         }
     },
-    morph = function morph(e, t, view, ID, COMP, FROZ) {
-        // morph e DOM to match t DOM
-        // take care of frozen elements
-        var tc = t.childNodes.length, count = e.childNodes.length - tc,
-            index, offset, tnode, enode, T1, T2,
-            frozen = filter(e.childNodes, function(n) {return n[HAS_ATTR] && n[HAS_ATTR](FROZ);});
-        frozen.forEach(function(n) {e.removeChild(n);});
-        for (offset=0,index=0; index<tc; index++)
+    morph = function morph(r, v, ID) {
+        // morph r (real) DOM to match v (virtual) DOM
+        var vc = v.childNodes.length, count = 0, offset = r.childNodes.length-vc, s = '',
+            index, vnode, rnode, lastnode, T1, T2, rid, vid, mi = 0, shouldMorph = false,
+            modifiedNodesPrev = r._mvModifiedNodes ? r._mvModifiedNodes : [],
+            modifiedNodes = v.modified && v.modified.nodes ? v.modified.nodes : [];
+        for (index=0; index<vc; index++)
         {
-            tnode = t.childNodes[index-offset];
-            if (index >= e.childNodes.length)
+            vnode = v.childNodes[index];
+            if (index >= r.childNodes.length)
             {
-                if (tnode[HAS_ATTR] && tnode[HAS_ATTR](FROZ) && frozen.length)
-                {
-                    // use original frozen
-                    e.appendChild(frozen.shift());
-                }
-                else
-                {
-                    e.appendChild(tnode);
-                    offset++;
-                    if (view)
-                    {
-                        // lifecycle hooks
-                        (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                }
+                r.appendChild(to_node(vnode, true));
             }
             else
             {
-                enode = e.childNodes[index];
-                T2 = nodeType(tnode);
-                T1 = nodeType(enode);
-
-                if (tnode[HAS_ATTR] && tnode[HAS_ATTR](FROZ) && frozen.length)
+                rnode = r.childNodes[index];
+                shouldMorph = false;
+                if ((mi < modifiedNodes.length) && (index > modifiedNodes[mi].from) && (index > modifiedNodes[mi].to)) mi++;
+                if (mi < modifiedNodes.length)
                 {
-                    if (view)
+                    if (modifiedNodes[mi].from <= index)
                     {
-                        // lifecycle hooks
-                        (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                    // use original frozen
-                    e.replaceChild(frozen.shift(), enode);
-                    continue;
-                }
-                if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
-                {
-                    if (view)
-                    {
-                        // lifecycle hooks
-                        (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                    e.replaceChild(tnode, enode);
-                    offset++;
-                    if (view)
-                    {
-                        // lifecycle hooks
-                        (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                }
-                else if ('text' === T1 || 'comment' === T1)
-                {
-                    if (enode.nodeValue !== tnode.nodeValue)
-                        enode.nodeValue = tnode.nodeValue;
-                }
-                else if ('script' === T1 || 'style' === T1)
-                {
-                    /*morphAtts(enode, tnode);
-                    if (enode.textContent !== tnode.textContent)
-                        enode.textContent = tnode.textContent;*/
-                    e.replaceChild(tnode, enode);
-                    offset++;
-                }
-                else if ('textarea' === T1)
-                {
-                    morphAtts(enode, tnode);
-                    if (enode.value !== tnode.value)
-                        enode.value = tnode.value;
-                    if (enode.firstChild && (enode.firstChild.nodeValue !== tnode.value))
-                        enode.firstChild.nodeValue = tnode.value;
-                }
-                else if ((0 !== count) && tnode[HAS_ATTR](ID) && enode[HAS_ATTR](ID) && (tnode[ATTR](ID) !== enode[ATTR](ID)))
-                {
-                    if (0 > count)
-                    {
-                        e.insertBefore(tnode, enode);
-                        offset++;
-                        count++;
-                        if (view)
+                        if (modifiedNodes[mi].from === index)
                         {
-                            // lifecycle hooks
-                            (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                                view.$attachComponent(el[ATTR](COMP), el);
-                            });
+                            if (modifiedNodes[mi].to < modifiedNodes[mi].from)
+                            {
+                                count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+                                for (; (0 < count) && (index < r.childNodes.length); count--/*,offset--*/)
+                                {
+                                    r.removeChild(r.childNodes[index]);
+                                }
+                                /*if (index < r.childNodes.length)
+                                {
+                                    rnode = r.childNodes[index];
+                                    // morph attributes/properties
+                                    morphAtts(rnode, vnode);
+                                    // morph children
+                                    morph(rnode, vnode, ID);
+                                }
+                                else
+                                {
+                                    r.appendChild(to_node(vnode, true));
+                                }*/
+                                mi++; index--;
+                                continue;
+                            }
+                            else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
+                            {
+                                count = (modifiedNodes[mi].to - modifiedNodes[mi].from + 1);
+                                for (; 0 < count; count--,index++/*,offset++*/)
+                                {
+                                    vnode = v.childNodes[index];
+                                    r.insertBefore(to_node(vnode, true), rnode);
+                                }
+                                continue;
+                            }
+                            else if (index <= modifiedNodes[mi].to)
+                            {
+                                count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (modifiedNodes[mi].to - modifiedNodes[mi].from + 1);
+                                lastnode = r.childNodes[modifiedNodesPrev[mi].to];
+                            }
+                        }
+                        if (index <= modifiedNodes[mi].to)
+                        {
+                            shouldMorph = true;
+                        }
+                    }
+                }
+
+                T2 = vnode.nodeType;
+                T1 = nodeType(rnode);
+                vid = attr(vnode,ID);
+                rid = rnode[HAS_ATTR] && rnode[HAS_ATTR](ID) ? rnode[ATTR](ID) : null;
+
+                if (!shouldMorph)
+                {
+                    if (
+                        (T2 !== T1)
+                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                        || ((vid || rid) && (vid !== rid))
+                    )
+                    {
+                        r.replaceChild(to_node(vnode, true), rnode);
+                        continue;
+                    }
+
+                    if (vnode.modified && vnode.modified.atts.length)
+                    {
+                        // morph attributes/properties
+                        morphAtts(rnode, vnode);
+                    }
+
+                    if ('text' === T1 || 'comment' === T1)
+                    {
+                        s = 'text' === T1 ? enc(vnode.nodeValue) : vnode.nodeValue;
+                        if (rnode.nodeValue !== s)
+                        {
+                            rnode.nodeValue = s;
+                        }
+                    }
+                    else if ('<textarea>' === T1)
+                    {
+                        s = enc(vnode.nodeValue);
+                        if (rnode.value !== vnode.nodeValue)
+                        {
+                            rnode.value = vnode.nodeValue;
+                        }
+                        if (rnode.firstChild && (rnode.firstChild.nodeValue !== s))
+                        {
+                            rnode.firstChild.nodeValue = s;
                         }
                     }
                     else
                     {
-                        while (0 < count)
+                        // morph children
+                        morph(rnode, vnode, ID);
+                    }
+                    continue;
+                }
+
+
+                if (
+                    (T2 !== T1)
+                    || ('<script>' === T1 || '<style>' === T1)
+                    || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                    || ((0 === count) && (vid || rid) && (vid !== rid))
+                )
+                {
+                    r.replaceChild(to_node(vnode, true), rnode);
+                }
+                else if ('text' === T1 || 'comment' === T1)
+                {
+                    s = 'text' === T1 ? enc(vnode.nodeValue) : vnode.nodeValue;
+                    if (rnode.nodeValue !== s)
+                    {
+                        rnode.nodeValue = s;
+                    }
+                }
+                else if ('<textarea>' === T1)
+                {
+                    // morph attributes/properties
+                    morphAtts(rnode, vnode);
+                    s = enc(vnode.nodeValue);
+                    if (rnode.value !== vnode.nodeValue)
+                    {
+                        rnode.value = vnode.nodeValue;
+                    }
+                    if (rnode.firstChild && (rnode.firstChild.nodeValue !== s))
+                    {
+                        rnode.firstChild.nodeValue = s;
+                    }
+                }
+                else if (0 !== count)
+                {
+                    if (vid && rid)
+                    {
+                        if (vid === rid)
                         {
-                            if (view)
-                            {
-                                // lifecycle hooks
-                                (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                                    view.$detachComponent(el[ATTR](COMP), el);
-                                });
-                            }
-                            e.removeChild(enode);
-                            count--;
-                            if (index >= e.childNodes.length) break;
-                            enode = e.childNodes[index];
-                            if (!enode[HAS_ATTR] || !enode[HAS_ATTR](ID) || (tnode[ATTR](ID) === enode[ATTR](ID))) break;
-                        }
-                        if (index >= e.childNodes.length)
-                        {
-                            if (tnode[HAS_ATTR](FROZ) && frozen.length)
-                            {
-                                // use original frozen
-                                e.appendChild(frozen.shift());
-                            }
-                            else
-                            {
-                                e.appendChild(tnode);
-                                offset++;
-                                if (view)
-                                {
-                                    // lifecycle hooks
-                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR](COMP), el);
-                                    });
-                                }
-                            }
+                            // morph attributes/properties
+                            morphAtts(rnode, vnode);
+                            // morph children
+                            morph(rnode, vnode, ID);
                         }
                         else
                         {
-                            T1 = nodeType(enode);
-                            if (T2 !== T1 || ('input' === T1 && (tnode[TYPE]||'').toLowerCase() !== (enode[TYPE]||'').toLowerCase()))
+                            if (0 > count)
                             {
-                                if (view)
-                                {
-                                    // lifecycle hooks
-                                    (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR](COMP), el);
-                                    });
-                                }
-                                e.replaceChild(tnode, enode);
-                                offset++;
-                                if (view)
-                                {
-                                    // lifecycle hooks
-                                    (tnode[HAS_ATTR] && tnode[HAS_ATTR](COMP) ? [tnode] : []).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR](COMP), el);
-                                    });
-                                }
+                                r.insertBefore(to_node(vnode, true), rnode);
+                                count++; //offset++;
                             }
                             else
                             {
-                                if (view && tnode[HAS_ATTR](COMP) && !enode[HAS_ATTR](COMP))
+                                for (; 0 < count; )
                                 {
-                                    e.replaceChild(tnode, enode);
-                                    offset++;
-                                    // lifecycle hooks
-                                    ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR](COMP), el);
-                                    });
+                                    r.removeChild(rnode); count--; //offset--;
+                                    if (index >= r.childNodes.length) break;
+                                    rnode = r.childNodes[index];
+                                    if (!rnode[HAS_ATTR] || !rnode[HAS_ATTR](ID) || (vid === rnode[ATTR](ID))) break;
                                 }
-                                else if (view && !tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP))
+                                if (index >= r.childNodes.length)
                                 {
-                                    // lifecycle hooks
-                                    ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR](COMP), el);
-                                    });
-                                    e.replaceChild(tnode, enode);
-                                    offset++;
-                                }
-                                else if (view && tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP) && tnode[ATTR](COMP) !== enode[ATTR](COMP))
-                                {
-                                    // lifecycle hooks
-                                    ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                                        view.$detachComponent(el[ATTR](COMP), el);
-                                    });
-                                    e.replaceChild(tnode, enode);
-                                    offset++;
-                                    ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                                        view.$attachComponent(el[ATTR](COMP), el);
-                                    });
+                                    r.appendChild(to_node(vnode, true));
                                 }
                                 else
                                 {
-                                    // morph attributes/properties
-                                    morphAtts(enode, tnode);
-                                    // morph children
-                                    morph(enode, tnode, view, ID, COMP, FROZ);
+                                    T1 = nodeType(rnode);
+                                    rid = rnode[HAS_ATTR] && rnode[HAS_ATTR](ID) ? rnode[ATTR](ID) : null;
+                                    if (
+                                        (T2 !== T1)
+                                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                        || (!rid)
+                                        || (rid !== vid)
+                                    )
+                                    {
+                                        r.replaceChild(to_node(vnode, true), rnode);
+                                    }
+                                    else
+                                    {
+                                        // morph attributes/properties
+                                        morphAtts(rnode, vnode);
+                                        // morph children
+                                        morph(rnode, vnode, ID);
+                                    }
                                 }
                             }
+                        }
+                    }
+                    else
+                    {
+                        if (0 > count)
+                        {
+                            r.insertBefore(to_node(vnode, true), rnode);
+                            count++; //offset++;
+                        }
+                        else
+                        {
+                            // morph attributes/properties
+                            morphAtts(rnode, vnode);
+                            // morph children
+                            morph(rnode, vnode, ID);
+                        }
+                    }
+
+                    // finally remove any remaining nodes that need to be removed and haven't been already
+                    if ((0 < count) && (index === modifiedNodes[mi].to))
+                    {
+                        for (; (0 < count) && lastnode; count--/*,offset--*/)
+                        {
+                            r.removeChild(1 === count ? lastnode : lastnode.previousSibling);
                         }
                     }
                 }
                 else
                 {
-                    if (view && tnode[HAS_ATTR](COMP) && !enode[HAS_ATTR](COMP))
+                    // morph attributes/properties
+                    morphAtts(rnode, vnode);
+                    // morph children
+                    morph(rnode, vnode, ID);
+                }
+            }
+        }
+        if (
+            (mi < modifiedNodes.length) && (mi < modifiedNodesPrev.length)
+            && (vc > modifiedNodesPrev[mi].from) && (vc > modifiedNodesPrev[mi].to)
+            && (vc > modifiedNodes[mi].from) && (vc > modifiedNodes[mi].to)
+        ) mi++;
+        if ((mi < modifiedNodes.length) && (mi < modifiedNodesPrev.length) && (vc-1 <= modifiedNodesPrev[mi].from))
+        {
+            for (index=modifiedNodes.length-1; index >= mi; index--)
+            {
+                if ((modifiedNodesPrev[index].from <= modifiedNodesPrev[index].to) && (modifiedNodes[index].from > modifiedNodes[index].to))
+                {
+                    lastnode = r.childNodes[stdMath.min(stdMath.max(modifiedNodes[index].from, modifiedNodesPrev[index].to), r.childNodes.length-1)];
+                    count = modifiedNodesPrev[index].to-modifiedNodesPrev[index].from+1;
+                    for (; (0 < count) && (count <= r.childNodes.length); count--/*,offset--*/)
                     {
-                        e.replaceChild(tnode, enode);
-                        offset++;
-                        // lifecycle hooks
-                        ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                    else if (view && !tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP))
-                    {
-                        // lifecycle hooks
-                        ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR](COMP), el);
-                        });
-                        e.replaceChild(tnode, enode);
-                        offset++;
-                    }
-                    else if (view && tnode[HAS_ATTR](COMP) && enode[HAS_ATTR](COMP) && tnode[ATTR](COMP) !== enode[ATTR](COMP))
-                    {
-                        // lifecycle hooks
-                        ([enode]).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                            view.$detachComponent(el[ATTR](COMP), el);
-                        });
-                        e.replaceChild(tnode, enode);
-                        offset++;
-                        ([tnode]).concat($sel('['+COMP+']', tnode)).forEach(function(el) {
-                            view.$attachComponent(el[ATTR](COMP), el);
-                        });
-                    }
-                    else
-                    {
-                        // morph attributes/properties
-                        morphAtts(enode, tnode);
-                        // morph children
-                        morph(enode, tnode, view, ID, COMP, FROZ);
+                        r.removeChild(1 === count ? lastnode : lastnode.previousSibling);
                     }
                 }
             }
         }
-        // If extra elements, remove them
-        count = e.childNodes.length - tc;
-        for (; 0<count; count--)
+        /*if ((0 === vc) && (mi < modifiedNodes.length) && (modifiedNodes[mi].to < modifiedNodes[mi].from))
         {
-            var enode = e.childNodes[e.childNodes.length - count];
-            if (view)
+            count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+            for (; (0 < count) && (0 < r.childNodes.length); count--)
             {
-                // lifecycle hooks
-                (enode[HAS_ATTR] && enode[HAS_ATTR](COMP) ? [enode] : []).concat($sel('['+COMP+']', enode)).forEach(function(el) {
-                    view.$detachComponent(el[ATTR](COMP), el);
-                });
+                r.removeChild(r.childNodes[0]);
             }
-            e.removeChild(enode);
-        }
+        }*/
+        if (v.modified && v.modified.nodes) r._mvModifiedNodes = v.modified.nodes;
+        else if (r._mvModifiedNodes) r._mvModifiedNodes = undef;
     },
 
     insert_map = function(map, ks, v) {
@@ -1091,29 +1586,29 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         });
     },
-    del_map = function del_map(m, del) {
+    del_map = function del_map(m, d) {
         if (!m) return;
         if (m.v)
         {
-            del(m.v);
+            d(m.v);
         }
         if (m.c)
         {
             Keys(m.c).forEach(function(k){
                 if (m.c[k].c)
                 {
-                    del_map(m.c[k], del);
+                    del_map(m.c[k], d);
                     if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
                     {
-                        delete m.c[k];
+                        del(m.c, k);
                     }
                 }
                 else if (m.c[k].v)
                 {
-                    del(m.c[k].v);
+                    d(m.c[k].v);
                     if (!m.c[k].v.length)
                     {
-                        delete m.c[k];
+                        del(m.c, k);
                     }
                 }
             });
@@ -4834,110 +5329,15 @@ var namedKeyProp = "mv_namedkey",
         return function(evt){return view[method](evt, {el:this});};
     },
 
-    getFuncsScoped = function(view, viewvar) {
-        var code = '';
-        viewvar = viewvar || 'view';
-        for (var k in view.$funcs)
+    getCtxScoped = function(view, viewvar) {
+        var k, code = '';
+        viewvar = viewvar || 'this';
+        for (k in view.$ctx)
         {
-            if (HAS.call(view.$funcs,k))
-                code += 'var '+k+'='+viewvar+'.$funcs["'+k+'"];'
+            if (HAS.call(view.$ctx,k))
+                code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
         }
         return code;
-    },
-
-    parse = function parse(str, args, scoped, textOnly) {
-        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
-        // both can be used simultaneously
-        var tpl = Str(str), p1, p2, ps1, code = 'var view = this, _$$_ = \'\';', echo = 0;
-        if (scoped && scoped.length) code += "\n" + Str(scoped);
-        if (true === textOnly)
-        {
-            args = 'MODEL';
-            code += "\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('{%=');
-                if (-1 === p1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                p2 = tpl.indexOf('%}', p1+3);
-                if (-1 === p2)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
-                tpl = tpl.slice(p2+2);
-            }
-        }
-        else
-        {
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('<script>');
-                ps1 = tpl.indexOf('{%');
-                if (-1 === p1 && -1 === ps1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                else if (-1 !== ps1 && (-1 === p1 || ps1 < p1))
-                {
-                    echo = '=' === tpl.charAt(ps1+2) ? 1 : 0;
-                    p2 = tpl.indexOf('%}', ps1+2+echo);
-                    if (-1 === p2)
-                    {
-                        if (-1 === p1)
-                        {
-                            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                            break;
-                        }
-                        else
-                        {
-                            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                            tpl = tpl.slice(p1);
-                            continue;
-                        }
-                    }
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, ps1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    if (echo)
-                    {
-                        code += "\n"+'_$$_ += String('+trim(tpl.slice(ps1+3, p2))+');';
-                    }
-                    else
-                    {
-                        code += "\n"+trim(tpl.slice(ps1+2, p2));
-                    }
-                    tpl = tpl.slice(p2+2);
-                }
-                else
-                {
-                    echo = '=' === tpl.charAt(p1+8) ? 1 : 0;
-                    p2 = tpl.indexOf('</script>', p1+8+echo);
-                    if (-1 === p2)
-                    {
-                        code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                        break;
-                    }
-
-                    code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    if (echo)
-                    {
-                        code += "\n"+'_$$_ += String('+trim(tpl.slice(p1+9, p2))+');';
-                    }
-                    else
-                    {
-                        code += "\n"+trim(tpl.slice(p1+8, p2));
-                    }
-                    tpl = tpl.slice(p2+9);
-                }
-            }
-        }
-        code += "\n"+'return _$$_;';
-        return newFunc(Str(args||''), code);
     }
 ;
 
@@ -4962,14 +5362,12 @@ var View = function View(id) {
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
     view.$components = {};
-    view.$funcs = {};
+    view.$ctx = {};
     view.$upds = [];
     view.initPubSub();
 };
 // STATIC
-View.getDomRef = get_dom_ref;
 View.serialize = serialize_fields;
-View.parse = parse;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
@@ -4987,8 +5385,10 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$shortcuts: null
     ,$num_shortcuts: null
     ,$components: null
-    ,$funcs: null
+    ,$ctx: null
     ,$upds: null
+    ,$cache: null
+    ,$cnt: 0
     ,$prat: ''
     ,_dbnc: null
 
@@ -5009,7 +5409,8 @@ view.dispose( );
         view.$shortcuts = null;
         view.$num_shortcuts = null;
         view.$components = null;
-        view.$funcs = null;
+        view.$ctx = null;
+        view.$cache = null;
         view.$upds = null;
         return view;
     }
@@ -5038,7 +5439,7 @@ view.template( [String html] );
         var view = this;
         if (arguments.length)
         {
-            view.$tpl = trim(Str(html));
+            view.$tpl = trim(html);
             view.$out = null;
             return view;
         }
@@ -5117,23 +5518,23 @@ view.components( Object components );
         {
             for (k in components)
                 if (HAS.call(components,k) && is_instance(components[k], View.Component))
-                    view.$components[k] = {c:components[k], o:null};
+                    view.$components[k] = components[k];
         }
         return view;
     }
 
 /**[DOC_MARKDOWN]
-// register custom view functions (which can be used in templates) in {funcName: function} format
-view.funcs( Object funcs );
+// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
+view.context( Object funcs );
 
 [/DOC_MARKDOWN]**/
-    ,funcs: function(funcs) {
+    ,context: function(ctx) {
         var view = this, k;
-        if (is_type(funcs, T_OBJ))
+        if (is_type(ctx, T_OBJ))
         {
-            for (k in funcs)
-                if (HAS.call(funcs,k) && ('function' === typeof(funcs[k])))
-                    view.$funcs[k] = funcs[k];
+            for (k in ctx)
+                if (HAS.call(ctx,k))
+                    view.$ctx[k] = ctx[k];
         }
         return view;
     }
@@ -5144,14 +5545,42 @@ view.component( String componentName, Object props );
 
 [/DOC_MARKDOWN]**/
     ,component: function(name, props) {
-        var view = this, c;
-        if (HAS.call(view.$components,name))
+        var view = this, propsKey;
+        if (name && HAS.call(view.$components, name))
         {
-            c = view.$components[name];
-            if (!c.o && c.c.tpl) c.o = View.parse(c.c.tpl, 'props,component', getFuncsScoped(view, 'this'));
-            return c.o ? c.o.call(view, props || {}, c.c) : '';
+            if (view.$components[name].tpl && !view.$components[name].out)
+            {
+                view.$components[name].out = tpl2code(view.$components[name].tpl, 'props,', getCtxScoped(view, 'this'));
+            }
+            if (view.$components[name].out)
+            {
+                view.$cnt++;
+                propsKey = 'props_'+name+'_'+Str(view.$cnt);
+                view.$cache[propsKey] = props;
+                return '<mv-component name="'+name+'" props="'+propsKey+'"/>';
+            }
         }
         return '';
+    }
+    ,$component: function(name, propsKey, state) {
+        var view = this, props;
+        if (name && HAS.call(view.$components, name))
+        {
+            if (propsKey && HAS.call(view.$cache, propsKey))
+            {
+                props = view.$cache[propsKey];
+                del(view.$cache, propsKey);
+            }
+            else
+            {
+                props = undef;
+            }
+            if (view.$components[name].out)
+            {
+                return view.$components[name].out.call(view, props, state);
+            }
+        }
+        return function(props, state) {return state;};
     }
 
     // can integrate with HtmlWidget
@@ -5176,6 +5605,11 @@ view.actions( Object actions );
         return view;
     }
 
+/**[DOC_MARKDOWN]
+// register custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
+view.attribute( String prefix='' );
+
+[/DOC_MARKDOWN]**/
     ,attribute: function(prefix) {
         if (arguments.length)
         {
@@ -5371,14 +5805,14 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out, upds;
-        if (!self.$out && self.$tpl) self.$out = View.parse(self.$tpl, '', getFuncsScoped(self, 'this'), 'text'===self.$livebind);
+        var self = this, out = '', upds, callback;
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
             {
                 self.$upds = [];
-                out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
+                if (self.$out) out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
@@ -5390,23 +5824,20 @@ view.render( [Boolean immediate=false] );
                     if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
                     self.add(self.$renderdom);
                 }
-                if (true === immediate || 'sync' === immediate)
-                {
+                callback = function() {
                     upds = self.$upds;
                     self.$upds = [];
                     morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
                     self.publish('render', {});
+                };
+                if (true === immediate || 'sync' === immediate)
+                {
+                    callback();
                 }
                 else
                 {
-                    debounce(function() {
-                        upds = self.$upds;
-                        self.$upds = [];
-                        morphText(self.$map, self.model(), upds);
-                        // notify any 3rd-party also if needed
-                        self.publish('render', {});
-                    }, self);
+                    debounce(callback, self);
                 }
             }
         }
@@ -5414,27 +5845,25 @@ view.render( [Boolean immediate=false] );
         {
             if (!self.$renderdom)
             {
-                self.$upds = [];
-                out = self.$out.call(self); // return the rendered string
+                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                out = to_string(getRoot(finState(self.$out.call(self, initState({trim:true}))))); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
-            else if (true === immediate || 'sync' === immediate)
-            {
-                self.$upds = [];
-                morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
+            callback = function() {
+                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                morph(self.$renderdom, getRoot(finState(self.$out.call(self, initState({trim:true})))), self.attr('mv-id'));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
+            };
+            if (true === immediate || 'sync' === immediate)
+            {
+                callback();
             }
             else
             {
-                debounce(function() {
-                    self.$upds = [];
-                    morph(self.$renderdom, str2dom(self.$out.call(self), true), Keys(self.$components||{}).filter(function(comp){return self.$components[comp].c.opts.attach || self.$components[comp].c.opts.detach;}).length ? self : null, self.attr('mv-id'), self.attr('mv-component'), self.attr('mv-frozen'));
-                    // notify any 3rd-party also if needed
-                    self.publish('render', {});
-                }, self);
+                debounce(callback, self);
             }
         }
         else
@@ -5746,18 +6175,6 @@ view.sync_model();
         }
     }
 
-    // component lifecycle hooks
-    ,$attachComponent: function(name, el) {
-        var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onAttach(el, view);
-        return view;
-    }
-    ,$detachComponent: function(name, el) {
-        var view = this;
-        if (name && view.$components && HAS.call(view.$components,name)) view.$components[name].c.onDetach(el, view);
-        return view;
-    }
-
     //
     // view "do_action" methods
     //
@@ -5952,47 +6369,32 @@ view.sync_model();
 #### View.Component
 
 ```javascript
-
-var MyComponent = new ModelView.View.Component(String html [, Object options={attach:function(element, view), detach:function(element, view)}]);
-MyComponent.render(Object props={} [, View view=null]); // render
+// **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
+var MyComponent = new ModelView.View.Component(String name, String htmlTpl);
 MyComponent.dispose(); // dispose
 
 ```
 [/DOC_MARKDOWN]**/
-View.Component = function Component(tpl, opts) {
+View.Component = function Component(name, tpl, opts) {
   var self = this;
-  if (!(self instanceof Component)) return new Component(tpl, opts);
-  self.tpl = trim(Str(tpl));
+  if (!(self instanceof Component)) return new Component(name, tpl, opts);
+  self.name = trim(name);
+  self.tpl = trim(tpl);
+  self.out = null;
   self.opts = opts || {};
 };
 View.Component[proto] = {
     constructor: View.Component
-    ,tpl: ''
+    ,name: ''
     ,opts: null
-    ,model: null
-    ,renderer: null
+    ,tpl: ''
+    ,out: null
+
     ,dispose: function() {
         var self = this;
-        self.tpl = null;
         self.opts = null;
-        self.model = null;
-        self.renderer = null;
-        return self;
-    }
-    ,render: function(props, view) {
-        var self = this;
-        if (!self.renderer && self.tpl) self.renderer = View.parse(self.tpl, 'props,component', getFuncsScoped(view, 'this'));
-        return self.renderer ? self.renderer.call(view || self, props || {}, self) : '';
-    }
-    // component lifecycle hooks
-    ,onAttach: function(el, view) {
-        var self = this;
-        if (self.opts && is_type(self.opts.attach, T_FUNC)) self.opts.attach.call(self, el, view);
-        return self;
-    }
-    ,onDetach: function(el, view) {
-        var self = this;
-        if (self.opts && is_type(self.opts.detach, T_FUNC)) self.opts.detach.call(self, el, view);
+        self.tpl = null;
+        self.out = null;
         return self;
     }
 };
@@ -6004,20 +6406,19 @@ View.HtmlWidget = null;
 [See it](https://foo123.github.io/examples/modelview/)
 
 
-**markup**
-
 ```html
-<template id="content">
+<script id="content" type="text/x-template">
+    <b>Note:</b> Arbitrary JavaScript Code can be run inside &#123;% and %&#125; template placeholders
+    <br /><br />
     <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
     <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
-</template>
+</script>
 <div id="app"></div>
 ```
 
-**javascript** (*standalone*)
 ```javascript
 // standalone
 new ModelView.View('view')
@@ -6054,13 +6455,38 @@ new ModelView.View('view')
 .sync()
 ;
 ```
+
+**Server-Side Rendering**
+
+```javascript
+var ModelView = require('../build/modelview.js');
+
+var view = new ModelView.View('view')
+    .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
+    .components({
+        'hello': new ModelView.View.Component('hello', `<div title="Hello {%= view.model().get('msg') %}">Hello {%= view.model().get('msg') %}</div>`)
+    })
+    .template(`{%= view.component('hello') %}`)
+    .livebind(true)
+;
+
+var viewText = new ModelView.View('view')
+    .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
+    .template(`<div title="Hello {%= msg %}">Hello {%= msg %}</div>`)
+    .livebind('text')
+;
+
+console.log(view.render());
+console.log(viewText.render());
+// output: <div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
+```
 [/DOC_MARKDOWN]**/
 
 // main
 // export it
 var ModelView = {
 
-    VERSION: "1.5.0"
+    VERSION: "2.0.0"
     
     ,UUID: uuid
     
@@ -6082,7 +6508,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 1.5.0
+*   @version: 2.0.0
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js
@@ -6181,8 +6607,9 @@ ModelView.jquery = function($) {
 
                         ,model: null
                         ,template: null
+                        ,attribute: ''
                         ,actions: { }
-                        ,funcs: { }
+                        ,context: { }
                         ,handlers: { }
                         ,shortcuts: { }
                         ,components: { }
@@ -6221,10 +6648,11 @@ ModelView.jquery = function($) {
                     .shortcuts(options.shortcuts)
                     // custom view actions
                     .actions(options.actions)
-                    // custom view functions
-                    .funcs(options.funcs)
+                    // custom view global context (eg funcs and vars)
+                    .context(options.context)
                     // custom view components
                     .components(options.components)
+                    .attribute(options.attribute||'')
                     // init view
                     .livebind(options.livebind)
                     .autobind(options.autobind)

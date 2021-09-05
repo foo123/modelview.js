@@ -100,8 +100,9 @@ ModelView.jquery = function($) {
 
                         ,model: null
                         ,template: null
+                        ,attribute: ''
                         ,actions: { }
-                        ,funcs: { }
+                        ,context: { }
                         ,handlers: { }
                         ,shortcuts: { }
                         ,components: { }
@@ -140,10 +141,11 @@ ModelView.jquery = function($) {
                     .shortcuts(options.shortcuts)
                     // custom view actions
                     .actions(options.actions)
-                    // custom view functions
-                    .funcs(options.funcs)
+                    // custom view global context (eg funcs and vars)
+                    .context(options.context)
                     // custom view components
                     .components(options.components)
+                    .attribute(options.attribute||'')
                     // init view
                     .livebind(options.livebind)
                     .autobind(options.autobind)

@@ -3,12 +3,16 @@ modelview.js
 
 A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript
 
+
+It knows **where**, **when** and **what** needs to be rendered
+
+
 ![ModelView](/modelview.jpg)
 
-**Version 1.5.0** (59 kB minified)
+**Version 2.0.0** (64 kB minified)
 
 
-**see also:**  
+**see also:**
 
 * [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for PHP, JavaScript, Python
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for PHP, Python, JavaScript
@@ -38,13 +42,15 @@ A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScr
 
 
 ```html
-<template id="content">
+<script id="content" type="text/x-template">
+    <b>Note:</b> Arbitrary JavaScript Code can be run inside &#123;% and %&#125; template placeholders
+    <br /><br />
     <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="{%= this.model().get('msg') %}" />
     <button class="button" title="{%= this.model().get('msg') %}" mv-evt mv-on-click="alert">Hello</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
-</template>
+</script>
 <div id="app"></div>
 ```
 
@@ -53,7 +59,7 @@ A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScr
 new ModelView.View('view')
 .model(
     new ModelView.Model(
-        'model', 
+        'model',
         // model data here ..
         {msg: 'Earth!'}
     )
@@ -93,16 +99,13 @@ var ModelView = require('../build/modelview.js');
 var view = new ModelView.View('view')
     .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
     .components({
-        'hello': new ModelView.View.Component(`<div title="Hello {%= view.model().get('msg') %}">Hello {%= view.model().get('msg') %}</div>`)
+        'hello': new ModelView.View.Component('hello', `<div title="Hello {%= view.model().get('msg') %}">Hello {%= view.model().get('msg') %}</div>`)
     })
     .template(`{%= view.component('hello') %}`)
 ;
 
 console.log(view.render());
-/*
-output:
-<div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
-*/
+// output: <div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
 ```
 
 #### Examples
@@ -117,4 +120,4 @@ output:
 
 **JavaScript:** ES5
 
-**Browser:** All browsers that support custom element attributes like `[mv-evt]`, `[mv-on-click]`, ...
+**Browser:** All browsers that support custom element attributes like `[mv-evt]`, `[mv-on-click]`, `[data-mv-evt]`, ...

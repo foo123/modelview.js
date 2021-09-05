@@ -3,36 +3,29 @@
 
 var Model, View,
     TypeCast = ModelView.Type.Cast, Validate = ModelView.Validation.Validate,
-    STORAGE_KEY = "modelview_todomvc", STORAGE_INTERVAL = 1000, KEY_ENTER = 13;
+    STORAGE_KEY = "modelview_todomvc", KEY_ENTER = 13;
 
-function initModelAutoStorage(key, interval)
+function autoStoreModel()
 {
-    interval = interval || STORAGE_INTERVAL;
     // if supports localStorage
-    if (Storage.isSupported && key)
+    if (Storage.isSupported)
     {
-        var storeModelParams = function storeModelParams() {
-            // should handle sub-models correctly as single json output
-            Storage.set(key, Model.serialize());
-            setTimeout(storeModelParams, interval);
-        };
-        setTimeout(storeModelParams, interval);
+        Storage.set(STORAGE_KEY, Model.serialize());
         return true;
     }
     return false;
 }
 
-function updateModelFromStorage(key)
+function updateModelFromStorage()
 {
     // if supports localStorage
-    if (Storage.isSupported && key)
+    if (Storage.isSupported)
     {
-        var storedOptions = Storage.get(key);
+        var storedOptions = Storage.get(STORAGE_KEY);
         if (storedOptions)
         {
             // reset any editing flags
             storedOptions.todoList.todos.forEach(todo => {todo.editing = false;});
-            Model.set('displayMode', storedOptions.displayMode);
             Model.set('todoList', storedOptions.todoList);
             return true;
         }
@@ -110,6 +103,12 @@ Model = new ModelView.Model('model', {
         return 0 < visible.length && visible.length === completed.length;
     }
 })
+.on('change', function(evt, data){
+    if ('todoList' === data.key.slice(0, 8))
+    {
+        autoStoreModel();
+    }
+})
 ;
 
 View = new ModelView.View('todoview')
@@ -119,9 +118,9 @@ View = new ModelView.View('todoview')
 .autobind(false)
 .livebind(true)
 .components({
-    Todo: new ModelView.View.Component(document.getElementById('todo-component').innerHTML)
+    Todo: new ModelView.View.Component('Todo', document.getElementById('todo-component').innerHTML)
 })
-.funcs({
+.context({
     timeSince: function(time) {
         return null!=time ? timeSince(time) : '';
     }
@@ -253,15 +252,13 @@ View = new ModelView.View('todoview')
 ;
 
 // synchronize UI/View/Model
-updateModelFromStorage(STORAGE_KEY);
+updateModelFromStorage();
 
 window.addEventListener('hashchange', function() {route(location.hash);}, false);
 
 if (location.hash) route(location.hash);
 // auto-trigger
-else location.hash = '#/' + Model.get('displayMode');
+else location.hash = '#/all';
 
 View.render();
-
-initModelAutoStorage(STORAGE_KEY, STORAGE_INTERVAL);
 }(window, Storage, ModelView);
