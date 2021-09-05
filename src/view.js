@@ -570,7 +570,7 @@ view.component( String componentName, Object props );
             if (propsKey && HAS.call(view.$cache, propsKey))
             {
                 props = view.$cache[propsKey];
-                del(view.$cache, propsKey);
+                //del(view.$cache, propsKey);
             }
             else
             {

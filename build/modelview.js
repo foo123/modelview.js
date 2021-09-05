@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 2.0.0
-*   @built on 2021-09-05 13:00:45
+*   @built on 2021-09-05 20:28:38
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 2.0.0
-*   @built on 2021-09-05 13:00:45
+*   @built on 2021-09-05 20:28:38
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -684,8 +684,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     })(),
 
     tpl2code = function tpl2code(tpl, args, scoped, textOnly) {
-        // supports 2 types of template separators 1. {% %} and 2. <script> </script>
-        // both can be used simultaneously
         var p1, p2, code = 'var view = this;', echo = 0, codefrag = '', marker = 0;
         tpl = trim(tpl);
         if (true === textOnly)
@@ -916,7 +914,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             attach_meta(rnode.childNodes[i], vnode.childNodes[i]);
     },
     to_node = function to_node(vnode, with_meta) {
-        var rnode = 'text' === vnode.nodeType ? document.createTextNode(enc(vnode.nodeValue)) : ('comment' === vnode.nodeType ? document.createComment(vnode.nodevalue) : str2dom(to_string(vnode), false).firstChild);
+        /*var rnode, i, l, n;
+        if ('text' === vnode.nodeType) rnode = document.createTextNode(enc(vnode.nodeValue));
+        else if ('comment' === vnode.nodeType) rnode = document.createComment(vnode.nodeValue);
+        else rnode = document.createElement(vnode.nodeType.slice(1,-1));
+        if (true === with_meta)
+        {
+            if (vnode.modified && vnode.modified.nodes)
+                rnode._mvModifiedNodes = vnode.modified.nodes;
+        }
+        if (vnode.attributes.length)
+        {
+            for (i=0,l=vnode.attributes.length; i<l; i++)
+            {
+                n = vnode.attributes[i];
+                if (n.name in rnode)
+                    rnode[n.name] = n.value;
+                else
+                    rnode[SET_ATTR](n.name, true === n.value ? n.name : n.value);
+            }
+        }
+        if (vnode.childNodes.length)
+        {
+            for (i=0,l=vnode.childNodes.length; i<l; i++)
+            {
+                rnode.appendChild(to_node(vnode.childNodes[i], with_meta));
+            }
+        }*/
+        var rnode = 'text' === vnode.nodeType ? document.createTextNode(enc(vnode.nodeValue)) : ('comment' === vnode.nodeType ? document.createComment(vnode.nodeValue) : str2dom(to_string(vnode), false).firstChild);
         if (true === with_meta) attach_meta(rnode, vnode);
         return rnode;
     },
@@ -5569,7 +5594,7 @@ view.component( String componentName, Object props );
             if (propsKey && HAS.call(view.$cache, propsKey))
             {
                 props = view.$cache[propsKey];
-                del(view.$cache, propsKey);
+                //del(view.$cache, propsKey);
             }
             else
             {
