@@ -1,9 +1,21 @@
 !function(window, Storage, ModelView) {
 "use strict";
 
-var Model, View,
-    TypeCast = ModelView.Type.Cast, Validate = ModelView.Validation.Validate,
-    STORAGE_KEY = "modelview_todomvc", KEY_ENTER = 13;
+function debounce(f, wait, immediate)
+{
+    var timeout;
+    return function() {
+        var ctx = this, args = arguments;
+        var later = function() {
+            timeout = null;
+            if (!immediate) f.apply(ctx, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) f.apply(ctx, args);
+    };
+}
 
 function autoStoreModel()
 {
@@ -59,6 +71,8 @@ function route(displayMode)
     }
 }
 
+var Model, View, TypeCast = ModelView.Type.Cast, Validate = ModelView.Validation.Validate,
+    STORAGE_KEY = "modelview_todomvc", KEY_ENTER = 13, autostore = debounce(autoStoreModel, 500);
 
 // ModelView for App
 Model = new ModelView.Model('model', {
@@ -105,9 +119,7 @@ Model = new ModelView.Model('model', {
 })
 .on('change', function(evt, data){
     if ('todoList' === data.key.slice(0, 8))
-    {
-        autoStoreModel();
-    }
+        autostore();
 })
 ;
 

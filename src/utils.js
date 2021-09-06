@@ -352,7 +352,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             return newFunc("a,b", 'return '+sorter+';');
         }
     },
-
+/*
     // https://stackoverflow.com/questions/7048102/check-if-html-element-is-supported
     is_element_supported = function is_element_supported(tag) {
         // Return undefined if `HTMLUnknownElement` interface
@@ -375,7 +375,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // Obtain the element's internal [[Class]] property, if it doesn't
         // match the `HTMLUnknownElement` interface than it must be supported
         return OP.toString.call(element) !== '[object HTMLUnknownElement]' ? element : null;
-    },
+    },*/
 
     // http://youmightnotneedjquery.com/
     $id = function(id) {
@@ -572,7 +572,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
 
-    remove_empty_spaces = function remove_empty_spaces(node) {
+    /*remove_empty_spaces = function remove_empty_spaces(node) {
         if (1 < node.childNodes.length)
         {
             slice.call(node.childNodes).forEach(function(n) {
@@ -629,8 +629,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 return trim(div.innerHTML);
             }
         ;
-    })(),
+    })(),*/
 
+    STARTBLOCK = /\{$/,
     tpl2code = function tpl2code(tpl, args, scoped, textOnly) {
         var p1, p2, code = 'var view = this;', echo = 0, codefrag = '', marker = 0;
         tpl = trim(tpl);
@@ -682,20 +683,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     code += "\n"+'_$$_.parse(this, \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
                     if (echo)
                     {
-                        if (!marker)
-                        {
+                        /*if (!marker)
+                        {*/
                             code += "\n_$$_.s(_$$_);";
-                        }
+                        /*}*/
                         code += "\n"+'_$$_.parse(this, String('+trim(tpl.slice(p1+3, p2))+'), _$$_);';
-                        if (!marker)
-                        {
+                        /*if (!marker)
+                        {*/
                             code += "\n_$$_.e(_$$_);";
-                        }
+                        /*}*/
                     }
                     else
                     {
                         codefrag = trim(tpl.slice(p1+2, p2));
-                        if (!marker && '}' !== codefrag)
+                        if (!marker && '{' !== codefrag && STARTBLOCK.test(codefrag))
                         {
                             marker = 1;
                             code += "\n_$$_.s(_$$_);";
@@ -855,42 +856,67 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return out;
     },
-    attach_meta = function attach_meta(rnode, vnode) {
+    /*attach_meta = function attach_meta(rnode, vnode) {
         if (vnode.modified && vnode.modified.nodes)
             rnode._mvModifiedNodes = vnode.modified.nodes;
         for (var i=0,l=vnode.childNodes.length; i<l; i++)
             attach_meta(rnode.childNodes[i], vnode.childNodes[i]);
-    },
+    },*/
     to_node = function to_node(vnode, with_meta) {
-        /*var rnode, i, l, n;
-        if ('text' === vnode.nodeType) rnode = document.createTextNode(enc(vnode.nodeValue));
-        else if ('comment' === vnode.nodeType) rnode = document.createComment(vnode.nodeValue);
-        else rnode = document.createElement(vnode.nodeType.slice(1,-1));
-        if (true === with_meta)
+        var rnode, i, l, a, v, n;
+        if ('text' === vnode.nodeType)
         {
-            if (vnode.modified && vnode.modified.nodes)
-                rnode._mvModifiedNodes = vnode.modified.nodes;
+            rnode = document.createTextNode(enc(vnode.nodeValue));
         }
-        if (vnode.attributes.length)
+        else if ('comment' === vnode.nodeType)
         {
-            for (i=0,l=vnode.attributes.length; i<l; i++)
+            rnode = document.createComment(vnode.nodeValue);
+        }
+        else
+        {
+            rnode = document.createElement(vnode.nodeType.slice(1,-1));
+            if (vnode.attributes.length)
             {
-                n = vnode.attributes[i];
-                if (n.name in rnode)
-                    rnode[n.name] = n.value;
+                for (i=0,l=vnode.attributes.length; i<l; i++)
+                {
+                    a = vnode.attributes[i];
+                    n = a.name; v = a.value;
+                    if ('id' === n || 'style' === n)
+                        rnode[n] = v;
+                    else if ('class' === n)
+                        rnode[CLASS] = v;
+                    else if (n in rnode)
+                        rnode[n] = v;
+                    else
+                        rnode[SET_ATTR](n, true === v ? n : v);
+                }
+            }
+            if (true === with_meta)
+            {
+                if (vnode.modified && vnode.modified.nodes)
+                    rnode._mvModifiedNodes = vnode.modified.nodes;
+            }
+            if (vnode.childNodes.length)
+            {
+                if ('<textarea>' === vnode.nodeType)
+                {
+                    rnode.innerHTML = vnode.childNodes[0].nodeValue;
+                }
+                else if ('<script>' === vnode.nodeType || '<style>' === vnode.nodeType)
+                {
+                    rnode.appendChild(document.createTextNode(vnode.childNodes[0].nodeValue));
+                }
                 else
-                    rnode[SET_ATTR](n.name, true === n.value ? n.name : n.value);
+                {
+                    for (i=0,l=vnode.childNodes.length; i<l; i++)
+                    {
+                        rnode.appendChild(to_node(vnode.childNodes[i], with_meta));
+                    }
+                }
             }
         }
-        if (vnode.childNodes.length)
-        {
-            for (i=0,l=vnode.childNodes.length; i<l; i++)
-            {
-                rnode.appendChild(to_node(vnode.childNodes[i], with_meta));
-            }
-        }*/
-        var rnode = 'text' === vnode.nodeType ? document.createTextNode(enc(vnode.nodeValue)) : ('comment' === vnode.nodeType ? document.createComment(vnode.nodeValue) : str2dom(to_string(vnode), false).firstChild);
-        if (true === with_meta) attach_meta(rnode, vnode);
+        /*var rnode = 'text' === vnode.nodeType ? document.createTextNode(enc(vnode.nodeValue)) : ('comment' === vnode.nodeType ? document.createComment(vnode.nodeValue) : str2dom(to_string(vnode), false).firstChild);
+        if (true === with_meta) attach_meta(rnode, vnode);*/
         return rnode;
     },
     html2ast = function html2ast(view, html, state) {
@@ -1177,20 +1203,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // remove non-existent attributes
         for (i=rAtts.length-1; i>=0; i--)
         {
-            a = rAtts[i]; n = a.name; NS = a.namespaceURI;
-            if (NS)
+            a = rAtts[i]; n = a.name; //NS = a.namespaceURI;
+            /*if (NS)
             {
                 n = a.localName || n;
                 if (!attr(v, n))
                     r.removeAttributeNS(NS, n);
             }
-            else if (!attr(v,n))
+            else*/ if (!attr(v, n))
             {
                 if ('class' === n)
                 {
-                    r.className = '';
+                    r[CLASS] = '';
                 }
-                else if ('style' === n)
+                else if ('style' === n || 'id' === n)
                 {
                     r[n] = '';
                 }
@@ -1232,45 +1258,50 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // add/update existent attributes
         for (i=vAtts.length-1; i>=0; i--)
         {
-            a = vAtts[i]; n = a.name; s = a.value; ss = true === s ? n : s; NS = a.namespaceURI;
-            if (NS)
+            a = vAtts[i]; n = a.name; s = a.value; //ss = true === s ? n : s; //NS = a.namespaceURI;
+            /*if (NS)
             {
                 n = a.localName || n;
                 if (!r.hasAttributeNS(NS, n) || (r.getAttributeNS(NS, n) !== ss))
                     r.setAttributeNS(NS, n, ss);
             }
             else
-            {
+            {*/
                 if ('class' === n)
                 {
-                    r.className = s;
+                    r[CLASS] = s;
                 }
                 else if ('style' === n)
                 {
                     //morphStyles(r, v);
                     r[n] = s;
                 }
+                else if ('id' === n)
+                {
+                    r[n] = s;
+                }
                 else if ('selected' === n && 'OPTION' === T)
                 {
-                    if (!r[n]) r[n] = true;
+                    r[n] = true;
                 }
                 else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
                 {
-                    if (!r[n]) r[n] = true;
+                    r[n] = true;
                 }
                 else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
                 {
-                    if (!r[n]) r[n] = true;
+                    r[n] = true;
                 }
                 else if ('value' === n && 'INPUT' === T)
                 {
                     if (r[n] !== s) r[n] = s;
                 }
-                else if (!r[HAS_ATTR](n) || (r[ATTR](n) !== ss))
+                else //if (!r[HAS_ATTR](n) || (r[ATTR](n) !== ss))
                 {
-                    r[SET_ATTR](n, ss);
+                    if (n in r) r[n] = s;
+                    else r[SET_ATTR](n, true === s ? n : s);
                 }
-            }
+            /*}*/
         }
     },
     morph = function morph(r, v, ID) {
