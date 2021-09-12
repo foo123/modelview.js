@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 2.1.0
-*   @built on 2021-09-12 13:20:15
+*   @built on 2021-09-12 14:26:10
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 2.1.0
-*   @built on 2021-09-12 13:20:15
+*   @built on 2021-09-12 14:26:10
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1593,6 +1593,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (mci=0,mi=0; mi<modifiedNodes.length; mi++)
             {
                 m = modifiedNodes[mi];
+                if (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
+                    mci++;
                 while (mci < modChildren.length && modChildren[mci].from < m.from)
                 {
                     tt = stdMath.min(modChildren[mci].to, m.from-1);
