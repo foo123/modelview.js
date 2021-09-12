@@ -365,6 +365,9 @@ var View = function View(id) {
     view.$components = {};
     view.$ctx = {};
     view.$upds = [];
+    view.$cache = {};
+    view.$cache2 = {};
+    view.$cnt = {};
     view.initPubSub();
 };
 // STATIC
@@ -389,7 +392,8 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$ctx: null
     ,$upds: null
     ,$cache: null
-    ,$cnt: 0
+    ,$cache2: null
+    ,$cnt: null
     ,$prat: ''
     ,_dbnc: null
 
@@ -412,6 +416,8 @@ view.dispose( );
         view.$components = null;
         view.$ctx = null;
         view.$cache = null;
+        view.$cache2 = null;
+        view.$cnt = null;
         view.$upds = null;
         return view;
     }
@@ -448,7 +454,23 @@ view.template( [String html] );
     }
 
 /**[DOC_MARKDOWN]
-// add custom view event handlers for model/view/dom/document in {"target:eventName": handler} format
+// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
+view.context( Object ctx );
+
+[/DOC_MARKDOWN]**/
+    ,context: function(ctx) {
+        var view = this, k;
+        if (is_type(ctx, T_OBJ))
+        {
+            for (k in ctx)
+                if (HAS.call(ctx,k))
+                    view.$ctx[k] = ctx[k];
+        }
+        return view;
+    }
+
+/**[DOC_MARKDOWN]
+// add custom view event handlers for model/view/dom/document targets in {"target:eventName": handler} format
 view.events( Object events );
 
 [/DOC_MARKDOWN]**/
@@ -509,88 +531,6 @@ view.shortcuts( Object shortcuts );
     }
 
 /**[DOC_MARKDOWN]
-// add custom view named components which render output in {componentName: componentInstance} format
-view.components( Object components );
-
-[/DOC_MARKDOWN]**/
-    ,components: function(components) {
-        var view = this, k;
-        if (is_type(components, T_OBJ))
-        {
-            for (k in components)
-                if (HAS.call(components,k) && is_instance(components[k], View.Component))
-                    view.$components[k] = components[k];
-        }
-        return view;
-    }
-
-/**[DOC_MARKDOWN]
-// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
-view.context( Object funcs );
-
-[/DOC_MARKDOWN]**/
-    ,context: function(ctx) {
-        var view = this, k;
-        if (is_type(ctx, T_OBJ))
-        {
-            for (k in ctx)
-                if (HAS.call(ctx,k))
-                    view.$ctx[k] = ctx[k];
-        }
-        return view;
-    }
-
-/**[DOC_MARKDOWN]
-// render a custom view named component
-view.component( String componentName, Object props );
-
-[/DOC_MARKDOWN]**/
-    ,component: function(name, props) {
-        var view = this, propsKey;
-        if (name && HAS.call(view.$components, name))
-        {
-            if (view.$components[name].tpl && !view.$components[name].out)
-            {
-                view.$components[name].out = tpl2code(view.$components[name].tpl, 'props,', getCtxScoped(view, 'this'));
-            }
-            if (view.$components[name].out)
-            {
-                view.$cnt++;
-                propsKey = 'props_'+name+'_'+Str(view.$cnt);
-                view.$cache[propsKey] = props;
-                return '<mv-component name="'+name+'" props="'+propsKey+'"/>';
-            }
-        }
-        return '';
-    }
-    ,$component: function(name, propsKey, state) {
-        var view = this, props;
-        if (name && HAS.call(view.$components, name))
-        {
-            if (propsKey && HAS.call(view.$cache, propsKey))
-            {
-                props = view.$cache[propsKey];
-                //del(view.$cache, propsKey);
-            }
-            else
-            {
-                props = undef;
-            }
-            if (view.$components[name].out)
-            {
-                return view.$components[name].out.call(view, props, state);
-            }
-        }
-        return function(props, state) {return state;};
-    }
-
-    // can integrate with HtmlWidget
-    ,widget: function(/*args*/) {
-        var HtmlWidget = View.HtmlWidget;
-        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? HtmlWidget.widget.apply(HtmlWidget, arguments) : '';
-    }
-
-/**[DOC_MARKDOWN]
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
 
@@ -607,8 +547,80 @@ view.actions( Object actions );
     }
 
 /**[DOC_MARKDOWN]
-// register custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
-view.attribute( String prefix='' );
+// add custom view named components which render output in {componentName: componentInstance} format
+view.components( Object components );
+
+[/DOC_MARKDOWN]**/
+    ,components: function(components) {
+        var view = this, k;
+        if (is_type(components, T_OBJ))
+        {
+            for (k in components)
+                if (HAS.call(components,k) && is_instance(components[k], View.Component))
+                    view.$components[k] = components[k];
+        }
+        return view;
+    }
+
+/**[DOC_MARKDOWN]
+// render a custom view named component
+view.component( String componentName, uniqueComponentId || null, Object props );
+
+[/DOC_MARKDOWN]**/
+    ,component: function(name, id, props) {
+        var view = this, c, propsKey, prevProps, changed;
+        if (name && HAS.call(view.$components, name))
+        {
+            c = view.$components[name];
+            if (c.tpl && !c.out)
+            {
+                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'));
+            }
+            if (c.out)
+            {
+                if (!HAS.call(view.$cnt, name)) view.$cnt[name] = 0;
+                view.$cnt[name]++;
+                propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
+                changed = true;
+                prevProps = view.$cache2[propsKey];
+                if (prevProps && props && c.opts && c.opts.changed)
+                    changed = c.opts.changed(prevProps, props);
+                view.$cache[propsKey] = props;
+                return '<mv-component name="'+name+'" props="'+propsKey+'"'+(changed ? ' changed' : '')+'/>';
+            }
+        }
+        return '';
+    }
+    ,$component: function(name, propsKey, state) {
+        var view = this, c, props;
+        if (name && HAS.call(view.$components, name))
+        {
+            c = view.$components[name];
+            if (c.out)
+            {
+                if (propsKey && HAS.call(view.$cache, propsKey))
+                {
+                    props = view.$cache[propsKey];
+                }
+                else
+                {
+                    props = undef;
+                }
+                return c.out.call(view, props, state);
+            }
+        }
+        return function(props, state) {return state;};
+    }
+
+    // can integrate with HtmlWidget
+    ,widget: function(/*args*/) {
+        var HtmlWidget = View.HtmlWidget;
+        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? HtmlWidget.widget.apply(HtmlWidget, arguments) : '';
+    }
+
+/**[DOC_MARKDOWN]
+// get / set custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
+view.attribute( [String prefix] );
 
 [/DOC_MARKDOWN]**/
     ,attribute: function(prefix) {
@@ -671,7 +683,7 @@ view.autobind( [Boolean enabled] );
     }
 
 /**[DOC_MARKDOWN]
-// bind view to dom listening given events (default: ['change', 'click'])
+// bind view to dom listening given DOM events (default: ['change', 'click'])
 // optionaly can define a render sub dom of dom where rendering happens (rest dom remains intact), default renderdom=dom
 view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNode renderdom=dom]] );
 
@@ -846,14 +858,14 @@ view.render( [Boolean immediate=false] );
         {
             if (!self.$renderdom)
             {
-                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
                 out = to_string(getRoot(finState(self.$out.call(self, initState({trim:true}))))); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
             callback = function() {
-                self.$upds = []; self.$cache = {}; self.$cnt = 0;
+                self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
                 morph(self.$renderdom, getRoot(finState(self.$out.call(self, initState({trim:true})))), self.attr('mv-id'));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});

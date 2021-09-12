@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 2.0.0**
+**Version 2.1.0**
 
 ### Contents
 
@@ -522,7 +522,13 @@ view.template( [String html] );
 
 
 
-// add custom view event handlers for model/view/dom/document in {"target:eventName": handler} format
+// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
+view.context( Object ctx );
+
+
+
+
+// add custom view event handlers for model/view/dom/document targets in {"target:eventName": handler} format
 view.events( Object events );
 
 
@@ -534,32 +540,26 @@ view.shortcuts( Object shortcuts );
 
 
 
-// add custom view named components which render output in {componentName: componentInstance} format
-view.components( Object components );
-
-
-
-
-// register a view context (eg global functions and variables) which can be used in templates in {name: value} format
-view.context( Object funcs );
-
-
-
-
-// render a custom view named component
-view.component( String componentName, Object props );
-
-
-
-
 // add custom view named actions in {actionName: handler} format
 view.actions( Object actions );
 
 
 
 
-// register custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
-view.attribute( String prefix='' );
+// add custom view named components which render output in {componentName: componentInstance} format
+view.components( Object components );
+
+
+
+
+// render a custom view named component
+view.component( String componentName, uniqueComponentId || null, Object props );
+
+
+
+
+// get / set custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
+view.attribute( [String prefix] );
 
 
 
@@ -584,7 +584,7 @@ view.autobind( [Boolean enabled] );
 
 
 
-// bind view to dom listening given events (default: ['change', 'click'])
+// bind view to dom listening given DOM events (default: ['change', 'click'])
 // optionaly can define a render sub dom of dom where rendering happens (rest dom remains intact), default renderdom=dom
 view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNode renderdom=dom]] );
 

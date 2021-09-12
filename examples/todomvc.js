@@ -130,7 +130,13 @@ View = new ModelView.View('todoview')
 .autobind(false)
 .livebind(true)
 .components({
-    Todo: new ModelView.View.Component('Todo', document.getElementById('todo-component').innerHTML)
+    Todo: new ModelView.View.Component(
+        'Todo',
+        document.getElementById('todo-component').innerHTML,
+        {
+            changed: (_old, _new) => (_old.uuid !== _new.uuid) || (_old.title !== _new.title) || (_old.completed !== _new.completed)
+        }
+    )
 })
 .context({
     timeSince: function(time) {

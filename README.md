@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ![ModelView](/modelview.jpg)
 
-**Version 2.0.0** (64 kB minified)
+**Version 2.1.0** (66 kB minified)
 
 
 **see also:**
@@ -31,6 +31,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 * [Hello World](#hello-world)
 * [Examples](#examples)
+* [Performance Notes](#performance-notes)
 * [JavaScript and Browser Support](#javascript-and-browser-support)
 * [API Reference](/manual.md)
 
@@ -115,6 +116,23 @@ console.log(view.render());
 * [TodoMVC with ModelView](https://foo123.github.io/examples/todomvc/) based on [TodoMVC by Addy Osmani](http://todomvc.com)
 * [Weather at a Glance](https://foo123.github.io/examples/weather-modelview/)
 * [ModelView with HtmlWidget](https://foo123.github.io/examples/htmlwidget/)
+
+
+#### Performance Notes
+
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for `ModelView 2.1.0` and some popular frameworks.
+
+![Performance](/examples/perf.png)
+
+![Memory](/examples/mem.png)
+
+It is shown that `ModelView 2.1.0` has decent performance in many cases (beating popular frameworks which work differently), while retaining a very low memory footprint (unlike many popular frameworks).
+
+Some comments regarding benchmark results are in order:
+
+* First of all, `ModelView` is designed with the requirement that it should be as simple as possible and **it should work using simple string templates** (interspersed with arbitrary JavaScript code) to build components and applications, instead of Virtual DOM abstractions and overhead (ie no babel, no jsx, no compilation, no dependencies) and morphs the **underlying real DOM to match the results**. This also **enables applications which manipulate the real DOM externally to `ModelView`** itself (at least in many cases).  These are requirements that are considered advantages.
+* Then, `ModelView` parses the whole string templates into an Abstrat Syntax Tree/Virtual DOM structure and marks the points where dynamic changes are made and also marks what kind of changes were made (eg node attributes change, nodes were added). Thus it is able to morph only those parts which need to be changed. However the overhead of parsing the string templates to construct the AST/VDOM is always there (eg in the bnchmarks it has to parse the strings of 1,000 or 10,000 entries, although the parsing is very fast, it is still there), and that is why it lags behind in the above benchmarks in some cases. Not because its algorithms and data structures are inefficient nor because it manipulates the real DOM inefficiently.
+
 
 #### JavaScript and Browser Support
 

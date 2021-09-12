@@ -48,32 +48,32 @@
 
 <script id="content" type="text/x-template">
 <header id="header">
-    <h1>todos</h1>
-    <input id="new-todo" mv-evt mv-on-change="addTodo" placeholder="What needs to be done?" autofocus value="" />
+<h1>todos</h1>
+<input id="new-todo" mv-evt mv-on-change="addTodo" placeholder="What needs to be done?" autofocus value="" />
 </header>
 
 <section id="main">
-    <input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" {%= this.model().get('todoList.allCompleted') ? 'checked' : '' %}/>
-    <label for="toggle-all">Mark all as complete</label>
-    <ul id="todo-list" class="show-all">
-    {%= this.model().get('todoList.display').map(todo => this.component('Todo', todo)).join('') %}
-    </ul>
+<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" {%= this.model().get('todoList.allCompleted') ? 'checked' : '' %}/>
+<label for="toggle-all">Mark all as complete</label>
+<ul id="todo-list" class="show-all">
+{%= this.model().get('todoList.display').map(todo => this.component('Todo', todo.uuid, {uuid:todo.uuid, title:todo.title, time:todo.time, completed:todo.completed})).join('') %}
+</ul>
 </section>
 
 <footer id="footer">
-    <span id="todo-count"><strong>{%= this.model().get('todoList.active') %}</strong> {%= 1 == this.model().get('todoList.active') ? 'item' : 'items' %} left</span>
-    <ul id="filters">
-        <li>
-            <a id="all" href="#/all" class="tab{%='all'===this.model().get('displayMode')?' selected':''%}">All ({%= this.model().get('todoList.all') %})</a>
-        </li>
-        <li>
-            <a id="active" href="#/active" class="tab{%='active'===this.model().get('displayMode')?' selected':''%}">Active ({%= this.model().get('todoList.active') %})</a>
-        </li>
-        <li>
-            <a id="completed" href="#/completed" class="tab{%='completed'===this.model().get('displayMode')?' selected':''%}">Completed ({%= this.model().get('todoList.completed') %})</a>
-        </li>
-    </ul>
-    {% if (this.model().get('todoList.completed')){ %}<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>{% } %}
+<span id="todo-count"><strong>{%= this.model().get('todoList.active') %}</strong> {%= 1 == this.model().get('todoList.active') ? 'item' : 'items' %} left</span>
+<ul id="filters">
+    <li>
+        <a id="all" href="#/all" class="tab{%='all'===this.model().get('displayMode')?' selected':''%}">All ({%= this.model().get('todoList.all') %})</a>
+    </li>
+    <li>
+        <a id="active" href="#/active" class="tab{%='active'===this.model().get('displayMode')?' selected':''%}">Active ({%= this.model().get('todoList.active') %})</a>
+    </li>
+    <li>
+        <a id="completed" href="#/completed" class="tab{%='completed'===this.model().get('displayMode')?' selected':''%}">Completed ({%= this.model().get('todoList.completed') %})</a>
+    </li>
+</ul>
+{% if (this.model().get('todoList.completed')){ %}<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>{% } %}
 </footer>
 </script>
 
