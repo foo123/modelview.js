@@ -553,7 +553,7 @@ view.components( Object components );
 
 
 // render a custom view named component
-view.component( String componentName, uniqueComponentId || null, Object props );
+view.component( String componentName, uniqueComponentInstanceId || null, Object props );
 
 
 
@@ -598,7 +598,7 @@ view.unbind( );
 
 
 // render view on actual DOM (immediately or deferred)
-// .render is called internally by view auto-update methods
+// .render is also called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
 
@@ -625,7 +625,7 @@ view.sync_model();
 
 ```javascript
 // **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
-var MyComponent = new ModelView.View.Component(String name, String htmlTpl);
+var MyComponent = new ModelView.View.Component(String name, String htmlTpl [, Object options={changed:function(oldProps,newProps){return true}}]);
 MyComponent.dispose(); // dispose
 
 ```

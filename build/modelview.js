@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 2.1.0
-*   @built on 2021-09-12 14:26:10
+*   @built on 2021-09-12 16:05:41
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 2.1.0
-*   @built on 2021-09-12 14:26:10
+*   @built on 2021-09-12 16:05:41
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1593,8 +1593,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (mci=0,mi=0; mi<modifiedNodes.length; mi++)
             {
                 m = modifiedNodes[mi];
-                if (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
-                    mci++;
                 while (mci < modChildren.length && modChildren[mci].from < m.from)
                 {
                     tt = stdMath.min(modChildren[mci].to, m.from-1);
@@ -1609,6 +1607,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (modChildren[mci].to <= m.from) mci++;
                     else break;
                 }
+                while (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
+                    mci++;
                 index = m.from;
                 if (m.to < m.from)
                 {
@@ -5814,7 +5814,7 @@ view.components( Object components );
 
 /**[DOC_MARKDOWN]
 // render a custom view named component
-view.component( String componentName, uniqueComponentId || null, Object props );
+view.component( String componentName, uniqueComponentInstanceId || null, Object props );
 
 [/DOC_MARKDOWN]**/
     ,component: function(name, id, props) {
@@ -5830,6 +5830,11 @@ view.component( String componentName, uniqueComponentId || null, Object props );
             {
                 if (!HAS.call(view.$cnt, name)) view.$cnt[name] = 0;
                 view.$cnt[name]++;
+                if ((null == props) && is_type(id, T_OBJ))
+                {
+                    props = id;
+                    id = null;
+                }
                 propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
                 changed = true;
                 prevProps = view.$cache2[propsKey];
@@ -6063,7 +6068,7 @@ view.unbind( );
 
 /**[DOC_MARKDOWN]
 // render view on actual DOM (immediately or deferred)
-// .render is called internally by view auto-update methods
+// .render is also called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
@@ -6633,7 +6638,7 @@ view.sync_model();
 
 ```javascript
 // **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
-var MyComponent = new ModelView.View.Component(String name, String htmlTpl);
+var MyComponent = new ModelView.View.Component(String name, String htmlTpl [, Object options={changed:function(oldProps,newProps){return true}}]);
 MyComponent.dispose(); // dispose
 
 ```

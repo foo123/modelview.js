@@ -1541,8 +1541,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (mci=0,mi=0; mi<modifiedNodes.length; mi++)
             {
                 m = modifiedNodes[mi];
-                if (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
-                    mci++;
                 while (mci < modChildren.length && modChildren[mci].from < m.from)
                 {
                     tt = stdMath.min(modChildren[mci].to, m.from-1);
@@ -1557,6 +1555,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (modChildren[mci].to <= m.from) mci++;
                     else break;
                 }
+                while (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
+                    mci++;
                 index = m.from;
                 if (m.to < m.from)
                 {
