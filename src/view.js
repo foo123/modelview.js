@@ -589,8 +589,8 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                 changed = true;
                 prevProps = view.$cache2[propsKey];
                 if (prevProps && props && c.opts && c.opts.changed)
-                    changed = c.opts.changed(prevProps, props);
-                view.$cache[propsKey] = props;
+                    changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
+                view.$cache[propsKey] = [props, view.$cnt[name]];
                 return '<mv-component name="'+name+'" props="'+propsKey+'"'+(changed ? ' changed' : '')+'/>';
             }
         }
@@ -605,7 +605,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
             {
                 if (propsKey && HAS.call(view.$cache, propsKey))
                 {
-                    props = view.$cache[propsKey];
+                    props = view.$cache[propsKey][0];
                 }
                 else
                 {
@@ -823,7 +823,7 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out = '', upds, callback;
+        var self = this, out = '', callback;
         if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), 'text'===self.$livebind);
         if ('text' === self.$livebind)
         {
@@ -843,7 +843,7 @@ view.render( [Boolean immediate=false] );
                     self.add(self.$renderdom);
                 }
                 callback = function() {
-                    upds = self.$upds;
+                    var upds = self.$upds;
                     self.$upds = [];
                     morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
@@ -864,14 +864,18 @@ view.render( [Boolean immediate=false] );
             if (!self.$renderdom)
             {
                 self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
-                out = to_string(getRoot(finState(self.$out.call(self, initState({trim:true}))))); // return the rendered string
+                var vdom = getRoot(finState(self.$out.call(self, initState({trim:true}))));
+                var out = to_string(vdom); // return the rendered string
+                vdom = null;
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self.$renderdom, getRoot(finState(self.$out.call(self, initState({trim:true})))), self.attr('mv-id'));
+                var vdom = getRoot(finState(self.$out.call(self, initState({trim:true}))));
+                morph(self.$renderdom, vdom, self.attr('mv-id'));
+                vdom = null;
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };
@@ -900,7 +904,6 @@ view.render( [Boolean immediate=false] );
         }
         return node;
     }
-
     ,remove: function(node) {
         var view = this, map = view.$map;
         if (view.$dom && node && map)
@@ -927,6 +930,22 @@ view.render( [Boolean immediate=false] );
             });
         }
         return node;
+    }
+
+    ,addNode: function(el, node, index) {
+        if (el && node)
+            add_nodes(el, [node], index);
+        return this;
+    }
+    ,moveNode: function(el, node, index) {
+        if (el && node)
+            add_nodes(el, [node], index, true);
+        return this;
+    }
+    ,removeNode: function(node) {
+        if (node && node.parentNode)
+            remove_nodes(node.parentNode, 1, AP.indexOf.call(node.parentNode.childNodes, node));
+        return this;
     }
 
 /**[DOC_MARKDOWN]
