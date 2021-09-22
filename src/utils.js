@@ -385,7 +385,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 
     // http://youmightnotneedjquery.com/
     $id = function(id) {
-        return HASDOC ? [document.getElementById(id)] : [];
+        if (HASDOC)
+        {
+            var found = document.getElementById(id);
+            return found ? [found] : [];
+        }
+        return [];
     },
     $tag = function(tagname, el) {
         return HASDOC ? slice.call((el || document).getElementsByTagName(tagname), 0) : [];
@@ -393,18 +398,44 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     $class = function(classname, el) {
         return HASDOC ? slice.call((el || document).getElementsByClassName(classname), 0) : [];
     },
+    $closest = function(selector, el) {
+        el = el || document;
+        if (HASDOC && el.closest)
+        {
+            var found = el.closest(selector);
+            return found ? [found] : [];
+        }
+        return [];
+    },
     $sel = function(selector, el, single) {
         el = el || document;
-        return HASDOC && el.querySelector ? (true === single
-            ? [el.querySelector(selector)]
-            : slice.call(el.querySelectorAll(selector), 0))
-            : []
-        ;
+        if (HASDOC && el.querySelector)
+        {
+            if (true === single)
+            {
+                var found = el.querySelector(selector);
+                return found ? [found] : [];
+            }
+            return slice.call(el.querySelectorAll(selector), 0);
+        }
+        return [];
     },
 
     get_dom_ref = function(el, ref) {
         // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        return (/*ref &&*/ startsWith(ref, "$this::")) ? $sel(ref.slice(7), el/*, true*/) : $sel(ref, null/*, true*/);
+        if (startsWith(ref, "$this::"))
+        {
+            return $sel(ref.slice(7), el, true);
+        }
+        // shortcut to get domRefs closest up the tree relative to current element $el, represented as "$closest::" in ref selector
+        else if (startsWith(ref, "$closest::"))
+        {
+            return $closest(ref.slice(10), el);
+        }
+        else
+        {
+            return $sel(ref, null, true);
+        }
     },
 
     // http://youmightnotneedjquery.com/
@@ -1662,8 +1693,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 {
                                     // morph attributes/properties
                                     morphAtts(rnode, vnode, true, true);
-                                    rnode.value = vnode.nodeValue;
-                                    if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.nodeValue;
+                                    rnode.value = vnode.childNodes[0].nodeValue;
+                                    if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.childNodes[0].nodeValue;
                                 }
                                 else
                                 {
@@ -1803,8 +1834,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             {
                                 // morph attributes/properties
                                 morphAtts(rnode, vnode, true, true);
-                                rnode.value = vnode.nodeValue;
-                                if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.nodeValue;
+                                rnode.value = vnode.childNodes[0].nodeValue;
+                                if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.childNodes[0].nodeValue;
                             }
                             else if (false !== vnode.changed)
                             {
@@ -1863,7 +1894,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     add_nodes = function(el, nodes, index, move) {
         var f, i, n, l = nodes.length,
-            _mvModifiedNodes = el._mvModified ? el._mvModified.nodes : null;
+            _mvModifiedNodes = el._mvModified ? el._mvModified : null;
         if (0 < l)
         {
             if (null == index)
@@ -1909,7 +1940,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     remove_nodes = function(el, count, index) {
         var f, i, l,
-            _mvModifiedNodes = el._mvModified ? el._mvModified.nodes : null;
+            _mvModifiedNodes = el._mvModified ? el._mvModified : null;
         if (null == index) index = el.childNodes.length-1;
         if (0 < count && 0 <= index && index < el.childNodes.length)
         {

@@ -24,9 +24,9 @@
 <div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
 <template id="content">
     <p class="temperature-converter">
-        <label class="celsius-wrap"><input type="number" class="celsius" id="celsius" name="model[celsius]" value="{%= this.model().get('celsius') %}">°C</label>
+        <label class="celsius-wrap"><input type="number" class="celsius" id="celsius" name="model[celsius]" step="0.5" value="">°C</label>
         <span class="arrows">⇄</span>
-        <label class="fahrenheit-wrap"><input type="number" class="fahrenheit" id="fahrenheit" name="model[fahrenheit]" value="{%= this.model().get('fahrenheit') %}" >°F</label>
+        <label class="fahrenheit-wrap"><input type="number" class="fahrenheit" id="fahrenheit" name="model[fahrenheit]" step="0.5" value="" >°F</label>
     </p>
 </template>
 <div id="app"></div>
@@ -36,6 +36,7 @@
 <script id="js-snippet-without-jquery" type="text/javascript" data-snippet="JS Code (standalone)" data-snippet-type="javascript">
 (function modelView(ModelView) {
 "use strict";
+function round2(num){return Math.round((num + Number.EPSILON) * 100) / 100;}
 new ModelView.View('view')
     .model(
         new ModelView.Model(
@@ -46,17 +47,17 @@ new ModelView.View('view')
         .types({celsius: ModelView.Type.Cast.FLOAT})
         .getters({
             fahrenheit: function() {
-                return 9/5 * this.$data.celsius + 32;
+                return round2(9/5 * this.$data.celsius + 32);
             }
         })
         .setters({
             celsius: function(k, v) {
-                this.$data.celsius = v;
+                this.$data.celsius = round2(v);
                 this.notify('fahrenheit');
                 return true;
             },
             fahrenheit: function(k, v) {
-                this.$data.celsius = 5/9 * (v - 32);
+                this.$data.celsius = round2(5/9 * (v - 32));
                 this.notify('celsius');
                 return true;
             }
