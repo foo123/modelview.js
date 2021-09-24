@@ -609,13 +609,88 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
 
-    tpl2code = function tpl2code(tpl, args, scoped, textOnly) {
-        var p1, p2, code = 'var view = this;', echo = 0, codefrag = '', marker = 0;
+    tpl2code2 = function tpl2code2(tpl, opts) {
+        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, injsx = false, instr = false, esc = false, q = '', c = '';
+        while (i<l)
+        {
+            c = tpl.charAt(i++);
+            if (instr && ('\\' === c))
+            {
+                esc = !esc;
+                if (injsx) jsx += c;
+                else out += c;
+                continue;
+            }
+            else if ('"' === c || '\'' === c)
+            {
+                if (!instr)
+                {
+                    instr = true;
+                    esc = false;
+                    q = c;
+                    if (injsx) jsx += c;
+                    else out += c;
+                }
+                else if (!esc && (q === c))
+                {
+                    instr = false;
+                    q = '';
+                    if (injsx) jsx += c;
+                    else out += c;
+                }
+                else
+                {
+                    if (injsx) jsx += c;
+                    else out += c;
+                }
+            }
+            else if (!instr && injsx && (')' === c))
+            {
+                j--;
+                if (0 === j)
+                {
+                    injsx = false;
+                    out += to_code(getRoot(finState(html2ast(trim(jsx), initState(opts, 'jsx'), true))));
+                }
+                else
+                {
+                    jsx += c;
+                }
+            }
+            else if (!instr && ('(' === c))
+            {
+                if (injsx)
+                {
+                    j++;
+                    jsx += c;
+                }
+                else if ('<' === tpl.charAt(i))
+                {
+                    injsx = true;
+                    jsx = '';
+                    j = 1;
+                }
+                else
+                {
+                    out += c;
+                }
+            }
+            else
+            {
+                if (injsx) jsx += c;
+                else out += c;
+            }
+            if (instr) esc = false;
+        }
+        return out;
+    },
+    tpl2code = function tpl2code(tpl, args, scoped, type, opts, rootNodeType) {
+        var p1, p2, c, code = '"use strict";'+"\n"+'var view = this;', state;
         tpl = trim(tpl);
-        if (true === textOnly)
+        if ('text' === type)
         {
             args = 'MODEL';
-            code += "\n var _$$_ = '';\n MODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
+            code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
             while (tpl && tpl.length)
             {
                 p1 = tpl.indexOf('{%=');
@@ -634,57 +709,37 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
                 tpl = tpl.slice(p2+2);
             }
+            code += "\nreturn _$$_;";
         }
         else
         {
             args = (args || '') + '_$$_';
             if (scoped && scoped.length) code += "\n" + Str(scoped);
+            state = initState(opts, rootNodeType || '');
             while (tpl && tpl.length)
             {
-                p1 = tpl.indexOf('{%');
+                p1 = tpl.indexOf('{%=');
                 if (-1 === p1)
                 {
-                    code += "\n"+'_$$_.parse(this, \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
+                    html2ast(tpl, state);
                     break;
                 }
                 else
                 {
-                    echo = '=' === tpl.charAt(p1+2) ? 1 : 0;
-                    p2 = tpl.indexOf('%}', p1+2+echo);
+                    p2 = tpl.indexOf('%}', p1+3);
                     if (-1 === p2)
                     {
-                        code += "\n"+'_$$_.parse(this, \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
+                        html2ast(tpl, state);
                         break;
                     }
 
-                    code += "\n"+'_$$_.parse(this, \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\', _$$_);';
-                    if (echo)
-                    {
-                        code += "\n_$$_.s(_$$_);";
-                        code += "\n"+'_$$_.parse(this, String('+trim(tpl.slice(p1+3, p2))+'), _$$_);';
-                        code += "\n_$$_.e(_$$_);";
-                    }
-                    else
-                    {
-                        codefrag = trim(tpl.slice(p1+2, p2));
-                        if (('{' !== codefrag) && ('{' === codefrag.charAt(codefrag.length-1)) && ('}' !== codefrag.charAt(0)))
-                        {
-                            if (0 === marker) code += "\n_$$_.s(_$$_);";
-                            marker++;
-                        }
-                        code += "\n"+codefrag;
-                        if ((0 < marker) && ('}' === codefrag))
-                        {
-                            marker--;
-                            if (0 === marker) code += "\n_$$_.e(_$$_);";
-                        }
-                    }
+                    html2ast(tpl.slice(0, p1), state);
+                    codeMod(state, new VCode(tpl2code2(trim(tpl.slice(p1+3, p2)), opts)));
                     tpl = tpl.slice(p2+2);
                 }
             }
-            if (0 < marker) code += "\n_$$_.e(_$$_);";
+            code += "\nreturn " + to_code(getRoot(finState(state))) + ";";
         }
-        code += "\nreturn _$$_;";
         return newFunc(args, code);
     },
 
@@ -786,16 +841,42 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     '<use>':1,
     '<view>':1
     },
-    initVNode = function(nodeType, nodeValue, nodeValue2, parentNode, index) {
-        return {nodeType: nodeType, nodeValue: nodeValue || '', nodeValue2: nodeValue2 || '', parentNode: parentNode || null, index: index || 0, modified: null, mod: null, diff: null, changed: null, attributes: [], atts: {}, childNodes: [], componentNodes: 0};
+    VNode = function VNode(nodeType, nodeValue, nodeValue2, parentNode, index) {
+        var self = this;
+        if (!(self instanceof VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+        self.nodeType = nodeType || '';
+        self.nodeValue = nodeValue || '';
+        self.nodeValue2 = nodeValue2 || '';
+        self.parentNode = parentNode || null;
+        self.index = index || 0;
+        self.attributes = [];
+        self.atts = null;//{};
+        self.childNodes = [];
+        self.componentNodes = 0;
+        self.modified = null;
+        self.mod = null;
+        self.diff = null;
+        self.changed = null;
     },
-    initState = function(opts) {
+    initVNode = function(nodeType, nodeValue, nodeValue2, parentNode, index) {
+        return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+    },
+    VCode = function VCode(code) {
+        var self = this;
+        if (!(self instanceof VCode)) return new VCode(code);
+        self.code = code;
+        self.mod = -1;
+    },
+    initState = function(opts, nodeType) {
         return {
-            dom: {parentNode: null, modified: null, mod: null, diff: null, childNodes: [], componentNodes: 0},
+            dom: new VNode(nodeType || '', '', '', null, 0),
             opts: opts || {},
-            parse: html2ast,
+            /*parse: html2ast,
+            fin: function(state){return getRoot(finState(state))},
+            html: htmlNode,
             s: startMod,
             e: endMod,
+            c: codeMod,*/
             incomment: false,
             intag: false,
             inatt: false,
@@ -809,7 +890,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         };
     },
     finState = function(state) {
-        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
         {
             state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
         }
@@ -831,9 +912,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     ATTCHAR = TAGCHAR,
 
     attr = function(vnode, name) {
+        if (!vnode.atts)
+        {
+            vnode.atts = vnode.attributes.reduce(function(atts, a){
+                atts[a.name] = a.value;
+                return atts;
+            }, {});
+        }
         return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
     },
-    startMod = function(state) {
+    startMod = function(state, code) {
         if (state.dom)
         {
             if (!state.dom.modified) state.dom.modified = {atts: [], nodes: []};
@@ -845,6 +933,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         state.dom.modified.atts[state.dom.modified.atts.length-1].to = null; // extends previous modification
                     else
                         state.dom.modified.atts.push({from: state.dom.attributes.length-(state.inatt ? 1 : 0), to: null});
+                    if (code) code.mod = state.dom.modified.atts.length-1;
                 }
             }
             else
@@ -855,6 +944,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = null; // extends previous modification
                     else
                         state.dom.modified.nodes.push({from: state.dom.childNodes.length, to: null});
+                    if (code) code.mod = state.dom.modified.nodes.length-1;
                 }
             }
         }
@@ -903,7 +993,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if (state.dom.modified.nodes.length && (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
                 {
-                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length;
                     else
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length-1;
@@ -913,8 +1003,55 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return state;
     },
-    html2ast = function html2ast(view, html, state) {
-        var c = '', l = html.length, i = 0, j, t, dom, att, currdom, changed;
+    codeMod = function(state, code) {
+        var att;
+        if (state.dom)
+        {
+            if (state.intag)
+            {
+                if (state.inatt)
+                {
+                    att = state.dom.attributes[state.dom.attributes.length-1];
+                    if (state.val.length)
+                    {
+                        if (att.value instanceof VCode) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
+                        else att.value = state.val;
+                        state.val = '';
+                    }
+                    if (att.value instanceof VCode)
+                    {
+                        att.value.code = '('+att.value.code+')+('+code.code+')';
+                    }
+                    else if (is_type(att.value, T_STR))
+                    {
+                        code.code = toJSON(state.dom.attributes[state.dom.attributes.length-1].value)+'+('+code.code+')';
+                        state.dom.attributes[state.dom.attributes.length-1].value = code;
+                    }
+                    else
+                    {
+                        state.dom.attributes[state.dom.attributes.length-1].value = code;
+                    }
+                }
+                else
+                {
+                    state.dom.attributes.push(code);
+                }
+            }
+            else
+            {
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                {
+                    state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.txt = '';
+                    state.txt2 = '';
+                }
+                state.dom.childNodes.push(code);
+            }
+        }
+        return state;
+    },
+    html2ast = function html2ast(html, state, jscode) {
+        var c = '', l = html.length, i = 0, j, t, instr, esc, att;
         while (i<l)
         {
             if (state.inatt)
@@ -930,12 +1067,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (true === att.value)
                     {
                         att.value = state.val;
-                        state.dom.atts[att.name] = state.val;
+                        //state.dom.atts[att.name] = state.val;
+                    }
+                    else if (att.value instanceof VCode)
+                    {
+                        if (state.val.length) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
+                        //state.dom.atts[att.name] = att.value;
                     }
                     else
                     {
                         att.value += state.val;
-                        state.dom.atts[att.name] += state.val;
+                        //state.dom.atts[att.name] += state.val;
                     }
                     state.inatt = false;
                     state.q = '';
@@ -953,7 +1095,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (state.att.length)
                         {
                             state.dom.attributes.push({name: state.att, value: true});
-                            state.dom.atts[state.att] = true;
+                            //state.dom.atts[state.att] = true;
                             state.att = '';
                         }
                     }
@@ -966,26 +1108,89 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (state.att.length)
                         {
                             state.dom.attributes.push({name: state.att, value: true});
-                            state.dom.atts[state.att] = true;
+                            //state.dom.atts[state.att] = true;
                             state.att = '';
                         }
                         if (state.dom.attributes.length && (true === state.dom.attributes[state.dom.attributes.length-1].value))
                         {
                             i++;
                             while(i<l && SPACE.test(c=html.charAt(i))) i++;
-                            if ('"' === c || '\'' === c)
+                            if ((true === jscode) && ('{' === c))
+                            {
+                                i++; state.inatt = true; j = 1; instr = false; esc = false; state.q = ''; state.val = '';
+                                while(i<l)
+                                {
+                                    c = html.charAt(i++);
+                                    if (instr && ('\\' === c))
+                                    {
+                                        esc = !esc;
+                                        state.val += c;
+                                        continue;
+                                    }
+                                    else if ('"' === c || '\'' === c)
+                                    {
+                                        if (instr && !esc && (state.q === c))
+                                        {
+                                            instr = false;
+                                            state.q = '';
+                                        }
+                                        else if (!instr)
+                                        {
+                                            instr = true;
+                                            esc = false;
+                                            state.q = c;
+                                        }
+                                        state.val += c;
+                                    }
+                                    else if ('{' === c)
+                                    {
+                                        if (!instr) j++;
+                                        state.val += c;
+                                    }
+                                    else if ('}' === c)
+                                    {
+                                        if (!instr)
+                                        {
+                                            j--;
+                                            if (0 === j)
+                                            {
+                                                att = state.dom.attributes[state.dom.attributes.length-1];
+                                                att.value = new VCode(state.val);
+                                                state.inatt = false;
+                                                state.val = '';
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                state.val += c;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            state.val += c;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        state.val += c;
+                                    }
+                                    if (instr) esc = false;
+                                }
+                                break;
+                            }
+                            else if ('"' === c || '\'' === c)
                             {
                                 i++; state.inatt = true; state.q = c; state.val = '';
                                 break;
                             }
                             else
                             {
-                                throw err('Invalid attribute value "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                                throw err('Invalid attribute value "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                             }
                         }
                         else
                         {
-                            throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                            throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                         }
                     }
                     else if ('/' === c && '>' === html.charAt(i+1))
@@ -993,7 +1198,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                        throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                     }
                     i++;
                 }
@@ -1005,94 +1210,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (state.att.length)
                     {
                         state.dom.attributes.push({name: state.att, value: true});
-                        state.dom.atts[state.att] = true;
+                        //state.dom.atts[state.att] = true;
                         state.att = '';
                     }
                     if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags,state.dom.nodeType)))
                     {
                         // closed
-                        if ('<mv-component>' === state.dom.nodeType)
-                        {
-                            // special handling
-                            currdom = state.dom;
-                            dom = getRoot(finState(view.$component(attr(currdom, 'name'), attr(currdom, 'props'), initState(state.opts))));
-                            state.dom = currdom.parentNode;
-                            changed = !!attr(currdom, 'changed');
-                            state.dom.childNodes.splice.apply(state.dom.childNodes, [currdom.index, 1].concat(dom.childNodes.map(function(n){n.parentNode = state.dom; n.index += currdom.index; n.changed = changed; return n;})));
-                            state.dom.componentNodes += dom.childNodes.length;
-                            if (dom.modified && dom.modified.nodes)
-                            {
-                                if (!state.dom.modified)
-                                {
-                                    state.dom.modified = {atts:[], nodes:dom.modified.nodes.map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};})};
-                                }
-                                else if (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to)
-                                {
-                                    /* do nothing */
-                                }
-                                else if (state.dom.modified.nodes[state.dom.modified.nodes.length-1].to < currdom.index+dom.modified.nodes[0].from-1)
-                                {
-                                    state.dom.modified.nodes = state.dom.modified.nodes.concat(dom.modified.nodes.map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};}));
-                                }
-                                else
-                                {
-                                    state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = currdom.index+dom.modified.nodes[0].to;
-                                    state.dom.modified.nodes = state.dom.modified.nodes.concat(dom.modified.nodes.slice(1).map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};}));
-                                }
-                            }
-                            if (dom.mod)
-                            {
-                                if (!state.dom.mod)
-                                {
-                                    state.dom.mod = dom.mod.map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};});
-                                }
-                                else if (state.dom.mod[state.dom.mod.length-1].to < currdom.index+dom.mod[0].from-1)
-                                {
-                                    state.dom.mod = state.dom.mod.concat(dom.mod.map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};}));
-                                }
-                                else
-                                {
-                                    state.dom.mod[state.dom.mod.length-1].to = currdom.index+dom.mod[0].to;
-                                    state.dom.mod = state.dom.mod.concat(dom.mod.slice(1).map(function(m){return {from:currdom.index+m.from, to:currdom.index+m.to};}));
-                                }
-                                parentMod(state.dom);
-                            }
-                            if (changed)
-                            {
-                                if (!state.dom.diff)
-                                {
-                                    state.dom.diff = [[currdom.index, currdom.index+dom.childNodes.length-1]];
-                                }
-                                else if (state.dom.diff[state.dom.diff.length-1][1] < currdom.index-1)
-                                {
-                                    state.dom.diff.push([currdom.index, currdom.index+dom.childNodes.length-1]);
-                                }
-                                else
-                                {
-                                    state.dom.diff[state.dom.diff.length-1][1] = currdom.index+dom.childNodes.length-1;
-                                }
-                            }
-                            if (dom.diff)
-                            {
-                                if (!state.dom.diff)
-                                {
-                                    state.dom.diff = dom.diff.map(function(m){return [currdom.index+m[0], currdom.index+m[1]];});
-                                }
-                                else if (state.dom.diff[state.dom.diff.length-1][1] < currdom.index+dom.diff[0][0]-1)
-                                {
-                                    state.dom.diff = state.dom.diff.concat(dom.diff.map(function(m){return [currdom.index+m[0], currdom.index+m[1]];}));
-                                }
-                                else
-                                {
-                                    state.dom.diff[state.dom.diff.length-1][1] = currdom.index+dom.diff[0][1];
-                                    state.dom.diff = state.dom.diff.concat(dom.diff.slice(1).map(function(m){return [currdom.index+m[0], currdom.index+m[1]];}));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            state.dom = state.dom.parentNode;
-                        }
+                        state.dom = state.dom.parentNode;
                     }
                     i++;
                 }
@@ -1205,7 +1329,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 if (!state.tag.length)
                 {
-                    throw err('No tag name around .. '+html.slice(i-20,i+50)+' ..');
+                    throw err('No tag name around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                 }
                 state.tag = '<'+state.tag.toLowerCase()+'>';
                 if (state.closetag)
@@ -1217,7 +1341,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         if (state.dom.nodeType !== state.tag)
                         {
-                            throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(i-20,i+50)+' ..');
+                            throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                         }
                         else
                         {
@@ -1227,13 +1351,80 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(i-20,i+50)+' ..');
+                        throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                     }
                 }
                 else //if (!HAS.call(autoclosedTags,state.tag))
                 {
                     state.dom.childNodes.push(initVNode(state.tag, '', '', state.dom, state.dom.childNodes.length));
                     state.dom = state.dom.childNodes[state.dom.childNodes.length-1];
+                }
+                continue;
+            }
+            if ((true === jscode) && !state.incomment && ('{' === c))
+            {
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                {
+                    state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                }
+                state.txt = '';
+                state.txt2 = '';
+                j = 1; instr = false; esc = false; state.q = '';
+                while(i<l)
+                {
+                    c = html.charAt(i++);
+                    if (instr && ('\\' === c))
+                    {
+                        esc = !esc;
+                        state.txt += c;
+                        continue;
+                    }
+                    else if ('"' === c || '\'' === c)
+                    {
+                        if (instr && !esc && (state.q === c))
+                        {
+                            instr = false;
+                            state.q = '';
+                        }
+                        else if (!instr)
+                        {
+                            instr = true;
+                            esc = false;
+                            state.q = c;
+                        }
+                        state.txt += c;
+                    }
+                    else if ('{' === c)
+                    {
+                        if (!instr) j++;
+                        state.txt += c;
+                    }
+                    else if ('}' === c)
+                    {
+                        if (!instr)
+                        {
+                            j--;
+                            if (0 === j)
+                            {
+                                state.dom.childNodes.push(new VCode(state.txt));
+                                state.txt = '';
+                                break;
+                            }
+                            else
+                            {
+                                state.txt += c;
+                            }
+                        }
+                        else
+                        {
+                            state.txt += c;
+                        }
+                    }
+                    else
+                    {
+                        state.txt += c;
+                    }
+                    if (instr) esc = false;
                 }
                 continue;
             }
@@ -1282,12 +1473,190 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return state;
     },
-    nodeType = function(node) {
-        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : '<'+(node[TAG]||'').toLowerCase()+'>');
+    htmlNode = function(type, atts, children, value2, modified) {
+        var node = initVNode(type, '', '', null, 0), index = 0;
+        node.attributes = atts || [];
+        if (modified && modified.atts && modified.atts.length)
+        {
+            if (!node.modified) node.modified = {atts:[], nodes:[]};
+            node.modified.atts = modified.atts;
+        }
+        if ('text' === type || 'comment' === type)
+        {
+            node.nodeValue = children;
+            node.nodeValue2 = value2 || children;
+        }
+        else
+        {
+            children = children || [];
+            node.childNodes = children.reduce(function process(childNodes, n) {
+                if (!(n instanceof VNode))
+                {
+                    if (is_type(n, T_ARRAY))
+                    {
+                        var i = index, a = n.reduce(process, []);
+                        if (!node.modified) node.modified = {atts: [], nodes: []};
+                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
+                            node.modified.nodes.push({from:i, to:i+a.length-1});
+                        else
+                            node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
+                        return childNodes.concat(a);
+                    }
+                    else
+                    {
+                        var v = String(n);
+                        if ('' === v)
+                        {
+                            if (!node.modified) node.modified = {atts: [], nodes: []};
+                            if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                                node.modified.nodes.push({from:index, to:index-1});
+                            else
+                                node.modified.nodes[node.modified.nodes.length-1].to = index-1;
+                            return childNodes;
+                        }
+                        n = initVNode('text', v, v, null, 0);
+                        if (!node.modified) node.modified = {atts: [], nodes: []};
+                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                            node.modified.nodes.push({from:index, to:index});
+                        else
+                            node.modified.nodes[node.modified.nodes.length-1].to = index;
+                    }
+                }
+                else if ('<mv-component>' === n.nodeType)
+                {
+                    node.componentNodes += n.childNodes.length;
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                        node.modified.nodes.push({from:index, to:index+n.childNodes.length-1});
+                    else
+                        node.modified.nodes[node.modified.nodes.length-1].to = index+n.childNodes.length-1;
+                    if (n.changed)
+                    {
+                        if (!node.diff)
+                            node.diff = [[index, index+n.childNodes.length-1]];
+                        else if (node.diff[node.diff.length-1][1] < index-1)
+                            node.diff.push([index, index+n.childNodes.length-1]);
+                        else
+                            node.diff[node.diff.length-1][1] = index+n.childNodes.length-1;
+                    }
+                    if (n.diff)
+                    {
+                        if (!node.diff)
+                        {
+                            node.diff = n.diff.map(function(m){return [index+m[0], index+m[1]];});
+                        }
+                        else if (node.diff[node.diff.length-1][1] < index+n.diff[0][0]-1)
+                        {
+                            node.diff = node.diff.concat(n.diff.map(function(m){return [index+m[0], index+m[1]];}));
+                        }
+                        else
+                        {
+                            node.diff[node.diff.length-1][1] = index+n.diff[0][1];
+                            node.diff = node.diff.concat(n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
+                        }
+                    }
+                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                        nn.parentNode = node;
+                        nn.index = index++;
+                        nn.changed = n.changed;
+                        return nn;
+                    }));
+                }
+                else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
+                {
+                    var i = index, a = n.childNodes/*.reduce(process, [])*/.map(function(n){
+                        n.parentNode = node;
+                        n.index = index++;
+                        return n;
+                    });
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
+                        node.modified.nodes.push({from:i, to:i+a.length-1});
+                    else
+                        node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
+                    return childNodes.concat(a);
+                }
+                else if (!n.nodeType || !n.nodeType.length)
+                {
+                    if ((n.mod && n.mod.length) || (n.modified && (n.modified.atts.length || n.modified.nodes.length)))
+                    {
+                        if (!node.mod) node.mod = [];
+                        if (!node.mod.length || node.mod[node.mod.length-1].to < index-1)
+                            node.mod.push({from:index, to:index+n.childNodes.length-1});
+                        else
+                            node.mod[node.mod.length-1].to = index+n.childNodes.length-1;
+                    }
+                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(n){
+                        n.parentNode = node;
+                        n.index = index++;
+                        return n;
+                    }));
+                }
+                if ((n.mod && n.mod.length) || (n.modified && (n.modified.atts.length || n.modified.nodes.length)))
+                {
+                    if (!node.mod) node.mod = [];
+                    if (!node.mod.length || node.mod[node.mod.length-1].to < index-1)
+                        node.mod.push({from:index, to:index});
+                    else
+                        node.mod[node.mod.length-1].to = index;
+                }
+                n.parentNode = node;
+                n.index = index++;
+                childNodes.push(n);
+                return childNodes;
+            }, []);
+        }
+        return node;
+    },
+    to_code = function to_code(vnode) {
+        var out = '_$$_("", [], [])';
+        if (vnode instanceof VCode)
+        {
+            out = vnode.code;
+        }
+        else if (vnode.nodeType && vnode.nodeType.length)
+        {
+            if ('text' === vnode.nodeType)
+            {
+                out = '_$$_("text", [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
+            }
+            else if ('comment' === vnode.nodeType)
+            {
+                out = '_$$_("comment", [], '+toJSON(vnode.nodeValue)+', "")';
+            }
+            else
+            {
+                var modified = {atts: []};
+                out = '_$$_("'+vnode.nodeType+'", ['+vnode.attributes.map(function(a, i){
+                    if (a instanceof VCode)
+                    {
+                        if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
+                            modified.atts.push({from:i, to:i});
+                        else
+                            modified.atts[modified.atts.length-1].to = i;
+                        return a.code;
+                    }
+                    else if (a.value instanceof VCode)
+                    {
+                        if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
+                            modified.atts.push({from:i, to:i});
+                        else
+                            modified.atts[modified.atts.length-1].to = i;
+                        return '{name:"'+a.name+'",value:('+a.value.code+')}';
+                    }
+                    return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
+                }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, '+toJSON(modified)+')';
+            }
+        }
+        else if (vnode.childNodes.length)
+        {
+            out = '_$$_("", [], ['+vnode.childNodes.map(to_code).join(',')+'])';
+        }
+        return out;
     },
     to_string = function to_string(vnode) {
         var out = '', selfclosed = true;
-        if (vnode.nodeType)
+        if (vnode.nodeType && vnode.nodeType.length)
         {
             if ('text' === vnode.nodeType)
             {
@@ -1300,7 +1669,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             else
             {
                 selfclosed = HAS.call(autoclosedTags, vnode.nodeType);
-                out = vnode.nodeType.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.map(function(att) {return true === att.value ? att.name : att.name+'="'+att.value+'"';}).join(' ') : '')+(selfclosed ? '/>' : '>');
+                out = vnode.nodeType.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
+                    if (false !== att.value) atts.push(true === att.value ? att.name : att.name+'="'+att.value+'"');
+                    return atts;
+                }, []).join(' ') : '')+(selfclosed ? '/>' : '>');
                 if (!selfclosed) out += vnode.childNodes.map(to_string).join('')+'</'+vnode.nodeType.slice(1);
             }
         }
@@ -1329,6 +1701,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     a = vnode.attributes[i];
                     n = a.name; v = a.value;
+                    if (false === v) continue;
                     if ('id' === n || 'style' === n)
                     {
                         rnode[n] = v;
@@ -1349,17 +1722,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if ((true === with_meta) && vnode.modified && vnode.modified.nodes.length)
             {
-                rnode._mvModified = /*{atts: vnode.modified.atts, nodes:*/ vnode.modified.nodes/*, attributes: vnode.attributes}*/;
+                rnode._mvModified = vnode.modified.nodes;
             }
             if (vnode.childNodes.length)
             {
                 if ('<textarea>' === vnode.nodeType)
                 {
-                    rnode.innerHTML = vnode.childNodes[0].nodeValue;
+                    rnode.innerHTML = vnode.childNodes.map(to_string).join('');
                 }
                 else if ('<script>' === vnode.nodeType || '<style>' === vnode.nodeType)
                 {
-                    rnode.appendChild(document.createTextNode(vnode.childNodes[0].nodeValue));
+                    rnode.appendChild(document.createTextNode(vnode.childNodes.map(to_string).join('')));
                 }
                 else
                 {
@@ -1372,37 +1745,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return rnode;
     },
-    /*morphStyles = function(r, v) {
-        var vstyleMap = trim(attr(v,'style')).split(';').reduce(function(map, style) {
-                style = Str(style);
-                var col = style.indexOf(':');
-                if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
-                return map;
-            }, {}),
-            rstyleMap = /*e.style* /trim(e.style.cssText).split(';').reduce(function(map, style) {
-                style = Str(style);
-                var col = style.indexOf(':');
-                if (0 < col) map[trim(style.slice(0, col))] = trim(style.slice(col + 1));
-                return map;
-            }, {})
-        ;
-
-        Keys(rstyleMap)
-        .reduce(function(rem, s) {
-            if (!HAS.call(vstyleMap, s)) rem.push(s);
-            return rem;
-        }, [])
-        .forEach(function(s) {
-            r.style[s] = '';
-        });
-
-        Keys(vstyleMap)
-        .forEach(function(s){
-            var st = vstyleMap[s];
-            if (r.style[s] !== st)
-                r.style[s] = st;
-        });
-    },*/
     del_att = function(r, n, T, TT) {
         if ('id' === n)
         {
@@ -1449,7 +1791,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if ('style' === n)
         {
-            //morphStyles(r, v);
             r[n] = s;
         }
         else if ('selected' === n && 'OPTION' === T)
@@ -1468,12 +1809,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (r[n] !== s) r[n] = s;
         }
-        else //if (!r[HAS_ATTR](n) || (r[ATTR](n) !== ss))
+        else if (n in r)
         {
-            if (n in r) r[n] = s;
-            else r[SET_ATTR](n, true === s ? n : s);
+            if (T_NUM === get_type(r[n])) r[n] = parseFloat(s);
+            else r[n] = s;
+        }
+        else
+        {
+            r[SET_ATTR](n, true === s ? n : s);
         }
         return r;
+    },
+    nodeType = function(node) {
+        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : '<'+(node[TAG]||'').toLowerCase()+'>');
     },
     morphAtts = function morphAtts(r, v, with_meta, unconditionally) {
         var modifiedAttsPrev, modifiedAtts, T, TT, vAtts, prevAtts, rAtts,
@@ -1495,7 +1843,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (i=vAtts.length-1; i>=0; i--)
             {
                 a = vAtts[i];
-                set_att(r, a.name, a.value, T, TT);
+                if (false === a.value) del_att(r, a.name, T, TT);
+                else set_att(r, a.name, a.value, T, TT);
             }
             if ('OPTION' === T)
             {
@@ -1511,96 +1860,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 r.required = !!attr(v, 'required');
             }
         }
-        /*else if (v.modified && v.modified.atts.length)
-        {
-            T = (r[TAG] || '').toUpperCase();
-            TT = (r[TYPE] || '').toLowerCase();
-            modifiedAtts = v.modified.atts;
-            modifiedAttsPrev = r._mvModified ? r._mvModified.atts : [];
-            prevAtts = r._mvModified ? r._mvModified.attributes : [];
-            vAtts = v.attributes;
-            rAtts = r.attributes;
-            for (j=0; j<modifiedAtts.length; j++)
-            {
-                m = modifiedAtts[j];
-                i = m.from;
-                if (m.to < m.from)
-                {
-                    count = (modifiedAttsPrev[j].to - modifiedAttsPrev[j].from + 1);
-                    for (; 0 < count; count--)
-                    {
-                        a = prevAtts[modifiedAttsPrev[j].from+count-1];
-                        prevAtts.splice(modifiedAttsPrev[j].from+count-1, 1);
-                        del_att(r, a.name, T, TT);
-                    }
-                    continue;
-                }
-                else if (modifiedAttsPrev[j].to < modifiedAttsPrev[j].from)
-                {
-                    count = (m.to - m.from + 1);
-                    for (; 0 < count; count--,i++)
-                    {
-                        prevAtts.splice(modifiedAttsPrev[j].from, 0, vAtts[i]);
-                        set_att(r, vAtts[i].name, vAtts[i].value, T, TT);
-                    }
-                    continue;
-                }
-                else
-                {
-                    count = (modifiedAttsPrev[j].to - modifiedAttsPrev[j].from + 1) - (m.to - m.from + 1);
-                    for (; i<=m.to; i++)
-                    {
-                        av = vAtts[i];
-                        if (i > prevAtts.length)
-                        {
-                            prevAtts.push(av);
-                            set_att(r, av.name, av.value, T, TT);
-                            count++;
-                            continue;
-                        }
-                        ar = prevAtts[i];
-                        if (av.name !== ar.name) del_att(r, ar.name, T, TT);
-                        set_att(r, av.name, av.value, T, TT);
-                    }
-                    for (; 0 < count; count--)
-                    {
-                        del_att(r, prevAtts[modifiedAttsPrev[j].to-count-1].name, T, TT);
-                    }
-                }
-            }
-            if ('OPTION' === T)
-            {
-                r.selected = !!attr(v, 'selected');
-            }
-            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT))
-            {
-                r.checked = !!attr(v, 'checked');
-            }
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)
-            {
-                r.disabled = !!attr(v, 'disabled');
-                r.required = !!attr(v, 'required');
-            }
-        }*/
-        /*if (true === with_meta)
-        {
-            if (v.modified)
-                r._mvModified = {atts: v.modified.atts, nodes: v.modified.nodes, attributes: v.attributes};
-            else
-                r._mvModified = undef;
-        }*/
-
         return r;
     },
     morph = function morph(r, v, ID) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, mi, mci, di, m, mc, d, tt, index, c, cc,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,
-            modifiedNodesPrev = r._mvModified ? r._mvModified/*.nodes*/ : [],
+            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, val,
+            modifiedNodesPrev = r._mvModified ? r._mvModified : [],
             modifiedNodes = v.modified ? v.modified.nodes : [],
             modChildren = v.mod ? v.mod : [];
 
-        if (v.modified && v.modified.nodes.length) r._mvModified = /*{atts: v.modified.atts, nodes:*/ v.modified.nodes/*, attributes: v.attributes}*/;
+        if (v.modified && v.modified.nodes.length) r._mvModified = v.modified.nodes;
         else if (r._mvModified) r._mvModified = undef;
 
         if (!r.childNodes.length)
@@ -1693,8 +1963,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 {
                                     // morph attributes/properties
                                     morphAtts(rnode, vnode, true, true);
-                                    rnode.value = vnode.childNodes[0].nodeValue;
-                                    if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.childNodes[0].nodeValue;
+                                    val = vnode.childNodes.map(to_string).join('');
+                                    rnode.value = val;
+                                    if (rnode.firstChild) rnode.firstChild.nodeValue = val;
                                 }
                                 else
                                 {
@@ -1834,8 +2105,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             {
                                 // morph attributes/properties
                                 morphAtts(rnode, vnode, true, true);
-                                rnode.value = vnode.childNodes[0].nodeValue;
-                                if (rnode.firstChild) rnode.firstChild.nodeValue = vnode.childNodes[0].nodeValue;
+                                val = vnode.childNodes.map(to_string).join('');
+                                rnode.value = val;
+                                if (rnode.firstChild) rnode.firstChild.nodeValue = val;
                             }
                             else if (false !== vnode.changed)
                             {

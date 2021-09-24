@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ![ModelView](/modelview.jpg)
 
-**Version 2.1.1** (69 kB minified)
+**Version 3.0.0** (71 kB minified)
 
 
 **see also:**
@@ -30,6 +30,7 @@ It knows **where**, **when** and **what** needs to be rendered
 ### Contents
 
 * [Hello World](#hello-world)
+* [How it works](#how-it-works)
 * [Examples](#examples)
 * [Performance Notes](#performance-notes)
 * [JavaScript and Browser Support](#javascript-and-browser-support)
@@ -44,7 +45,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ```html
 <script id="content" type="text/x-template">
-    <b>Note:</b> Arbitrary JavaScript Code can be run inside &#123;% and %&#125; template placeholders
+    <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123;%= and %&#125; template placeholders
     <br /><br />
     <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
@@ -109,6 +110,27 @@ console.log(view.render());
 // output: <div title="Hello Server-Side Rendering">Hello Server-Side Rendering</div>
 ```
 
+
+#### How it works
+
+`ModelView` works with simple `HTML` (template) strings which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{%=` and `%}` template separators, which separate JavaScript expressions from static HTML code. `ModelView` understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it is able to have an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript, simply by tightly wrapping the HTML in parentheses (similar to `JSX`), ie `(<span>some text</span>)`. This is not the end of the story either, you can run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}`.
+
+For example, see all the above in action:
+
+```html
+<ul>{%=
+this.model().get('items').map(item => (li id={item.id}>{item.text}</li>))
+%}</ul>
+```
+
+HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed. Simple as that! So to dynamically remove attributes you simply make sure the code that is attached to that attribute evaluates to literally `false`.
+
+
+`ModelView` furthermore has built-in data `Models` which are available in each template via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the `View` instance). Model supports, custom getters and setters, typecasters, validators and notification functionality when data are changed. See manual and examples to understand how easy and powerful `Model` is.
+
+Take a look at the examples and manual to see how easy and intuitive is to make applications with `ModelView`.
+
+
 #### Examples
 
 * [Hello World](https://foo123.github.io/examples/modelview/)
@@ -120,18 +142,15 @@ console.log(view.render());
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for `ModelView 2.1.1` and some popular frameworks.
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for `ModelView 3.0.0` and some popular frameworks.
 
 ![Performance](/examples/perf.png)
 
 ![Memory](/examples/mem.png)
 
-It is shown that `ModelView 2.1.1` has decent performance in many cases (beating popular frameworks which work differently), while retaining a very low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although faster are in essense handcrafted to match the task and don't generalize).
+It is shown that `ModelView 3.0.0` has quite good performance in most cases (beating popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although faster are in essense handcrafted to match the task and don't generalize; not displayed in results).
 
-Some comments regarding benchmark results are in order:
-
-* First of all, `ModelView` is designed with the requirement that it should be as simple as possible and **it should work using simple string templates** (interspersed with arbitrary JavaScript code) to build **very general** components and applications with minimum hassle, instead of Virtual DOM abstractions and overhead (ie no babel, no jsx, no compilation, no dependencies) and morphs the **underlying real DOM to match the results**. This also **enables applications which manipulate the real DOM externally to `ModelView`** itself (at least in most cases).  These are requirements that are considered advantages.
-* Then, `ModelView` parses the generated string templates into an Abstract Syntax Tree/Virtual DOM structure and marks the points where dynamic changes were made and also the kind of changes that were made (eg node attributes change, nodes were added/removed). Thus it is able to morph only those parts which need to be changed. However, the overhead of parsing the string templates to construct the AST/VDOM is always there (eg in the benchmarks it has to parse the strings of 1,000 or 10,000 entries, although the parsing is very fast, it is still there), and that is why it lags behind in the above benchmarks in some cases. Not because its algorithms and data structures are inefficient nor because it manipulates the real DOM inefficiently.
+As is clear from previous versions, `ModelView` consistently improves performance, even dramatically, while maintaining high ease of use and generalizability. Until the next update..
 
 
 #### JavaScript and Browser Support

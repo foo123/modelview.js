@@ -36,7 +36,7 @@
 <script id="todo-component" type="text/x-template">
 <li mv-id="{%= props.uuid %}" id="{%= props.uuid %}" class="todo {%= props.completed ? 'completed' : '' %}">
     <div class="view">
-        <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" {%=props.completed ? 'checked' : ''%}/>
+        <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" checked="{%=props.completed%}"/>
         <label mv-evt mv-on-dblclick="edit">{%= props.title %}</label>
         <span class="time-added">{%= timeSince(props.time) %}</span>
         <button class="process" mv-evt mv-on-click="edit" title="Edit"></button>
@@ -53,15 +53,15 @@
 </header>
 
 <section id="main">
-<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" {%= this.model().get('todoList.allCompleted') ? 'checked' : '' %}/>
+<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" checked="{%=this.model().get('todoList.allCompleted')%}" />
 <label for="toggle-all">Mark all as complete</label>
 <ul id="todo-list" class="show-all">
-{%= this.model().get('todoList.display').map(todo => this.component('Todo', todo.uuid, {uuid:todo.uuid, title:todo.title, time:todo.time, completed:todo.completed})).join('') %}
+{%= this.model().get('todoList.display').map(todo => this.component('Todo', todo.uuid, {uuid:todo.uuid, title:todo.title, time:todo.time, completed:todo.completed})) %}
 </ul>
 </section>
 
 <footer id="footer">
-<span id="todo-count"><strong>{%= this.model().get('todoList.active') %}</strong> {%= 1 == this.model().get('todoList.active') ? 'item' : 'items' %} left</span>
+<span id="todo-count"><strong>{%= this.model().get('todoList.active') %}</strong>{%= 1 == this.model().get('todoList.active') ? ' item' : ' items' %} left</span>
 <ul id="filters">
     <li>
         <a id="all" href="#/all" class="tab{%='all'===this.model().get('displayMode')?' selected':''%}">All ({%= this.model().get('todoList.all') %})</a>
@@ -73,7 +73,7 @@
         <a id="completed" href="#/completed" class="tab{%='completed'===this.model().get('displayMode')?' selected':''%}">Completed ({%= this.model().get('todoList.completed') %})</a>
     </li>
 </ul>
-{% if (this.model().get('todoList.completed')){ %}<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>{% } %}
+{%= this.model().get('todoList.completed') ? (<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>) : '' %}
 </footer>
 </script>
 

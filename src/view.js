@@ -568,13 +568,13 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 
 [/DOC_MARKDOWN]**/
     ,component: function(name, id, props) {
-        var view = this, c, propsKey, prevProps, changed;
+        var view = this, out, c, propsKey, prevProps, changed;
         if (name && HAS.call(view.$components, name))
         {
             c = view.$components[name];
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'));
+                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'), true, {trim:true}, '<mv-component>');
             }
             if (c.out)
             {
@@ -591,36 +591,23 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                 if (prevProps && props && c.opts && c.opts.changed)
                     changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
                 view.$cache[propsKey] = [props, view.$cnt[name]];
-                return '<mv-component name="'+name+'" props="'+propsKey+'"'+(changed ? ' changed' : '')+'/>';
+                out = c.out.call(view, props, htmlNode);
+                out.changed = changed;
+                return out;
             }
         }
         return '';
-    }
-    ,$component: function(name, propsKey, state) {
-        var view = this, c, props;
-        if (name && HAS.call(view.$components, name))
-        {
-            c = view.$components[name];
-            if (c.out)
-            {
-                if (propsKey && HAS.call(view.$cache, propsKey))
-                {
-                    props = view.$cache[propsKey][0];
-                }
-                else
-                {
-                    props = undef;
-                }
-                return c.out.call(view, props, state);
-            }
-        }
-        return function(props, state) {return state;};
     }
 
     // can integrate with HtmlWidget
     ,widget: function(/*args*/) {
         var HtmlWidget = View.HtmlWidget;
-        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? HtmlWidget.widget.apply(HtmlWidget, arguments) : '';
+        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
+    }
+
+    // dynamically parse html string to html virtual dom
+    ,html: function(str) {
+        return getRoot(finState(html2ast(trim(str), initState({trim:true}, 'dynamic'))));
     }
 
 /**[DOC_MARKDOWN]
@@ -824,7 +811,7 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), 'text'===self.$livebind);
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true});
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
@@ -864,7 +851,7 @@ view.render( [Boolean immediate=false] );
             if (!self.$renderdom)
             {
                 self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
-                var vdom = getRoot(finState(self.$out.call(self, initState({trim:true}))));
+                var vdom = self.$out.call(self, htmlNode);
                 var out = to_string(vdom); // return the rendered string
                 vdom = null;
                 // notify any 3rd-party also if needed
@@ -873,7 +860,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                var vdom = getRoot(finState(self.$out.call(self, initState({trim:true}))));
+                var vdom = self.$out.call(self, htmlNode);
                 morph(self.$renderdom, vdom, self.attr('mv-id'));
                 vdom = null;
                 // notify any 3rd-party also if needed
