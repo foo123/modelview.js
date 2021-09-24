@@ -119,7 +119,7 @@ For example, see all the above in action:
 
 ```html
 <ul>{%=
-this.model().get('items').map(item => (li id={item.id}>{item.text}</li>))
+this.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
 %}</ul>
 ```
 
