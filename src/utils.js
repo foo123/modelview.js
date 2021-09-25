@@ -1951,7 +1951,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         count = 0;
                         lastnode = null;
                     }
-                    if (v.diff && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to) /*&& (0 === count)*/)
+                    if (v.diff && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to) && (0 >= count))
                     {
                         for (c=v.diff.length; (di<c) && (v.diff[di][1]<=m.to); di++)
                         {
@@ -1962,6 +1962,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (index >= r.childNodes.length)
                                 {
                                     r.appendChild(to_node(vnode, true));
+                                    if (0 > count) count++;
                                     continue;
                                 }
                                 rnode = r.childNodes[index];
@@ -1996,7 +1997,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                 r.insertBefore(to_node(vnode, true), rnode);
                                                 count++;
                                             }
-                                            else
+                                            /*else
                                             {
                                                 for (; 0 < count; )
                                                 {
@@ -2030,7 +2031,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                         morph(rnode, vnode, ID);
                                                     }
                                                 }
-                                            }
+                                            }*/
                                         }
                                     }
                                     else
@@ -2048,7 +2049,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             morph(rnode, vnode, ID);
                                         }
                                     }
-                                    if ((0 < count) && (index === tt))
+                                    /*if ((0 < count) && (index === tt))
                                     {
                                         // finally remove any remaining nodes that need to be removed and haven't been already
                                         lastnode = r.childNodes[index+1];
@@ -2065,7 +2066,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             }
                                             r.removeChild(to_remove);
                                         }
-                                    }
+                                    }*/
                                 }
                                 else if ('<textarea>' === T1)
                                 {
