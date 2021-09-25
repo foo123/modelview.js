@@ -621,7 +621,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 else out += c;
                 continue;
             }
-            else if ('"' === c || '\'' === c)
+            else if ('"' === c || '\'' === c || '`' === c)
             {
                 if (!instr)
                 {
@@ -921,7 +921,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
     },
-    startMod = function(state, code) {
+    /*startMod = function(state, code) {
         if (state.dom)
         {
             if (!state.dom.modified) state.dom.modified = {atts: [], nodes: []};
@@ -1002,7 +1002,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         }
         return state;
-    },
+    },*/
     codeMod = function(state, code) {
         var att;
         if (state.dom)
@@ -1127,7 +1127,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         state.val += c;
                                         continue;
                                     }
-                                    else if ('"' === c || '\'' === c)
+                                    else if ('"' === c || '\'' === c || '`' === c)
                                     {
                                         if (instr && !esc && (state.q === c))
                                         {
@@ -1213,7 +1213,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         //state.dom.atts[state.att] = true;
                         state.att = '';
                     }
-                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags,state.dom.nodeType)))
+                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.nodeType)))
                     {
                         // closed
                         state.dom = state.dom.parentNode;
@@ -1379,7 +1379,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         state.txt += c;
                         continue;
                     }
-                    else if ('"' === c || '\'' === c)
+                    else if ('"' === c || '\'' === c || '`' === c)
                     {
                         if (instr && !esc && (state.q === c))
                         {
@@ -1578,13 +1578,31 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if (!n.nodeType || !n.nodeType.length)
                 {
-                    if ((n.mod && n.mod.length) || (n.modified && (n.modified.atts.length || n.modified.nodes.length)))
+                    if (n.mod && n.mod.length)
                     {
                         if (!node.mod) node.mod = [];
-                        if (!node.mod.length || node.mod[node.mod.length-1].to < index-1)
-                            node.mod.push({from:index, to:index+n.childNodes.length-1});
+                        if (!node.mod.length || node.mod[node.mod.length-1].to < index+n.mod[0].from-1)
+                        {
+                            node.mod = node.mod.concat(n.mod.map(function(m){return {from:index+m.from, to:index+m.to};}));
+                        }
                         else
-                            node.mod[node.mod.length-1].to = index+n.childNodes.length-1;
+                        {
+                            node.mod[node.mod.length-1].to = index+n.mod[0].to;
+                            node.mod = nod.mod.concat(n.mod.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
+                        }
+                    }
+                    if (n.modified && n.modified.nodes.length)
+                    {
+                        if (!node.modified) node.modified = {atts:[], nodes:[]};
+                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index+n.modified.nodes[0].from-1)
+                        {
+                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.map(function(m){return {from:index+m.from, to:index+m.to};}));
+                        }
+                        else
+                        {
+                            node.modified.nodes[node.modified.nodes.length-1].to = index+n.modified.nodes[0].to;
+                            node.modified.nodes = nod.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
+                        }
                     }
                     return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(n){
                         n.parentNode = node;
@@ -1622,7 +1640,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else if ('comment' === vnode.nodeType)
             {
-                out = '_$$_("comment", [], '+toJSON(vnode.nodeValue)+', "")';
+                out = '_$$_("comment", [], '+toJSON(vnode.nodeValue)+')';
             }
             else
             {
@@ -1712,7 +1730,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if (n in rnode)
                     {
-                        rnode[n] = v;
+                        if (T_NUM === get_type(rnode[n])) rnode[n] = parseFloat(v);
+                        else rnode[n] = v;
                     }
                     else
                     {
@@ -1882,7 +1901,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (modifiedNodes.length)
         {
-            for (mci=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
+            for (di=0,mci=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
             {
                 m = modifiedNodes[mi];
                 while (mci < modChildren.length && modChildren[mci].from < m.from)
@@ -1932,9 +1951,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         count = 0;
                         lastnode = null;
                     }
-                    if (v.diff && (v.componentNodes === v.childNodes.length) && (0 === count))
+                    if (v.diff && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to) /*&& (0 === count)*/)
                     {
-                        for (di=0,c=v.diff.length; di<c; di++)
+                        for (c=v.diff.length; (di<c) && (v.diff[di][1]<=m.to); di++)
                         {
                             d = v.diff[di];
                             for (index=d[0],tt=d[1]; index<=tt; index++)
@@ -1954,10 +1973,99 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     (T2 !== T1)
                                     || ('<script>' === T1 || '<style>' === T1)
                                     || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                    || ((vid || rid) && (vid !== rid))
+                                    || ((0 === count) && (vid || rid) && (vid !== rid))
                                 )
                                 {
                                     r.replaceChild(to_node(vnode, true), rnode);
+                                }
+                                else if (0 !== count)
+                                {
+                                    if (vid && rid)
+                                    {
+                                        if (vid === rid)
+                                        {
+                                            // morph attributes/properties
+                                            morphAtts(rnode, vnode);
+                                            // morph children
+                                            morph(rnode, vnode, ID);
+                                        }
+                                        else
+                                        {
+                                            if (0 > count)
+                                            {
+                                                r.insertBefore(to_node(vnode, true), rnode);
+                                                count++;
+                                            }
+                                            else
+                                            {
+                                                for (; 0 < count; )
+                                                {
+                                                    r.removeChild(rnode); count--;
+                                                    if (index >= r.childNodes.length) break;
+                                                    rnode = r.childNodes[index];
+                                                    if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
+                                                }
+                                                if (index >= r.childNodes.length)
+                                                {
+                                                    r.appendChild(to_node(vnode, true));
+                                                }
+                                                else
+                                                {
+                                                    T1 = nodeType(rnode);
+                                                    rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
+                                                    if (
+                                                        (T2 !== T1)
+                                                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                                        || (!rid)
+                                                        || (rid !== vid)
+                                                    )
+                                                    {
+                                                        r.replaceChild(to_node(vnode, true), rnode);
+                                                    }
+                                                    else
+                                                    {
+                                                        // morph attributes/properties
+                                                        morphAtts(rnode, vnode);
+                                                        // morph children
+                                                        morph(rnode, vnode, ID);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (0 > count)
+                                        {
+                                            r.insertBefore(to_node(vnode, true), rnode);
+                                            count++;
+                                        }
+                                        else
+                                        {
+                                            // morph attributes/properties
+                                            morphAtts(rnode, vnode, false, true);
+                                            // morph children
+                                            morph(rnode, vnode, ID);
+                                        }
+                                    }
+                                    if ((0 < count) && (index === tt))
+                                    {
+                                        // finally remove any remaining nodes that need to be removed and haven't been already
+                                        lastnode = r.childNodes[index+1];
+                                        for (; (0 < count) && lastnode; count--)
+                                        {
+                                            if (1 === count)
+                                            {
+                                                to_remove = lastnode;
+                                            }
+                                            else
+                                            {
+                                                to_remove = lastnode;
+                                                lastnode = lastnode.nextSibling;
+                                            }
+                                            r.removeChild(to_remove);
+                                        }
+                                    }
                                 }
                                 else if ('<textarea>' === T1)
                                 {

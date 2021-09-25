@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.0.0** (71 kB minified)
+**Version 3.0.0** (72 kB minified)
 
 
 **see also:**
@@ -113,7 +113,7 @@ console.log(view.render());
 
 #### How it works
 
-`ModelView` works with simple `HTML` (template) strings which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{%=` and `%}` template separators, which separate JavaScript expressions from static HTML code. `ModelView` understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it is able to have an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript, simply by tightly wrapping the HTML in parentheses (similar to `JSX`), ie `(<span>some text</span>)`. This is not the end of the story either, you can run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}`.
+`ModelView` works with simple `HTML` strings which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{%=` and `%}` template separators, which separate JavaScript expressions from static HTML code. `ModelView` understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it is able to have an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript, simply by tightly wrapping the HTML in parentheses (similar to `JSX`), ie `(<span>some text</span>)`. This is not the end of the story either, you can run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}`.
 
 For example, see all the above in action:
 
@@ -148,7 +148,7 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
-It is shown that `ModelView 3.0.0` has quite good performance in most cases (beating popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although faster are in essense handcrafted to match the task and don't generalize; not displayed in results).
+It is shown that `ModelView 3.0.0` has quite good performance in most cases (beating popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, `ModelView` consistently improves performance, even dramatically, while maintaining high ease of use and generalizability. Until the next update..
 

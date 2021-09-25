@@ -639,7 +639,7 @@ MyComponent.dispose(); // dispose
 
 ```html
 <script id="content" type="text/x-template">
-    <b>Note:</b> Arbitrary JavaScript Code can be run inside &#123;% and %&#125; template placeholders
+    <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123;%= and %&#125; template placeholders
     <br /><br />
     <b>Hello {%= this.model().get('msg') %}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
