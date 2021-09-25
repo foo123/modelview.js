@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-24 20:46:30
+*   @built on 2021-09-25 11:09:39
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-24 20:46:30
+*   @built on 2021-09-25 11:09:39
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -942,7 +942,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         };
     },
     finState = function(state) {
-        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
         {
             state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
         }
@@ -1045,7 +1045,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if (state.dom.modified.nodes.length && (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
                 {
-                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length;
                     else
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length-1;
@@ -1091,7 +1091,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                     state.txt = '';
@@ -1346,7 +1346,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         continue;
                     }
                 }
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }
@@ -1415,7 +1415,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if ((true === jscode) && !state.incomment && ('{' === c))
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }

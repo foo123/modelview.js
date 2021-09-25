@@ -890,7 +890,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         };
     },
     finState = function(state) {
-        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
         {
             state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
         }
@@ -993,7 +993,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if (state.dom.modified.nodes.length && (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
                 {
-                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length;
                     else
                         state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length-1;
@@ -1039,7 +1039,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                     state.txt = '';
@@ -1294,7 +1294,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         continue;
                     }
                 }
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }
@@ -1363,7 +1363,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if ((true === jscode) && !state.incomment && ('{' === c))
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt2).length))
+                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
                     state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }
