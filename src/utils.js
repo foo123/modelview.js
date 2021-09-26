@@ -594,6 +594,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false;
     },
 
+    /*insert_after = function(node, refNode) {
+        if (refNode.nextSibling) refNode.parentNode.insertBefore(node, refNode.nextSibling);
+        else refNode.parentNode.appendChild(node);
+    },*/
+
     debounce = function(callback, instance) {
         if ('undefined' !== typeof window && window.requestAnimationFrame)
         {
@@ -609,105 +614,30 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
 
-    tpl2code2 = function tpl2code2(tpl, opts) {
-        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, injsx = false, instr = false, esc = false, q = '', c = '';
-        while (i<l)
-        {
-            c = tpl.charAt(i++);
-            if (instr && ('\\' === c))
-            {
-                esc = !esc;
-                if (injsx) jsx += c;
-                else out += c;
-                continue;
-            }
-            else if ('"' === c || '\'' === c || '`' === c)
-            {
-                if (!instr)
-                {
-                    instr = true;
-                    esc = false;
-                    q = c;
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-                else if (!esc && (q === c))
-                {
-                    instr = false;
-                    q = '';
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-                else
-                {
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-            }
-            else if (!instr && injsx && (')' === c))
-            {
-                j--;
-                if (0 === j)
-                {
-                    injsx = false;
-                    out += to_code(getRoot(finState(html2ast(trim(jsx), initState(opts, 'jsx'), true))));
-                }
-                else
-                {
-                    jsx += c;
-                }
-            }
-            else if (!instr && ('(' === c))
-            {
-                if (injsx)
-                {
-                    j++;
-                    jsx += c;
-                }
-                else if ('<' === tpl.charAt(i))
-                {
-                    injsx = true;
-                    jsx = '';
-                    j = 1;
-                }
-                else
-                {
-                    out += c;
-                }
-            }
-            else
-            {
-                if (injsx) jsx += c;
-                else out += c;
-            }
-            if (instr) esc = false;
-        }
-        return out;
-    },
     tpl2code = function tpl2code(tpl, args, scoped, type, opts, rootNodeType) {
         var p1, p2, c, code = '"use strict";'+"\n"+'var view = this;', state;
-        tpl = trim(tpl);
         if ('text' === type)
         {
+            tpl = trim(tpl);
             args = 'MODEL';
-            code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{%='+String(key)+'%}';};";
+            code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{'+String(key)+'}';};";
             while (tpl && tpl.length)
             {
-                p1 = tpl.indexOf('{%=');
+                p1 = tpl.indexOf('{');
                 if (-1 === p1)
                 {
                     code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
                     break;
                 }
-                p2 = tpl.indexOf('%}', p1+3);
+                p2 = tpl.indexOf('}', p1+1);
                 if (-1 === p2)
                 {
                     code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
                     break;
                 }
                 code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+3, p2))+'\'));';
-                tpl = tpl.slice(p2+2);
+                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+1, p2))+'\'));';
+                tpl = tpl.slice(p2+1);
             }
             code += "\nreturn _$$_;";
         }
@@ -715,30 +645,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             args = (args || '') + '_$$_';
             if (scoped && scoped.length) code += "\n" + Str(scoped);
-            state = initState(opts, rootNodeType || '');
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('{%=');
-                if (-1 === p1)
-                {
-                    html2ast(tpl, state);
-                    break;
-                }
-                else
-                {
-                    p2 = tpl.indexOf('%}', p1+3);
-                    if (-1 === p2)
-                    {
-                        html2ast(tpl, state);
-                        break;
-                    }
-
-                    html2ast(tpl.slice(0, p1), state);
-                    codeMod(state, new VCode(tpl2code2(trim(tpl.slice(p1+3, p2)), opts)));
-                    tpl = tpl.slice(p2+2);
-                }
-            }
-            code += "\nreturn " + to_code(getRoot(finState(state))) + ";";
+            code += "\nreturn " + to_code(parse(tpl, opts, rootNodeType || '', true)) + ";";
         }
         return newFunc(args, code);
     },
@@ -849,6 +756,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.nodeValue2 = nodeValue2 || '';
         self.parentNode = parentNode || null;
         self.index = index || 0;
+        self.id = null;
         self.attributes = [];
         self.atts = null;//{};
         self.childNodes = [];
@@ -871,12 +779,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return {
             dom: new VNode(nodeType || '', '', '', null, 0),
             opts: opts || {},
-            /*parse: html2ast,
-            fin: function(state){return getRoot(finState(state))},
-            html: htmlNode,
-            s: startMod,
-            e: endMod,
-            c: codeMod,*/
             incomment: false,
             intag: false,
             inatt: false,
@@ -904,6 +806,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         //while (state.dom && state.dom.parentNode) state.dom = state.dom.parentNode;
         return state.dom;
     },
+    parse = function(str, opts, rootNode, withJsCode) {
+        return getRoot(finState(html2ast(trim(str), initState(opts, rootNode || ''), true === withJsCode)));
+    },
 
     SPACE = /\s/,
     NUM = /^\d+$/,
@@ -921,134 +826,81 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
     },
-    /*startMod = function(state, code) {
-        if (state.dom)
+    jsx2code = function jsx2code(tpl, opts) {
+        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, injsx = false, instr = false, esc = false, q = '', c = '';
+        while (i<l)
         {
-            if (!state.dom.modified) state.dom.modified = {atts: [], nodes: []};
-            if (state.intag)
+            c = tpl.charAt(i++);
+            if (instr && ('\\' === c))
             {
-                if (!state.dom.modified.atts.length || (null !== state.dom.modified.atts[state.dom.modified.atts.length-1].to))
-                {
-                    if (state.dom.modified.atts.length && (state.dom.attributes.length-1 <= state.dom.modified.atts[state.dom.modified.atts.length-1].to))
-                        state.dom.modified.atts[state.dom.modified.atts.length-1].to = null; // extends previous modification
-                    else
-                        state.dom.modified.atts.push({from: state.dom.attributes.length-(state.inatt ? 1 : 0), to: null});
-                    if (code) code.mod = state.dom.modified.atts.length-1;
-                }
+                esc = !esc;
+                if (injsx) jsx += c;
+                else out += c;
+                continue;
             }
-            else
+            else if ('"' === c || '\'' === c || '`' === c)
             {
-                if (!state.dom.modified.nodes.length || (null !== state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
+                if (!instr)
                 {
-                    if (state.dom.modified.nodes.length && (state.dom.childNodes.length-1 <= state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
-                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = null; // extends previous modification
-                    else
-                        state.dom.modified.nodes.push({from: state.dom.childNodes.length, to: null});
-                    if (code) code.mod = state.dom.modified.nodes.length-1;
+                    instr = true;
+                    esc = false;
+                    q = c;
+                    if (injsx) jsx += c;
+                    else out += c;
                 }
-            }
-        }
-        return state;
-    },
-    parentMod = function parentMod(node) {
-        if (node && node.parentNode)
-        {
-            var index = node.index || 0, parent = node.parentNode, to;
-            if (!parent.mod) parent.mod = [];
-            if (!parent.mod.length)
-            {
-                parent.mod.push({from:index, to:index});
-            }
-            else
-            {
-                to = parent.mod[parent.mod.length-1].to;
-                if (index <= to)
+                else if (!esc && (q === c))
                 {
-                    // do nothing
-                }
-                else if (index-1 === to)
-                {
-                    parent.mod[parent.mod.length-1].to = index; // continue
+                    instr = false;
+                    q = '';
+                    if (injsx) jsx += c;
+                    else out += c;
                 }
                 else
                 {
-                    parent.mod.push({from:index, to:index});
+                    if (injsx) jsx += c;
+                    else out += c;
                 }
             }
-            parentMod(parent);
-        }
-    },
-    endMod = function(state) {
-        if (state.dom && state.dom.modified)
-        {
-            if (state.intag)
+            else if (!instr && injsx && (')' === c))
             {
-                if (state.dom.modified.atts.length && (null === state.dom.modified.atts[state.dom.modified.atts.length-1].to))
+                j--;
+                if (0 === j)
                 {
-                    state.dom.modified.atts[state.dom.modified.atts.length-1].to = state.dom.attributes.length-1;
-                    parentMod(state.dom);
-                }
-            }
-            else
-            {
-                if (state.dom.modified.nodes.length && (null === state.dom.modified.nodes[state.dom.modified.nodes.length-1].to))
-                {
-                    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
-                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length;
-                    else
-                        state.dom.modified.nodes[state.dom.modified.nodes.length-1].to = state.dom.childNodes.length-1;
-                    parentMod(state.dom);
-                }
-            }
-        }
-        return state;
-    },*/
-    codeMod = function(state, code) {
-        var att;
-        if (state.dom)
-        {
-            if (state.intag)
-            {
-                if (state.inatt)
-                {
-                    att = state.dom.attributes[state.dom.attributes.length-1];
-                    if (state.val.length)
-                    {
-                        if (att.value instanceof VCode) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
-                        else att.value = state.val;
-                        state.val = '';
-                    }
-                    if (att.value instanceof VCode)
-                    {
-                        att.value.code = '('+att.value.code+')+('+code.code+')';
-                    }
-                    else if (is_type(att.value, T_STR))
-                    {
-                        code.code = toJSON(state.dom.attributes[state.dom.attributes.length-1].value)+'+('+code.code+')';
-                        state.dom.attributes[state.dom.attributes.length-1].value = code;
-                    }
-                    else
-                    {
-                        state.dom.attributes[state.dom.attributes.length-1].value = code;
-                    }
+                    injsx = false;
+                    out += to_code(parse(jsx, opts, 'jsx', true));
+                    jsx = '';
                 }
                 else
                 {
-                    state.dom.attributes.push(code);
+                    jsx += c;
+                }
+            }
+            else if (!instr && ('(' === c))
+            {
+                if (injsx)
+                {
+                    j++;
+                    jsx += c;
+                }
+                else if ('<' === tpl.charAt(i))
+                {
+                    injsx = true;
+                    jsx = '';
+                    j = 1;
+                }
+                else
+                {
+                    out += c;
                 }
             }
             else
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
-                {
-                    state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                    state.txt = '';
-                    state.txt2 = '';
-                }
-                state.dom.childNodes.push(code);
+                if (injsx) jsx += c;
+                else out += c;
             }
+            if (instr) esc = false;
         }
-        return state;
+        return out;
     },
     html2ast = function html2ast(html, state, jscode) {
         var c = '', l = html.length, i = 0, j, t, instr, esc, att;
@@ -1079,6 +931,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value += state.val;
                         //state.dom.atts[att.name] += state.val;
                     }
+                    if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? 'String('+att.value.code+')' : toJSON(att.value);
                     state.inatt = false;
                     state.q = '';
                     state.val = '';
@@ -1156,6 +1009,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             {
                                                 att = state.dom.attributes[state.dom.attributes.length-1];
                                                 att.value = new VCode(state.val);
+                                                if (state.opts.id === att.name) state.dom.id = 'String('+att.value.code+')';
                                                 state.inatt = false;
                                                 state.val = '';
                                                 break;
@@ -1406,7 +1260,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             j--;
                             if (0 === j)
                             {
-                                state.dom.childNodes.push(new VCode(state.txt));
+                                state.dom.childNodes.push(new VCode(jsx2code(state.txt, state.opts)));
                                 state.txt = '';
                                 break;
                             }
@@ -1473,8 +1327,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return state;
     },
-    htmlNode = function(type, atts, children, value2, modified) {
+    htmlNode = function(type, id, atts, children, value2, modified) {
         var node = initVNode(type, '', '', null, 0), index = 0;
+        node.id = id || null;
         node.attributes = atts || [];
         if (modified && modified.atts && modified.atts.length)
         {
@@ -1627,7 +1482,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node;
     },
     to_code = function to_code(vnode) {
-        var out = '_$$_("", [], [])';
+        var out = '_$$_("", null, [], [])';
         if (vnode instanceof VCode)
         {
             out = vnode.code;
@@ -1636,16 +1491,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if ('text' === vnode.nodeType)
             {
-                out = '_$$_("text", [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
+                out = '_$$_("text", null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
             }
             else if ('comment' === vnode.nodeType)
             {
-                out = '_$$_("comment", [], '+toJSON(vnode.nodeValue)+')';
+                out = '_$$_("comment", null, [], '+toJSON(vnode.nodeValue)+')';
             }
             else
             {
                 var modified = {atts: []};
-                out = '_$$_("'+vnode.nodeType+'", ['+vnode.attributes.map(function(a, i){
+                out = '_$$_("'+vnode.nodeType+'", '+Str(vnode.id)+', ['+vnode.attributes.map(function(a, i){
                     if (a instanceof VCode)
                     {
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
@@ -1668,7 +1523,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (vnode.childNodes.length)
         {
-            out = '_$$_("", [], ['+vnode.childNodes.map(to_code).join(',')+'])';
+            out = '_$$_("", null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
         }
         return out;
     },
@@ -1735,7 +1590,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        rnode[SET_ATTR](n, true === v ? n : v);
+                        rnode[SET_ATTR](n, Str(true === v ? n : v));
                     }
                 }
             }
@@ -1835,7 +1690,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else
         {
-            r[SET_ATTR](n, true === s ? n : s);
+            r[SET_ATTR](n, Str(true === s ? n : s));
         }
         return r;
     },
@@ -1968,7 +1823,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 rnode = r.childNodes[index];
                                 T2 = vnode.nodeType;
                                 T1 = nodeType(rnode);
-                                vid = attr(vnode,ID);
+                                vid = vnode.id;//attr(vnode,ID);
                                 rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
                                 if (
                                     (T2 !== T1)
@@ -1979,7 +1834,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 {
                                     r.replaceChild(to_node(vnode, true), rnode);
                                 }
-                                else if (0 !== count)
+                                else if (0 > count)
                                 {
                                     if (vid && rid)
                                     {
@@ -1992,46 +1847,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         }
                                         else
                                         {
-                                            if (0 > count)
-                                            {
-                                                r.insertBefore(to_node(vnode, true), rnode);
-                                                count++;
-                                            }
-                                            /*else
-                                            {
-                                                for (; 0 < count; )
-                                                {
-                                                    r.removeChild(rnode); count--;
-                                                    if (index >= r.childNodes.length) break;
-                                                    rnode = r.childNodes[index];
-                                                    if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
-                                                }
-                                                if (index >= r.childNodes.length)
-                                                {
-                                                    r.appendChild(to_node(vnode, true));
-                                                }
-                                                else
-                                                {
-                                                    T1 = nodeType(rnode);
-                                                    rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
-                                                    if (
-                                                        (T2 !== T1)
-                                                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                                        || (!rid)
-                                                        || (rid !== vid)
-                                                    )
-                                                    {
-                                                        r.replaceChild(to_node(vnode, true), rnode);
-                                                    }
-                                                    else
-                                                    {
-                                                        // morph attributes/properties
-                                                        morphAtts(rnode, vnode);
-                                                        // morph children
-                                                        morph(rnode, vnode, ID);
-                                                    }
-                                                }
-                                            }*/
+                                            r.insertBefore(to_node(vnode, true), rnode);
+                                            count++;
                                         }
                                     }
                                     else
@@ -2049,24 +1866,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             morph(rnode, vnode, ID);
                                         }
                                     }
-                                    /*if ((0 < count) && (index === tt))
-                                    {
-                                        // finally remove any remaining nodes that need to be removed and haven't been already
-                                        lastnode = r.childNodes[index+1];
-                                        for (; (0 < count) && lastnode; count--)
-                                        {
-                                            if (1 === count)
-                                            {
-                                                to_remove = lastnode;
-                                            }
-                                            else
-                                            {
-                                                to_remove = lastnode;
-                                                lastnode = lastnode.nextSibling;
-                                            }
-                                            r.removeChild(to_remove);
-                                        }
-                                    }*/
                                 }
                                 else if ('<textarea>' === T1)
                                 {
@@ -2099,7 +1898,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             rnode = r.childNodes[index];
                             T2 = vnode.nodeType;
                             T1 = nodeType(rnode);
-                            vid = attr(vnode,ID);
+                            vid = vnode.id;//attr(vnode,ID);
                             rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
 
                             if (
@@ -2407,7 +2206,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             });
         }
     },
-    placeholder_re = /\{%=([^%]+)%\}/,
+    placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     get_placeholders = function get_placeholders(node, map) {
         var m, k, t, s;
         if (node)

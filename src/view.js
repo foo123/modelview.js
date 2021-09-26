@@ -574,7 +574,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
             c = view.$components[name];
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'), true, {trim:true}, '<mv-component>');
+                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
             }
             if (c.out)
             {
@@ -607,7 +607,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 
     // dynamically parse html string to html virtual dom
     ,html: function(str) {
-        return getRoot(finState(html2ast(trim(str), initState({trim:true}, 'dynamic'))));
+        return parse(str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
     }
 
 /**[DOC_MARKDOWN]
@@ -811,7 +811,7 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true});
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
@@ -826,7 +826,7 @@ view.render( [Boolean immediate=false] );
             {
                 if (!self.$map)
                 {
-                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{%=' + Str(key) + '%}';});
+                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{'+Str(key)+'}';});
                     self.add(self.$renderdom);
                 }
                 callback = function() {

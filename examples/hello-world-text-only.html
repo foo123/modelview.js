@@ -21,12 +21,12 @@
 
 <div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
 <script id="content" type="text/x-template">
-    <b>Note:</b> Model Data keys are defined inside &#123;% and %&#125; template placeholders
+    <b>Note:</b> Model Data keys are defined inside &#123; and &#125; template placeholders
     <br /><br />
-    <b>Hello {%= msg %}</b> &nbsp;&nbsp;(updated live on <i>keyup</i>)
+    <b>Hello {msg}</b> &nbsp;&nbsp;(updated live on <i>keyup</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" mv-evt mv-on-keyup="update" />
-    <button class="button" title="{%= msg %}" mv-evt mv-on-click="alert">Hello</button>
+    <button class="button" title="{msg}" mv-evt mv-on-click="alert">Hello</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
 </script>
 <div id="app"></div>
