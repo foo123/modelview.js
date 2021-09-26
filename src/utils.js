@@ -594,10 +594,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false;
     },
 
-    /*insert_after = function(node, refNode) {
-        if (refNode.nextSibling) refNode.parentNode.insertBefore(node, refNode.nextSibling);
-        else refNode.parentNode.appendChild(node);
-    },*/
+    insert_after = function(node, refNode, parentNode) {
+        parentNode = parentNode || refNode.parentNode;
+        if (refNode && parentNode)
+        {
+            if (refNode.nextSibling) parentNode.insertBefore(node, refNode.nextSibling);
+            else parentNode.appendChild(node);
+        }
+    },
 
     debounce = function(callback, instance) {
         if ('undefined' !== typeof window && window.requestAnimationFrame)
@@ -1858,9 +1862,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     }
                                     else
                                     {
-                                        if (0 > count)
+                                        if ((0 > count) && (index === m.to+count))
                                         {
-                                            r.insertBefore(to_node(vnode, true), rnode);
+                                            insert_after(to_node(vnode, true), rnode, r);
                                             count++;
                                         }
                                         else
@@ -1977,9 +1981,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 }
                                 else
                                 {
-                                    if (0 > count)
+                                    if ((0 > count) && (index ===tt+count))
                                     {
-                                        r.insertBefore(to_node(vnode, true), rnode);
+                                        insert_after(to_node(vnode, true), rnode, r);
                                         count++;
                                     }
                                     else if (false !== vnode.changed)
@@ -2018,11 +2022,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                             else if ('<textarea>' === T1)
                             {
-                                // morph attributes/properties
-                                morphAtts(rnode, vnode, true, true);
-                                val = vnode.childNodes.map(to_string).join('');
-                                rnode.value = val;
-                                if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                if (false !== vnode.changed)
+                                {
+                                    // morph attributes/properties
+                                    morphAtts(rnode, vnode, true, true);
+                                    val = vnode.childNodes.map(to_string).join('');
+                                    rnode.value = val;
+                                    if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                }
                             }
                             else if (false !== vnode.changed)
                             {
