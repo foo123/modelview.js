@@ -148,7 +148,7 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
-It is shown that `ModelView 3.0.0` has great performance in all cases (beating popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that `ModelView 3.0.0` has great performance in all cases (beating many popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, `ModelView` consistently improves performance, even dramatically, while maintaining high ease of use and generalizability. Until the next update..
 
