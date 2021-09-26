@@ -594,14 +594,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false;
     },
 
-    insert_after = function(node, refNode, parentNode) {
+    /*insert_after = function(node, refNode, parentNode) {
         parentNode = parentNode || refNode.parentNode;
         if (refNode && parentNode)
         {
             if (refNode.nextSibling) parentNode.insertBefore(node, refNode.nextSibling);
             else parentNode.appendChild(node);
         }
-    },
+    },*/
 
     debounce = function(callback, instance) {
         if ('undefined' !== typeof window && window.requestAnimationFrame)
@@ -1808,12 +1808,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (mi < modifiedNodesPrev.length)
                     {
                         count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                        lastnode = r.childNodes[modifiedNodesPrev[mi].to];
+                        //lastnode = r.childNodes[modifiedNodesPrev[mi].to];
                     }
                     else
                     {
                         count = 0;
-                        lastnode = null;
+                        //lastnode = null;
                     }
                     if (v.diff && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to) && (0 >= count))
                     {
@@ -1864,7 +1864,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     {
                                         if ((0 > count) && (index > m.to+count))
                                         {
-                                            insert_after(to_node(vnode, true), rnode, r);
+                                            //insert_after(to_node(vnode, true), rnode, r);
+                                            r.insertBefore(to_node(vnode, true), rnode);
                                             count++;
                                         }
                                         else
@@ -1983,7 +1984,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 {
                                     if ((0 > count) && (index > tt+count))
                                     {
-                                        insert_after(to_node(vnode, true), rnode, r);
+                                        //insert_after(to_node(vnode, true), rnode, r);
+                                        r.insertBefore(to_node(vnode, true), rnode);
                                         count++;
                                     }
                                     else if (false !== vnode.changed)
@@ -1997,6 +1999,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if ((0 < count) && (index === tt))
                                 {
                                     // finally remove any remaining nodes that need to be removed and haven't been already
+                                    lastnode = r.childNodes[index+1];
                                     for (; (0 < count) && lastnode; count--)
                                     {
                                         if (1 === count)
@@ -2006,7 +2009,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         else
                                         {
                                             to_remove = lastnode;
-                                            lastnode = lastnode.previousSibling;
+                                            lastnode = lastnode.nextSibling;
                                         }
                                         r.removeChild(to_remove);
                                     }
