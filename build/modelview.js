@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 19:50:39
+*   @built on 2021-09-26 20:34:50
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 19:50:39
+*   @built on 2021-09-26 20:34:50
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1914,7 +1914,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     }
                                     else
                                     {
-                                        if ((0 > count) && (index === m.to+count))
+                                        if ((0 > count) && (index > m.to+count))
                                         {
                                             insert_after(to_node(vnode, true), rnode, r);
                                             count++;
@@ -2033,7 +2033,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 }
                                 else
                                 {
-                                    if ((0 > count) && (index ===tt+count))
+                                    if ((0 > count) && (index > tt+count))
                                     {
                                         insert_after(to_node(vnode, true), rnode, r);
                                         count++;

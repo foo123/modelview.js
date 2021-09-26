@@ -1862,7 +1862,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     }
                                     else
                                     {
-                                        if ((0 > count) && (index === m.to+count))
+                                        if ((0 > count) && (index > m.to+count))
                                         {
                                             insert_after(to_node(vnode, true), rnode, r);
                                             count++;
@@ -1981,7 +1981,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 }
                                 else
                                 {
-                                    if ((0 > count) && (index ===tt+count))
+                                    if ((0 > count) && (index > tt+count))
                                     {
                                         insert_after(to_node(vnode, true), rnode, r);
                                         count++;
