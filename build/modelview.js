@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 12:44:54
+*   @built on 2021-09-26 15:23:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 12:44:54
+*   @built on 2021-09-26 15:23:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1646,9 +1646,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                 }
             }
-            if ((true === with_meta) && vnode.modified && vnode.modified.nodes.length)
+            if (true === with_meta)
             {
-                rnode._mvModified = vnode.modified.nodes;
+                if (vnode.id)
+                    rnode._mvId = vnode.id;
+                if (vnode.modified && vnode.modified.nodes.length)
+                    rnode._mvModified = vnode.modified.nodes;
             }
             if (vnode.childNodes.length)
             {
@@ -1796,6 +1799,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             modifiedNodes = v.modified ? v.modified.nodes : [],
             modChildren = v.mod ? v.mod : [];
 
+        if (v.id) r._mvId = v.id;
+        else if (r._mvId) r._mvId = undef;
         if (v.modified && v.modified.nodes.length) r._mvModified = v.modified.nodes;
         else if (r._mvModified) r._mvModified = undef;
 
@@ -1876,7 +1881,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 T2 = vnode.nodeType;
                                 T1 = nodeType(rnode);
                                 vid = vnode.id;//attr(vnode,ID);
-                                rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
+                                rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
                                 if (
                                     (T2 !== T1)
                                     || ('<script>' === T1 || '<style>' === T1)
@@ -1945,13 +1950,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             if (index >= r.childNodes.length)
                             {
                                 r.appendChild(to_node(vnode, true));
+                                if (0 > count) count++;
                                 continue;
                             }
                             rnode = r.childNodes[index];
                             T2 = vnode.nodeType;
                             T1 = nodeType(rnode);
                             vid = vnode.id;//attr(vnode,ID);
-                            rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
+                            rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
 
                             if (
                                 (T2 !== T1)
@@ -1990,7 +1996,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                 r.removeChild(rnode); count--;
                                                 if (index >= r.childNodes.length) break;
                                                 rnode = r.childNodes[index];
-                                                if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
+                                                //if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
+                                                if (!rnode._mvId || (vid === rnode._mvId)) break;
                                             }
                                             if (index >= r.childNodes.length)
                                             {
@@ -1999,7 +2006,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             else
                                             {
                                                 T1 = nodeType(rnode);
-                                                rid = rnode[ATTR] ? rnode[ATTR](ID) : null;
+                                                rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
                                                 if (
                                                     (T2 !== T1)
                                                     || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
