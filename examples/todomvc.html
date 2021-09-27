@@ -33,7 +33,7 @@
     <span id="forkongithub"><a href="https://github.com/foo123/modelview.js">Fork me on GitHub</a></span>
 
 
-<script id="todo-component" type="text/x-template">
+<script id="TodoComponent" type="text/x-template">
 <li mv-id={props.uuid} id={props.uuid} class={'todo' + (props.completed ? ' completed' : '')}>
     <div class="view">
         <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" checked={props.completed}/>
@@ -56,7 +56,7 @@
 <input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" checked={this.model().get('todoList.allCompleted')} />
 <label for="toggle-all">Mark all as complete</label>
 <ul id="todo-list" class="show-all">{
-this.model().get('todoList.display').map(todo => this.component('Todo', todo.uuid, {uuid:todo.uuid, title:todo.title, time:todo.time, completed:todo.completed}))
+this.model().get('todoList.display').map(todo => (<Todo id={todo.uuid} props={{uuid:todo.uuid, title:todo.title, time:todo.time, completed:todo.completed}}/>))
 }</ul>
 </section>
 

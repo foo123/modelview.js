@@ -567,36 +567,40 @@ view.components( Object components );
 view.component( String componentName, uniqueComponentInstanceId || null, Object props );
 
 [/DOC_MARKDOWN]**/
-    ,component: function(name, id, props) {
+    ,component: function(name, id, props, childs) {
         var view = this, out, c, propsKey, prevProps, changed;
         if (name && HAS.call(view.$components, name))
         {
             c = view.$components[name];
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
+                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
             }
             if (c.out)
             {
                 if (!HAS.call(view.$cnt, name)) view.$cnt[name] = 0;
                 view.$cnt[name]++;
-                if ((null == props) && is_type(id, T_OBJ))
+                if ((arguments.length < 4) && is_type(id, T_OBJ))
                 {
+                    childs = props;
                     props = id;
                     id = null;
                 }
                 propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
                 changed = true;
                 prevProps = view.$cache2[propsKey];
-                if (prevProps && props && c.opts && c.opts.changed)
+                if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
                     changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
                 view.$cache[propsKey] = [props, view.$cnt[name]];
-                out = c.out.call(view, props, htmlNode);
+                out = c.out.call(view, props, childs||[], htmlNode);
                 out.changed = changed;
                 return out;
             }
         }
         return '';
+    }
+    ,hasComponent: function(name) {
+        return name && this.$components && HAS.call(this.$components, name);
     }
 
     // can integrate with HtmlWidget
@@ -607,7 +611,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 
     // dynamically parse html string to html virtual dom
     ,html: function(str) {
-        return parse(str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
+        return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
     }
 
 /**[DOC_MARKDOWN]
@@ -811,7 +815,7 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self, self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
@@ -859,7 +863,7 @@ view.render( [Boolean immediate=false] );
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
                 var vdom = self.$out.call(self, htmlNode);
-                morph(self.$renderdom, vdom, self.attr('mv-id'));
+                morph(self.$renderdom, vdom/*, self.attr('mv-id')*/);
                 vdom = null;
                 // notify any 3rd-party also if needed
                 self.publish('render', {});

@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 20:59:57
+*   @built on 2021-09-27 20:59:13
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-26 20:59:57
+*   @built on 2021-09-27 20:59:13
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -336,9 +336,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     fromJSON = JSON.parse, toJSON = JSON.stringify,
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+    trim_re = /^\s+|\s+$/g,
     trim = SP.trim
             ? function(s) {return Str(s).trim();}
-            : function(s) {return Str(s).replace(/^\s+|\s+$/g, '');},
+            : function(s) {return Str(s).replace(trim_re, '');},
 
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     startsWith = SP.startsWith
@@ -670,7 +671,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
 
-    tpl2code = function tpl2code(tpl, args, scoped, type, opts, rootNodeType) {
+    tpl2code = function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType) {
         var p1, p2, c, code = '"use strict";'+"\n"+'var view = this;', state;
         if ('text' === type)
         {
@@ -701,7 +702,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             args = (args || '') + '_$$_';
             if (scoped && scoped.length) code += "\n" + Str(scoped);
-            code += "\nreturn " + to_code(parse(tpl, opts, rootNodeType || '', true)) + ";";
+            code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
         }
         return newFunc(args, code);
     },
@@ -808,11 +809,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var self = this;
         if (!(self instanceof VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
         self.nodeType = nodeType || '';
+        self.cnodeType = nodeType || '';
         self.nodeValue = nodeValue || '';
         self.nodeValue2 = nodeValue2 || '';
         self.parentNode = parentNode || null;
         self.index = index || 0;
         self.id = null;
+        self.type = null;
         self.attributes = [];
         self.atts = null;//{};
         self.childNodes = [];
@@ -829,7 +832,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var self = this;
         if (!(self instanceof VCode)) return new VCode(code);
         self.code = code;
-        self.mod = -1;
     },
     initState = function(opts, nodeType) {
         return {
@@ -862,8 +864,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         //while (state.dom && state.dom.parentNode) state.dom = state.dom.parentNode;
         return state.dom;
     },
-    parse = function(str, opts, rootNode, withJsCode) {
-        return getRoot(finState(html2ast(trim(str), initState(opts, rootNode || ''), true === withJsCode)));
+    parse = function(view, str, opts, rootNode, withJsCode) {
+        return getRoot(finState(html2ast(view, trim(str), initState(opts, rootNode || ''), true === withJsCode)));
     },
 
     SPACE = /\s/,
@@ -882,7 +884,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
     },
-    jsx2code = function jsx2code(tpl, opts) {
+    jsx2code = function jsx2code(view, tpl, opts) {
         var i = 0, l = tpl.length, out = '', jsx = '', j = 0, injsx = false, instr = false, esc = false, q = '', c = '';
         while (i<l)
         {
@@ -923,7 +925,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (0 === j)
                 {
                     injsx = false;
-                    out += to_code(parse(jsx, opts, 'jsx', true));
+                    out += to_code(parse(view, jsx, opts, 'jsx', true));
                     jsx = '';
                 }
                 else
@@ -956,10 +958,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (instr) esc = false;
         }
+        if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
         return out;
     },
-    html2ast = function html2ast(html, state, jscode) {
-        var c = '', l = html.length, i = 0, j, t, instr, esc, att;
+    html2ast = function html2ast(view, html, state, jscode) {
+        var c = '', l = html.length, i = 0, j, t, instr, esc, att, component;
         while (i<l)
         {
             if (state.inatt)
@@ -988,6 +991,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         //state.dom.atts[att.name] += state.val;
                     }
                     if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? 'String('+att.value.code+')' : toJSON(att.value);
+                    if ('type' === att.name) state.dom.type = att.value instanceof VCode ? 'String('+att.value.code+')' : toJSON(att.value);
                     state.inatt = false;
                     state.q = '';
                     state.val = '';
@@ -1066,6 +1070,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                 att = state.dom.attributes[state.dom.attributes.length-1];
                                                 att.value = new VCode(state.val);
                                                 if (state.opts.id === att.name) state.dom.id = 'String('+att.value.code+')';
+                                                if ('type' === att.name) state.dom.type = 'String('+att.value.code+')';
                                                 state.inatt = false;
                                                 state.val = '';
                                                 break;
@@ -1123,10 +1128,22 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         //state.dom.atts[state.att] = true;
                         state.att = '';
                     }
-                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.nodeType)))
+                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.cnodeType)))
                     {
                         // closed
-                        state.dom = state.dom.parentNode;
+                        if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
+                        {
+                            // capital 1st letter signifies custom component
+                            component = state.dom;
+                            state.dom = component.parentNode;
+                            component.parentNode = null;
+                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
+                            component = null;
+                        }
+                        else
+                        {
+                            state.dom = state.dom.parentNode;
+                        }
                     }
                     i++;
                 }
@@ -1158,7 +1175,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     state.txt2 += c;
                     continue;
                 }
-                if ('<script>' === state.dom.nodeType)
+                if ('<script>' === state.dom.cnodeType)
                 {
                     if ('/script>' === html.slice(i, i+8).toLowerCase())
                     {
@@ -1173,7 +1190,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         continue;
                     }
                 }
-                if ('<style>' === state.dom.nodeType)
+                if ('<style>' === state.dom.cnodeType)
                 {
                     if ('/style>' === html.slice(i, i+7).toLowerCase())
                     {
@@ -1188,7 +1205,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         continue;
                     }
                 }
-                if ('<textarea>' === state.dom.nodeType)
+                if ('<textarea>' === state.dom.cnodeType)
                 {
                     if ('/textarea>' === html.slice(i, i+10).toLowerCase())
                     {
@@ -1241,22 +1258,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     throw err('No tag name around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                 }
-                state.tag = '<'+state.tag.toLowerCase()+'>';
+                state.tag = '<'+state.tag+'>';
                 if (state.closetag)
                 {
                     while (i<l && '>' !== html.charAt(i)) i++;
                     if ('>' === html.charAt(i)) i++;
 
-                    if (!HAS.call(autoclosedTags,state.tag))
+                    if (!HAS.call(autoclosedTags, state.tag.toLowerCase()))
                     {
-                        if (state.dom.nodeType !== state.tag)
+                        if (state.dom.cnodeType !== state.tag.toLowerCase())
                         {
                             throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                         }
                         else
                         {
                             state.intag = false;
-                            state.dom = state.dom.parentNode;
+                            if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
+                            {
+                                // capital 1st letter signifies custom component
+                                component = state.dom;
+                                state.dom = component.parentNode;
+                                component.parentNode = null;
+                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
+                                component = null;
+                            }
+                            else
+                            {
+                                state.dom = state.dom.parentNode;
+                            }
                         }
                     }
                     else
@@ -1264,10 +1293,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                     }
                 }
-                else //if (!HAS.call(autoclosedTags,state.tag))
+                else //if (!HAS.call(autoclosedTags, state.tag.toLowerCase()))
                 {
                     state.dom.childNodes.push(initVNode(state.tag, '', '', state.dom, state.dom.childNodes.length));
                     state.dom = state.dom.childNodes[state.dom.childNodes.length-1];
+                    state.dom.cnodeType = state.dom.nodeType.toLowerCase();
                 }
                 continue;
             }
@@ -1316,7 +1346,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             j--;
                             if (0 === j)
                             {
-                                state.dom.childNodes.push(new VCode(jsx2code(state.txt, state.opts)));
+                                state.dom.childNodes.push(new VCode(jsx2code(view, state.txt, state.opts)));
                                 state.txt = '';
                                 break;
                             }
@@ -1383,16 +1413,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return state;
     },
-    htmlNode = function(type, id, atts, children, value2, modified) {
-        var node = initVNode(type, '', '', null, 0), index = 0;
+    htmlNode = function(nodeType, id, type, atts, children, value2, modified) {
+        var node = initVNode(nodeType, '', '', null, 0), index = 0;
         node.id = id || null;
+        node.type = type || null;
         node.attributes = atts || [];
         if (modified && modified.atts && modified.atts.length)
         {
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
         }
-        if ('text' === type || 'comment' === type)
+        if ('text' === nodeType || 'comment' === nodeType)
         {
             node.nodeValue = children;
             node.nodeValue2 = value2 || children;
@@ -1521,13 +1552,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         return n;
                     }));
                 }
-                if ((n.mod && n.mod.length) || (n.modified && (n.modified.atts.length || n.modified.nodes.length)))
+                if ((n.mod && n.mod.length) || (n.modified && n.modified.nodes.length))
                 {
                     if (!node.mod) node.mod = [];
                     if (!node.mod.length || node.mod[node.mod.length-1].to < index-1)
                         node.mod.push({from:index, to:index});
                     else
                         node.mod[node.mod.length-1].to = index;
+                }
+                if (n.modified && n.modified.atts.length)
+                {
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                        node.modified.nodes.push({from:index, to:index});
+                    else
+                        node.modified.nodes[node.modified.nodes.length-1].to = index;
                 }
                 n.parentNode = node;
                 n.index = index++;
@@ -1538,7 +1577,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node;
     },
     to_code = function to_code(vnode) {
-        var out = '_$$_("", null, [], [])';
+        var out = '_$$_("", null, null, [], [])';
         if (vnode instanceof VCode)
         {
             out = vnode.code;
@@ -1547,16 +1586,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if ('text' === vnode.nodeType)
             {
-                out = '_$$_("text", null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
+                out = '_$$_("text", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
             }
             else if ('comment' === vnode.nodeType)
             {
-                out = '_$$_("comment", null, [], '+toJSON(vnode.nodeValue)+')';
+                out = '_$$_("comment", null, null, [], '+toJSON(vnode.nodeValue)+')';
             }
             else
             {
                 var modified = {atts: []};
-                out = '_$$_("'+vnode.nodeType+'", '+Str(vnode.id)+', ['+vnode.attributes.map(function(a, i){
+                out = '_$$_("'+(HAS.call(svgElements, vnode.nodeType) ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                     if (a instanceof VCode)
                     {
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
@@ -1579,7 +1618,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (vnode.childNodes.length)
         {
-            out = '_$$_("", null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
+            out = '_$$_("", null, null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
         }
         return out;
     },
@@ -1597,6 +1636,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else
             {
+                //vnode.nodeType = vnode.nodeType.toLowerCase();
                 selfclosed = HAS.call(autoclosedTags, vnode.nodeType);
                 out = vnode.nodeType.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
                     if (false !== att.value) atts.push(true === att.value ? att.name : att.name+'="'+att.value+'"');
@@ -1623,6 +1663,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else
         {
+            //vnode.nodeType = vnode.nodeType.toLowerCase();
             rnode = HAS.call(svgElements, vnode.nodeType) ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
             if (vnode.attributes.length)
             {
@@ -1754,11 +1795,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return r;
     },
     nodeType = function(node) {
-        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : '<'+(node[TAG]||'').toLowerCase()+'>');
+        var tagName = '<'+(node[TAG] || '')+'>';
+        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (HAS.call(svgElements,tagName) ? tagName : tagName.toLowerCase()));
     },
     morphAtts = function morphAtts(r, v, with_meta, unconditionally) {
-        var modifiedAttsPrev, modifiedAtts, T, TT, vAtts, prevAtts, rAtts,
-            i, j, m, count = 0, ar, av, a, n;
+        var T, TT, vAtts, rAtts, i, a, n;
 
         if ((true === unconditionally) || (v.modified && v.modified.atts.length))
         {
@@ -1775,9 +1816,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             // add/update existent attributes
             for (i=vAtts.length-1; i>=0; i--)
             {
-                a = vAtts[i];
-                if (false === a.value) del_att(r, a.name, T, TT);
-                else set_att(r, a.name, a.value, T, TT);
+                a = vAtts[i]; n = a.name
+                if (false === a.value) del_att(r, n, T, TT);
+                else set_att(r, n, a.value, T, TT);
             }
             if ('OPTION' === T)
             {
@@ -1795,7 +1836,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
-    morph = function morph(r, v, ID) {
+    morph = function morph(r, v/*, ID*/, force) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, mi, mci, di, m, mc, d, tt, index, c, cc,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, val,
@@ -1826,11 +1867,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     for (index=modChildren[mci].from; index<=tt; index++)
                     {
                         vnode = v.childNodes[index];
-                        rnode = r.childNodes[index];
-                        morphAtts(rnode, vnode);
-                        morph(rnode, vnode, ID);
+                        if (index >= r.childNodes.length)
+                        {
+                            r.appendChild(to_node(vnode, true));
+                        }
+                        else
+                        {
+                            rnode = r.childNodes[index];
+                            if (force)
+                            {
+                                T2 = vnode.nodeType;
+                                T1 = nodeType(rnode);
+                                vid = vnode.id;
+                                rid = rnode._mvId || null;
+                                if (
+                                    (T2 !== T1)
+                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                    || (vid !== rid)
+                                )
+                                {
+                                    r.replaceChild(to_node(vnode, true), rnode);
+                                    continue;
+                                }
+                            }
+                            morphAtts(rnode, vnode);
+                            morph(rnode, vnode/*, ID*/, force);
+                        }
                     }
-                    if (modChildren[mci].to <= m.from) mci++;
+                    if (modChildren[mci].to <= stdMath.max(m.from, m.to)) mci++;
                     else break;
                 }
                 while (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
@@ -1841,7 +1905,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     count = mi < modifiedNodesPrev.length ? (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) : 0;
                     for (; (0 < count) && (index < r.childNodes.length); count--)
                     {
-                        r.removeChild(r.childNodes[index/*modifiedNodesPrev[mi].from+count-1*/]);
+                        r.removeChild(r.childNodes[index]);
                     }
                     continue;
                 }
@@ -1889,7 +1953,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (
                                     (T2 !== T1)
                                     || ('<script>' === T1 || '<style>' === T1)
-                                    || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                     || ((0 === count) && (vid || rid) && (vid !== rid))
                                 )
                                 {
@@ -1904,7 +1968,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             // morph attributes/properties
                                             morphAtts(rnode, vnode);
                                             // morph children
-                                            morph(rnode, vnode, ID);
+                                            morph(rnode, vnode/*, ID*/, true);
                                         }
                                         else
                                         {
@@ -1925,7 +1989,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             // morph attributes/properties
                                             morphAtts(rnode, vnode, false, true);
                                             // morph children
-                                            morph(rnode, vnode, ID);
+                                            morph(rnode, vnode/*, ID*/, true);
                                         }
                                     }
                                 }
@@ -1942,7 +2006,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     // morph attributes/properties
                                     morphAtts(rnode, vnode);
                                     // morph children
-                                    morph(rnode, vnode, ID);
+                                    morph(rnode, vnode/*, ID*/, true);
                                 }
                             }
                         }
@@ -1967,7 +2031,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             if (
                                 (T2 !== T1)
                                 || ('<script>' === T1 || '<style>' === T1)
-                                || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                 || ((0 === count) && (vid || rid) && (vid !== rid))
                             )
                             {
@@ -1984,7 +2048,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             // morph attributes/properties
                                             morphAtts(rnode, vnode);
                                             // morph children
-                                            morph(rnode, vnode, ID);
+                                            morph(rnode, vnode/*, ID*/, true);
                                         }
                                     }
                                     else
@@ -2026,7 +2090,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                     // morph attributes/properties
                                                     morphAtts(rnode, vnode);
                                                     // morph children
-                                                    morph(rnode, vnode, ID);
+                                                    morph(rnode, vnode/*, ID*/, true);
                                                 }
                                             }
                                         }
@@ -2045,7 +2109,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         // morph attributes/properties
                                         morphAtts(rnode, vnode, false, true);
                                         // morph children
-                                        morph(rnode, vnode, ID);
+                                        morph(rnode, vnode/*, ID*/, true);
                                     }
                                 }
                                 if ((0 < count) && (index === tt))
@@ -2091,7 +2155,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 // morph attributes/properties
                                 morphAtts(rnode, vnode, false, true);
                                 // morph children
-                                morph(rnode, vnode, ID);
+                                morph(rnode, vnode/*, ID*/, true);
                             }
                         }
                     }
@@ -2101,11 +2165,32 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     for (index=stdMath.max(modChildren[mci].from, m.from, m.to)+1,tt=modChildren[mci].to; index<=tt; index++)
                     {
                         vnode = v.childNodes[index];
-                        rnode = r.childNodes[index];
-                        // morph attributes/properties
-                        morphAtts(rnode, vnode);
-                        // morph children
-                        morph(rnode, vnode, ID);
+                        if (index >= r.childNodes.length)
+                        {
+                            r.appendChild(to_node(vnode, true));
+                        }
+                        else
+                        {
+                            rnode = r.childNodes[index];
+                            if (force)
+                            {
+                                T2 = vnode.nodeType;
+                                T1 = nodeType(rnode);
+                                vid = vnode.id;
+                                rid = rnode._mvId || null;
+                                if (
+                                    (T2 !== T1)
+                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                    || (vid !== rid)
+                                )
+                                {
+                                    r.replaceChild(to_node(vnode, true), rnode);
+                                    continue;
+                                }
+                            }
+                            morphAtts(rnode, vnode);
+                            morph(rnode, vnode/*, ID*/, force);
+                        }
                     }
                     mci++;
                 }
@@ -2116,11 +2201,32 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 for (index=m.from,tt=m.to; index<=tt; index++)
                 {
                     vnode = v.childNodes[index];
-                    rnode = r.childNodes[index];
-                    // morph attributes/properties
-                    morphAtts(rnode, vnode);
-                    // morph children
-                    morph(rnode, vnode, ID);
+                    if (index >= r.childNodes.length)
+                    {
+                        r.appendChild(to_node(vnode, true));
+                    }
+                    else
+                    {
+                        rnode = r.childNodes[index];
+                        if (force)
+                        {
+                            T2 = vnode.nodeType;
+                            T1 = nodeType(rnode);
+                            vid = vnode.id;
+                            rid = rnode._mvId || null;
+                            if (
+                                (T2 !== T1)
+                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                || (vid !== rid)
+                            )
+                            {
+                                r.replaceChild(to_node(vnode, true), rnode);
+                                continue;
+                            }
+                        }
+                        morphAtts(rnode, vnode);
+                        morph(rnode, vnode/*, ID*/, force);
+                    }
                 }
             }
         }
@@ -2132,14 +2238,36 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 for (index=m.from,tt=m.to; index<=tt; index++)
                 {
                     vnode = v.childNodes[index];
-                    rnode = r.childNodes[index];
-                    // morph attributes/properties
-                    morphAtts(rnode, vnode);
-                    // morph children
-                    morph(rnode, vnode, ID);
+                    if (index >= r.childNodes.length)
+                    {
+                        r.appendChild(to_node(vnode, true));
+                    }
+                    else
+                    {
+                        rnode = r.childNodes[index];
+                        if (force)
+                        {
+                            T2 = vnode.nodeType;
+                            T1 = nodeType(rnode);
+                            vid = vnode.id;
+                            rid = rnode._mvId || null;
+                            if (
+                                (T2 !== T1)
+                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                || (vid !== rid)
+                            )
+                            {
+                                r.replaceChild(to_node(vnode, true), rnode);
+                                continue;
+                            }
+                        }
+                        morphAtts(rnode, vnode);
+                        morph(rnode, vnode/*, ID*/, force);
+                    }
                 }
             }
         }
+        if (force) while (r.childNodes.length > v.childNodes.length) r.removeChild(r.lastChild);
     },
     add_nodes = function(el, nodes, index, move) {
         var f, i, n, l = nodes.length,
@@ -6181,36 +6309,40 @@ view.components( Object components );
 view.component( String componentName, uniqueComponentInstanceId || null, Object props );
 
 [/DOC_MARKDOWN]**/
-    ,component: function(name, id, props) {
+    ,component: function(name, id, props, childs) {
         var view = this, out, c, propsKey, prevProps, changed;
         if (name && HAS.call(view.$components, name))
         {
             c = view.$components[name];
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(c.tpl, 'props,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
+                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
             }
             if (c.out)
             {
                 if (!HAS.call(view.$cnt, name)) view.$cnt[name] = 0;
                 view.$cnt[name]++;
-                if ((null == props) && is_type(id, T_OBJ))
+                if ((arguments.length < 4) && is_type(id, T_OBJ))
                 {
+                    childs = props;
                     props = id;
                     id = null;
                 }
                 propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
                 changed = true;
                 prevProps = view.$cache2[propsKey];
-                if (prevProps && props && c.opts && c.opts.changed)
+                if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
                     changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
                 view.$cache[propsKey] = [props, view.$cnt[name]];
-                out = c.out.call(view, props, htmlNode);
+                out = c.out.call(view, props, childs||[], htmlNode);
                 out.changed = changed;
                 return out;
             }
         }
         return '';
+    }
+    ,hasComponent: function(name) {
+        return name && this.$components && HAS.call(this.$components, name);
     }
 
     // can integrate with HtmlWidget
@@ -6221,7 +6353,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 
     // dynamically parse html string to html virtual dom
     ,html: function(str) {
-        return parse(str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
+        return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
     }
 
 /**[DOC_MARKDOWN]
@@ -6425,7 +6557,7 @@ view.render( [Boolean immediate=false] );
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
         var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
+        if (!self.$out && self.$tpl) self.$out = tpl2code(self, self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
         if ('text' === self.$livebind)
         {
             if (!self.$renderdom)
@@ -6473,7 +6605,7 @@ view.render( [Boolean immediate=false] );
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
                 var vdom = self.$out.call(self, htmlNode);
-                morph(self.$renderdom, vdom, self.attr('mv-id'));
+                morph(self.$renderdom, vdom/*, self.attr('mv-id')*/);
                 vdom = null;
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
@@ -7100,9 +7232,9 @@ var ModelView = require('../build/modelview.js');
 var view = new ModelView.View('view')
     .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
     .components({
-    'hello': new ModelView.View.Component('hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg')}</div>`)
+    'Hello': new ModelView.View.Component('Hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg')}</div>`)
     })
-    .template(`{view.component('hello')}`)
+    .template(`<Hello/>`)
     .livebind(true)
 ;
 

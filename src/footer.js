@@ -62,9 +62,9 @@ var ModelView = require('../build/modelview.js');
 var view = new ModelView.View('view')
     .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
     .components({
-    'hello': new ModelView.View.Component('hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg')}</div>`)
+    'Hello': new ModelView.View.Component('Hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg')}</div>`)
     })
-    .template(`{view.component('hello')}`)
+    .template(`<Hello/>`)
     .livebind(true)
 ;
 

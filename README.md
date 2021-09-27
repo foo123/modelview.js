@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.0.0** (71 kB minified)
+**Version 3.0.0** (73 kB minified)
 
 
 **see also:**
@@ -101,9 +101,9 @@ var ModelView = require('../build/modelview.js');
 var view = new ModelView.View('view')
     .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
     .components({
-        'hello': new ModelView.View.Component('hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg') }</div>`)
+        'Hello': new ModelView.View.Component('Hello', `<div title={'Hello ' + view.model().get('msg')}>Hello {view.model().get('msg') }</div>`)
     })
-    .template(`{view.component('hello')}`)
+    .template(`<Hello/>`)
 ;
 
 console.log(view.render());
@@ -113,7 +113,7 @@ console.log(view.render());
 
 #### How it works
 
-`ModelView` works with **simple `HTML` strings** which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. `ModelView` understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it is able to have an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by tightly wrapping the HTML in parentheses (similar to `JSX`), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
+ModelView uses only the basic building blocks of Web Development: **HTML and JavaScript**. No need to learn new syntax, or do things differently. ModelView works with **simple `HTML` strings** which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. ModelView understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it acquires an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by tightly wrapping the HTML in parentheses (similar to `JSX`), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
 
 For example, see all the above in action:
 
@@ -125,10 +125,28 @@ this.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
 
 HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed. Simple as that! So to dynamically remove attributes you simply make sure the code that is attached to that attribute evaluates to literally `false`.
 
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling `view.component(ComponentName, id, props, childs)`. There is also the syntactic sugar of `view.component(..)` to call templates as part of HTML, ie `<ComponentName id={..}, props={..} />`.
 
-`ModelView` furthermore has built-in data `Models` which are available in each template via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the `View` instance). Model supports, custom getters and setters, typecasters, validators and notification functionality when data are changed. See manual and examples to understand how easy and powerful `Model` is.
+The previous example using components:
 
-Take a look at the examples and manual to see how easy and intuitive is to make applications with `ModelView`.
+```javascript
+new ModelView.View(
+//..
+).components({
+    'ListItem': new ModelView.View.Component('ListItem', `<li id={props.id}>{props.text}</li>`)
+});
+```
+```html
+<ul>{
+this.model().get('items').map(item => (<ListItem props={item}/>))
+}</ul>
+```
+
+**make sure** your custom component names **do not match default html element names!**
+
+ModelView furthermore has built-in data `Models` which are available in each template via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the `View` instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. See manual and examples to understand how easy and powerful `Model` is.
+
+Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 
 
 #### Examples
@@ -148,9 +166,9 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
-It is shown that `ModelView 3.0.0` has great performance in all cases (beating many popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 3.0.0 has very good performance (even beating many popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
-As is clear from previous versions, `ModelView` consistently improves performance, even dramatically, while maintaining high ease of use and generalizability. Until the next update..
+As is clear from previous versions, ModelView consistently improves performance, even dramatically, while maintaining high ease of use and can scale and generalize. Until the next update..
 
 
 #### JavaScript and Browser Support
