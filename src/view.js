@@ -586,9 +586,10 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                     props = id;
                     id = null;
                 }
-                propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
-                changed = true;
+                propsKey = null == id ? name+'_#'+Str(view.$cnt[name]) : name+'_id_'+Str(id);
                 prevProps = view.$cache2[propsKey];
+                if (prevProps && !prevProps[0] && !props) changed = false;
+                else changed = true;
                 if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
                     changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
                 view.$cache[propsKey] = [props, view.$cnt[name]];
@@ -862,9 +863,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                var vdom = self.$out.call(self, htmlNode);
-                morph(self.$renderdom, vdom/*, self.attr('mv-id')*/);
-                vdom = null;
+                morph(self.$renderdom, self.$out.call(self, htmlNode));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };

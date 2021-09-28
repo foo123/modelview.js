@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.0.0** (73 kB minified)
+**Version 3.0.0** (72 kB minified)
 
 
 **see also:**
@@ -166,7 +166,7 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
-It is shown that ModelView 3.0.0 has very good performance (even beating many popular frameworks which work differently), while retaining a low memory footprint (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 3.0.0 has very good performance (comparable or even better than many popular frameworks which work differently), while not consuming very large memory (unlike many popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance, even dramatically, while maintaining high ease of use and can scale and generalize. Until the next update..
 

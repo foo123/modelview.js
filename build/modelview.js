@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-27 20:59:13
+*   @built on 2021-09-28 15:23:18
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.0.0
-*   @built on 2021-09-27 20:59:13
+*   @built on 2021-09-28 15:23:18
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -821,7 +821,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.childNodes = [];
         self.componentNodes = 0;
         self.modified = null;
-        self.mod = null;
         self.diff = null;
         self.changed = null;
     },
@@ -1520,19 +1519,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if (!n.nodeType || !n.nodeType.length)
                 {
-                    if (n.mod && n.mod.length)
-                    {
-                        if (!node.mod) node.mod = [];
-                        if (!node.mod.length || node.mod[node.mod.length-1].to < index+n.mod[0].from-1)
-                        {
-                            node.mod = node.mod.concat(n.mod.map(function(m){return {from:index+m.from, to:index+m.to};}));
-                        }
-                        else
-                        {
-                            node.mod[node.mod.length-1].to = index+n.mod[0].to;
-                            node.mod = nod.mod.concat(n.mod.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
-                        }
-                    }
                     if (n.modified && n.modified.nodes.length)
                     {
                         if (!node.modified) node.modified = {atts:[], nodes:[]};
@@ -1552,15 +1538,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         return n;
                     }));
                 }
-                if ((n.mod && n.mod.length) || (n.modified && n.modified.nodes.length))
-                {
-                    if (!node.mod) node.mod = [];
-                    if (!node.mod.length || node.mod[node.mod.length-1].to < index-1)
-                        node.mod.push({from:index, to:index});
-                    else
-                        node.mod[node.mod.length-1].to = index;
-                }
-                if (n.modified && n.modified.atts.length)
+                if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
                 {
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
@@ -1596,15 +1574,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 var modified = {atts: []};
                 out = '_$$_("'+(HAS.call(svgElements, vnode.nodeType) ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
-                    if (a instanceof VCode)
-                    {
-                        if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
-                            modified.atts.push({from:i, to:i});
-                        else
-                            modified.atts[modified.atts.length-1].to = i;
-                        return a.code;
-                    }
-                    else if (a.value instanceof VCode)
+                    if (a.value instanceof VCode)
                     {
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
                             modified.atts.push({from:i, to:i});
@@ -1652,7 +1622,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(vnode, with_meta) {
-        var rnode, i, l, a, v, n;
+        var rnode, i, l, a, v, n, t;
         if ('text' === vnode.nodeType)
         {
             rnode = document.createTextNode(vnode.nodeValue2);
@@ -1682,8 +1652,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if (n in rnode)
                     {
-                        if (T_NUM === get_type(rnode[n])) rnode[n] = parseFloat(v);
-                        else rnode[n] = v;
+                        t = get_type(rnode[n]);
+                        rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
                     }
                     else
                     {
@@ -1722,7 +1692,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     del_att = function(r, n, T, TT) {
         if ('id' === n)
         {
-            r[n] = '';
+            //r[n] = '';
+            r[DEL_ATTR](n);
         }
         else if ('class' === n)
         {
@@ -1748,6 +1719,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             r[n] = '';
         }
+        else if ((n in r) && (T_BOOL === get_type(r[n])))
+        {
+            r[n] = false;
+        }
         else
         {
             r[DEL_ATTR](n);
@@ -1755,6 +1730,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return r;
     },
     set_att = function(r, n, s, T, TT) {
+        var t;
         if ('id' === n)
         {
             r[n] = s;
@@ -1785,8 +1761,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (n in r)
         {
-            if (T_NUM === get_type(r[n])) r[n] = parseFloat(s);
-            else r[n] = s;
+            t = get_type(r[n]);
+            r[n] = T_NUM === t ? parseFloat(s) : (T_BOOL === t ? !!s : s);
         }
         else
         {
@@ -1798,7 +1774,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var tagName = '<'+(node[TAG] || '')+'>';
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (HAS.call(svgElements,tagName) ? tagName : tagName.toLowerCase()));
     },
-    morphAtts = function morphAtts(r, v, with_meta, unconditionally) {
+    morphAtts = function morphAtts(r, v, unconditionally) {
         var T, TT, vAtts, rAtts, i, a, n;
 
         if ((true === unconditionally) || (v.modified && v.modified.atts.length))
@@ -1811,7 +1787,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (i=rAtts.length-1; i>=0; i--)
             {
                 a = rAtts[i]; n = a.name;
-                if (!attr(v, n)) del_att(r, n, T, TT);
+                if (null === attr(v, n)) del_att(r, n, T, TT);
             }
             // add/update existent attributes
             for (i=vAtts.length-1; i>=0; i--)
@@ -1836,13 +1812,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
-    morph = function morph(r, v/*, ID*/, force) {
+    morph = function morph(r, v, deep) {
         // morph r (real) DOM to match v (virtual) DOM
-        var vc = v.childNodes.length, count = 0, mi, mci, di, m, mc, d, tt, index, c, cc,
+        var vc = v.childNodes.length, count = 0, mi, di, m, mc, d, tt, index, c, cc,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, val,
             modifiedNodesPrev = r._mvModified ? r._mvModified : [],
-            modifiedNodes = v.modified ? v.modified.nodes : [],
-            modChildren = v.mod ? v.mod : [];
+            modifiedNodes = v.modified ? v.modified.nodes : [];
 
         if (v.id) r._mvId = v.id;
         else if (r._mvId) r._mvId = undef;
@@ -1858,51 +1833,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (modifiedNodes.length)
         {
-            for (di=0,mci=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
+            for (di=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
             {
                 m = modifiedNodes[mi];
-                while (mci < modChildren.length && modChildren[mci].from < m.from)
-                {
-                    tt = stdMath.min(modChildren[mci].to, m.from-1);
-                    for (index=modChildren[mci].from; index<=tt; index++)
-                    {
-                        vnode = v.childNodes[index];
-                        if (index >= r.childNodes.length)
-                        {
-                            r.appendChild(to_node(vnode, true));
-                        }
-                        else
-                        {
-                            rnode = r.childNodes[index];
-                            if (force)
-                            {
-                                T2 = vnode.nodeType;
-                                T1 = nodeType(rnode);
-                                vid = vnode.id;
-                                rid = rnode._mvId || null;
-                                if (
-                                    (T2 !== T1)
-                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                    || (vid !== rid)
-                                )
-                                {
-                                    r.replaceChild(to_node(vnode, true), rnode);
-                                    continue;
-                                }
-                            }
-                            morphAtts(rnode, vnode);
-                            morph(rnode, vnode/*, ID*/, force);
-                        }
-                    }
-                    if (modChildren[mci].to <= stdMath.max(m.from, m.to)) mci++;
-                    else break;
-                }
-                while (mci < modChildren.length && modChildren[mci].from >= m.from && modChildren[mci].to <= stdMath.max(m.from, m.to))
-                    mci++;
                 index = m.from;
                 if (m.to < m.from)
                 {
-                    count = mi < modifiedNodesPrev.length ? (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) : 0;
+                    count = mi < modifiedNodesPrev.length ? (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) : (r.childNodes.length-1 - index + 1);
                     for (; (0 < count) && (index < r.childNodes.length); count--)
                     {
                         r.removeChild(r.childNodes[index]);
@@ -1928,10 +1865,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        count = 0;
+                        count = (r.childNodes.length-1 - index + 1) - (m.to - m.from + 1);
                         //lastnode = null;
                     }
-                    if (v.diff && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to) && (0 >= count))
+                    if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
                     {
                         for (c=v.diff.length; (di<c) && (v.diff[di][1]<=m.to); di++)
                         {
@@ -1968,7 +1905,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             // morph attributes/properties
                                             morphAtts(rnode, vnode);
                                             // morph children
-                                            morph(rnode, vnode/*, ID*/, true);
+                                            morph(rnode, vnode, true);
                                         }
                                         else
                                         {
@@ -1987,16 +1924,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         else
                                         {
                                             // morph attributes/properties
-                                            morphAtts(rnode, vnode, false, true);
+                                            morphAtts(rnode, vnode);
                                             // morph children
-                                            morph(rnode, vnode/*, ID*/, true);
+                                            morph(rnode, vnode, true);
                                         }
                                     }
                                 }
                                 else if ('<textarea>' === T1)
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true, true);
+                                    morphAtts(rnode, vnode);
                                     val = vnode.childNodes.map(to_string).join('');
                                     rnode.value = val;
                                     if (rnode.firstChild) rnode.firstChild.nodeValue = val;
@@ -2006,7 +1943,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     // morph attributes/properties
                                     morphAtts(rnode, vnode);
                                     // morph children
-                                    morph(rnode, vnode/*, ID*/, true);
+                                    morph(rnode, vnode, true);
                                 }
                             }
                         }
@@ -2048,7 +1985,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             // morph attributes/properties
                                             morphAtts(rnode, vnode);
                                             // morph children
-                                            morph(rnode, vnode/*, ID*/, true);
+                                            morph(rnode, vnode, true);
                                         }
                                     }
                                     else
@@ -2090,7 +2027,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                     // morph attributes/properties
                                                     morphAtts(rnode, vnode);
                                                     // morph children
-                                                    morph(rnode, vnode/*, ID*/, true);
+                                                    morph(rnode, vnode, true);
                                                 }
                                             }
                                         }
@@ -2104,30 +2041,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         r.insertBefore(to_node(vnode, true), rnode);
                                         count++;
                                     }
+                                    /*else if (vid !== rid)
+                                    {
+                                        r.replaceChild(to_node(vnode, true), rnode);
+                                    }*/
                                     else if (false !== vnode.changed)
                                     {
                                         // morph attributes/properties
-                                        morphAtts(rnode, vnode, false, true);
+                                        morphAtts(rnode, vnode, true);
                                         // morph children
-                                        morph(rnode, vnode/*, ID*/, true);
-                                    }
-                                }
-                                if ((0 < count) && (index === tt))
-                                {
-                                    // finally remove any remaining nodes that need to be removed and haven't been already
-                                    lastnode = r.childNodes[index+1];
-                                    for (; (0 < count) && lastnode; count--)
-                                    {
-                                        if (1 === count)
-                                        {
-                                            to_remove = lastnode;
-                                        }
-                                        else
-                                        {
-                                            to_remove = lastnode;
-                                            lastnode = lastnode.nextSibling;
-                                        }
-                                        r.removeChild(to_remove);
+                                        morph(rnode, vnode, true);
                                     }
                                 }
                             }
@@ -2144,7 +2067,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (false !== vnode.changed)
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true, true);
+                                    morphAtts(rnode, vnode, true);
                                     val = vnode.childNodes.map(to_string).join('');
                                     rnode.value = val;
                                     if (rnode.firstChild) rnode.firstChild.nodeValue = val;
@@ -2153,121 +2076,83 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             else if (false !== vnode.changed)
                             {
                                 // morph attributes/properties
-                                morphAtts(rnode, vnode, false, true);
+                                morphAtts(rnode, vnode, true);
                                 // morph children
-                                morph(rnode, vnode/*, ID*/, true);
+                                morph(rnode, vnode, true);
                             }
                         }
-                    }
-                }
-                if (mci < modChildren.length && (modChildren[mci].from <= m.from || modChildren[mci].from < m.to) && modChildren[mci].to > stdMath.max(m.from, m.to))
-                {
-                    for (index=stdMath.max(modChildren[mci].from, m.from, m.to)+1,tt=modChildren[mci].to; index<=tt; index++)
-                    {
-                        vnode = v.childNodes[index];
-                        if (index >= r.childNodes.length)
+                        if (0 < count)
                         {
-                            r.appendChild(to_node(vnode, true));
-                        }
-                        else
-                        {
-                            rnode = r.childNodes[index];
-                            if (force)
+                            // finally remove any remaining nodes that need to be removed and haven't been already
+                            lastnode = r.childNodes[index/*+1*/];
+                            for (; (0 < count) && lastnode; count--)
                             {
-                                T2 = vnode.nodeType;
-                                T1 = nodeType(rnode);
-                                vid = vnode.id;
-                                rid = rnode._mvId || null;
-                                if (
-                                    (T2 !== T1)
-                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                    || (vid !== rid)
-                                )
+                                if (1 === count)
                                 {
-                                    r.replaceChild(to_node(vnode, true), rnode);
-                                    continue;
+                                    to_remove = lastnode;
                                 }
-                            }
-                            morphAtts(rnode, vnode);
-                            morph(rnode, vnode/*, ID*/, force);
-                        }
-                    }
-                    mci++;
-                }
-            }
-            for (c=modChildren.length; mci<c; mci++)
-            {
-                m = modChildren[mci];
-                for (index=m.from,tt=m.to; index<=tt; index++)
-                {
-                    vnode = v.childNodes[index];
-                    if (index >= r.childNodes.length)
-                    {
-                        r.appendChild(to_node(vnode, true));
-                    }
-                    else
-                    {
-                        rnode = r.childNodes[index];
-                        if (force)
-                        {
-                            T2 = vnode.nodeType;
-                            T1 = nodeType(rnode);
-                            vid = vnode.id;
-                            rid = rnode._mvId || null;
-                            if (
-                                (T2 !== T1)
-                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                || (vid !== rid)
-                            )
-                            {
-                                r.replaceChild(to_node(vnode, true), rnode);
-                                continue;
+                                else
+                                {
+                                    to_remove = lastnode;
+                                    lastnode = lastnode.nextSibling;
+                                }
+                                r.removeChild(to_remove);
                             }
                         }
-                        morphAtts(rnode, vnode);
-                        morph(rnode, vnode/*, ID*/, force);
                     }
                 }
             }
         }
-        else if (modChildren.length)
+        else if (true === deep)
         {
-            for (mci=0,c=modChildren.length; mci<c; mci++)
+            for (index=0; index<vc; index++)
             {
-                m = modChildren[mci];
-                for (index=m.from,tt=m.to; index<=tt; index++)
+                vnode = v.childNodes[index];
+                if (index >= r.childNodes.length)
                 {
-                    vnode = v.childNodes[index];
-                    if (index >= r.childNodes.length)
-                    {
-                        r.appendChild(to_node(vnode, true));
-                    }
-                    else
-                    {
-                        rnode = r.childNodes[index];
-                        if (force)
-                        {
-                            T2 = vnode.nodeType;
-                            T1 = nodeType(rnode);
-                            vid = vnode.id;
-                            rid = rnode._mvId || null;
-                            if (
-                                (T2 !== T1)
-                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                || (vid !== rid)
-                            )
-                            {
-                                r.replaceChild(to_node(vnode, true), rnode);
-                                continue;
-                            }
-                        }
-                        morphAtts(rnode, vnode);
-                        morph(rnode, vnode/*, ID*/, force);
-                    }
+                    r.appendChild(to_node(vnode, true));
+                    continue;
+                }
+                rnode = r.childNodes[index];
+                T2 = vnode.nodeType;
+                T1 = nodeType(rnode);
+                vid = vnode.id;
+                rid = rnode._mvId || null;
+                if (
+                    (T2 !== T1)
+                    || ('<script>' === T1 || '<style>' === T1)
+                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                    || (vid !== rid)
+                )
+                {
+                    r.replaceChild(to_node(vnode, true), rnode);
+                }
+                else if ('text' === T1)
+                {
+                    rnode.nodeValue = vnode.nodeValue2;
+                }
+                else if ('comment' === T1)
+                {
+                    rnode.nodeValue = vnode.nodeValue;
+                }
+                else if ('<textarea>' === T1)
+                {
+                    // morph attributes/properties
+                    morphAtts(rnode, vnode, true);
+                    val = vnode.childNodes.map(to_string).join('');
+                    rnode.value = val;
+                    if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                }
+                else
+                {
+                    // morph attributes/properties
+                    morphAtts(rnode, vnode, true);
+                    // morph children
+                    morph(rnode, vnode, deep);
                 }
             }
+            while (r.childNodes.length > vc) r.removeChild(r.lastChild);
         }
-        if (force) while (r.childNodes.length > v.childNodes.length) r.removeChild(r.lastChild);
     },
     add_nodes = function(el, nodes, index, move) {
         var f, i, n, l = nodes.length,
@@ -6328,9 +6213,10 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                     props = id;
                     id = null;
                 }
-                propsKey = null != id ? name+'_id_'+Str(id) : name+'_#'+Str(view.$cnt[name]);
-                changed = true;
+                propsKey = null == id ? name+'_#'+Str(view.$cnt[name]) : name+'_id_'+Str(id);
                 prevProps = view.$cache2[propsKey];
+                if (prevProps && !prevProps[0] && !props) changed = false;
+                else changed = true;
                 if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
                     changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
                 view.$cache[propsKey] = [props, view.$cnt[name]];
@@ -6604,9 +6490,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                var vdom = self.$out.call(self, htmlNode);
-                morph(self.$renderdom, vdom/*, self.attr('mv-id')*/);
-                vdom = null;
+                morph(self.$renderdom, self.$out.call(self, htmlNode));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };
