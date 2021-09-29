@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 12:46:52
+*   @built on 2021-09-29 16:26:45
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 12:46:52
+*   @built on 2021-09-29 16:26:45
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -925,7 +925,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (0 === j)
                 {
                     injsx = false;
-                    out += to_code(parse(view, jsx, opts, 'jsx', true));
+                    jsx = trim(jsx);
+                    if (jsx.length) out += to_code(parse(view, jsx, opts, 'jsx', true));
                     jsx = '';
                 }
                 else
@@ -971,7 +972,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (instr) esc = false;
         }
         if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
-        return out;
+        return trim(out);
     },
     html2ast = function html2ast(view, html, state, jscode) {
         var c = '', l = html.length, i = 0, j, t, instr, esc, att, component;
@@ -1080,9 +1081,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             if (0 === j)
                                             {
                                                 att = state.dom.attributes[state.dom.attributes.length-1];
-                                                att.value = new VCode(state.val);
-                                                if (state.opts.id === att.name) state.dom.id = 'String('+att.value.code+')';
-                                                if ('type' === att.name) state.dom.type = 'String('+att.value.code+')';
+                                                state.val = trim(state.val);
+                                                if (state.val.length)
+                                                {
+                                                    att.value = new VCode(state.val);
+                                                    if (state.opts.id === att.name) state.dom.id = 'String('+att.value.code+')';
+                                                    if ('type' === att.name) state.dom.type = 'String('+att.value.code+')';
+                                                }
+                                                else
+                                                {
+                                                    state.dom.attributes.pop();
+                                                }
                                                 state.inatt = false;
                                                 state.val = '';
                                                 break;
@@ -1358,7 +1367,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             j--;
                             if (0 === j)
                             {
-                                state.dom.childNodes.push(new VCode(jsx2code(view, state.txt, state.opts)));
+                                state.txt = jsx2code(view, state.txt, state.opts);
+                                if (state.txt.length)
+                                {
+                                    state.dom.childNodes.push(new VCode(state.txt));
+                                }
                                 state.txt = '';
                                 break;
                             }
