@@ -1539,11 +1539,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             node.unit = true;
             return node;
         }
-        else if (is_type(node, T_ARRAY))
-        {
-            return node.map(function(n){n.unit = true; return n;});
-        }
-        return node;
+        return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
     },
     to_code = function to_code(vnode) {
         var out = '_$$_("", null, null, [], [])';
