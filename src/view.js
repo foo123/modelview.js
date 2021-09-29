@@ -595,6 +595,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                 view.$cache[propsKey] = [props, view.$cnt[name]];
                 out = c.out.call(view, props, childs||[], htmlNode);
                 out.changed = changed;
+                out.component = name;
                 return out;
             }
         }

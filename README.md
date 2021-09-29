@@ -4,9 +4,12 @@ modelview.js
 A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript
 
 
+It knows **where**, **when** and **what** needs to be rendered.
+
+
 ![ModelView](/modelview.jpg)
 
-**Version 3.0.0** (73 kB minified)
+**Version 3.1.0** (73 kB minified)
 
 
 **see also:**
@@ -120,9 +123,11 @@ this.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
 }</ul>
 ```
 
+For those like me, who like to test code by commenting and uncommenting certain parts, block comments ie `/*` and `*/` are supported in dynamic JavaScript Expressions (**note** single line comments ie `// ..` will break the compiled code).
+
 HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed. Simple as that! So to dynamically remove attributes you simply make sure the code that is attached to that attribute evaluates to literally `false`.
 
-ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling `view.component(ComponentName, id, props, childs)`. There is also the syntactic sugar of `view.component(..)` to render components as part of HTML, ie `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in components is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components can implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering.
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling `view.component(ComponentName, id, props, childs)`. There is also the syntactic sugar of `view.component(..)` to render components as part of HTML, ie `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in components is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components don't have their own separate state (unlike eg React or Vue, which however is problematic in many cases), but can use the built-in Model (see below) or passed props to manage state as needed if needed.
 
 The previous example using components:
 
@@ -141,7 +146,7 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 **make sure** your custom component names **do not match default html element names!**
 
-ModelView furthermore has built-in data `Models` which are available in each template via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the `View` instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. See manual and examples to understand how easy and powerful `Model` is.
+ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
 
 Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 
@@ -157,13 +162,13 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for `ModelView 3.0.0` and some popular frameworks.
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.0 and some popular frameworks.
 
 ![Performance](/examples/perf.png)
 
 ![Memory](/examples/mem.png)
 
-It is shown that ModelView 3.0.0 has good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 3.1.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance. Until the next update..
 

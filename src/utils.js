@@ -762,6 +762,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.nodeValue2 = nodeValue2 || '';
         self.parentNode = parentNode || null;
         self.index = index || 0;
+        self.component = null;
         self.id = null;
         self.type = null;
         self.attributes = [];
@@ -832,7 +833,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
     },
     jsx2code = function jsx2code(view, tpl, opts) {
-        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, injsx = false, instr = false, esc = false, q = '', c = '';
+        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k, injsx = false, instr = false, esc = false, q = '', c = '';
         while (i<l)
         {
             c = tpl.charAt(i++);
@@ -896,6 +897,18 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 else
                 {
                     out += c;
+                }
+            }
+            else if (!instr && ('/' === c) && ('*' === tpl.charAt(i)))
+            {
+                k = tpl.indexOf('*/', i+1);
+                if (-1 === k)
+                {
+                    throw err('Invalid comment at "'+tpl+'"');
+                }
+                else
+                {
+                    i = k+2;
                 }
             }
             else
@@ -1444,10 +1457,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             node.diff = node.diff.concat(n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.changed = n.changed;
+                        nn.component = nn.component || n.component;
                         return nn;
                     }));
                 }
@@ -1611,6 +1625,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (true === with_meta)
             {
+                if (vnode.component)
+                    rnode._mvComponent = vnode.component;
                 if (vnode.id)
                     rnode._mvId = vnode.id;
                 if (vnode.modified && vnode.modified.nodes.length)
@@ -1682,7 +1698,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if ('id' === n)
         {
             s = Str(s);
-            if (r[n] !== s) r[n] = s;
+            /*if (r[n] !== s)*/ r[n] = s;
         }
         else if ('class' === n)
         {
@@ -1714,12 +1730,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             t = get_type(r[n]);
             s = T_NUM === t ? parseFloat(s) : (T_BOOL === t ? !!s : s);
-            if (r[n] !== s) r[n] = s;
+            /*if (r[n] !== s)*/ r[n] = s;
         }
         else
         {
             s = Str(true === s ? n : s);
-            if (s !== r[ATTR](n)) r[SET_ATTR](n, s);
+            /*if (s !== r[ATTR](n))*/ r[SET_ATTR](n, s);
         }
         return r;
     },
@@ -1767,11 +1783,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     morph = function morph(r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
-        var vc = v.childNodes.length, count = 0, mi, di, m, mc, d, tt, index, c, cc,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, val,
-            modifiedNodesPrev = r._mvModified ? r._mvModified : [],
-            modifiedNodes = v.modified ? v.modified.nodes : [];
+        var vc = v.childNodes.length, count = 0, offset = 0, matched, mi, di, m, mc, d, tt, index, c, cc,
+            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val,
+            modifiedNodesPrev = r._mvModified, modifiedNodes;
 
+        if (v.component) r._mvComponent = v.component;
+        else if (r._mvComponent) r._mvComponent = undef;
         if (v.id) r._mvId = v.id;
         else if (r._mvId) r._mvId = undef;
         if (v.modified && v.modified.nodes.length) r._mvModified = v.modified.nodes;
@@ -1784,190 +1801,137 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 r.appendChild(to_node(v.childNodes[index], true));
             }
         }
-        else if (true === unconditionally)
+        else
         {
-            count = r.childNodes.length - vc;
-            for (index=0; index<vc; index++)
+            modifiedNodesPrev = modifiedNodesPrev || [];
+            modifiedNodes = v.modified ? v.modified.nodes : [];
+            count = 0; offset = 0;
+            matched = (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
+                var match = (m.from == offset + modifiedNodesPrev[i].from);
+                offset += (m.to - m.from + 1) - (modifiedNodesPrev[i].to - modifiedNodesPrev[i].from + 1);
+                return matched + match;
+            }, 0)) && (offset+r.childNodes.length === v.childNodes.length);
+
+            if (matched && modifiedNodes.length)
             {
-                vnode = v.childNodes[index];
-                if (index >= r.childNodes.length)
+                for (di=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
                 {
-                    r.appendChild(to_node(vnode, true));
-                    if (0 > count) count++;
-                    continue;
-                }
-                rnode = r.childNodes[index];
-                T2 = vnode.nodeType;
-                T1 = nodeType(rnode);
-                vid = vnode.id;
-                rid = rnode._mvId || null;
-                if (
-                    (T2 !== T1)
-                    || ('<script>' === T1 || '<style>' === T1)
-                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                    || ((0 === count) && (vid !== rid))
-                )
-                {
-                    r.replaceChild(to_node(vnode, true), rnode);
-                }
-                else if (0 !== count)
-                {
-                    if (vid && rid)
+                    m = modifiedNodes[mi];
+                    index = m.from;
+                    if (m.to < m.from)
                     {
-                        if (vid === rid)
+                        count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+                        for (; (0 < count) && (index < r.childNodes.length); count--)
                         {
-                            if (false !== vnode.changed)
-                            {
-                                // morph attributes/properties
-                                morphAtts(rnode, vnode, unconditionally);
-                                // morph children
-                                morph(rnode, vnode, unconditionally);
-                            }
+                            r.removeChild(r.childNodes[index]);
                         }
-                        else
+                        continue;
+                    }
+                    else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
+                    {
+                        rnode = r.childNodes[index];
+                        count = (m.to - m.from + 1);
+                        for (; 0 < count; count--,index++)
                         {
-                            if (0 > count)
+                            r.insertBefore(to_node(v.childNodes[index], true), rnode);
+                        }
+                        continue;
+                    }
+                    else
+                    {
+                        count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
+                        if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
+                        {
+                            for (c=v.diff.length; (di<c) && (v.diff[di][1]<=m.to); di++)
                             {
-                                r.insertBefore(to_node(vnode, true), rnode);
-                                count++;
-                            }
-                            else
-                            {
-                                for (; 0 < count; )
+                                d = v.diff[di];
+                                for (index=d[0],tt=d[1]; index<=tt; index++)
                                 {
-                                    r.removeChild(rnode); count--;
-                                    if (index >= r.childNodes.length) break;
+                                    vnode = v.childNodes[index];
+                                    if (index >= r.childNodes.length)
+                                    {
+                                        r.appendChild(to_node(vnode, true));
+                                        if (0 > count) count++;
+                                        continue;
+                                    }
                                     rnode = r.childNodes[index];
-                                    //if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
-                                    if (!rnode._mvId || (vid === rnode._mvId)) break;
-                                }
-                                if (index >= r.childNodes.length)
-                                {
-                                    r.appendChild(to_node(vnode, true));
-                                }
-                                else
-                                {
+                                    T2 = vnode.nodeType;
                                     T1 = nodeType(rnode);
-                                    rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
+                                    vcomponent = vnode.component;
+                                    rcomponent = rnode._mvComponent || null;
+                                    vid = vnode.id;
+                                    rid = rnode._mvId || null;
                                     if (
                                         (T2 !== T1)
-                                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                        || (!rid)
-                                        || (rid !== vid)
+                                        || ('<script>' === T1 || '<style>' === T1)
+                                        || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                        || ((0 === count) && (vcomponent !== rcomponent))
+                                        || ((0 === count) && (vid !== rid))
                                     )
                                     {
                                         r.replaceChild(to_node(vnode, true), rnode);
                                     }
-                                    else if (false !== vnode.changed)
+                                    else if (0 > count)
+                                    {
+                                        if (vid && rid)
+                                        {
+                                            if (vid === rid)
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode);
+                                                // morph children
+                                                morph(rnode, vnode, true);
+                                            }
+                                            else
+                                            {
+                                                r.insertBefore(to_node(vnode, true), rnode);
+                                                count++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if ((0 > count) && (index > m.to+count))
+                                            {
+                                                r.insertBefore(to_node(vnode, true), rnode);
+                                                count++;
+                                            }
+                                            else if ((vcomponent !== rcomponent) || (vid !== rid))
+                                            {
+                                                r.replaceChild(to_node(vnode, true), rnode);
+                                            }
+                                            else
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode);
+                                                // morph children
+                                                morph(rnode, vnode, true);
+                                            }
+                                        }
+                                    }
+                                    else if ('<textarea>' === T1)
                                     {
                                         // morph attributes/properties
-                                        morphAtts(rnode, vnode, unconditionally);
+                                        morphAtts(rnode, vnode);
+                                        val = vnode.childNodes.map(to_string).join('');
+                                        if (rnode.value !== val)
+                                        {
+                                            rnode.value = val;
+                                            if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // morph attributes/properties
+                                        morphAtts(rnode, vnode);
                                         // morph children
-                                        morph(rnode, vnode, unconditionally);
+                                        morph(rnode, vnode, true);
                                     }
                                 }
                             }
                         }
-                    }
-                    else
-                    {
-                        if ((0 > count) && (index > tt+count))
+                        else
                         {
-                            r.insertBefore(to_node(vnode, true), rnode);
-                            count++;
-                        }
-                        else if (vid !== rid)
-                        {
-                            r.replaceChild(to_node(vnode, true), rnode);
-                        }
-                        else if (false !== vnode.changed)
-                        {
-                            // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
-                            // morph children
-                            morph(rnode, vnode, unconditionally);
-                        }
-                    }
-                }
-                else if ('text' === T1)
-                {
-                    if (rnode.nodeValue !== vnode.nodeValue2)
-                    {
-                        rnode.nodeValue = vnode.nodeValue2;
-                    }
-                }
-                else if ('comment' === T1)
-                {
-                    if (rnode.nodeValue !== vnode.nodeValue)
-                    {
-                        rnode.nodeValue = vnode.nodeValue;
-                    }
-                }
-                else if ('<textarea>' === T1)
-                {
-                    if (false !== vnode.changed)
-                    {
-                        // morph attributes/properties
-                        morphAtts(rnode, vnode, unconditionally);
-                        val = vnode.childNodes.map(to_string).join('');
-                        if (rnode.value !== val)
-                        {
-                            rnode.value = val;
-                            if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                        }
-                    }
-                }
-                else if (false !== vnode.changed)
-                {
-                    // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
-                    // morph children
-                    morph(rnode, vnode, unconditionally);
-                }
-            }
-            for (; 0 < count; count--) r.removeChild(r.lastChild);
-        }
-        else if (modifiedNodes.length)
-        {
-            for (di=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
-            {
-                m = modifiedNodes[mi];
-                index = m.from;
-                if (m.to < m.from)
-                {
-                    count = mi < modifiedNodesPrev.length ? (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) : (r.childNodes.length-1 - index + 1);
-                    for (; (0 < count) && (index < r.childNodes.length); count--)
-                    {
-                        r.removeChild(r.childNodes[index]);
-                    }
-                    continue;
-                }
-                else if (mi < modifiedNodesPrev.length && modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
-                {
-                    rnode = r.childNodes[index];
-                    count = (m.to - m.from + 1);
-                    for (; 0 < count; count--,index++)
-                    {
-                        r.insertBefore(to_node(v.childNodes[index], true), rnode);
-                    }
-                    continue;
-                }
-                else
-                {
-                    if (mi < modifiedNodesPrev.length)
-                    {
-                        count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                    }
-                    else
-                    {
-                        count = (stdMath.min(/*m.to,*/ r.childNodes.length-1) - index + 1) - (m.to - m.from + 1);
-                    }
-                    if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.childNodes.length) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
-                    {
-                        for (c=v.diff.length; (di<c) && (v.diff[di][1]<=m.to); di++)
-                        {
-                            d = v.diff[di];
-                            for (index=d[0],tt=d[1]; index<=tt; index++)
+                            for (tt=m.to; index<=tt; index++)
                             {
                                 vnode = v.childNodes[index];
                                 if (index >= r.childNodes.length)
@@ -1979,232 +1943,304 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 rnode = r.childNodes[index];
                                 T2 = vnode.nodeType;
                                 T1 = nodeType(rnode);
-                                vid = vnode.id;//attr(vnode,ID);
-                                rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
+                                vcomponent = vnode.component;
+                                rcomponent = rnode._mvComponent || null;
+                                vid = vnode.id;
+                                rid = rnode._mvId || null;
                                 if (
                                     (T2 !== T1)
                                     || ('<script>' === T1 || '<style>' === T1)
                                     || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                    || ((0 === count) && (vid || rid) && (vid !== rid))
+                                    || ((0 === count) && (vcomponent !== rcomponent))
+                                    || ((0 === count) && (vid !== rid))
                                 )
                                 {
                                     r.replaceChild(to_node(vnode, true), rnode);
                                 }
-                                else if (0 > count)
+                                else if (0 !== count)
                                 {
                                     if (vid && rid)
                                     {
                                         if (vid === rid)
                                         {
-                                            // morph attributes/properties
-                                            morphAtts(rnode, vnode);
-                                            // morph children
-                                            morph(rnode, vnode, true);
+                                            if (false !== vnode.changed)
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode);
+                                                // morph children
+                                                morph(rnode, vnode, true);
+                                            }
                                         }
                                         else
                                         {
-                                            r.insertBefore(to_node(vnode, true), rnode);
-                                            count++;
+                                            if (0 > count)
+                                            {
+                                                r.insertBefore(to_node(vnode, true), rnode);
+                                                count++;
+                                            }
+                                            else
+                                            {
+                                                for (; 0 < count; )
+                                                {
+                                                    r.removeChild(rnode); count--;
+                                                    if (index >= r.childNodes.length) break;
+                                                    rnode = r.childNodes[index];
+                                                    if (!rnode._mvId || (vid === rnode._mvId)) break;
+                                                }
+                                                if (index >= r.childNodes.length)
+                                                {
+                                                    r.appendChild(to_node(vnode, true));
+                                                }
+                                                else
+                                                {
+                                                    T1 = nodeType(rnode);
+                                                    rcomponent = rnode._mvComponent || null;
+                                                    rid = rnode._mvId || null;
+                                                    if (
+                                                        (T2 !== T1)
+                                                        || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                                        || (!rid)
+                                                        || (rid !== vid)
+                                                        || (rcomponent !== vcomponent)
+                                                    )
+                                                    {
+                                                        r.replaceChild(to_node(vnode, true), rnode);
+                                                    }
+                                                    else if (false !== vnode.changed)
+                                                    {
+                                                        // morph attributes/properties
+                                                        morphAtts(rnode, vnode);
+                                                        // morph children
+                                                        morph(rnode, vnode, true);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     else
                                     {
-                                        if ((0 > count) && (index > m.to+count))
+                                        if ((0 > count) && (index > tt+count))
                                         {
                                             r.insertBefore(to_node(vnode, true), rnode);
                                             count++;
                                         }
-                                        else
+                                        else if ((vcomponent !== rcomponent) || (vid !== rid))
+                                        {
+                                            r.replaceChild(to_node(vnode, true), rnode);
+                                        }
+                                        else if (false !== vnode.changed)
                                         {
                                             // morph attributes/properties
-                                            morphAtts(rnode, vnode);
+                                            morphAtts(rnode, vnode, true);
                                             // morph children
                                             morph(rnode, vnode, true);
                                         }
                                     }
                                 }
+                                else if ('text' === T1)
+                                {
+                                    /*if (rnode.nodeValue !== vnode.nodeValue2)
+                                    {*/
+                                        rnode.nodeValue = vnode.nodeValue2;
+                                    /*}*/
+                                }
+                                else if ('comment' === T1)
+                                {
+                                    /*if (rnode.nodeValue !== vnode.nodeValue)
+                                    {*/
+                                        rnode.nodeValue = vnode.nodeValue;
+                                    /*}*/
+                                }
                                 else if ('<textarea>' === T1)
                                 {
-                                    // morph attributes/properties
-                                    morphAtts(rnode, vnode);
-                                    val = vnode.childNodes.map(to_string).join('');
-                                    if (rnode.value !== val)
+                                    if (false !== vnode.changed)
                                     {
-                                        rnode.value = val;
-                                        if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                        // morph attributes/properties
+                                        morphAtts(rnode, vnode, true);
+                                        val = vnode.childNodes.map(to_string).join('');
+                                        /*if (rnode.value !== val)
+                                        {*/
+                                            rnode.value = val;
+                                            if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                        /*}*/
                                     }
                                 }
-                                else
+                                else if (false !== vnode.changed)
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode);
+                                    morphAtts(rnode, vnode, true);
                                     // morph children
                                     morph(rnode, vnode, true);
                                 }
                             }
-                        }
-                    }
-                    else
-                    {
-                        for (tt=m.to; index<=tt; index++)
-                        {
-                            vnode = v.childNodes[index];
-                            if (index >= r.childNodes.length)
+                            if (0 < count)
                             {
-                                r.appendChild(to_node(vnode, true));
-                                if (0 > count) count++;
-                                continue;
-                            }
-                            rnode = r.childNodes[index];
-                            T2 = vnode.nodeType;
-                            T1 = nodeType(rnode);
-                            vid = vnode.id;//attr(vnode,ID);
-                            rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
-
-                            if (
-                                (T2 !== T1)
-                                || ('<script>' === T1 || '<style>' === T1)
-                                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                || ((0 === count) && (vid || rid) && (vid !== rid))
-                            )
-                            {
-                                r.replaceChild(to_node(vnode, true), rnode);
-                            }
-                            else if (0 !== count)
-                            {
-                                if (vid && rid)
+                                // finally remove any remaining nodes that need to be removed and haven't been already
+                                lastnode = r.childNodes[index/*+1*/];
+                                for (; (0 < count) && lastnode; count--)
                                 {
-                                    if (vid === rid)
+                                    if (1 === count)
                                     {
-                                        if (false !== vnode.changed)
-                                        {
-                                            // morph attributes/properties
-                                            morphAtts(rnode, vnode);
-                                            // morph children
-                                            morph(rnode, vnode, true);
-                                        }
+                                        to_remove = lastnode;
                                     }
                                     else
                                     {
-                                        if (0 > count)
-                                        {
-                                            r.insertBefore(to_node(vnode, true), rnode);
-                                            count++;
-                                        }
-                                        else
-                                        {
-                                            for (; 0 < count; )
-                                            {
-                                                r.removeChild(rnode); count--;
-                                                if (index >= r.childNodes.length) break;
-                                                rnode = r.childNodes[index];
-                                                //if (!rnode[ATTR] || (vid === rnode[ATTR](ID))) break;
-                                                if (!rnode._mvId || (vid === rnode._mvId)) break;
-                                            }
-                                            if (index >= r.childNodes.length)
-                                            {
-                                                r.appendChild(to_node(vnode, true));
-                                            }
-                                            else
-                                            {
-                                                T1 = nodeType(rnode);
-                                                rid = rnode._mvId || null;//rnode[ATTR] ? rnode[ATTR](ID) : null;
-                                                if (
-                                                    (T2 !== T1)
-                                                    || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                                    || (!rid)
-                                                    || (rid !== vid)
-                                                )
-                                                {
-                                                    r.replaceChild(to_node(vnode, true), rnode);
-                                                }
-                                                else if (false !== vnode.changed)
-                                                {
-                                                    // morph attributes/properties
-                                                    morphAtts(rnode, vnode);
-                                                    // morph children
-                                                    morph(rnode, vnode, true);
-                                                }
-                                            }
-                                        }
+                                        to_remove = lastnode;
+                                        lastnode = lastnode.nextSibling;
                                     }
-                                }
-                                else
-                                {
-                                    if ((0 > count) && (index > tt+count))
-                                    {
-                                        r.insertBefore(to_node(vnode, true), rnode);
-                                        count++;
-                                    }
-                                    else if (vid !== rid)
-                                    {
-                                        r.replaceChild(to_node(vnode, true), rnode);
-                                    }
-                                    else if (false !== vnode.changed)
-                                    {
-                                        // morph attributes/properties
-                                        morphAtts(rnode, vnode, true);
-                                        // morph children
-                                        morph(rnode, vnode, true);
-                                    }
+                                    r.removeChild(to_remove);
                                 }
                             }
-                            else if ('text' === T1)
-                            {
-                                if (rnode.nodeValue !== vnode.nodeValue2)
-                                {
-                                    rnode.nodeValue = vnode.nodeValue2;
-                                }
-                            }
-                            else if ('comment' === T1)
-                            {
-                                if (rnode.nodeValue !== vnode.nodeValue)
-                                {
-                                    rnode.nodeValue = vnode.nodeValue;
-                                }
-                            }
-                            else if ('<textarea>' === T1)
+                        }
+                    }
+                }
+            }
+            else if (!matched || (true === unconditionally))
+            {
+                count = r.childNodes.length - vc;
+                for (index=0; index<vc; index++)
+                {
+                    vnode = v.childNodes[index];
+                    if (index >= r.childNodes.length)
+                    {
+                        r.appendChild(to_node(vnode, true));
+                        if (0 > count) count++;
+                        continue;
+                    }
+                    rnode = r.childNodes[index];
+                    T2 = vnode.nodeType;
+                    T1 = nodeType(rnode);
+                    vcomponent = vnode.component;
+                    rcomponent = rnode._mvComponent || null;
+                    vid = vnode.id;
+                    rid = rnode._mvId || null;
+                    if (
+                        (T2 !== T1)
+                        || ('<script>' === T1 || '<style>' === T1)
+                        || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                        || ((0 === count) && (vcomponent !== rcomponent))
+                        || ((0 === count) && (vid !== rid))
+                    )
+                    {
+                        r.replaceChild(to_node(vnode, true), rnode);
+                    }
+                    else if (0 !== count)
+                    {
+                        if (vid && rid)
+                        {
+                            if (vid === rid)
                             {
                                 if (false !== vnode.changed)
                                 {
                                     // morph attributes/properties
                                     morphAtts(rnode, vnode, true);
-                                    val = vnode.childNodes.map(to_string).join('');
-                                    if (rnode.value !== val)
+                                    // morph children
+                                    morph(rnode, vnode, unconditionally);
+                                }
+                            }
+                            else
+                            {
+                                if (0 > count)
+                                {
+                                    r.insertBefore(to_node(vnode, true), rnode);
+                                    count++;
+                                }
+                                else
+                                {
+                                    for (; 0 < count; )
                                     {
-                                        rnode.value = val;
-                                        if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                                        r.removeChild(rnode); count--;
+                                        if (index >= r.childNodes.length) break;
+                                        rnode = r.childNodes[index];
+                                        if (!rnode._mvId || (vid === rnode._mvId)) break;
+                                    }
+                                    if (index >= r.childNodes.length)
+                                    {
+                                        r.appendChild(to_node(vnode, true));
+                                    }
+                                    else
+                                    {
+                                        T1 = nodeType(rnode);
+                                        rcomponent = rnode._mvComponent || null;
+                                        rid = rnode._mvId || null;
+                                        if (
+                                            (T2 !== T1)
+                                            || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                            || (!rid)
+                                            || (rid !== vid)
+                                            || (rcomponent !== vcomponent)
+                                        )
+                                        {
+                                            r.replaceChild(to_node(vnode, true), rnode);
+                                        }
+                                        else if (false !== vnode.changed)
+                                        {
+                                            // morph attributes/properties
+                                            morphAtts(rnode, vnode, true);
+                                            // morph children
+                                            morph(rnode, vnode, unconditionally);
+                                        }
                                     }
                                 }
+                            }
+                        }
+                        else
+                        {
+                            if ((0 > count) && (index > tt+count))
+                            {
+                                r.insertBefore(to_node(vnode, true), rnode);
+                                count++;
+                            }
+                            else if ((vcomponent !== rcomponent) || (vid !== rid))
+                            {
+                                r.replaceChild(to_node(vnode, true), rnode);
                             }
                             else if (false !== vnode.changed)
                             {
                                 // morph attributes/properties
                                 morphAtts(rnode, vnode, true);
                                 // morph children
-                                morph(rnode, vnode, true);
-                            }
-                        }
-                        if (0 < count)
-                        {
-                            // finally remove any remaining nodes that need to be removed and haven't been already
-                            lastnode = r.childNodes[index/*+1*/];
-                            for (; (0 < count) && lastnode; count--)
-                            {
-                                if (1 === count)
-                                {
-                                    to_remove = lastnode;
-                                }
-                                else
-                                {
-                                    to_remove = lastnode;
-                                    lastnode = lastnode.nextSibling;
-                                }
-                                r.removeChild(to_remove);
+                                morph(rnode, vnode, unconditionally);
                             }
                         }
                     }
+                    else if ('text' === T1)
+                    {
+                        /*if (rnode.nodeValue !== vnode.nodeValue2)
+                        {*/
+                            rnode.nodeValue = vnode.nodeValue2;
+                        /*}*/
+                    }
+                    else if ('comment' === T1)
+                    {
+                        /*if (rnode.nodeValue !== vnode.nodeValue)
+                        {*/
+                            rnode.nodeValue = vnode.nodeValue;
+                        /*}*/
+                    }
+                    else if ('<textarea>' === T1)
+                    {
+                        if (false !== vnode.changed)
+                        {
+                            // morph attributes/properties
+                            morphAtts(rnode, vnode, true);
+                            val = vnode.childNodes.map(to_string).join('');
+                            /*if (rnode.value !== val)
+                            {*/
+                                rnode.value = val;
+                                if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                            /*}*/
+                        }
+                    }
+                    else if (false !== vnode.changed)
+                    {
+                        // morph attributes/properties
+                        morphAtts(rnode, vnode, true);
+                        // morph children
+                        morph(rnode, vnode, unconditionally);
+                    }
                 }
+                for (; 0 < count; count--) r.removeChild(r.lastChild);
             }
         }
     },
