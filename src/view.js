@@ -605,15 +605,31 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
         return name && this.$components && HAS.call(this.$components, name);
     }
 
-    // can integrate with HtmlWidget
+/**[DOC_MARKDOWN]
+// can integrate with HtmlWidget
+view.widget( ..args );
+
+[/DOC_MARKDOWN]**/
     ,widget: function(/*args*/) {
         var HtmlWidget = View.HtmlWidget;
         return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
     }
 
-    // dynamically parse html string to html virtual dom
+/**[DOC_MARKDOWN]
+// dynamically parse html string to html virtual dom at run-time
+view.html( String htmlString );
+
+[/DOC_MARKDOWN]**/
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
+    }
+/**[DOC_MARKDOWN]
+// mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
+view.unit( nodes );
+
+[/DOC_MARKDOWN]**/
+    ,unit: function(nodes) {
+        return as_unit(nodes);
     }
 
 /**[DOC_MARKDOWN]

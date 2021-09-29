@@ -558,6 +558,24 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 
 
 
+// can integrate with HtmlWidget
+view.widget( ..args );
+
+
+
+
+// dynamically parse html string to html virtual dom at run-time
+view.html( String htmlString );
+
+
+
+
+// mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
+view.unit( nodes );
+
+
+
+
 // get / set custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
 view.attribute( [String prefix] );
 

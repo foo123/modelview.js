@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 16:26:45
+*   @built on 2021-09-29 21:41:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 16:26:45
+*   @built on 2021-09-29 21:41:02
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -824,6 +824,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.modified = null;
         self.diff = null;
         self.changed = null;
+        self.unit = false;
     },
     initVNode = function(nodeType, nodeValue, nodeValue2, parentNode, index) {
         return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
@@ -1527,15 +1528,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         nn.index = index++;
                         nn.changed = n.changed;
                         nn.component = nn.component || n.component;
+                        nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
                 }
                 else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
                 {
-                    var i = index, a = n.childNodes/*.reduce(process, [])*/.map(function(n){
-                        n.parentNode = node;
-                        n.index = index++;
-                        return n;
+                    var i = index, a = n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                        nn.parentNode = node;
+                        nn.index = index++;
+                        nn.unit = nn.unit || n.unit;
+                        return nn;
                     });
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
@@ -1559,10 +1562,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             node.modified.nodes = nod.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(n){
-                        n.parentNode = node;
-                        n.index = index++;
-                        return n;
+                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                        nn.parentNode = node;
+                        nn.index = index++;
+                        nn.unit = nn.unit || n.unit;
+                        return nn;
                     }));
                 }
                 if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
@@ -1578,6 +1582,18 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 childNodes.push(n);
                 return childNodes;
             }, []);
+        }
+        return node;
+    },
+    as_unit = function as_unit(node) {
+        if (node instanceof VNode)
+        {
+            node.unit = true;
+            return node;
+        }
+        else if (is_type(node, T_ARRAY))
+        {
+            return node.map(function(n){n.unit = true; return n;});
         }
         return node;
     },
@@ -1966,10 +1982,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             }
                                             else
                                             {
-                                                // morph attributes/properties
-                                                morphAtts(rnode, vnode);
-                                                // morph children
-                                                morph(rnode, vnode, true);
+                                                if (vnode.unit)
+                                                {
+                                                    r.replaceChild(to_node(vnode, true), rnode);
+                                                }
+                                                else
+                                                {
+                                                    // morph attributes/properties
+                                                    morphAtts(rnode, vnode);
+                                                    // morph children
+                                                    morph(rnode, vnode, true);
+                                                }
                                             }
                                         }
                                     }
@@ -1983,6 +2006,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             rnode.value = val;
                                             if (rnode.firstChild) rnode.firstChild.nodeValue = val;
                                         }
+                                    }
+                                    else if (vnode.unit || (vcomponent !== rcomponent) || (vid !== rid))
+                                    {
+                                        r.replaceChild(to_node(vnode, true), rnode);
                                     }
                                     else
                                     {
@@ -2089,16 +2116,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             r.insertBefore(to_node(vnode, true), rnode);
                                             count++;
                                         }
-                                        else if ((vcomponent !== rcomponent) || (vid !== rid))
-                                        {
-                                            r.replaceChild(to_node(vnode, true), rnode);
-                                        }
                                         else if (false !== vnode.changed)
                                         {
-                                            // morph attributes/properties
-                                            morphAtts(rnode, vnode, true);
-                                            // morph children
-                                            morph(rnode, vnode, true);
+                                            if (vnode.unit)
+                                            {
+                                                r.replaceChild(to_node(vnode, true), rnode);
+                                            }
+                                            else
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode, true);
+                                                // morph children
+                                                morph(rnode, vnode, true);
+                                            }
                                         }
                                     }
                                 }
@@ -2132,10 +2162,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 }
                                 else if (false !== vnode.changed)
                                 {
-                                    // morph attributes/properties
-                                    morphAtts(rnode, vnode, true);
-                                    // morph children
-                                    morph(rnode, vnode, true);
+                                    if (vnode.unit)
+                                    {
+                                        r.replaceChild(to_node(vnode, true), rnode);
+                                    }
+                                    else
+                                    {
+                                        // morph attributes/properties
+                                        morphAtts(rnode, vnode, true);
+                                        // morph children
+                                        morph(rnode, vnode, true);
+                                    }
                                 }
                             }
                             if (0 < count)
@@ -6387,15 +6424,31 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
         return name && this.$components && HAS.call(this.$components, name);
     }
 
-    // can integrate with HtmlWidget
+/**[DOC_MARKDOWN]
+// can integrate with HtmlWidget
+view.widget( ..args );
+
+[/DOC_MARKDOWN]**/
     ,widget: function(/*args*/) {
         var HtmlWidget = View.HtmlWidget;
         return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
     }
 
-    // dynamically parse html string to html virtual dom
+/**[DOC_MARKDOWN]
+// dynamically parse html string to html virtual dom at run-time
+view.html( String htmlString );
+
+[/DOC_MARKDOWN]**/
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
+    }
+/**[DOC_MARKDOWN]
+// mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
+view.unit( nodes );
+
+[/DOC_MARKDOWN]**/
+    ,unit: function(nodes) {
+        return as_unit(nodes);
     }
 
 /**[DOC_MARKDOWN]
