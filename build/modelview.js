@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 21:41:02
+*   @built on 2021-09-29 22:30:08
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.1.0
-*   @built on 2021-09-29 21:41:02
+*   @built on 2021-09-29 22:30:08
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2100,10 +2100,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                     }
                                                     else if (false !== vnode.changed)
                                                     {
-                                                        // morph attributes/properties
-                                                        morphAtts(rnode, vnode);
-                                                        // morph children
-                                                        morph(rnode, vnode, true);
+                                                        if (vnode.unit)
+                                                        {
+                                                            r.replaceChild(to_node(vnode, true), rnode);
+                                                        }
+                                                        else
+                                                        {
+                                                            // morph attributes/properties
+                                                            morphAtts(rnode, vnode);
+                                                            // morph children
+                                                            morph(rnode, vnode, true);
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2277,10 +2284,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         }
                                         else if (false !== vnode.changed)
                                         {
-                                            // morph attributes/properties
-                                            morphAtts(rnode, vnode, true);
-                                            // morph children
-                                            morph(rnode, vnode, unconditionally);
+                                            if (vnode.unit)
+                                            {
+                                                r.replaceChild(to_node(vnode, true), rnode);
+                                            }
+                                            else
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode, true);
+                                                // morph children
+                                                morph(rnode, vnode, unconditionally);
+                                            }
                                         }
                                     }
                                 }
@@ -2299,10 +2313,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                             else if (false !== vnode.changed)
                             {
-                                // morph attributes/properties
-                                morphAtts(rnode, vnode, true);
-                                // morph children
-                                morph(rnode, vnode, unconditionally);
+                                if (vnode.unit)
+                                {
+                                    r.replaceChild(to_node(vnode, true), rnode);
+                                }
+                                else
+                                {
+                                    // morph attributes/properties
+                                    morphAtts(rnode, vnode, true);
+                                    // morph children
+                                    morph(rnode, vnode, unconditionally);
+                                }
                             }
                         }
                     }
@@ -2336,10 +2357,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if (false !== vnode.changed)
                     {
-                        // morph attributes/properties
-                        morphAtts(rnode, vnode, true);
-                        // morph children
-                        morph(rnode, vnode, unconditionally);
+                        if (vnode.unit)
+                        {
+                            r.replaceChild(to_node(vnode, true), rnode);
+                        }
+                        else
+                        {
+                            // morph attributes/properties
+                            morphAtts(rnode, vnode, true);
+                            // morph children
+                            morph(rnode, vnode, unconditionally);
+                        }
                     }
                 }
                 for (; 0 < count; count--) r.removeChild(r.lastChild);

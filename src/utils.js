@@ -2048,10 +2048,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                     }
                                                     else if (false !== vnode.changed)
                                                     {
-                                                        // morph attributes/properties
-                                                        morphAtts(rnode, vnode);
-                                                        // morph children
-                                                        morph(rnode, vnode, true);
+                                                        if (vnode.unit)
+                                                        {
+                                                            r.replaceChild(to_node(vnode, true), rnode);
+                                                        }
+                                                        else
+                                                        {
+                                                            // morph attributes/properties
+                                                            morphAtts(rnode, vnode);
+                                                            // morph children
+                                                            morph(rnode, vnode, true);
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2225,10 +2232,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         }
                                         else if (false !== vnode.changed)
                                         {
-                                            // morph attributes/properties
-                                            morphAtts(rnode, vnode, true);
-                                            // morph children
-                                            morph(rnode, vnode, unconditionally);
+                                            if (vnode.unit)
+                                            {
+                                                r.replaceChild(to_node(vnode, true), rnode);
+                                            }
+                                            else
+                                            {
+                                                // morph attributes/properties
+                                                morphAtts(rnode, vnode, true);
+                                                // morph children
+                                                morph(rnode, vnode, unconditionally);
+                                            }
                                         }
                                     }
                                 }
@@ -2247,10 +2261,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                             else if (false !== vnode.changed)
                             {
-                                // morph attributes/properties
-                                morphAtts(rnode, vnode, true);
-                                // morph children
-                                morph(rnode, vnode, unconditionally);
+                                if (vnode.unit)
+                                {
+                                    r.replaceChild(to_node(vnode, true), rnode);
+                                }
+                                else
+                                {
+                                    // morph attributes/properties
+                                    morphAtts(rnode, vnode, true);
+                                    // morph children
+                                    morph(rnode, vnode, unconditionally);
+                                }
                             }
                         }
                     }
@@ -2284,10 +2305,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if (false !== vnode.changed)
                     {
-                        // morph attributes/properties
-                        morphAtts(rnode, vnode, true);
-                        // morph children
-                        morph(rnode, vnode, unconditionally);
+                        if (vnode.unit)
+                        {
+                            r.replaceChild(to_node(vnode, true), rnode);
+                        }
+                        else
+                        {
+                            // morph attributes/properties
+                            morphAtts(rnode, vnode, true);
+                            // morph children
+                            morph(rnode, vnode, unconditionally);
+                        }
                     }
                 }
                 for (; 0 < count; count--) r.removeChild(r.lastChild);
