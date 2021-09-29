@@ -122,7 +122,7 @@ this.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
 
 HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed. Simple as that! So to dynamically remove attributes you simply make sure the code that is attached to that attribute evaluates to literally `false`.
 
-ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling `view.component(ComponentName, id, props, childs)`. There is also the syntactic sugar of `view.component(..)` to call templates as part of HTML, ie `<ComponentName id={..}, props={..} />`.
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling `view.component(ComponentName, id, props, childs)`. There is also the syntactic sugar of `view.component(..)` to render components as part of HTML, ie `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in components is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components can implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering.
 
 The previous example using components:
 
@@ -130,7 +130,7 @@ The previous example using components:
 new ModelView.View(
 //..
 ).components({
-    'ListItem': new ModelView.View.Component('ListItem', `<li id={props.id}>{props.text}</li>`)
+    'ListItem': new ModelView.View.Component('ListItem', `<li id={props.id}>{props.text}</li>`, {changed: (oldProps, newProps) => oldProps.id !== newProps.id})
 });
 ```
 ```html
