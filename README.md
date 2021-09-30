@@ -148,6 +148,39 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
 
+ModelView uses some heuristics in order to morph the real DOM as fast as posible and skip parts that haven't changed (or at least heuristics say so). However heuristics don't cover some edge cases (since these would require a deep diffing between real and virtual DOM, which beats the purpose of fast morphing). These edge cases are however very easy to handle fully, by providing very simple hints to ModelView engine as to what to morph exactly and how.
+
+Example in question:
+
+```javascript
+<div>{
+someCondition ? (<ul><li>{text}</li><li>some static text</li></ul>) : (<ul><li>{text2}</li><li>some other static text</li></ul>)
+}</div>
+```
+
+If you try to run above and change the value of `someCondition` you will note that result is not what is expected (ie `some static text` does not morph to `some other static text` or vice-versa). This is because for ModelView to understand that these are different would require a deep diffing which is slow, while its heuristics say that they are similar. However there are **at least two very simple ways to remedy the situation**:
+
+**1st way: make code pseudo-dynamic**
+
+```javascript
+<div>{
+someCondition ? (<ul><li>{text}</li><li>{'some static text'}</li></ul>) : (<ul><li>{text2}</li><li>{'some other static text'}</li></ul>)
+}</div>
+```
+
+In this case, we make the different static texts to appear as pseudo-dynamic which makes ModelView morph them as expected.
+
+**2nd way: mark html as single unit**
+
+```javascript
+<div>{
+someCondition ? view.unit(<ul><li>{text}</li><li>some static text</li></ul>) : view.unit(<ul><li>{text2}</li><li>some other static text</li></ul>)
+}</div>
+```
+
+In this case we mark the whole html node to be morphed as a single unit (ie `view.unit(..)`), instead of recursively piece-by-piece, so it is replaced at once and we have our expected result.
+
+
 Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 
 
