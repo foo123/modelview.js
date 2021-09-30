@@ -875,7 +875,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     injsx = false;
                     jsx = trim(jsx);
-                    if (jsx.length) out += to_code(parse(view, jsx, opts, 'jsx', true));
+                    out += '('+(jsx.length ? to_code(parse(view, jsx, opts, 'jsx', true)) : '')+')';
                     jsx = '';
                 }
                 else
