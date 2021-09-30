@@ -195,7 +195,7 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.0 and some popular frameworks.
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.0 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
 
 ![Performance](/examples/perf.png)
 
