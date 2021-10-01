@@ -181,6 +181,9 @@ someCondition ? view.unit(<ul><li>{text}</li><li>some static text</li></ul>) : v
 In this case we mark the whole html node to be morphed as a single unit (ie `view.unit(..)`), instead of recursively piece-by-piece, so it is replaced at once and we have our expected result.
 
 
+ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue), other actors can manipulate the DOM and ModelView will still work. In fact ModelView itself provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.
+
+
 Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 
 
