@@ -1507,7 +1507,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else
                         {
                             node.modified.nodes[node.modified.nodes.length-1].to = index+n.modified.nodes[0].to;
-                            node.modified.nodes = nod.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
+                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                     }
                     return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
