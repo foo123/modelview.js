@@ -2246,7 +2246,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            if ((0 > count) && (index > tt+count))
+                            if ((0 > count) && (index > vc+count))
                             {
                                 r.insertBefore(to_node(vnode, true), rnode);
                                 count++;
