@@ -1416,7 +1416,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             node.modified.nodes.push({from:i, to:i+a.length-1});
                         else
                             node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
-                        return childNodes.concat(a);
+                        // push seems faster than concat
+                        AP.push.apply(childNodes, a);
+                        return childNodes;
                     }
                     else
                     {
@@ -1463,22 +1465,23 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else if (node.diff[node.diff.length-1][1] < index+n.diff[0][0]-1)
                         {
-                            node.diff = node.diff.concat(n.diff.map(function(m){return [index+m[0], index+m[1]];}));
+                            AP.push.apply(node.diff, n.diff.map(function(m){return [index+m[0], index+m[1]];}));
                         }
                         else
                         {
                             node.diff[node.diff.length-1][1] = index+n.diff[0][1];
-                            node.diff = node.diff.concat(n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
+                            AP.push.apply(node.diff, n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
+                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
                         nn.parentNode = node;
                         nn.index = index++;
-                        nn.changed = n.changed;
+                        nn.changed = nn.changed || n.changed;
                         nn.component = nn.component || n.component;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
+                    return childNodes;
                 }
                 else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
                 {
@@ -1493,7 +1496,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         node.modified.nodes.push({from:i, to:i+a.length-1});
                     else
                         node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
-                    return childNodes.concat(a);
+                    AP.push.apply(childNodes, a);
+                    return childNodes;
                 }
                 else if (!n.nodeType || !n.nodeType.length)
                 {
@@ -1502,20 +1506,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (!node.modified) node.modified = {atts:[], nodes:[]};
                         if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index+n.modified.nodes[0].from-1)
                         {
-                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.map(function(m){return {from:index+m.from, to:index+m.to};}));
+                            AP.push.apply(node.modified.nodes, n.modified.nodes.map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                         else
                         {
                             node.modified.nodes[node.modified.nodes.length-1].to = index+n.modified.nodes[0].to;
-                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
+                            AP.push.apply(node.modified.nodes, n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
+                    return childNodes;
                 }
                 if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
                 {
@@ -1769,9 +1774,36 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (HAS.call(svgElements,tagName) ? tagName : tagName.toLowerCase()));
     },
     morphAtts = function morphAtts(r, v, unconditionally) {
-        var T, TT, vAtts, rAtts, i, a, n;
+        var T, TT, vAtts, rAtts, mAtts, j, i, a, n;
 
-        if ((true === unconditionally) || (v.modified && v.modified.atts.length))
+        if (v.modified && v.modified.atts.length)
+        {
+            T = (r[TAG] || '').toUpperCase();
+            TT = (r[TYPE] || '').toLowerCase();
+            // update modified attributes
+            for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
+            {
+                for (i=mAtts[j].from; i<=mAtts[j].to; i++)
+                {
+                    a = vAtts[i]; n = a.name
+                    if (false === a.value) del_att(r, n, T, TT);
+                    else set_att(r, n, a.value, T, TT);
+                    if ('OPTION' === T && 'selected' === n)
+                    {
+                        r.selected = !!a.value;
+                    }
+                    if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && ('checked' === n))
+                    {
+                        r.checked = !!a.value;
+                    }
+                    if (('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && ('disabled' === n || 'required' === n))
+                    {
+                        r[n] = !!a.value;
+                    }
+                }
+            }
+        }
+        else if (true === unconditionally)
         {
             T = (r[TAG] || '').toUpperCase();
             TT = (r[TYPE] || '').toLowerCase();
@@ -1783,7 +1815,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 a = rAtts[i]; n = a.name;
                 if (null === attr(v, n)) del_att(r, n, T, TT);
             }
-            // add/update existent attributes
+            // update new attributes
             for (i=vAtts.length-1; i>=0; i--)
             {
                 a = vAtts[i]; n = a.name
@@ -1809,7 +1841,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     morph = function morph(r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, offset = 0, matched, mi, di, m, mc, d, tt, index, c, cc,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val,
+            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val, frag,
             modifiedNodesPrev = r._mvModified, modifiedNodes;
 
         if (v.component) r._mvComponent = v.component;
@@ -1831,13 +1863,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             modifiedNodesPrev = modifiedNodesPrev || [];
             modifiedNodes = v.modified ? v.modified.nodes : [];
             count = 0; offset = 0;
-            matched = (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
+            matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
                 var match = (m.from == offset + modifiedNodesPrev[i].from);
                 offset += (m.to - m.from + 1) - (modifiedNodesPrev[i].to - modifiedNodesPrev[i].from + 1);
                 return matched + match;
             }, 0)) && (offset+r.childNodes.length === v.childNodes.length);
 
-            if (matched && modifiedNodes.length)
+            if (matched)
             {
                 for (di=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
                 {
@@ -1856,10 +1888,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         rnode = r.childNodes[index];
                         count = (m.to - m.from + 1);
+                        frag = document.createDocumentFragment();
                         for (; 0 < count; count--,index++)
                         {
-                            r.insertBefore(to_node(v.childNodes[index], true), rnode);
+                            frag.appendChild(to_node(v.childNodes[index], true));
                         }
+                        r.insertBefore(frag, rnode);
                         continue;
                     }
                     else
@@ -1875,8 +1909,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     vnode = v.childNodes[index];
                                     if (index >= r.childNodes.length)
                                     {
-                                        r.appendChild(to_node(vnode, true));
-                                        if (0 > count) count++;
+                                        // is appending fragment at once really faster??
+                                        frag = document.createDocumentFragment();
+                                        if (0 > count) count += tt-index+1;
+                                        for (; index<=tt; index++)
+                                            frag.appendChild(to_node(v.childNodes[index], true));
+                                        r.appendChild(frag);
                                         continue;
                                     }
                                     rnode = r.childNodes[index];
@@ -1917,8 +1955,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         {
                                             if ((0 > count) && (index > m.to+count))
                                             {
-                                                r.insertBefore(to_node(vnode, true), rnode);
-                                                count++;
+                                                frag = document.createDocumentFragment();
+                                                for (; 0 > count; index++, count++)
+                                                    frag.appendChild(to_node(v.childNodes[index], true));
+                                                r.insertBefore(frag, rnode);
+                                                continue;
                                             }
                                             else if ((vcomponent !== rcomponent) || (vid !== rid))
                                             {
@@ -1972,8 +2013,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 vnode = v.childNodes[index];
                                 if (index >= r.childNodes.length)
                                 {
-                                    r.appendChild(to_node(vnode, true));
-                                    if (0 > count) count++;
+                                    frag = document.createDocumentFragment();
+                                    if (0 > count) count += tt-index+1;
+                                    for (; index<=tt; index++)
+                                        frag.appendChild(to_node(v.childNodes[index], true));
+                                    r.appendChild(frag);
                                     continue;
                                 }
                                 rnode = r.childNodes[index];
@@ -2064,8 +2108,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     {
                                         if ((0 > count) && (index > tt+count))
                                         {
-                                            r.insertBefore(to_node(vnode, true), rnode);
-                                            count++;
+                                            frag = document.createDocumentFragment();
+                                            for (; 0 > count; index++, count++)
+                                                frag.appendChild(to_node(v.childNodes[index], true));
+                                            r.insertBefore(frag, rnode);
+                                            continue;
                                         }
                                         else if (false !== vnode.changed)
                                         {
@@ -2148,7 +2195,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                 }
             }
-            else if (!matched || (true === unconditionally))
+            else if (true === unconditionally)
             {
                 count = r.childNodes.length - vc;
                 for (index=0; index<vc; index++)
@@ -2156,8 +2203,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     vnode = v.childNodes[index];
                     if (index >= r.childNodes.length)
                     {
-                        r.appendChild(to_node(vnode, true));
-                        if (0 > count) count++;
+                        // is appending fragment at once really faster??
+                        frag = document.createDocumentFragment();
+                        if (0 > count) count += vc-index;
+                        for (; index<vc; index++)
+                            frag.appendChild(to_node(v.childNodes[index], true));
+                        r.appendChild(frag);
                         continue;
                     }
                     rnode = r.childNodes[index];
@@ -2246,10 +2297,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            if ((0 > count) && (index > vc+count))
+                            if ((0 > count) && (index >= vc+count))
                             {
-                                r.insertBefore(to_node(vnode, true), rnode);
-                                count++;
+                                frag = document.createDocumentFragment();
+                                for (; 0 > count; index++, count++)
+                                    frag.appendChild(to_node(v.childNodes[index], true));
+                                r.insertBefore(frag, rnode);
+                                continue;
                             }
                             else if ((vcomponent !== rcomponent) || (vid !== rid))
                             {

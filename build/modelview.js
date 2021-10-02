@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 3.1.0
-*   @built on 2021-10-01 21:50:40
+*   @version: 3.1.1
+*   @built on 2021-10-02 11:32:48
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 3.1.0
-*   @built on 2021-10-01 21:50:40
+*   @version: 3.1.1
+*   @built on 2021-10-02 11:32:48
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = 'undefined' !== typeof (document);
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 3.1.0**
+**Version 3.1.1**
 
 ### Contents
 
@@ -1468,7 +1468,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             node.modified.nodes.push({from:i, to:i+a.length-1});
                         else
                             node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
-                        return childNodes.concat(a);
+                        // push seems faster than concat
+                        AP.push.apply(childNodes, a);
+                        return childNodes;
                     }
                     else
                     {
@@ -1515,22 +1517,23 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else if (node.diff[node.diff.length-1][1] < index+n.diff[0][0]-1)
                         {
-                            node.diff = node.diff.concat(n.diff.map(function(m){return [index+m[0], index+m[1]];}));
+                            AP.push.apply(node.diff, n.diff.map(function(m){return [index+m[0], index+m[1]];}));
                         }
                         else
                         {
                             node.diff[node.diff.length-1][1] = index+n.diff[0][1];
-                            node.diff = node.diff.concat(n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
+                            AP.push.apply(node.diff, n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
+                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
                         nn.parentNode = node;
                         nn.index = index++;
-                        nn.changed = n.changed;
+                        nn.changed = nn.changed || n.changed;
                         nn.component = nn.component || n.component;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
+                    return childNodes;
                 }
                 else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
                 {
@@ -1545,7 +1548,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         node.modified.nodes.push({from:i, to:i+a.length-1});
                     else
                         node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
-                    return childNodes.concat(a);
+                    AP.push.apply(childNodes, a);
+                    return childNodes;
                 }
                 else if (!n.nodeType || !n.nodeType.length)
                 {
@@ -1554,20 +1558,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (!node.modified) node.modified = {atts:[], nodes:[]};
                         if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index+n.modified.nodes[0].from-1)
                         {
-                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.map(function(m){return {from:index+m.from, to:index+m.to};}));
+                            AP.push.apply(node.modified.nodes, n.modified.nodes.map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                         else
                         {
                             node.modified.nodes[node.modified.nodes.length-1].to = index+n.modified.nodes[0].to;
-                            node.modified.nodes = node.modified.nodes.concat(n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
+                            AP.push.apply(node.modified.nodes, n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                     }
-                    return childNodes.concat(n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
+                    return childNodes;
                 }
                 if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
                 {
@@ -1821,9 +1826,36 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (HAS.call(svgElements,tagName) ? tagName : tagName.toLowerCase()));
     },
     morphAtts = function morphAtts(r, v, unconditionally) {
-        var T, TT, vAtts, rAtts, i, a, n;
+        var T, TT, vAtts, rAtts, mAtts, j, i, a, n;
 
-        if ((true === unconditionally) || (v.modified && v.modified.atts.length))
+        if (v.modified && v.modified.atts.length)
+        {
+            T = (r[TAG] || '').toUpperCase();
+            TT = (r[TYPE] || '').toLowerCase();
+            // update modified attributes
+            for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
+            {
+                for (i=mAtts[j].from; i<=mAtts[j].to; i++)
+                {
+                    a = vAtts[i]; n = a.name
+                    if (false === a.value) del_att(r, n, T, TT);
+                    else set_att(r, n, a.value, T, TT);
+                    if ('OPTION' === T && 'selected' === n)
+                    {
+                        r.selected = !!a.value;
+                    }
+                    if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && ('checked' === n))
+                    {
+                        r.checked = !!a.value;
+                    }
+                    if (('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && ('disabled' === n || 'required' === n))
+                    {
+                        r[n] = !!a.value;
+                    }
+                }
+            }
+        }
+        else if (true === unconditionally)
         {
             T = (r[TAG] || '').toUpperCase();
             TT = (r[TYPE] || '').toLowerCase();
@@ -1835,7 +1867,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 a = rAtts[i]; n = a.name;
                 if (null === attr(v, n)) del_att(r, n, T, TT);
             }
-            // add/update existent attributes
+            // update new attributes
             for (i=vAtts.length-1; i>=0; i--)
             {
                 a = vAtts[i]; n = a.name
@@ -1861,7 +1893,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     morph = function morph(r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, offset = 0, matched, mi, di, m, mc, d, tt, index, c, cc,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val,
+            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val, frag,
             modifiedNodesPrev = r._mvModified, modifiedNodes;
 
         if (v.component) r._mvComponent = v.component;
@@ -1883,13 +1915,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             modifiedNodesPrev = modifiedNodesPrev || [];
             modifiedNodes = v.modified ? v.modified.nodes : [];
             count = 0; offset = 0;
-            matched = (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
+            matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
                 var match = (m.from == offset + modifiedNodesPrev[i].from);
                 offset += (m.to - m.from + 1) - (modifiedNodesPrev[i].to - modifiedNodesPrev[i].from + 1);
                 return matched + match;
             }, 0)) && (offset+r.childNodes.length === v.childNodes.length);
 
-            if (matched && modifiedNodes.length)
+            if (matched)
             {
                 for (di=0,mi=0,cc=modifiedNodes.length; mi<cc; mi++)
                 {
@@ -1908,10 +1940,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         rnode = r.childNodes[index];
                         count = (m.to - m.from + 1);
+                        frag = document.createDocumentFragment();
                         for (; 0 < count; count--,index++)
                         {
-                            r.insertBefore(to_node(v.childNodes[index], true), rnode);
+                            frag.appendChild(to_node(v.childNodes[index], true));
                         }
+                        r.insertBefore(frag, rnode);
                         continue;
                     }
                     else
@@ -1927,8 +1961,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     vnode = v.childNodes[index];
                                     if (index >= r.childNodes.length)
                                     {
-                                        r.appendChild(to_node(vnode, true));
-                                        if (0 > count) count++;
+                                        // is appending fragment at once really faster??
+                                        frag = document.createDocumentFragment();
+                                        if (0 > count) count += tt-index+1;
+                                        for (; index<=tt; index++)
+                                            frag.appendChild(to_node(v.childNodes[index], true));
+                                        r.appendChild(frag);
                                         continue;
                                     }
                                     rnode = r.childNodes[index];
@@ -1969,8 +2007,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         {
                                             if ((0 > count) && (index > m.to+count))
                                             {
-                                                r.insertBefore(to_node(vnode, true), rnode);
-                                                count++;
+                                                frag = document.createDocumentFragment();
+                                                for (; 0 > count; index++, count++)
+                                                    frag.appendChild(to_node(v.childNodes[index], true));
+                                                r.insertBefore(frag, rnode);
+                                                continue;
                                             }
                                             else if ((vcomponent !== rcomponent) || (vid !== rid))
                                             {
@@ -2024,8 +2065,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 vnode = v.childNodes[index];
                                 if (index >= r.childNodes.length)
                                 {
-                                    r.appendChild(to_node(vnode, true));
-                                    if (0 > count) count++;
+                                    frag = document.createDocumentFragment();
+                                    if (0 > count) count += tt-index+1;
+                                    for (; index<=tt; index++)
+                                        frag.appendChild(to_node(v.childNodes[index], true));
+                                    r.appendChild(frag);
                                     continue;
                                 }
                                 rnode = r.childNodes[index];
@@ -2116,8 +2160,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     {
                                         if ((0 > count) && (index > tt+count))
                                         {
-                                            r.insertBefore(to_node(vnode, true), rnode);
-                                            count++;
+                                            frag = document.createDocumentFragment();
+                                            for (; 0 > count; index++, count++)
+                                                frag.appendChild(to_node(v.childNodes[index], true));
+                                            r.insertBefore(frag, rnode);
+                                            continue;
                                         }
                                         else if (false !== vnode.changed)
                                         {
@@ -2200,7 +2247,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                 }
             }
-            else if (!matched || (true === unconditionally))
+            else if (true === unconditionally)
             {
                 count = r.childNodes.length - vc;
                 for (index=0; index<vc; index++)
@@ -2208,8 +2255,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     vnode = v.childNodes[index];
                     if (index >= r.childNodes.length)
                     {
-                        r.appendChild(to_node(vnode, true));
-                        if (0 > count) count++;
+                        // is appending fragment at once really faster??
+                        frag = document.createDocumentFragment();
+                        if (0 > count) count += vc-index;
+                        for (; index<vc; index++)
+                            frag.appendChild(to_node(v.childNodes[index], true));
+                        r.appendChild(frag);
                         continue;
                     }
                     rnode = r.childNodes[index];
@@ -2298,10 +2349,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            if ((0 > count) && (index > vc+count))
+                            if ((0 > count) && (index >= vc+count))
                             {
-                                r.insertBefore(to_node(vnode, true), rnode);
-                                count++;
+                                frag = document.createDocumentFragment();
+                                for (; 0 > count; index++, count++)
+                                    frag.appendChild(to_node(v.childNodes[index], true));
+                                r.insertBefore(frag, rnode);
+                                continue;
                             }
                             else if ((vcomponent !== rcomponent) || (vid !== rid))
                             {
@@ -6510,7 +6564,7 @@ view.autovalidate( [Boolean enabled] );
 /**[DOC_MARKDOWN]
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [Boolean enabled] );
+view.livebind( [type=true|false|'text'] );
 
 [/DOC_MARKDOWN]**/
     ,livebind: function(enable) {
@@ -6682,7 +6736,7 @@ view.render( [Boolean immediate=false] );
             if (!self.$renderdom)
             {
                 self.$upds = [];
-                if (self.$out) out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
+                if (self.$out) out = self.$out.call(self, function(key){return Str(self.$model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
@@ -6692,7 +6746,7 @@ view.render( [Boolean immediate=false] );
                 if (!self.$map)
                 {
                     if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{'+Str(key)+'}';});
-                    self.add(self.$renderdom);
+                    self.updateMap(self.$renderdom, 'add');
                 }
                 callback = function() {
                     var upds = self.$upds;
@@ -6743,57 +6797,76 @@ view.render( [Boolean immediate=false] );
         return self;
     }
 
-    ,add: function(node) {
-        var view = this;
-        if (view.$dom && node)
-        {
-            if (!view.$map) view.$map = {att:{}, txt:{}};
-            get_placeholders(node, view.$map);
-        }
-        return node;
-    }
-    ,remove: function(node) {
-        var view = this, map = view.$map;
-        if (view.$dom && node && map)
-        {
-            del_map(map.txt, function(v){
-                v.reduce(function(rem, t, i){
-                    if (is_child_of(t, node, view.$dom)) rem.push(i);
-                    return rem;
-                }, [])
-                .reverse()
-                .forEach(function(i){
-                    v.splice(i, 1);
-                });
-            });
-            del_map(map.att, function(v){
-                v.reduce(function(rem, a, i){
-                    if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                    return rem;
-                }, [])
-                .reverse()
-                .forEach(function(i){
-                    v.splice(i, 1);
-                });
-            });
-        }
-        return node;
-    }
+/**[DOC_MARKDOWN]
+// directly add node at index position of parentNode (this method is compatible with general morphing routines)
+view.addNode( parentNode, nodeToAdd, atIndex );
 
+[/DOC_MARKDOWN]**/
     ,addNode: function(el, node, index) {
         if (el && node)
             add_nodes(el, [node], index);
         return this;
     }
+/**[DOC_MARKDOWN]
+// directly move node at index position of same parentNode (this method is compatible with general morphing routines)
+view.moveNode( parentNode, nodeToMove, atIndex );
+
+[/DOC_MARKDOWN]**/
     ,moveNode: function(el, node, index) {
         if (el && node)
             add_nodes(el, [node], index, true);
         return this;
     }
+/**[DOC_MARKDOWN]
+// directly remove node (this method is compatible with general morphing routines)
+view.removeNode( nodeToRemove );
+
+[/DOC_MARKDOWN]**/
     ,removeNode: function(node) {
         if (node && node.parentNode)
             remove_nodes(node.parentNode, 1, AP.indexOf.call(node.parentNode.childNodes, node));
         return this;
+    }
+
+/**[DOC_MARKDOWN]
+// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
+view.updateMap( node, action='add'|'remove' );
+
+[/DOC_MARKDOWN]**/
+    ,updateMap: function(node, action) {
+        var view = this;
+        if (view.$dom && node && ('text' === view.$livebind))
+        {
+            if ('add' === action)
+            {
+                if (!view.$map) view.$map = {att:{}, txt:{}};
+                get_placeholders(node, view.$map);
+            }
+            else if (('remove' === action) && view.$map)
+            {
+                del_map(view.$map.txt, function(v){
+                    v.reduce(function(rem, t, i){
+                        if (is_child_of(t, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+                del_map(view.$map.att, function(v){
+                    v.reduce(function(rem, a, i){
+                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+            }
+        }
+        return node;
     }
 
 /**[DOC_MARKDOWN]
@@ -7372,7 +7445,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "3.1.0"
+    VERSION: "3.1.1"
     
     ,UUID: uuid
     
@@ -7394,7 +7467,7 @@ var ModelView = {
 /**
 *
 *   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 3.1.0
+*   @version: 3.1.1
 *
 *   A micro-MV* (MVVM) framework for complex (UI) screens
 *   https://github.com/foo123/modelview.js

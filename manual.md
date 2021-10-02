@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 3.1.0**
+**Version 3.1.1**
 
 ### Contents
 
@@ -590,7 +590,7 @@ view.autovalidate( [Boolean enabled] );
 
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [Boolean enabled] );
+view.livebind( [type=true|false|'text'] );
 
 
 
@@ -618,6 +618,30 @@ view.unbind( );
 // render view on actual DOM (immediately or deferred)
 // .render is also called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
+
+
+
+
+// directly add node at index position of parentNode (this method is compatible with general morphing routines)
+view.addNode( parentNode, nodeToAdd, atIndex );
+
+
+
+
+// directly move node at index position of same parentNode (this method is compatible with general morphing routines)
+view.moveNode( parentNode, nodeToMove, atIndex );
+
+
+
+
+// directly remove node (this method is compatible with general morphing routines)
+view.removeNode( nodeToRemove );
+
+
+
+
+// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
+view.updateMap( node, action='add'|'remove' );
 
 
 

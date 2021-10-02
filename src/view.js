@@ -667,7 +667,7 @@ view.autovalidate( [Boolean enabled] );
 /**[DOC_MARKDOWN]
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [Boolean enabled] );
+view.livebind( [type=true|false|'text'] );
 
 [/DOC_MARKDOWN]**/
     ,livebind: function(enable) {
@@ -839,7 +839,7 @@ view.render( [Boolean immediate=false] );
             if (!self.$renderdom)
             {
                 self.$upds = [];
-                if (self.$out) out = self.$out.call(self, function(key){return Str(self.model().get(key));}); // return the rendered string
+                if (self.$out) out = self.$out.call(self, function(key){return Str(self.$model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
@@ -849,7 +849,7 @@ view.render( [Boolean immediate=false] );
                 if (!self.$map)
                 {
                     if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{'+Str(key)+'}';});
-                    self.add(self.$renderdom);
+                    self.updateMap(self.$renderdom, 'add');
                 }
                 callback = function() {
                     var upds = self.$upds;
@@ -900,57 +900,76 @@ view.render( [Boolean immediate=false] );
         return self;
     }
 
-    ,add: function(node) {
-        var view = this;
-        if (view.$dom && node)
-        {
-            if (!view.$map) view.$map = {att:{}, txt:{}};
-            get_placeholders(node, view.$map);
-        }
-        return node;
-    }
-    ,remove: function(node) {
-        var view = this, map = view.$map;
-        if (view.$dom && node && map)
-        {
-            del_map(map.txt, function(v){
-                v.reduce(function(rem, t, i){
-                    if (is_child_of(t, node, view.$dom)) rem.push(i);
-                    return rem;
-                }, [])
-                .reverse()
-                .forEach(function(i){
-                    v.splice(i, 1);
-                });
-            });
-            del_map(map.att, function(v){
-                v.reduce(function(rem, a, i){
-                    if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                    return rem;
-                }, [])
-                .reverse()
-                .forEach(function(i){
-                    v.splice(i, 1);
-                });
-            });
-        }
-        return node;
-    }
+/**[DOC_MARKDOWN]
+// directly add node at index position of parentNode (this method is compatible with general morphing routines)
+view.addNode( parentNode, nodeToAdd, atIndex );
 
+[/DOC_MARKDOWN]**/
     ,addNode: function(el, node, index) {
         if (el && node)
             add_nodes(el, [node], index);
         return this;
     }
+/**[DOC_MARKDOWN]
+// directly move node at index position of same parentNode (this method is compatible with general morphing routines)
+view.moveNode( parentNode, nodeToMove, atIndex );
+
+[/DOC_MARKDOWN]**/
     ,moveNode: function(el, node, index) {
         if (el && node)
             add_nodes(el, [node], index, true);
         return this;
     }
+/**[DOC_MARKDOWN]
+// directly remove node (this method is compatible with general morphing routines)
+view.removeNode( nodeToRemove );
+
+[/DOC_MARKDOWN]**/
     ,removeNode: function(node) {
         if (node && node.parentNode)
             remove_nodes(node.parentNode, 1, AP.indexOf.call(node.parentNode.childNodes, node));
         return this;
+    }
+
+/**[DOC_MARKDOWN]
+// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
+view.updateMap( node, action='add'|'remove' );
+
+[/DOC_MARKDOWN]**/
+    ,updateMap: function(node, action) {
+        var view = this;
+        if (view.$dom && node && ('text' === view.$livebind))
+        {
+            if ('add' === action)
+            {
+                if (!view.$map) view.$map = {att:{}, txt:{}};
+                get_placeholders(node, view.$map);
+            }
+            else if (('remove' === action) && view.$map)
+            {
+                del_map(view.$map.txt, function(v){
+                    v.reduce(function(rem, t, i){
+                        if (is_child_of(t, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+                del_map(view.$map.att, function(v){
+                    v.reduce(function(rem, a, i){
+                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+            }
+        }
+        return node;
     }
 
 /**[DOC_MARKDOWN]

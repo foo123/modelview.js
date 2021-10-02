@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.1.0** (74 kB minified)
+**Version 3.1.1** (75 kB minified)
 
 
 **see also:**
@@ -198,13 +198,13 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.0 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.1 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
 
 ![Performance](/examples/perf.png)
 
 ![Memory](/examples/mem.png)
 
-It is shown that ModelView 3.1.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 3.1.1 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance. Until the next update..
 
@@ -213,4 +213,4 @@ As is clear from previous versions, ModelView consistently improves performance.
 
 **JavaScript:** ES5
 
-**Browser:** All browsers that support custom element attributes like `[mv-evt]`, `[mv-on-click]`, `[data-mv-evt]`, ...
+**Browser:** All browsers that support `createDocumentFragment` and custom element attributes like `[mv-evt]`, `[mv-on-click]`, `[data-mv-evt]`, ...
