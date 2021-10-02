@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.1.1
-*   @built on 2021-10-02 11:32:48
+*   @built on 2021-10-02 18:51:34
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.1.1
-*   @built on 2021-10-02 11:32:48
+*   @built on 2021-10-02 18:51:34
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1677,6 +1677,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else
         {
+            //rnode = document.createRange().createContextualFragment(to_string(vnode)).firstChild;
             //vnode.nodeType = vnode.nodeType.toLowerCase();
             rnode = HAS.call(svgElements, vnode.nodeType) ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
             if (vnode.attributes.length)
@@ -1694,11 +1695,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         rnode[CLASS] = Str(v);
                     }
-                    else if (n in rnode)
+                    /*else if (n in rnode)
                     {
                         t = get_type(rnode[n]);
                         rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
-                    }
+                    }*/
                     else
                     {
                         rnode[SET_ATTR](n, Str(true === v ? n : v));
@@ -1811,7 +1812,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else if (n in r)
         {
             t = get_type(r[n]);
-            s = T_NUM === t ? parseFloat(s) : (T_BOOL === t ? !!s : s);
+            s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
             /*if (r[n] !== s)*/ r[n] = s;
         }
         else
@@ -1890,10 +1891,22 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
+    Fragment = function() {
+        return document.createDocumentFragment();
+    },
+    Range = function() {
+        var range = null;
+        try {
+            range = document.createRange();
+        } catch(e) {
+            range = null;
+        }
+        return range;
+    },
     morph = function morph(r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, offset = 0, matched, mi, di, m, mc, d, tt, index, c, cc,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val, frag,
+            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val, frag, range,
             modifiedNodesPrev = r._mvModified, modifiedNodes;
 
         if (v.component) r._mvComponent = v.component;
@@ -1905,10 +1918,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 
         if (!r.childNodes.length)
         {
+            frag = Fragment();
             for (index=0; index<vc; index++)
-            {
-                r.appendChild(to_node(v.childNodes[index], true));
-            }
+                frag.appendChild(to_node(v.childNodes[index], true));
+            // is appending fragment at once really faster??
+            r.appendChild(frag);
         }
         else
         {
@@ -1930,9 +1944,24 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (m.to < m.from)
                     {
                         count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
-                        for (; (0 < count) && (index < r.childNodes.length); count--)
+                        if (0 < count)
                         {
-                            r.removeChild(r.childNodes[index]);
+                            range = Range();
+                            if (range)
+                            {
+                                range.setStart(r, index);
+                                range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
+                                range.deleteContents();
+                                //rang.detach();
+                                count = 0;
+                            }
+                            else
+                            {
+                                for (; (0 < count) && (index < r.childNodes.length); count--)
+                                {
+                                    r.removeChild(r.childNodes[index]);
+                                }
+                            }
                         }
                         continue;
                     }
@@ -1940,11 +1969,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         rnode = r.childNodes[index];
                         count = (m.to - m.from + 1);
-                        frag = document.createDocumentFragment();
+                        frag = Fragment();
                         for (; 0 < count; count--,index++)
-                        {
                             frag.appendChild(to_node(v.childNodes[index], true));
-                        }
                         r.insertBefore(frag, rnode);
                         continue;
                     }
@@ -1961,8 +1988,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     vnode = v.childNodes[index];
                                     if (index >= r.childNodes.length)
                                     {
-                                        // is appending fragment at once really faster??
-                                        frag = document.createDocumentFragment();
+                                        frag = Fragment();
                                         if (0 > count) count += tt-index+1;
                                         for (; index<=tt; index++)
                                             frag.appendChild(to_node(v.childNodes[index], true));
@@ -2007,7 +2033,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         {
                                             if ((0 > count) && (index > m.to+count))
                                             {
-                                                frag = document.createDocumentFragment();
+                                                frag = Fragment();
                                                 for (; 0 > count; index++, count++)
                                                     frag.appendChild(to_node(v.childNodes[index], true));
                                                 r.insertBefore(frag, rnode);
@@ -2065,7 +2091,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 vnode = v.childNodes[index];
                                 if (index >= r.childNodes.length)
                                 {
-                                    frag = document.createDocumentFragment();
+                                    frag = Fragment();
                                     if (0 > count) count += tt-index+1;
                                     for (; index<=tt; index++)
                                         frag.appendChild(to_node(v.childNodes[index], true));
@@ -2160,7 +2186,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     {
                                         if ((0 > count) && (index > tt+count))
                                         {
-                                            frag = document.createDocumentFragment();
+                                            frag = Fragment();
                                             for (; 0 > count; index++, count++)
                                                 frag.appendChild(to_node(v.childNodes[index], true));
                                             r.insertBefore(frag, rnode);
@@ -2255,8 +2281,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     vnode = v.childNodes[index];
                     if (index >= r.childNodes.length)
                     {
-                        // is appending fragment at once really faster??
-                        frag = document.createDocumentFragment();
+                        frag = Fragment();
                         if (0 > count) count += vc-index;
                         for (; index<vc; index++)
                             frag.appendChild(to_node(v.childNodes[index], true));
@@ -2351,7 +2376,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         {
                             if ((0 > count) && (index >= vc+count))
                             {
-                                frag = document.createDocumentFragment();
+                                frag = Fragment();
                                 for (; 0 > count; index++, count++)
                                     frag.appendChild(to_node(v.childNodes[index], true));
                                 r.insertBefore(frag, rnode);
@@ -2420,7 +2445,22 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                for (; 0 < count; count--) r.removeChild(r.lastChild);
+                if (0 < count)
+                {
+                    range = Range();
+                    if (range)
+                    {
+                        range.setStart(r, vc);
+                        range.setEnd(r, r.childNodes.length);
+                        range.deleteContents();
+                        //rang.detach();
+                        count = 0;
+                    }
+                    else
+                    {
+                        for (; 0 < count; count--) r.removeChild(r.lastChild);
+                    }
+                }
             }
         }
     },

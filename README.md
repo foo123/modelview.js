@@ -148,6 +148,8 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
 
+ModelView also has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
+
 ModelView uses some heuristics in order to morph the real DOM as fast as posible and skip parts that haven't changed (or at least heuristics say so). However heuristics don't cover some edge cases (since these would require a deep diffing between real and virtual DOM, which beats the purpose of fast morphing). These cases are defined by implicitly dynamic parts which appear as static (they are implicitly dynamic as being parts of a larger dynamic element, whose static parts change as a whole, but are not marked as explicitly dynamic), while the explicitly dynamic parts are similar (see example below). These edge cases are however very easy to handle fully, by providing very simple hints to ModelView engine as to what to morph exactly and how.
 
 Example in question:
@@ -182,7 +184,6 @@ In this case we mark the whole html node to be morphed as a single unit (ie `vie
 
 
 ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue), other actors can manipulate the DOM and ModelView will still work. In fact ModelView itself provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.
-
 
 Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 
