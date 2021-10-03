@@ -1672,12 +1672,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (true === with_meta)
             {
-                if (vnode.component)
-                    rnode._mvComponent = vnode.component;
-                if (vnode.id)
-                    rnode._mvId = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length)
-                    rnode._mvModified = vnode.modified.nodes;
+                if (vnode.component) rnode._mvComponent = vnode.component;
+                if (vnode.id) rnode._mvId = vnode.id;
+                if (vnode.modified && vnode.modified.nodes.length) rnode._mvModified = vnode.modified.nodes;
             }
             if (vnode.childNodes.length)
             {
@@ -1874,11 +1871,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             modifiedNodesPrev = r._mvModified, modifiedNodes;
 
         if (v.component) r._mvComponent = v.component;
-        else if (r._mvComponent) r._mvComponent = undef;
+        else if (r._mvComponent) r._mvComponent = null;
         if (v.id) r._mvId = v.id;
-        else if (r._mvId) r._mvId = undef;
+        else if (r._mvId) r._mvId = null;
         if (v.modified && v.modified.nodes.length) r._mvModified = v.modified.nodes;
-        else if (r._mvModified) r._mvModified = undef;
+        else if (r._mvModified) r._mvModified = null;
 
         if (!r.childNodes.length)
         {
@@ -2429,8 +2426,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
-        var f, i, n, l = nodes.length, frag,
-            _mvModifiedNodes = el._mvModified ? el._mvModified : null;
+        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el._mvModified;
         if (0 < l)
         {
             if (null == index)
@@ -2494,8 +2490,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return el;
     },
     remove_nodes = function(el, count, index, isStatic) {
-        var f, i, l, range,
-            _mvModifiedNodes = el._mvModified ? el._mvModified : null;
+        var f, i, l, range, _mvModifiedNodes = el._mvModified;
         if (null == index) index = el.childNodes.length-1;
         if (0 < count && 0 <= index && index < el.childNodes.length)
         {
@@ -2723,3 +2718,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     }
 ;
 
+if (HASDOC && HTMLElement && Element)
+{
+    // add these auxiliary props to Element prototypes so browser optimization is not affected
+    HTMLElement.prototype._mvComponent = Element.prototype._mvComponent = null;
+    HTMLElement.prototype._mvId = Element.prototype._mvId = null;
+    HTMLElement.prototype._mvModified = Element.prototype._mvModified = null;
+}
