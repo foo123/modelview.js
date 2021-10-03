@@ -905,9 +905,9 @@ view.render( [Boolean immediate=false] );
 view.addNode( parentNode, nodeToAdd, atIndex );
 
 [/DOC_MARKDOWN]**/
-    ,addNode: function(el, node, index) {
+    ,addNode: function(el, node, index, isStatic) {
         if (el && node)
-            add_nodes(el, [node], index);
+            add_nodes(el, [node], index, true===isStatic);
         return this;
     }
 /**[DOC_MARKDOWN]

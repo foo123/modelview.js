@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.1.1
-*   @built on 2021-10-02 18:51:34
+*   @built on 2021-10-03 09:25:48
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.1.1
-*   @built on 2021-10-02 18:51:34
+*   @built on 2021-10-03 09:25:48
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1439,8 +1439,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return state;
     },
-    htmlNode = function(nodeType, id, type, atts, children, value2, modified) {
-        var node = initVNode(nodeType, '', '', null, 0), index = 0;
+    htmlNode = function htmlNode(nodeType, id, type, atts, children, value2, modified) {
+        var node = initVNode(nodeType, '', '', null, 0), index = 0, modify = true;
         node.id = id || null;
         node.type = type || null;
         node.attributes = atts || [];
@@ -1462,14 +1462,18 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if (is_type(n, T_ARRAY))
                     {
-                        var i = index, a = n.reduce(process, []);
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
-                            node.modified.nodes.push({from:i, to:i+a.length-1});
-                        else
-                            node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
-                        // push seems faster than concat
-                        AP.push.apply(childNodes, a);
+                        var i = index, mod = modify;
+                        if (mod) modify = false;
+                        childNodes = n.reduce(process, childNodes);
+                        if (mod)
+                        {
+                            modify = true;
+                            if (!node.modified) node.modified = {atts: [], nodes: []};
+                            if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
+                                node.modified.nodes.push({from:i, to:index-1});
+                            else
+                                node.modified.nodes[node.modified.nodes.length-1].to = index-1;
+                        }
                         return childNodes;
                     }
                     else
@@ -1477,29 +1481,38 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         var v = String(n);
                         if ('' === v)
                         {
-                            if (!node.modified) node.modified = {atts: [], nodes: []};
-                            if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
-                                node.modified.nodes.push({from:index, to:index-1});
-                            else
-                                node.modified.nodes[node.modified.nodes.length-1].to = index-1;
+                            if (modify)
+                            {
+                                if (!node.modified) node.modified = {atts: [], nodes: []};
+                                if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                                    node.modified.nodes.push({from:index, to:index-1});
+                                else
+                                    node.modified.nodes[node.modified.nodes.length-1].to = index-1;
+                            }
                             return childNodes;
                         }
                         n = initVNode('text', v, v, null, 0);
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
-                            node.modified.nodes.push({from:index, to:index});
-                        else
-                            node.modified.nodes[node.modified.nodes.length-1].to = index;
+                        if (modify)
+                        {
+                            if (!node.modified) node.modified = {atts: [], nodes: []};
+                            if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                                node.modified.nodes.push({from:index, to:index});
+                            else
+                                node.modified.nodes[node.modified.nodes.length-1].to = index;
+                        }
                     }
                 }
                 else if ('<mv-component>' === n.nodeType)
                 {
                     node.componentNodes += n.childNodes.length;
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
-                        node.modified.nodes.push({from:index, to:index+n.childNodes.length-1});
-                    else
-                        node.modified.nodes[node.modified.nodes.length-1].to = index+n.childNodes.length-1;
+                    if (modify)
+                    {
+                        if (!node.modified) node.modified = {atts: [], nodes: []};
+                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
+                            node.modified.nodes.push({from:index, to:index+n.childNodes.length-1});
+                        else
+                            node.modified.nodes[node.modified.nodes.length-1].to = index+n.childNodes.length-1;
+                    }
                     if (n.changed)
                     {
                         if (!node.diff)
@@ -1525,7 +1538,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             AP.push.apply(node.diff, n.diff.slice(1).map(function(m){return [index+m[0], index+m[1]];}));
                         }
                     }
-                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn, i){
+                    AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.changed = nn.changed || n.changed;
@@ -1537,23 +1550,26 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
                 {
-                    var i = index, a = n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                    var i = index, a = n.childNodes.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     });
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
-                        node.modified.nodes.push({from:i, to:i+a.length-1});
-                    else
-                        node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
+                    if (modify)
+                    {
+                        if (!node.modified) node.modified = {atts: [], nodes: []};
+                        if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < i-1)
+                            node.modified.nodes.push({from:i, to:i+a.length-1});
+                        else
+                            node.modified.nodes[node.modified.nodes.length-1].to = i+a.length-1;
+                    }
                     AP.push.apply(childNodes, a);
                     return childNodes;
                 }
                 else if (!n.nodeType || !n.nodeType.length)
                 {
-                    if (n.modified && n.modified.nodes.length)
+                    if (modify && n.modified && n.modified.nodes.length)
                     {
                         if (!node.modified) node.modified = {atts:[], nodes:[]};
                         if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index+n.modified.nodes[0].from-1)
@@ -1566,7 +1582,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             AP.push.apply(node.modified.nodes, n.modified.nodes.slice(1).map(function(m){return {from:index+m.from, to:index+m.to};}));
                         }
                     }
-                    AP.push.apply(childNodes, n.childNodes/*.reduce(process, [])*/.map(function(nn){
+                    AP.push.apply(childNodes, n.childNodes.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
@@ -1574,7 +1590,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }));
                     return childNodes;
                 }
-                if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
+                if (modify && n.modified && (n.modified.atts.length || n.modified.nodes.length))
                 {
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     if (!node.modified.nodes.length || node.modified.nodes[node.modified.nodes.length-1].to < index-1)
@@ -2464,8 +2480,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         }
     },
-    add_nodes = function(el, nodes, index, move) {
-        var f, i, n, l = nodes.length,
+    add_nodes = function(el, nodes, index, move, isStatic) {
+        var f, i, n, l = nodes.length, frag,
             _mvModifiedNodes = el._mvModified ? el._mvModified : null;
         if (0 < l)
         {
@@ -2481,37 +2497,56 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     f = false;
                     for (i=0; i<_mvModifiedNodes.length; i++)
                     {
-                        if (f)
+                        if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
                         {
                             _mvModifiedNodes[i].from += l;
                             _mvModifiedNodes[i].to += l;
                         }
-                        else if (index >= _mvModifiedNodes[i].from && (index <= _mvModifiedNodes[i].to || _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
+                        else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
                         {
                             f = true;
+                            if (!isStatic || (index < _mvModifiedNodes[i].to))
                             _mvModifiedNodes[i].to += l;
                         }
                     }
-                    if (!f && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
+                    if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
                     {
                         _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
                     }
                 }
                 if (index === el.childNodes.length)
                 {
-                    for (i=0; i<l; i++) el.appendChild(nodes[i]);
+                    if (1 < l)
+                    {
+                        frag = Fragment();
+                        for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                        el.appendChild(frag);
+                    }
+                    else
+                    {
+                        el.appendChild(nodes[0]);
+                    }
                 }
                 else
                 {
-                    n = el.childNodes[index];
-                    for (i=0; i<l; i++) el.insertBefore(nodes[i], n);
+                    if (1 < l)
+                    {
+                        frag = Fragment();
+                        n = el.childNodes[index];
+                        for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                        el.insertBefore(frag, n);
+                    }
+                    else
+                    {
+                        el.insertBefore(nodes[0], el.childNodes[index]);
+                    }
                 }
             }
         }
         return el;
     },
-    remove_nodes = function(el, count, index) {
-        var f, i, l,
+    remove_nodes = function(el, count, index, isStatic) {
+        var f, i, l, range,
             _mvModifiedNodes = el._mvModified ? el._mvModified : null;
         if (null == index) index = el.childNodes.length-1;
         if (0 < count && 0 <= index && index < el.childNodes.length)
@@ -2524,7 +2559,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     f = false;
                     for (i=0; i<_mvModifiedNodes.length; i++)
                     {
-                        if (f)
+                        if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
                         {
                             _mvModifiedNodes[i].from -= l;
                             _mvModifiedNodes[i].to -= l;
@@ -2532,11 +2567,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
                         {
                             f = true;
-                            _mvModifiedNodes[i].to -= l;
+                            _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
                         }
                     }
                 }
-                for (; 0 < l; l--) el.removeChild(el.childNodes[index]);
+                range = Range();
+                if (range && (1 < l))
+                {
+                    range.setStart(el, index);
+                    range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
+                    range.deleteContents();
+                }
+                else
+                {
+                    for (; 0 < l; l--) el.removeChild(el.childNodes[index]);
+                }
             }
         }
     },
@@ -6842,9 +6887,9 @@ view.render( [Boolean immediate=false] );
 view.addNode( parentNode, nodeToAdd, atIndex );
 
 [/DOC_MARKDOWN]**/
-    ,addNode: function(el, node, index) {
+    ,addNode: function(el, node, index, isStatic) {
         if (el && node)
-            add_nodes(el, [node], index);
+            add_nodes(el, [node], index, true===isStatic);
         return this;
     }
 /**[DOC_MARKDOWN]
