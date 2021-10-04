@@ -604,6 +604,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },*/
 
+    Fragment = function() {
+        return document.createDocumentFragment();
+    },
+    Range = function() {
+        var range = null;
+        try {
+            range = document.createRange();
+        } catch(e) {
+            range = null;
+        }
+        return range;
+    },
+
     debounce = function(callback, instance) {
         if ('undefined' !== typeof window && window.requestAnimationFrame)
         {
@@ -801,7 +814,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     finState = function(state) {
         if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
         {
-            state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+            state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
         }
         state.txt = '';
         state.txt2 = '';
@@ -823,16 +836,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     TAGCHAR = /[a-zA-Z0-9\-_:]/,
     ATTCHAR = TAGCHAR,
 
-    attr = function(vnode, name) {
-        if (!vnode.atts)
-        {
-            vnode.atts = vnode.attributes.reduce(function(atts, a){
-                atts[a.name] = a.value;
-                return atts;
-            }, {});
-        }
-        return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
-    },
     jsx2code = function jsx2code(view, tpl, opts) {
         var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k, injsx = false, instr = false, esc = false, q = '', c = '';
         while (i<l)
@@ -1131,7 +1134,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 // close comment
                 state.incomment = false;
                 i += 3;
-                state.dom.childNodes.push(initVNode('comment', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                state.dom.childNodes.push(initVNode('c', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 state.txt = '';
                 state.txt2 = '';
                 continue;
@@ -1149,7 +1152,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if ('/script>' === html.slice(i, i+8).toLowerCase())
                     {
-                        state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                        state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                         state.txt = '';
                         state.txt2 = '';
                     }
@@ -1164,7 +1167,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if ('/style>' === html.slice(i, i+7).toLowerCase())
                     {
-                        state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                        state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                         state.txt = '';
                         state.txt2 = '';
                     }
@@ -1180,7 +1183,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if ('/textarea>' === html.slice(i, i+10).toLowerCase())
                     {
                         state.dom.nodeValue = state.txt;
-                        state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                        state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                         state.txt = '';
                         state.txt2 = '';
                     }
@@ -1193,7 +1196,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
-                    state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }
                 state.txt = '';
                 state.txt2 = '';
@@ -1275,7 +1278,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
                 {
-                    state.dom.childNodes.push(initVNode('text', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.dom.childNodes.push(initVNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
                 }
                 state.txt = '';
                 state.txt2 = '';
@@ -1397,10 +1400,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
         }
-        if ('text' === nodeType || 'comment' === nodeType)
+        if ('t' === nodeType || 'c' === nodeType)
         {
             node.nodeValue = children;
-            node.nodeValue2 = value2 || children;
+            node.nodeValue2 = value2 || '';
         }
         else
         {
@@ -1426,7 +1429,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else
                     {
-                        var v = String(n);
+                        var v = Str(n);
                         if ('' === v)
                         {
                             if (modify)
@@ -1439,7 +1442,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                             return childNodes;
                         }
-                        n = initVNode('text', v, v, null, 0);
+                        n = initVNode('t', v, v, null, 0);
                         if (modify)
                         {
                             if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1496,7 +1499,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }));
                     return childNodes;
                 }
-                else if (('dynamic' === n.nodeType) || ('jsx' === n.nodeType))
+                else if (('dyn' === n.nodeType) || ('jsx' === n.nodeType))
                 {
                     var i = index, a = n.childNodes.map(function(nn){
                         nn.parentNode = node;
@@ -1570,13 +1573,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (vnode.nodeType && vnode.nodeType.length)
         {
-            if ('text' === vnode.nodeType)
+            if ('t' === vnode.nodeType)
             {
-                out = '_$$_("text", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
+                out = '_$$_("t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
             }
-            else if ('comment' === vnode.nodeType)
+            else if ('c' === vnode.nodeType)
             {
-                out = '_$$_("comment", null, null, [], '+toJSON(vnode.nodeValue)+')';
+                out = '_$$_("c", null, null, [], '+toJSON(vnode.nodeValue)+')';
             }
             else
             {
@@ -1604,18 +1607,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var out = '', selfclosed = true;
         if (vnode.nodeType && vnode.nodeType.length)
         {
-            if ('text' === vnode.nodeType)
+            if ('t' === vnode.nodeType)
             {
                 out = vnode.nodeValue;
             }
-            else if ('comment' === vnode.nodeType)
+            else if ('c' === vnode.nodeType)
             {
                 out = '<!--'+vnode.nodeValue+'-->';
             }
             else
             {
-                //vnode.nodeType = vnode.nodeType.toLowerCase();
-                selfclosed = HAS.call(autoclosedTags, vnode.nodeType);
+                selfclosed = /*HAS.call(autoclosedTags, vnode.nodeType)*/autoclosedTags[vnode.nodeType];
                 out = vnode.nodeType.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
                     if (false !== att.value) atts.push(true === att.value ? att.name : att.name+'="'+att.value+'"');
                     return atts;
@@ -1630,20 +1632,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(vnode, with_meta) {
-        var rnode, i, l, a, v, n, t;
-        if ('text' === vnode.nodeType)
+        var rnode, i, l, a, v, n, t, isSVG;
+        if ('t' === vnode.nodeType)
         {
             rnode = document.createTextNode(vnode.nodeValue2);
         }
-        else if ('comment' === vnode.nodeType)
+        else if ('c' === vnode.nodeType)
         {
             rnode = document.createComment(vnode.nodeValue);
         }
         else
         {
-            //rnode = document.createRange().createContextualFragment(to_string(vnode)).firstChild;
-            //vnode.nodeType = vnode.nodeType.toLowerCase();
-            rnode = HAS.call(svgElements, vnode.nodeType) ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
+            isSVG = /*HAS.call(svgElements, vnode.nodeType)*/svgElements[vnode.nodeType];
+            rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
             if (vnode.attributes.length)
             {
                 for (i=0,l=vnode.attributes.length; i<l; i++)
@@ -1657,7 +1658,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if ('class' === n)
                     {
-                        rnode[CLASS] = Str(v);
+                        if (isSVG) rnode[SET_ATTR](n, Str(v));
+                        else rnode[CLASS] = Str(v);
                     }
                     /*else if (n in rnode)
                     {
@@ -1672,9 +1674,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (true === with_meta)
             {
-                if (vnode.component) rnode._mvComponent = vnode.component;
-                if (vnode.id) rnode._mvId = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length) rnode._mvModified = vnode.modified.nodes;
+                if (vnode.component) rnode.$mvComp = vnode.component;
+                if (vnode.id) rnode.$mvId = vnode.id;
+                if (vnode.modified && vnode.modified.nodes.length) rnode.$mvMod = vnode.modified.nodes;
             }
             if (vnode.childNodes.length)
             {
@@ -1697,6 +1699,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return rnode;
     },
+    attr = function(vnode, name) {
+        if (!vnode.atts)
+        {
+            vnode.atts = vnode.attributes.reduce(function(atts, a){
+                atts[a.name] = a.value;
+                return atts;
+            }, {});
+        }
+        return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
+    },
     del_att = function(r, n, T, TT) {
         if ('id' === n)
         {
@@ -1705,25 +1717,26 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if ('class' === n)
         {
-            r[CLASS] = '';
+            if (svgElements[T]) r[SET_ATTR](n, '');
+            else r[CLASS] = '';
         }
         else if ('style' === n)
         {
             r[n] = '';
         }
-        else if ('selected' === n && 'OPTION' === T)
+        else if ('selected' === n && '<option>' === T)
         {
             r[n] = false;
         }
-        else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+        else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
         {
             r[n] = false;
         }
-        else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+        else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
         {
             r[n] = false;
         }
-        else if ('value' === n && 'INPUT' === T)
+        else if ('value' === n && '<input>' === T)
         {
             r[n] = '';
         }
@@ -1747,26 +1760,27 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else if ('class' === n)
         {
             s = Str(s);
-            r[CLASS] = s;
+            if (svgElements[T]) r[SET_ATTR](n, s);
+            else r[CLASS] = s;
         }
         else if ('style' === n)
         {
             s = Str(s);
             r[n] = s;
         }
-        else if ('selected' === n && 'OPTION' === T)
+        else if ('selected' === n && '<option>' === T)
         {
             r[n] = true;
         }
-        else if (('disabled' === n || 'required' === n) && ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T))
+        else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
         {
             r[n] = true;
         }
-        else if ('checked' === n && 'INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+        else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
         {
             r[n] = true;
         }
-        else if ('value' === n && 'INPUT' === T)
+        else if ('value' === n && '<input>' === T)
         {
             if (r[n] !== s) r[n] = s;
         }
@@ -1784,15 +1798,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return r;
     },
     nodeType = function(node) {
-        var tagName = '<'+(node[TAG] || '')+'>';
-        return node.nodeType === 3 ? 'text' : (node.nodeType === 8 ? 'comment' : (HAS.call(svgElements,tagName) ? tagName : tagName.toLowerCase()));
+        switch (node.nodeType)
+        {
+            case 3: return 't';
+            case 8: return 'c';
+            default:
+                var tagName = '<'+(node[TAG] || '')+'>';
+                return svgElements[tagName] ? tagName : tagName.toLowerCase();
+        }
     },
     morphAtts = function morphAtts(r, v, unconditionally) {
         var T, TT, vAtts, rAtts, mAtts, j, i, a, n;
 
         if (v.modified && v.modified.atts.length)
         {
-            T = (r[TAG] || '').toUpperCase();
+            T = v.nodeType;
             TT = (r[TYPE] || '').toLowerCase();
             // update modified attributes
             for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
@@ -1802,15 +1822,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     a = vAtts[i]; n = a.name
                     if (false === a.value) del_att(r, n, T, TT);
                     else set_att(r, n, a.value, T, TT);
-                    if ('OPTION' === T && 'selected' === n)
+                    if ('<option>' === T && 'selected' === n)
                     {
                         r.selected = !!a.value;
                     }
-                    if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT) && ('checked' === n))
+                    if ('<input>' === T && ('checkbox' === TT || 'radio' === TT) && ('checked' === n))
                     {
                         r.checked = !!a.value;
                     }
-                    if (('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T) && ('disabled' === n || 'required' === n))
+                    if (('<select>' === T || '<input>' === T || '<textarea>' === T) && ('disabled' === n || 'required' === n))
                     {
                         r[n] = !!a.value;
                     }
@@ -1819,7 +1839,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if (true === unconditionally)
         {
-            T = (r[TAG] || '').toUpperCase();
+            T = v.nodeType;
             TT = (r[TYPE] || '').toLowerCase();
             vAtts = v.attributes;
             rAtts = r.attributes;
@@ -1836,15 +1856,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (false === a.value) del_att(r, n, T, TT);
                 else set_att(r, n, a.value, T, TT);
             }
-            if ('OPTION' === T)
+            if ('<option>' === T)
             {
                 r.selected = !!attr(v, 'selected');
             }
-            if ('INPUT' === T && ('checkbox' === TT || 'radio' === TT))
+            if ('<input>' === T && ('checkbox' === TT || 'radio' === TT))
             {
                 r.checked = !!attr(v, 'checked');
             }
-            if ('SELECT' === T || 'INPUT' === T || 'TEXTAREA' === T)
+            if ('<select>' === T || '<input>' === T || '<textarea>' === T)
             {
                 r.disabled = !!attr(v, 'disabled');
                 r.required = !!attr(v, 'required');
@@ -1852,38 +1872,29 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
-    Fragment = function() {
-        return document.createDocumentFragment();
-    },
-    Range = function() {
-        var range = null;
-        try {
-            range = document.createRange();
-        } catch(e) {
-            range = null;
-        }
-        return range;
-    },
     morph = function morph(r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, count = 0, offset = 0, matched, mi, di, m, mc, d, tt, index, c, cc,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid, rcomponent, vcomponent, val, frag, range,
-            modifiedNodesPrev = r._mvModified, modifiedNodes;
+            modifiedNodesPrev = r.$mvMod, modifiedNodes;
 
-        if (v.component) r._mvComponent = v.component;
-        else if (r._mvComponent) r._mvComponent = null;
-        if (v.id) r._mvId = v.id;
-        else if (r._mvId) r._mvId = null;
-        if (v.modified && v.modified.nodes.length) r._mvModified = v.modified.nodes;
-        else if (r._mvModified) r._mvModified = null;
+        if (v.component) r.$mvComp = v.component;
+        else if (r.$mvComp) r.$mvComp = null;
+        if (v.id) r.$mvId = v.id;
+        else if (r.$mvId) r.$mvId = null;
+        if (v.modified && v.modified.nodes.length) r.$mvMod = v.modified.nodes;
+        else if (r.$mvMod) r.$mvMod = null;
 
         if (!r.childNodes.length)
         {
-            frag = Fragment();
-            for (index=0; index<vc; index++)
-                frag.appendChild(to_node(v.childNodes[index], true));
-            // is appending fragment at once really faster??
-            r.appendChild(frag);
+            if (0 < vc)
+            {
+                frag = Fragment();
+                for (index=0; index<vc; index++)
+                    frag.appendChild(to_node(v.childNodes[index], true));
+                // appending fragment at once really faster??
+                r.appendChild(frag);
+            }
         }
         else
         {
@@ -1928,12 +1939,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
                     {
-                        rnode = r.childNodes[index];
                         count = (m.to - m.from + 1);
-                        frag = Fragment();
-                        for (; 0 < count; count--,index++)
-                            frag.appendChild(to_node(v.childNodes[index], true));
-                        r.insertBefore(frag, rnode);
+                        if (0 < count)
+                        {
+                            rnode = r.childNodes[index];
+                            frag = Fragment();
+                            for (; 0 < count; count--,index++)
+                                frag.appendChild(to_node(v.childNodes[index], true));
+                            r.insertBefore(frag, rnode);
+                        }
                         continue;
                     }
                     else
@@ -1960,9 +1974,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     T2 = vnode.nodeType;
                                     T1 = nodeType(rnode);
                                     vcomponent = vnode.component;
-                                    rcomponent = rnode._mvComponent || null;
+                                    rcomponent = rnode.$mvComp;
                                     vid = vnode.id;
-                                    rid = rnode._mvId || null;
+                                    rid = rnode.$mvId;
                                     if (
                                         (T2 !== T1)
                                         || ('<script>' === T1 || '<style>' === T1)
@@ -2025,11 +2039,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         // morph attributes/properties
                                         morphAtts(rnode, vnode);
                                         val = vnode.childNodes.map(to_string).join('');
-                                        if (rnode.value !== val)
-                                        {
+                                        /*if (rnode.value !== val)
+                                        {*/
                                             rnode.value = val;
                                             if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                                        }
+                                        /*}*/
                                     }
                                     else if (vnode.unit || (vcomponent !== rcomponent) || (vid !== rid))
                                     {
@@ -2063,9 +2077,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 T2 = vnode.nodeType;
                                 T1 = nodeType(rnode);
                                 vcomponent = vnode.component;
-                                rcomponent = rnode._mvComponent || null;
+                                rcomponent = rnode.$mvComp;
                                 vid = vnode.id;
-                                rid = rnode._mvId || null;
+                                rid = rnode.$mvId;
                                 if (
                                     (T2 !== T1)
                                     || ('<script>' === T1 || '<style>' === T1)
@@ -2104,7 +2118,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                     r.removeChild(rnode); count--;
                                                     if (index >= r.childNodes.length) break;
                                                     rnode = r.childNodes[index];
-                                                    if (!rnode._mvId || (vid === rnode._mvId)) break;
+                                                    if (!rnode.$mvId || (vid === rnode.$mvId)) break;
                                                 }
                                                 if (index >= r.childNodes.length)
                                                 {
@@ -2113,8 +2127,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                 else
                                                 {
                                                     T1 = nodeType(rnode);
-                                                    rcomponent = rnode._mvComponent || null;
-                                                    rid = rnode._mvId || null;
+                                                    rcomponent = rnode.$mvComp;
+                                                    rid = rnode.$mvId;
                                                     if (
                                                         (T2 !== T1)
                                                         || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
@@ -2169,14 +2183,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         }
                                     }
                                 }
-                                else if ('text' === T1)
+                                else if ('t' === T1)
                                 {
                                     /*if (rnode.nodeValue !== vnode.nodeValue2)
                                     {*/
                                         rnode.nodeValue = vnode.nodeValue2;
                                     /*}*/
                                 }
-                                else if ('comment' === T1)
+                                else if ('c' === T1)
                                 {
                                     /*if (rnode.nodeValue !== vnode.nodeValue)
                                     {*/
@@ -2215,19 +2229,30 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             if (0 < count)
                             {
                                 // finally remove any remaining nodes that need to be removed and haven't been already
-                                lastnode = r.childNodes[index/*+1*/];
-                                for (; (0 < count) && lastnode; count--)
+                                range = Range();
+                                if (range)
                                 {
-                                    if (1 === count)
+                                    range.setStart(r, index);
+                                    range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
+                                    range.deleteContents();
+                                    count = 0;
+                                }
+                                else
+                                {
+                                    lastnode = r.childNodes[index/*+1*/];
+                                    for (; (0 < count) && lastnode; count--)
                                     {
-                                        to_remove = lastnode;
+                                        if (1 === count)
+                                        {
+                                            to_remove = lastnode;
+                                        }
+                                        else
+                                        {
+                                            to_remove = lastnode;
+                                            lastnode = lastnode.nextSibling;
+                                        }
+                                        r.removeChild(to_remove);
                                     }
-                                    else
-                                    {
-                                        to_remove = lastnode;
-                                        lastnode = lastnode.nextSibling;
-                                    }
-                                    r.removeChild(to_remove);
                                 }
                             }
                         }
@@ -2247,15 +2272,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         for (; index<vc; index++)
                             frag.appendChild(to_node(v.childNodes[index], true));
                         r.appendChild(frag);
-                        continue;
+                        break;
                     }
                     rnode = r.childNodes[index];
                     T2 = vnode.nodeType;
                     T1 = nodeType(rnode);
                     vcomponent = vnode.component;
-                    rcomponent = rnode._mvComponent || null;
+                    rcomponent = rnode.$mvComp;
                     vid = vnode.id;
-                    rid = rnode._mvId || null;
+                    rid = rnode.$mvId;
                     if (
                         (T2 !== T1)
                         || ('<script>' === T1 || '<style>' === T1)
@@ -2294,7 +2319,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         r.removeChild(rnode); count--;
                                         if (index >= r.childNodes.length) break;
                                         rnode = r.childNodes[index];
-                                        if (!rnode._mvId || (vid === rnode._mvId)) break;
+                                        if (!rnode.$mvId || (vid === rnode.$mvId)) break;
                                     }
                                     if (index >= r.childNodes.length)
                                     {
@@ -2303,8 +2328,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     else
                                     {
                                         T1 = nodeType(rnode);
-                                        rcomponent = rnode._mvComponent || null;
-                                        rid = rnode._mvId || null;
+                                        rcomponent = rnode.$mvComp;
+                                        rid = rnode.$mvId;
                                         if (
                                             (T2 !== T1)
                                             || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
@@ -2363,14 +2388,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                         }
                     }
-                    else if ('text' === T1)
+                    else if ('t' === T1)
                     {
                         /*if (rnode.nodeValue !== vnode.nodeValue2)
                         {*/
                             rnode.nodeValue = vnode.nodeValue2;
                         /*}*/
                     }
-                    else if ('comment' === T1)
+                    else if ('c' === T1)
                     {
                         /*if (rnode.nodeValue !== vnode.nodeValue)
                         {*/
@@ -2426,7 +2451,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
-        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el._mvModified;
+        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el.$mvMod;
         if (0 < l)
         {
             if (null == index)
@@ -2490,7 +2515,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return el;
     },
     remove_nodes = function(el, count, index, isStatic) {
-        var f, i, l, range, _mvModifiedNodes = el._mvModified;
+        var f, i, l, range, _mvModifiedNodes = el.$mvMod;
         if (null == index) index = el.childNodes.length-1;
         if (0 < count && 0 <= index && index < el.childNodes.length)
         {
@@ -2683,14 +2708,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         walk_map(mt, function(list, k){
                             var v = Str(model.get(k));
                             list.forEach(function(t){
-                                if (t.nodeValue !== v)
+                                //if (t.nodeValue !== v)
                                     t.nodeValue = v;
                             });
                         }, ks);
                         walk_map(ma, function(list){
                             list.forEach(function(a){
                                 var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                                if (a.node[ATTR](a.att) !== v)
+                                //if (a.node[ATTR](a.att) !== v)
                                     a.node[SET_ATTR](a.att, v);
                             });
                         }, ks);
@@ -2703,14 +2728,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             walk_map(map.txt, function(list, k){
                 var v = Str(model.get(k));
                 list.forEach(function(t){
-                    if (t.nodeValue !== v)
+                    //if (t.nodeValue !== v)
                         t.nodeValue = v;
                 });
             }, '');
             walk_map(map.att, function(list){
                 list.forEach(function(a){
                     var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                    if (a.node[ATTR](a.att) !== v)
+                    //if (a.node[ATTR](a.att) !== v)
                         a.node[SET_ATTR](a.att, v);
                 });
             }, '');
@@ -2721,7 +2746,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 if (HASDOC && HTMLElement && Element)
 {
     // add these auxiliary props to Element prototypes so browser optimization is not affected
-    HTMLElement.prototype._mvComponent = Element.prototype._mvComponent = null;
-    HTMLElement.prototype._mvId = Element.prototype._mvId = null;
-    HTMLElement.prototype._mvModified = Element.prototype._mvModified = null;
+    HTMLElement.prototype.$mvComp = Element.prototype.$mvComp = null;
+    HTMLElement.prototype.$mvId = Element.prototype.$mvId = null;
+    HTMLElement.prototype.$mvMod = Element.prototype.$mvMod = null;
 }

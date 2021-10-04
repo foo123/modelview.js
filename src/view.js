@@ -621,7 +621,7 @@ view.html( String htmlString );
 
 [/DOC_MARKDOWN]**/
     ,html: function(str) {
-        return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dynamic');
+        return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
