@@ -873,14 +873,14 @@ view.render( [Boolean immediate=false] );
             if (!self.$renderdom)
             {
                 self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
-                var out = to_string(self.$out.call(self, htmlNode)); // return the rendered string
+                var out = to_string(self, self.$out.call(self, htmlNode)); // return the rendered string
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
                 return out;
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self.$renderdom, self.$out.call(self, htmlNode));
+                morph(self, self.$renderdom, self.$out.call(self, htmlNode));
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };

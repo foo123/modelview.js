@@ -1945,6 +1945,192 @@ Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
+
+/**[DOC_MARKDOWN]
+// dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
+Model.Collection( Array array );
+
+[/DOC_MARKDOWN]**/
+function Collection(array)
+{
+    var self = this;
+    if (array instanceof Collection) return array;
+    if (!(self instanceof Collection)) return new Collection(array);
+    self.set(array || []);
+}
+Model.Collection = Collection;
+Collection[proto] = {
+    constructor: Collection
+    ,data: null
+    ,diff: null
+    ,mapper: null
+    ,dispose: function() {
+        var self = this;
+        self.data = null;
+        self.diff = null;
+        self.mapper = null;
+        return self;
+    }
+    ,_upd: function(action, start, end) {
+        this.diff.push({action:action, from:start, to:end});
+        return this;
+    }
+/**[DOC_MARKDOWN]
+// reset all manipulations so far, data are kept intact
+Collection.reset();
+
+[/DOC_MARKDOWN]**/
+    ,reset: function() {
+        var self = this;
+        self.diff = [];
+        self.mapper = null;
+        return self;
+    }
+/**[DOC_MARKDOWN]
+// clone this collection (optionally with any Array.map functions as well)
+Collection.clone(Boolean with_data_mapper = false);
+
+[/DOC_MARKDOWN]**/
+    ,clone: function(with_mapper) {
+        var cloned = new Collection();
+        cloned.data = this.data.slice();
+        cloned.diff = this.diff.slice();
+        if (true === with_mapper) cloned.mapper = this.mapper;
+        return cloned;
+    }
+/**[DOC_MARKDOWN]
+// get data item at index
+Collection.get(index);
+
+[/DOC_MARKDOWN]**/
+    ,get: function(index) {
+        return arguments.length ? this.data[index] : this.data;
+    }
+/**[DOC_MARKDOWN]
+// set data item at index, or whole data if passed as single argument
+Collection.set(index, dataItem);
+
+[/DOC_MARKDOWN]**/
+    ,set: function(index, data) {
+        var self = this;
+        if (1 === arguments.length && self.data !== index)
+        {
+            self.data = index;
+            self.reset()._upd('set', 0, self.data.length-1);
+        }
+        else if (2 === arguments.length && this.data[index] !== data)
+        {
+            self.data[index] = data;
+            self._upd('change', index, index);
+        }
+        return self;
+    }
+/**[DOC_MARKDOWN]
+// push data item
+Collection.push(dataItem);
+
+[/DOC_MARKDOWN]**/
+    ,push: function(data) {
+        this.data.push(data);
+        this._upd('add', this.data.length-1, this.data.length-1);
+        return this;
+    }
+/**[DOC_MARKDOWN]
+// pop data item
+Collection.pop();
+
+[/DOC_MARKDOWN]**/
+    ,pop: function() {
+        var data;
+        if (this.data.length)
+        {
+            data = this.data.pop();
+            this._upd('del', this.data.length, this.data.length);
+        }
+        return data;
+    }
+/**[DOC_MARKDOWN]
+// unshift data item
+Collection.unshift(dataItem);
+
+[/DOC_MARKDOWN]**/
+    ,unshift: function(data) {
+        this.data.unshift(data);
+        this._upd('add', 0, 0);
+        return this;
+    }
+/**[DOC_MARKDOWN]
+// shift data item
+Collection.shift();
+
+[/DOC_MARKDOWN]**/
+    ,shift: function() {
+        var data;
+        if (this.data.length)
+        {
+            data = this.data.shift();
+            this._upd('del', 0, 0);
+        }
+        return data;
+    }
+/**[DOC_MARKDOWN]
+// splice collection
+Collection.splice(index, numRemoved, ..);
+
+[/DOC_MARKDOWN]**/
+    ,splice: function(index, to_del) {
+        var self = this, ret, to_add = arguments.length - 2;
+        if (0 < to_del || 0 < to_add)
+        {
+            ret = self.data.splice.apply(self.data, arguments);
+            if (to_add >= to_del)
+            {
+                self._upd('change', index, index+to_del-1);
+                self._upd('add', index+to_del, index+to_add-1);
+            }
+            else
+            {
+                self._upd('del', index, index+to_del-to_add-1);
+                if (0 < to_add) self._upd('change', index, index+to_add-1);
+            }
+        }
+        return ret;
+    }
+/**[DOC_MARKDOWN]
+// concat array
+Collection.concat(array);
+
+[/DOC_MARKDOWN]**/
+    ,concat: function(data) {
+        if (data.length)
+        {
+            var l = this.data.length;
+            this.data.push.apply(this.data, data);
+            this._upd('add', l, this.data.length-1);
+        }
+        return this;
+    }
+/**[DOC_MARKDOWN]
+// map collection data given a map function
+// actual mapping is executed lazily when actually requested (see below),
+// else func is stored to be used later, data remain intact
+Collection.mapTo(func);
+
+[/DOC_MARKDOWN]**/
+    ,mapTo: function(f) {
+        this.mapper = this.mapper ? (function(f0){return function(x, i){return f(f0(x, i), i);};})(this.mapper) : f;
+        return this;
+    }
+/**[DOC_MARKDOWN]
+// perform actual mapping (see above)
+Collection.mapped();
+
+[/DOC_MARKDOWN]**/
+    ,mapped: function(data) {
+        data = data || this.data;
+        return this.mapper ? data.map(this.mapper) : data;
+    }
+};
 /**[DOC_MARKDOWN]
 ```
 [/DOC_MARKDOWN]**/

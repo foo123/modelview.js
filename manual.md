@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 3.1.1**
+**Version 3.2.0**
 
 ### Contents
 
@@ -486,6 +486,86 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
 
 // model enable / disable atomic operations, do next update operations on key (and nested keys) as one atom
 model.atom( String dottedKey | Boolean false );
+
+
+
+
+// dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
+Model.Collection( Array array );
+
+
+
+
+// reset all manipulations so far, data are kept intact
+Collection.reset();
+
+
+
+
+// clone this collection (optionally with any Array.map functions as well)
+Collection.clone(Boolean with_data_mapper = false);
+
+
+
+
+// get data item at index
+Collection.get(index);
+
+
+
+
+// set data item at index, or whole data if passed as single argument
+Collection.set(index, dataItem);
+
+
+
+
+// push data item
+Collection.push(dataItem);
+
+
+
+
+// pop data item
+Collection.pop();
+
+
+
+
+// unshift data item
+Collection.unshift(dataItem);
+
+
+
+
+// shift data item
+Collection.shift();
+
+
+
+
+// splice collection
+Collection.splice(index, numRemoved, ..);
+
+
+
+
+// concat array
+Collection.concat(array);
+
+
+
+
+// map collection data given a map function
+// actual mapping is executed lazily when actually requested (see below),
+// else func is stored to be used later, data remain intact
+Collection.mapTo(func);
+
+
+
+
+// perform actual mapping (see above)
+Collection.mapped();
 
 
 
