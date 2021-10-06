@@ -1485,15 +1485,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             node.childNodes = children.reduce(function process(childNodes, n) {
                 if (n instanceof Collection)
                 {
-                    var nn = new VNode('collection', n, null, node, index);
-                    nn.potentialChildNodes = n.data.length;
+                    var nn = new VNode('collection', n, null, node, index), len = n.items().length;
+                    nn.potentialChildNodes = len;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
-                    insMod(node.modified.nodes, index, index+n.data.length-1, true);
+                    insMod(node.modified.nodes, index, index+len-1, true);
                     new_mod = true;
                     childNodes.push(nn);
-                    node.potentialChildNodes += n.data.length;
-                    index += n.data.length;
-                    // reset collection after current render session
+                    node.potentialChildNodes += len;
+                    index += len;
+                    // reset collection DOM manipulations after current render session
                     view.on('render', function(){n.reset();}, true);
                     return childNodes;
                 }
@@ -1565,7 +1565,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 else if ('collection' === n.nodeType)
                 {
                     if (!node.modified) node.modified = {atts: [], nodes: []};
-                    insMod(node.modified.nodes, index, index+n.nodeValue.data.length-1, true);
+                    insMod(node.modified.nodes, index, index+n.nodeValue.items().length-1, true);
                     new_mod = true;
                     node.potentialChildNodes += n.potentialChildNodes;
                     n.index = index;
@@ -1986,12 +1986,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 switch (d.action)
                 {
                     case 'set':
-                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped()), start, start+collection.data.length-1, start+collection.data.length-1, 0, count, true);
+                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped()), start, start+collection.items().length-1, start+collection.items().length-1, 0, count, true);
                         count = 0;
                         return count; // break from diff loop completely, this should be only diff
                         break;
                     case 'add':
-                        insNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.data.slice(d.from, d.to+1))), 0, d.to-d.from+1, r.childNodes[start+d.from]);
+                        insNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.items(d.from, d.to+1))), 0, d.to-d.from+1, r.childNodes[start+d.from]);
                         if (0 > count) count += d.to-d.from+1;
                         break;
                     case 'del':
@@ -1999,7 +1999,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (0 < count) count -= d.to-d.from+1;
                         break;
                     case 'change':
-                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.data.slice(d.from, d.to+1))), start+d.from, start+d.to, start+d.to, 0, 0, true);
+                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.items(d.from, d.to+1))), start+d.from, start+d.to, start+d.to, 0, 0, true);
                         break;
                 }
             }
@@ -2044,7 +2044,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (false !== vnode.changed)
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
+                            morphAtts(rnode, vnode/*, unconditionally*/);
                             // morph children
                             morph(view, rnode, vnode, true);
                         }
@@ -2093,7 +2093,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     else
                                     {
                                         // morph attributes/properties
-                                        morphAtts(rnode, vnode, unconditionally);
+                                        morphAtts(rnode, vnode/*, unconditionally*/);
                                         // morph children
                                         morph(view, rnode, vnode, true);
                                     }
@@ -2119,7 +2119,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
+                            morphAtts(rnode, vnode/*, unconditionally*/);
                             // morph children
                             morph(view, rnode, vnode, true);
                         }
@@ -2163,7 +2163,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 else
                 {
                     // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
+                    morphAtts(rnode, vnode/*, unconditionally*/);
                     // morph children
                     morph(view, rnode, vnode, true);
                 }
@@ -2247,7 +2247,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     vnode = v.childNodes[index];
                     if ('collection' === vnode.nodeType)
                     {
-                        vnode.childNodes.splice.apply(vnode.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()).childNodes));
+                        v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()).childNodes));
                         vnode = v.childNodes[index];
                     }
                     if (index >= r.childNodes.length)

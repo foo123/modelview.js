@@ -491,81 +491,87 @@ model.atom( String dottedKey | Boolean false );
 
 
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
-Model.Collection( Array array );
+var collection = new Model.Collection( Array array );
 
 
 
 
 // reset all manipulations so far, data are kept intact
-Collection.reset();
+collection.reset();
 
 
 
 
 // clone this collection (optionally with any Array.map functions as well)
-Collection.clone(Boolean with_data_mapper = false);
+collection.clone(Boolean with_data_mapper = false);
+
+
+
+
+// get the (array) items of this collection (optionally between start and end index, like Array.slice)
+collection.items([startIndex[, endIndex]]);
 
 
 
 
 // get data item at index
-Collection.get(index);
+collection.get(index);
 
 
 
 
 // set data item at index, or whole data if passed as single argument
-Collection.set(index, dataItem);
+collection.set(index, dataItem);
 
 
 
 
 // push data item
-Collection.push(dataItem);
+collection.push(dataItem);
 
 
 
 
 // pop data item
-Collection.pop();
+collection.pop();
 
 
 
 
 // unshift data item
-Collection.unshift(dataItem);
+collection.unshift(dataItem);
 
 
 
 
 // shift data item
-Collection.shift();
+collection.shift();
 
 
 
 
 // splice collection
-Collection.splice(index, numRemoved, ..);
+collection.splice(index, numRemoved, ..);
 
 
 
 
 // concat array
-Collection.concat(array);
+collection.concat(array);
 
 
 
 
-// map collection data given a map function
+// map collection items given a map function
 // actual mapping is executed lazily when actually requested (see below),
-// else func is stored to be used later, data remain intact
-Collection.mapTo(func);
+// else func is stored to be used later, items remain intact
+collection.mapTo(func);
 
 
 
 
 // perform actual mapping (see above)
-Collection.mapped();
+collection.mapped();
 
 
 

@@ -1948,7 +1948,7 @@ Model[proto].bracketKey = bracketed;
 
 /**[DOC_MARKDOWN]
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
-Model.Collection( Array array );
+var collection = new Model.Collection( Array array );
 
 [/DOC_MARKDOWN]**/
 function Collection(array)
@@ -1961,12 +1961,12 @@ function Collection(array)
 Model.Collection = Collection;
 Collection[proto] = {
     constructor: Collection
-    ,data: null
+    ,_items: null
     ,diff: null
     ,mapper: null
     ,dispose: function() {
         var self = this;
-        self.data = null;
+        self._items = null;
         self.diff = null;
         self.mapper = null;
         return self;
@@ -1977,7 +1977,7 @@ Collection[proto] = {
     }
 /**[DOC_MARKDOWN]
 // reset all manipulations so far, data are kept intact
-Collection.reset();
+collection.reset();
 
 [/DOC_MARKDOWN]**/
     ,reset: function() {
@@ -1988,105 +1988,114 @@ Collection.reset();
     }
 /**[DOC_MARKDOWN]
 // clone this collection (optionally with any Array.map functions as well)
-Collection.clone(Boolean with_data_mapper = false);
+collection.clone(Boolean with_data_mapper = false);
 
 [/DOC_MARKDOWN]**/
     ,clone: function(with_mapper) {
         var cloned = new Collection();
-        cloned.data = this.data.slice();
+        cloned._items = this._items.slice();
         cloned.diff = this.diff.slice();
         if (true === with_mapper) cloned.mapper = this.mapper;
         return cloned;
     }
 /**[DOC_MARKDOWN]
+// get the (array) items of this collection (optionally between start and end index, like Array.slice)
+collection.items([startIndex[, endIndex]]);
+
+[/DOC_MARKDOWN]**/
+    ,items: function(startIndex, endIndex) {
+        return arguments.length ? this._items.slice.apply(this._items, arguments) : this._items;
+    }
+
+/**[DOC_MARKDOWN]
 // get data item at index
-Collection.get(index);
+collection.get(index);
 
 [/DOC_MARKDOWN]**/
     ,get: function(index) {
-        return arguments.length ? this.data[index] : this.data;
+        return arguments.length ? this._items[index] : this._items;
     }
 /**[DOC_MARKDOWN]
 // set data item at index, or whole data if passed as single argument
-Collection.set(index, dataItem);
+collection.set(index, dataItem);
 
 [/DOC_MARKDOWN]**/
     ,set: function(index, data) {
         var self = this;
-        if (1 === arguments.length && self.data !== index)
+        if (1 === arguments.length && self._items !== index)
         {
-            self.data = index;
-            self.reset()._upd('set', 0, self.data.length-1);
+            self._items = index;
+            self.reset()._upd('set', 0, self._items.length-1);
         }
-        else if (2 === arguments.length && this.data[index] !== data)
+        else if (2 === arguments.length && this._items[index] !== data)
         {
-            self.data[index] = data;
+            self._items[index] = data;
             self._upd('change', index, index);
         }
         return self;
     }
 /**[DOC_MARKDOWN]
 // push data item
-Collection.push(dataItem);
+collection.push(dataItem);
 
 [/DOC_MARKDOWN]**/
     ,push: function(data) {
-        this.data.push(data);
-        this._upd('add', this.data.length-1, this.data.length-1);
+        this._items.push(data);
+        this._upd('add', this._items.length-1, this._items.length-1);
         return this;
     }
 /**[DOC_MARKDOWN]
 // pop data item
-Collection.pop();
+collection.pop();
 
 [/DOC_MARKDOWN]**/
     ,pop: function() {
         var data;
-        if (this.data.length)
+        if (this._items.length)
         {
-            data = this.data.pop();
-            this._upd('del', this.data.length, this.data.length);
+            data = this._items.pop();
+            this._upd('del', this._items.length, this._items.length);
         }
         return data;
     }
 /**[DOC_MARKDOWN]
 // unshift data item
-Collection.unshift(dataItem);
+collection.unshift(dataItem);
 
 [/DOC_MARKDOWN]**/
     ,unshift: function(data) {
-        this.data.unshift(data);
+        this._items.unshift(data);
         this._upd('add', 0, 0);
         return this;
     }
 /**[DOC_MARKDOWN]
 // shift data item
-Collection.shift();
+collection.shift();
 
 [/DOC_MARKDOWN]**/
     ,shift: function() {
         var data;
-        if (this.data.length)
+        if (this._items.length)
         {
-            data = this.data.shift();
+            data = this._items.shift();
             this._upd('del', 0, 0);
         }
         return data;
     }
 /**[DOC_MARKDOWN]
 // splice collection
-Collection.splice(index, numRemoved, ..);
+collection.splice(index, numRemoved, ..);
 
 [/DOC_MARKDOWN]**/
     ,splice: function(index, to_del) {
         var self = this, ret, to_add = arguments.length - 2;
         if (0 < to_del || 0 < to_add)
         {
-            ret = self.data.splice.apply(self.data, arguments);
+            ret = self._items.splice.apply(self._items, arguments);
             if (to_add >= to_del)
             {
                 self._upd('change', index, index+to_del-1);
-                self._upd('add', index+to_del, index+to_add-1);
+                if (to_add > to_del) self._upd('add', index+to_del, index+to_add-1);
             }
             else
             {
@@ -2098,23 +2107,23 @@ Collection.splice(index, numRemoved, ..);
     }
 /**[DOC_MARKDOWN]
 // concat array
-Collection.concat(array);
+collection.concat(array);
 
 [/DOC_MARKDOWN]**/
-    ,concat: function(data) {
-        if (data.length)
+    ,concat: function(items) {
+        if (items.length)
         {
-            var l = this.data.length;
-            this.data.push.apply(this.data, data);
-            this._upd('add', l, this.data.length-1);
+            var l = this._items.length;
+            this._items.push.apply(this._items, items);
+            this._upd('add', l, this._items.length-1);
         }
         return this;
     }
 /**[DOC_MARKDOWN]
-// map collection data given a map function
+// map collection items given a map function
 // actual mapping is executed lazily when actually requested (see below),
-// else func is stored to be used later, data remain intact
-Collection.mapTo(func);
+// else func is stored to be used later, items remain intact
+collection.mapTo(func);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f) {
@@ -2123,12 +2132,12 @@ Collection.mapTo(func);
     }
 /**[DOC_MARKDOWN]
 // perform actual mapping (see above)
-Collection.mapped();
+collection.mapped();
 
 [/DOC_MARKDOWN]**/
-    ,mapped: function(data) {
-        data = data || this.data;
-        return this.mapper ? data.map(this.mapper) : data;
+    ,mapped: function(items) {
+        items = items || this._items;
+        return this.mapper ? items.map(this.mapper) : items;
     }
 };
 /**[DOC_MARKDOWN]
