@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-06 09:25:13
+*   @built on 2021-10-07 11:58:16
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-06 09:25:13
+*   @built on 2021-10-07 11:58:16
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1772,38 +1772,35 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             isSVG = /*HAS.call(svgElements, vnode.nodeType)*/svgElements[vnode.nodeType];
             rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
-            if (vnode.attributes.length)
+            for (i=0,l=vnode.attributes.length; i<l; i++)
             {
-                for (i=0,l=vnode.attributes.length; i<l; i++)
+                a = vnode.attributes[i];
+                n = a.name; v = a.value;
+                if (false === v) continue;
+                if ('id' === n || 'style' === n)
                 {
-                    a = vnode.attributes[i];
-                    n = a.name; v = a.value;
-                    if (false === v) continue;
-                    if ('id' === n || 'style' === n)
-                    {
-                        rnode[n] = Str(v);
-                    }
-                    else if ('class' === n)
-                    {
-                        if (isSVG) rnode[SET_ATTR](n, Str(v));
-                        else rnode[CLASS] = Str(v);
-                    }
-                    /*else if (n in rnode)
-                    {
-                        t = get_type(rnode[n]);
-                        rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
-                    }*/
-                    else
-                    {
-                        rnode[SET_ATTR](n, Str(true === v ? n : v));
-                    }
+                    rnode[n] = Str(v);
+                }
+                else if ('class' === n)
+                {
+                    if (isSVG) rnode[SET_ATTR](n, Str(v));
+                    else rnode[CLASS] = Str(v);
+                }
+                /*else if (n in rnode)
+                {
+                    t = get_type(rnode[n]);
+                    rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
+                }*/
+                else
+                {
+                    rnode[SET_ATTR](n, Str(true === v ? n : v));
                 }
             }
             if (true === with_meta)
             {
                 if (vnode.component) rnode.$mvComp = vnode.component;
                 if (vnode.id) rnode.$mvId = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length) rnode.$mvMod = vnode.modified.nodes;
+                if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
             }
             if (vnode.childNodes.length)
             {
@@ -2197,7 +2194,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (false !== vnode.changed)
                 {
                     // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
+                    morphAtts(rnode, vnode/*, unconditionally*/);
                     val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                     /*if (rnode.value !== val)
                     {*/
@@ -2234,13 +2231,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
             count = 0, offset = 0, matched, mi, m, mc, di, dc, index,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
-            val, modifiedNodesPrev = r.$mvMod, modifiedNodes;
+            val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
         if (v.component) r.$mvComp = v.component;
         else if (r.$mvComp) r.$mvComp = null;
         if (v.id) r.$mvId = v.id;
         else if (r.$mvId) r.$mvId = null;
-        if (v.modified && v.modified.nodes.length) r.$mvMod = v.modified.nodes;
+        // keeping ref both at node and vnode may hinder GC and increase mem consumption
+        if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
 
         if (!r.childNodes.length)
@@ -2250,7 +2248,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             modifiedNodesPrev = modifiedNodesPrev || [];
-            modifiedNodes = v.modified ? v.modified.nodes : [];
+            modifiedNodes = modifiedNodes || [];
             offset = 0;
             matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
                 var match = (m.from === offset + modifiedNodesPrev[i].from);
@@ -2334,7 +2332,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (false !== vnode.changed)
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true);
+                                    morphAtts(rnode, vnode, unconditionally);
                                     // morph children
                                     morph(view, rnode, vnode, unconditionally);
                                 }
@@ -2383,7 +2381,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             else
                                             {
                                                 // morph attributes/properties
-                                                morphAtts(rnode, vnode, true);
+                                                morphAtts(rnode, vnode, unconditionally);
                                                 // morph children
                                                 morph(view, rnode, vnode, unconditionally);
                                             }
@@ -2413,7 +2411,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 else
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true);
+                                    morphAtts(rnode, vnode, unconditionally);
                                     // morph children
                                     morph(view, rnode, vnode, unconditionally);
                                 }
@@ -2439,7 +2437,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (false !== vnode.changed)
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, true);
+                            morphAtts(rnode, vnode, unconditionally);
                             val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                             /*if (rnode.value !== val)
                             {*/
@@ -2457,7 +2455,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, true);
+                            morphAtts(rnode, vnode, unconditionally);
                             // morph children
                             morph(view, rnode, vnode, unconditionally);
                         }
@@ -5875,7 +5873,7 @@ Model[proto].bracketKey = bracketed;
 
 /**[DOC_MARKDOWN]
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
-var collection = new Model.Collection( Array array );
+var collection = new Model.Collection( [Array array=[]] );
 
 [/DOC_MARKDOWN]**/
 function Collection(array)
@@ -5903,7 +5901,7 @@ Collection[proto] = {
         return this;
     }
 /**[DOC_MARKDOWN]
-// reset all manipulations so far, data are kept intact
+// reset all manipulations so far, data are kept intact, return same collection
 collection.reset();
 
 [/DOC_MARKDOWN]**/
@@ -5943,111 +5941,129 @@ collection.get(index);
         return arguments.length ? this._items[index] : this._items;
     }
 /**[DOC_MARKDOWN]
-// set data item at index, or whole data if passed as single argument
+// set data item at index, or whole data if passed as single argument, return same collection
 collection.set(index, dataItem);
+collection.set(newData);
 
 [/DOC_MARKDOWN]**/
     ,set: function(index, data) {
         var self = this;
-        if (1 === arguments.length && self._items !== index)
+        if (1 === arguments.length)
         {
-            self._items = index;
-            self.reset()._upd('set', 0, self._items.length-1);
+            if (self._items !== index)
+            {
+                self._items = index;
+                self.reset()._upd('set', 0, self._items.length-1);
+            }
         }
-        else if (2 === arguments.length && this._items[index] !== data)
+        else if (2 === arguments.length)
         {
-            self._items[index] = data;
-            self._upd('change', index, index);
+            if (0 > index) index += self._items.length;
+            if (index >= self._items.length)
+            {
+                self.push(data);
+            }
+            else if (0 <= index && self._items[index] !== data)
+            {
+                self._items[index] = data;
+                self._upd('change', index, index);
+            }
         }
         return self;
     }
 /**[DOC_MARKDOWN]
-// push data item
+// push data item, return same collection
 collection.push(dataItem);
 
 [/DOC_MARKDOWN]**/
     ,push: function(data) {
-        this._items.push(data);
-        this._upd('add', this._items.length-1, this._items.length-1);
-        return this;
+        var self = this;
+        self._items.push(data);
+        self._upd('add', self._items.length-1, self._items.length-1);
+        return self;
     }
 /**[DOC_MARKDOWN]
-// pop data item
+// pop data item, return result of pop
 collection.pop();
 
 [/DOC_MARKDOWN]**/
     ,pop: function() {
-        var data;
-        if (this._items.length)
+        var self = this, data;
+        if (self._items.length)
         {
-            data = this._items.pop();
-            this._upd('del', this._items.length, this._items.length);
+            data = self._items.pop();
+            self._upd('del', self._items.length, self._items.length);
         }
         return data;
     }
 /**[DOC_MARKDOWN]
-// unshift data item
+// unshift data item, return same collection
 collection.unshift(dataItem);
 
 [/DOC_MARKDOWN]**/
     ,unshift: function(data) {
-        this._items.unshift(data);
-        this._upd('add', 0, 0);
-        return this;
+        var self = this;
+        self._items.unshift(data);
+        self._upd('add', 0, 0);
+        return self;
     }
 /**[DOC_MARKDOWN]
-// shift data item
+// shift data item, return result of shift
 collection.shift();
 
 [/DOC_MARKDOWN]**/
     ,shift: function() {
-        var data;
-        if (this._items.length)
+        var self = this, data;
+        if (self._items.length)
         {
-            data = this._items.shift();
-            this._upd('del', 0, 0);
+            data = self._items.shift();
+            self._upd('del', 0, 0);
         }
         return data;
     }
 /**[DOC_MARKDOWN]
-// splice collection
+// splice collection, return result of splice
 collection.splice(index, numRemoved, ..);
 
 [/DOC_MARKDOWN]**/
     ,splice: function(index, to_del) {
         var self = this, ret, to_add = arguments.length - 2;
-        if (0 < to_del || 0 < to_add)
+        if (0 <= index && index < self._items.length)
         {
-            ret = self._items.splice.apply(self._items, arguments);
-            if (to_add >= to_del)
+            if (0 < to_del || 0 < to_add)
             {
-                self._upd('change', index, index+to_del-1);
-                if (to_add > to_del) self._upd('add', index+to_del, index+to_add-1);
-            }
-            else
-            {
-                self._upd('del', index, index+to_del-to_add-1);
-                if (0 < to_add) self._upd('change', index, index+to_add-1);
+                ret = self._items.splice.apply(self._items, arguments);
+                if (to_add >= to_del)
+                {
+                    self._upd('change', index, index+to_del-1);
+                    if (to_add > to_del) self._upd('add', index+to_del, index+to_add-1);
+                }
+                else
+                {
+                    self._upd('del', index, index+to_del-to_add-1);
+                    if (0 < to_add) self._upd('change', index, index+to_add-1);
+                }
             }
         }
         return ret;
     }
 /**[DOC_MARKDOWN]
-// concat array
+// concat array, in place, return same collection
 collection.concat(array);
 
 [/DOC_MARKDOWN]**/
     ,concat: function(items) {
+        var self = this, l;
         if (items.length)
         {
-            var l = this._items.length;
-            this._items.push.apply(this._items, items);
-            this._upd('add', l, this._items.length-1);
+            l = self._items.length;
+            self._items.push.apply(self._items, items);
+            self._upd('add', l, self._items.length-1);
         }
-        return this;
+        return self;
     }
 /**[DOC_MARKDOWN]
-// map collection items given a map function
+// map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
 collection.mapTo(func);
@@ -6058,8 +6074,8 @@ collection.mapTo(func);
         return this;
     }
 /**[DOC_MARKDOWN]
-// perform actual mapping (see above)
-collection.mapped();
+// perform actual mapping (see above), return mapped collection items array
+collection.mapped([Array items=collection.items()]);
 
 [/DOC_MARKDOWN]**/
     ,mapped: function(items) {
@@ -6660,11 +6676,9 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                 }
                 propsKey = null == id ? name+'_#'+Str(view.$cnt[name]) : name+'_id_'+Str(id);
                 prevProps = view.$cache2[propsKey];
-                if (prevProps && !prevProps[0] && !props) changed = false;
-                else changed = true;
-                if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
-                    changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
-                view.$cache[propsKey] = [props, view.$cnt[name]];
+                changed = !prevProps && !props ? false : true;
+                if (prevProps && props && c.opts && c.opts.changed) changed = c.opts.changed(prevProps, props);
+                view.$cache[propsKey] = props;
                 out = c.out.call(view, props, childs||[], htmlNode);
                 out.changed = changed;
                 out.component = name;

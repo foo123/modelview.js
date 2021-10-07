@@ -491,12 +491,12 @@ model.atom( String dottedKey | Boolean false );
 
 
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
-var collection = new Model.Collection( Array array );
+var collection = new Model.Collection( [Array array=[]] );
 
 
 
 
-// reset all manipulations so far, data are kept intact
+// reset all manipulations so far, data are kept intact, return same collection
 collection.reset();
 
 
@@ -520,49 +520,50 @@ collection.get(index);
 
 
 
-// set data item at index, or whole data if passed as single argument
+// set data item at index, or whole data if passed as single argument, return same collection
 collection.set(index, dataItem);
+collection.set(newData);
 
 
 
 
-// push data item
+// push data item, return same collection
 collection.push(dataItem);
 
 
 
 
-// pop data item
+// pop data item, return result of pop
 collection.pop();
 
 
 
 
-// unshift data item
+// unshift data item, return same collection
 collection.unshift(dataItem);
 
 
 
 
-// shift data item
+// shift data item, return result of shift
 collection.shift();
 
 
 
 
-// splice collection
+// splice collection, return result of splice
 collection.splice(index, numRemoved, ..);
 
 
 
 
-// concat array
+// concat array, in place, return same collection
 collection.concat(array);
 
 
 
 
-// map collection items given a map function
+// map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
 collection.mapTo(func);
@@ -570,8 +571,8 @@ collection.mapTo(func);
 
 
 
-// perform actual mapping (see above)
-collection.mapped();
+// perform actual mapping (see above), return mapped collection items array
+collection.mapped([Array items=collection.items()]);
 
 
 

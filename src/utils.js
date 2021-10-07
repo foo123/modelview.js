@@ -1720,38 +1720,35 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             isSVG = /*HAS.call(svgElements, vnode.nodeType)*/svgElements[vnode.nodeType];
             rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
-            if (vnode.attributes.length)
+            for (i=0,l=vnode.attributes.length; i<l; i++)
             {
-                for (i=0,l=vnode.attributes.length; i<l; i++)
+                a = vnode.attributes[i];
+                n = a.name; v = a.value;
+                if (false === v) continue;
+                if ('id' === n || 'style' === n)
                 {
-                    a = vnode.attributes[i];
-                    n = a.name; v = a.value;
-                    if (false === v) continue;
-                    if ('id' === n || 'style' === n)
-                    {
-                        rnode[n] = Str(v);
-                    }
-                    else if ('class' === n)
-                    {
-                        if (isSVG) rnode[SET_ATTR](n, Str(v));
-                        else rnode[CLASS] = Str(v);
-                    }
-                    /*else if (n in rnode)
-                    {
-                        t = get_type(rnode[n]);
-                        rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
-                    }*/
-                    else
-                    {
-                        rnode[SET_ATTR](n, Str(true === v ? n : v));
-                    }
+                    rnode[n] = Str(v);
+                }
+                else if ('class' === n)
+                {
+                    if (isSVG) rnode[SET_ATTR](n, Str(v));
+                    else rnode[CLASS] = Str(v);
+                }
+                /*else if (n in rnode)
+                {
+                    t = get_type(rnode[n]);
+                    rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
+                }*/
+                else
+                {
+                    rnode[SET_ATTR](n, Str(true === v ? n : v));
                 }
             }
             if (true === with_meta)
             {
                 if (vnode.component) rnode.$mvComp = vnode.component;
                 if (vnode.id) rnode.$mvId = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length) rnode.$mvMod = vnode.modified.nodes;
+                if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
             }
             if (vnode.childNodes.length)
             {
@@ -2145,7 +2142,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (false !== vnode.changed)
                 {
                     // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
+                    morphAtts(rnode, vnode/*, unconditionally*/);
                     val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                     /*if (rnode.value !== val)
                     {*/
@@ -2182,13 +2179,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
             count = 0, offset = 0, matched, mi, m, mc, di, dc, index,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
-            val, modifiedNodesPrev = r.$mvMod, modifiedNodes;
+            val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
         if (v.component) r.$mvComp = v.component;
         else if (r.$mvComp) r.$mvComp = null;
         if (v.id) r.$mvId = v.id;
         else if (r.$mvId) r.$mvId = null;
-        if (v.modified && v.modified.nodes.length) r.$mvMod = v.modified.nodes;
+        // keeping ref both at node and vnode may hinder GC and increase mem consumption
+        if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
 
         if (!r.childNodes.length)
@@ -2198,7 +2196,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             modifiedNodesPrev = modifiedNodesPrev || [];
-            modifiedNodes = v.modified ? v.modified.nodes : [];
+            modifiedNodes = modifiedNodes || [];
             offset = 0;
             matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
                 var match = (m.from === offset + modifiedNodesPrev[i].from);
@@ -2282,7 +2280,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 if (false !== vnode.changed)
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true);
+                                    morphAtts(rnode, vnode, unconditionally);
                                     // morph children
                                     morph(view, rnode, vnode, unconditionally);
                                 }
@@ -2331,7 +2329,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                             else
                                             {
                                                 // morph attributes/properties
-                                                morphAtts(rnode, vnode, true);
+                                                morphAtts(rnode, vnode, unconditionally);
                                                 // morph children
                                                 morph(view, rnode, vnode, unconditionally);
                                             }
@@ -2361,7 +2359,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 else
                                 {
                                     // morph attributes/properties
-                                    morphAtts(rnode, vnode, true);
+                                    morphAtts(rnode, vnode, unconditionally);
                                     // morph children
                                     morph(view, rnode, vnode, unconditionally);
                                 }
@@ -2387,7 +2385,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (false !== vnode.changed)
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, true);
+                            morphAtts(rnode, vnode, unconditionally);
                             val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                             /*if (rnode.value !== val)
                             {*/
@@ -2405,7 +2403,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else
                         {
                             // morph attributes/properties
-                            morphAtts(rnode, vnode, true);
+                            morphAtts(rnode, vnode, unconditionally);
                             // morph children
                             morph(view, rnode, vnode, unconditionally);
                         }

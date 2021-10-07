@@ -588,11 +588,9 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
                 }
                 propsKey = null == id ? name+'_#'+Str(view.$cnt[name]) : name+'_id_'+Str(id);
                 prevProps = view.$cache2[propsKey];
-                if (prevProps && !prevProps[0] && !props) changed = false;
-                else changed = true;
-                if (prevProps && prevProps[0] && props && c.opts && c.opts.changed)
-                    changed = c.opts.changed(prevProps[0], props, prevProps[1], view.$cnt[name]);
-                view.$cache[propsKey] = [props, view.$cnt[name]];
+                changed = !prevProps && !props ? false : true;
+                if (prevProps && props && c.opts && c.opts.changed) changed = c.opts.changed(prevProps, props);
+                view.$cache[propsKey] = props;
                 out = c.out.call(view, props, childs||[], htmlNode);
                 out.changed = changed;
                 out.component = name;
