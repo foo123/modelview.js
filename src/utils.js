@@ -1822,12 +1822,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
-    set_att = function(r, n, s, T, TT) {
+    set_att = function(r, n, s, T, TT, unconditionally) {
         var t;
+        unconditionally = !unconditionally;
         if ('id' === n)
         {
             s = Str(s);
-            /*if (r[n] !== s)*/ r[n] = s;
+            if (unconditionally || (r[n] !== s)) r[n] = s;
         }
         else if ('class' === n)
         {
@@ -1860,12 +1861,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             t = get_type(r[n]);
             s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
-            /*if (r[n] !== s)*/ r[n] = s;
+            if (unconditionally || (r[n] !== s)) r[n] = s;
         }
         else
         {
             s = Str(true === s ? n : s);
-            /*if (s !== r[ATTR](n))*/ r[SET_ATTR](n, s);
+            if (unconditionally || (s !== r[ATTR](n))) r[SET_ATTR](n, s);
         }
         return r;
     },
@@ -1926,7 +1927,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 a = vAtts[i]; n = a.name
                 if (false === a.value) del_att(r, n, T, TT);
-                else set_att(r, n, a.value, T, TT);
+                else set_att(r, n, a.value, T, TT, true);
             }
             if ('<option>' === T)
             {
@@ -2239,8 +2240,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else if (true === unconditionally)
             {
-                count = r.childNodes.length - vpc;
-                for (index=0; index<vpc; index++)
+                count = 0;//r.childNodes.length - vpc;
+                for (index=0; index<v.childNodes.length; index++)
                 {
                     vnode = v.childNodes[index];
                     if ('collection' === vnode.nodeType)
@@ -2250,8 +2251,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     if (index >= r.childNodes.length)
                     {
-                        insNodes(view, r, v, index, vpc-index, null);
-                        if (0 > count) count += vpc-index;
+                        insNodes(view, r, v, index, v.childNodes.length-index, null);
+                        if (0 > count) count = 0;
                         break;
                     }
                     rnode = r.childNodes[index];
@@ -2368,14 +2369,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if ('t' === T1)
                     {
-                        if (false !== vnode.changed)
+                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue2)
                         {
                             rnode.nodeValue = vnode.nodeValue2;
                         }
                     }
                     else if ('c' === T1)
                     {
-                        if (false !== vnode.changed)
+                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue)
                         {
                             rnode.nodeValue = vnode.nodeValue;
                         }
@@ -2387,11 +2388,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             // morph attributes/properties
                             morphAtts(rnode, vnode, unconditionally);
                             val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
-                            /*if (rnode.value !== val)
-                            {*/
+                            if (rnode.value !== val)
+                            {
                                 rnode.value = val;
                                 if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                            /*}*/
+                            }
                         }
                     }
                     else if (false !== vnode.changed)
@@ -2409,7 +2410,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                if (0 < count) delNodes(r, vpc, r.childNodes.length-vpc);
+                if (r.childNodes.length > v.childNodes.length) delNodes(r, v.childNodes.length, r.childNodes.length-v.childNodes.length);
             }
         }
     },

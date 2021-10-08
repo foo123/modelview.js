@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-07 11:58:16
+*   @built on 2021-10-08 14:44:03
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-07 11:58:16
+*   @built on 2021-10-08 14:44:03
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1874,12 +1874,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
-    set_att = function(r, n, s, T, TT) {
+    set_att = function(r, n, s, T, TT, unconditionally) {
         var t;
+        unconditionally = !unconditionally;
         if ('id' === n)
         {
             s = Str(s);
-            /*if (r[n] !== s)*/ r[n] = s;
+            if (unconditionally || (r[n] !== s)) r[n] = s;
         }
         else if ('class' === n)
         {
@@ -1912,12 +1913,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             t = get_type(r[n]);
             s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
-            /*if (r[n] !== s)*/ r[n] = s;
+            if (unconditionally || (r[n] !== s)) r[n] = s;
         }
         else
         {
             s = Str(true === s ? n : s);
-            /*if (s !== r[ATTR](n))*/ r[SET_ATTR](n, s);
+            if (unconditionally || (s !== r[ATTR](n))) r[SET_ATTR](n, s);
         }
         return r;
     },
@@ -1978,7 +1979,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 a = vAtts[i]; n = a.name
                 if (false === a.value) del_att(r, n, T, TT);
-                else set_att(r, n, a.value, T, TT);
+                else set_att(r, n, a.value, T, TT, true);
             }
             if ('<option>' === T)
             {
@@ -2291,8 +2292,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else if (true === unconditionally)
             {
-                count = r.childNodes.length - vpc;
-                for (index=0; index<vpc; index++)
+                count = 0;//r.childNodes.length - vpc;
+                for (index=0; index<v.childNodes.length; index++)
                 {
                     vnode = v.childNodes[index];
                     if ('collection' === vnode.nodeType)
@@ -2302,8 +2303,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     if (index >= r.childNodes.length)
                     {
-                        insNodes(view, r, v, index, vpc-index, null);
-                        if (0 > count) count += vpc-index;
+                        insNodes(view, r, v, index, v.childNodes.length-index, null);
+                        if (0 > count) count = 0;
                         break;
                     }
                     rnode = r.childNodes[index];
@@ -2420,14 +2421,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     else if ('t' === T1)
                     {
-                        if (false !== vnode.changed)
+                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue2)
                         {
                             rnode.nodeValue = vnode.nodeValue2;
                         }
                     }
                     else if ('c' === T1)
                     {
-                        if (false !== vnode.changed)
+                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue)
                         {
                             rnode.nodeValue = vnode.nodeValue;
                         }
@@ -2439,11 +2440,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             // morph attributes/properties
                             morphAtts(rnode, vnode, unconditionally);
                             val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
-                            /*if (rnode.value !== val)
-                            {*/
+                            if (rnode.value !== val)
+                            {
                                 rnode.value = val;
                                 if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                            /*}*/
+                            }
                         }
                     }
                     else if (false !== vnode.changed)
@@ -2461,7 +2462,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                if (0 < count) delNodes(r, vpc, r.childNodes.length-vpc);
+                if (r.childNodes.length > v.childNodes.length) delNodes(r, v.childNodes.length, r.childNodes.length-v.childNodes.length);
             }
         }
     },
@@ -3997,6 +3998,7 @@ var
         while (i < l)
         {
             k = p[i++];
+            if (o instanceof Collection) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -4027,7 +4029,9 @@ var
         var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
         while (i < l)
         {
-            k = p[i++]; to = get_type( o );
+            k = p[i++];
+            if (o instanceof Collection) o = o.mapped();
+            to = get_type( o );
             if (i < l)
             {
                 if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
@@ -4057,7 +4061,9 @@ var
         var o = obj, a = aux, k, to, i = 0, l = p.length;
         while (i < l)
         {
-            k = p[i++]; to = get_type( o );
+            k = p[i++];
+            if (o instanceof Collection && i < l) o = o.mapped();
+            to = get_type( o );
             if (i < l)
             {
                 if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
@@ -4076,14 +4082,14 @@ var
             {
                 // nested sub-composite class
                 if (o[k] instanceof C) return [C, o[k], p.slice(i)];
-                else if (a /*&& get_value( a, k )*/ && (to&T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o, k, a];
+                else if (a /*&& get_value( a, k )*/ && ((o instanceof Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
                 return false;
             }
         }
         return false;
     },
 
-    walk_and_get3 = function(p, obj, aux1, aux2, aux3, C, all3) {
+    walk_and_get3 = function(p, obj, aux1, aux2, aux3, C, all3, collections) {
         var o = obj, a1 = null, a2 = null, a3 = null,
             k, to, i = 0, l = p.length
         ;
@@ -4093,6 +4099,11 @@ var
         while (i < l)
         {
             k = p[i++];
+            if (o instanceof Collection && i < l)
+            {
+                if (collections) collections.push([o, +k]);
+                o = o.mapped();
+            }
             to = get_type( o );
             if (i < l)
             {
@@ -4118,6 +4129,10 @@ var
                 {
                     return [false, o, k, p, null, null, null];
                 }
+            }
+            else if (o instanceof Collection)
+            {
+                return [true, o, k, p.slice(i), a1, a2, a3];
             }
             else if (to & T_ARRAY_OR_OBJ)
             {
@@ -4227,13 +4242,14 @@ var
         return data;
     },
 
-    // handle sub-composite models as data, via walking the data
+    // handle collection and sub-composite models as data, via walking the data
     serializeModel = function serializeModel(model_instance, model_class, data, dataType) {
         var key, type;
         if (arguments.length < 3) data = model_instance.$data;
 
         while (data instanceof model_class) { data = data.data( ); }
 
+        if (data instanceof Collection) data = data.mapped();
         type = dataType || get_type( data );
         data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
 
@@ -4243,7 +4259,9 @@ var
             {
                 if (HAS.call(data,key))
                 {
-                    if (data[ key ] instanceof model_class)
+                    if (data[ key ] instanceof Collection)
+                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].mapped(), type );
+                    else if (data[ key ] instanceof model_class)
                         data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
                     else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
                         data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
@@ -4254,11 +4272,12 @@ var
         return data;
     },
 
-    // handle sub-composite models via walking the data and any attached typecasters
+    // handle collections and sub-composite models via walking the data and any attached typecasters
     typecastModel = function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey) {
         var o, key, val, typecaster, r, res, nestedKey, splitKey;
         prefixKey = !!prefixKey ? (prefixKey+'.') : '';
         data = data || model.$data;
+        if (data instanceof Collection) data = data.items();
         typecasters = typecasters || [model.$types];
 
         if (typecasters && typecasters.length)
@@ -4277,6 +4296,7 @@ var
                     }
                     else
                     {
+                        if (o instanceof Collection) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
                         val = o[ key ]; typecaster = get_value( r[3], key );
                         if (typecaster)
@@ -4318,6 +4338,7 @@ var
         ;
         //breakOnError = !!breakOnError;
         data = data || model.$data;
+        if (data instanceof Collection) data = data.items();
         validators = validators || [model.$validators];
 
         if (validators && validators.length)
@@ -4345,6 +4366,7 @@ var
                     }
                     else
                     {
+                        if (o instanceof Collection) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
 
                         val = o[ key ]; validator = get_value( r[3], key );
@@ -4464,15 +4486,16 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
     model.$idependencies = { }; model.$syncTo = { };
     model.data(data || { })
-        .types(types).validators(validators)
-        .getters(getters).setters(setters)
-        .dependencies(dependencies)
-        .initPubSub( )
+    .types(types).validators(validators)
+    .getters(getters).setters(setters)
+    .dependencies(dependencies)
+    .initPubSub( )
     ;
 };
 // STATIC
 Model.count = function(o) {
     if (!arguments.length) return 0;
+    if (o instanceof Collection) o = o.items();
     var T = get_type(o);
 
     if (T_OBJ === T) return Keys(o).length;
@@ -4813,6 +4836,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                 while (i < l)
                 {
                     k = p[i++];
+                    if (o instanceof Collection && i < l) o = o.mapped();
                     if (i < l)
                     {
                         t = get_type( o );
@@ -4929,7 +4953,8 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             is_collection = false,
             types, validators, setters, ideps,
             prevval, canSet = false, validated,
-            autovalidate = model.$autovalidate
+            autovalidate = model.$autovalidate,
+            collections = []
         ;
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
@@ -4960,7 +4985,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model )))
+        else if ((r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -4971,7 +4996,13 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     k = k.join('.');
                     prevval = o.get(k);
-                    if (prevval !== val) o.set(k, val, pub, callData);
+                    if (prevval !== val)
+                    {
+                        o.set(k, val, pub, callData);
+                        collections.forEach(function(collection){
+                            collection[0]._upd('change', collection[1], collection[1]);
+                        });
+                    }
                     else pub = false;
                 }
                 else
@@ -4998,7 +5029,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
 
             setter = get_value(r[6], k);
-            if (!setter  && (false === r[0] && r[3].length))
+            if (!setter && (false === r[0] && r[3].length))
             {
                 // cannot add intermediate values
                 return model;
@@ -5062,6 +5093,9 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
+                    collections.forEach(function(collection){
+                        collection[0]._upd('change', collection[1], collection[1]);
+                    });
                     if (pub)
                     {
                         model.publish('change', {
@@ -5079,12 +5113,18 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 return model;
             }
 
-            prevval = o[ k ];
+            prevval = o instanceof Collection ? o.get(k) : (o[k] instanceof Collection ? o[k].items() : o[ k ]);
             // update/set only if different
             if (prevval !== val)
             {
+                collections.forEach(function(collection){
+                    collection[0]._upd('change', collection[1], collection[1]);
+                });
+
                 // modify or add final node here
-                o[ k ] = val;
+                if (o instanceof Collection) o.set(k, val);
+                else if (o[k] instanceof Collection) o[k].set(val);
+                else o[ k ] = val;
 
                 if (pub)
                 {
@@ -5119,7 +5159,8 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             is_collection = false,
             types, validators, setters, ideps,
             canSet = false, validated,
-            autovalidate = model.$autovalidate
+            autovalidate = model.$autovalidate,
+            collections = []
         ;
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
@@ -5150,7 +5191,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model)))
+        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5161,6 +5202,9 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     k = k.join('.');
                     o.add(k, val, prepend, pub, callData);
+                    collections.forEach(function(collection){
+                        collection[0]._upd('change', collection[1], collection[1]);
+                    });
                 }
                 else
                 {
@@ -5250,11 +5294,14 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
+                    collections.forEach(function(collection){
+                        collection[0]._upd('change', collection[1], collection[1]);
+                    });
                     if (pub)
                     {
-                        if (T_ARRAY === get_type(o[ k ]))
+                        if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
                         {
-                            index = prepend ? 0 : o[k].length;
+                            index = prepend ? 0 : (o[k] instanceof Collection ? o[k].items().length : o[k].length);
                         }
                         model.publish('change', {
                             key: dottedKey,
@@ -5272,7 +5319,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 return model;
             }
 
-            if (T_ARRAY === get_type(o[ k ]))
+            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 if (prepend)
                 {
@@ -5283,7 +5330,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 else
                 {
                     // append node here
-                    index = o[ k ].length;
+                    index = o[k] instanceof Collection ? o[k].items().length : o[ k ].length;
                     o[ k ].push(val);
                 }
             }
@@ -5293,6 +5340,10 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 index = -1;
                 o[ k ] = val;
             }
+
+            collections.forEach(function(collection){
+                collection[0]._upd('change', collection[1], collection[1]);
+            });
 
             if (pub)
             {
@@ -5325,7 +5376,8 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             is_collection = false,
             types, validators, setters, ideps,
             canSet = false, validated,
-            autovalidate = model.$autovalidate
+            autovalidate = model.$autovalidate,
+            collections = []
         ;
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
@@ -5356,7 +5408,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
             }
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model)))
+        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5367,6 +5419,9 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     k = k.join('.');
                     o.ins(k, val, index, pub, callData);
+                    collections.forEach(function(collection){
+                        collection[0]._upd('change', collection[1], collection[1]);
+                    });
                 }
                 else
                 {
@@ -5456,6 +5511,9 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
+                    collections.forEach(function(collection){
+                        collection[0]._upd('change', collection[1], collection[1]);
+                    });
                     if (pub)
                     {
                         model.publish('change', {
@@ -5474,7 +5532,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 return model;
             }
 
-            if (T_ARRAY === get_type(o[ k ]))
+            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 // insert node here
                 o[ k ].splice(index, 0, val);
@@ -5485,6 +5543,10 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 index = -1;
                 o[ k ] = val;
             }
+
+            collections.forEach(function(collection){
+                collection[0]._upd('change', collection[1], collection[1]);
+            });
 
             if (pub)
             {
@@ -5511,7 +5573,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function(dottedKey, pub, reArrangeIndexes, callData) {
-        var model = this, r, o, k, p, val, index = -1, canDel = false;
+        var model = this, r, o, k, p, val, index = -1, canDel = false, collections = [];
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
 
@@ -5527,7 +5589,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
             k = dottedKey;
             canDel = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, null, null, null, Model, false)))
+        else if ((r = walk_and_get3(dottedKey.split('.'), o, null, null, null, Model, false, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5537,6 +5599,9 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 k = k.join('.');
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
+                collections.forEach(function(collection){
+                    collection[0]._upd('change', collection[1], collection[1]);
+                });
                 pub && model.publish('change', {
                         key: dottedKey,
                         value: val,
@@ -5559,18 +5624,33 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
         if (canDel)
         {
-            val = o[ k ]; o[ k ] = undef;
-            if (reArrangeIndexes)
+            if (o instanceof Collection)
             {
-                T = get_type( o );
-                 // re-arrange indexes
-                if (T_ARRAY == T && is_array_index( k )) {index = +k; o.splice(index, 1);}
-                else if (T_OBJ == T) delete o[ k ];
+                index = +k;
+                val = o.get(index);
+                o.splice(index, 1);
+                reArrangeIndexes = true;
             }
             else
             {
-                delete o[ k ]; // not re-arrange indexes
+                val = o[ k ]; o[ k ] = undef;
+                if (reArrangeIndexes)
+                {
+                    T = get_type( o );
+                     // re-arrange indexes
+                    if ((T_ARRAY == T) && is_array_index( k )) {index = +k; o.splice(index, 1);}
+                    else if (T_OBJ == T) delete o[ k ];
+                }
+                else
+                {
+                    delete o[ k ]; // not re-arrange indexes
+                }
             }
+
+            collections.forEach(function(collection){
+                collection[0]._upd('change', collection[1], collection[1]);
+            });
+
             pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -5593,7 +5673,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
     ,delAll: function(fields, reArrangeIndexes) {
         var model = this, keys, kk, k,
             f, fl, p, l, i, o, t,
-            data, stack, to_remove, dottedKey;
+            data, stack, to_remove, dottedKey, collections = [];
 
         if (!fields || !fields.length) return model;
         if (fields.substr) fields = [fields];
@@ -5613,6 +5693,11 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 while (i < l)
                 {
                     k = p[i++];
+                    if (o instanceof Collection && i < l)
+                    {
+                        collections.push([o, +k]);
+                        o = o.items();
+                    }
                     if (i < l)
                     {
                         t = get_type( o );
@@ -5650,7 +5735,18 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                     else
                     {
                         t = get_type( o );
-                        if (t & T_OBJ)
+                        if (o instanceof Collection)
+                        {
+                            if (WILDCARD === k)
+                            {
+                                o.set([]);
+                            }
+                            else
+                            {
+                                o.splice(+k, 1);
+                            }
+                        }
+                        else if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
                             {
@@ -5669,7 +5765,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             {
                                 for (kk=o.length-1; kk>=0; kk--)
                                 {
-                                    if ( reArrangeIndexes )
+                                    if (reArrangeIndexes)
                                     {
                                          // re-arrange indexes
                                         o.splice(kk, 1);
@@ -5697,6 +5793,9 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 }
             }
         }
+        collections.forEach(function(collection){
+            collection[0]._upd('change', collection[1], collection[1]);
+        });
         return model;
     }
 
