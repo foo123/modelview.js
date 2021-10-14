@@ -199,13 +199,25 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.1.1 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
+Here are some preliminary benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.2.0 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
+
+
+**Keyed Results**
+
 
 ![Performance](/examples/perf.png)
 
 ![Memory](/examples/mem.png)
 
-It is shown that ModelView 3.1.1 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+
+**Non-Keyed Results**
+
+
+![Performance 2](/examples/perf2.png)
+
+![Memory 2](/examples/mem2.png)
+
+It is shown that ModelView 3.2.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and is actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance. Until the next update..
 

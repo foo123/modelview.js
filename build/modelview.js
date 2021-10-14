@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-08 14:44:03
+*   @built on 2021-10-14 12:11:18
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-08 14:44:03
+*   @built on 2021-10-14 12:11:18
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2025,7 +2025,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return index;
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count, unconditionally) {
-        var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid, collection, diff, di, dc, d;
+        var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid, collection, diff, di, dc, d, items;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -2041,7 +2041,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         return count; // break from diff loop completely, this should be only diff
                         break;
                     case 'add':
-                        insNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.items(d.from, d.to+1))), 0, d.to-d.from+1, r.childNodes[start+d.from]);
+                        items = d.from === d.to ? collection.mapped([collection.items()[d.from]]) : collection.mapped(collection.items(d.from, d.to+1));
+                        insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, d.to-d.from+1, r.childNodes[start+d.from]);
                         if (0 > count) count += d.to-d.from+1;
                         break;
                     case 'del':
@@ -2049,7 +2050,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         if (0 < count) count -= d.to-d.from+1;
                         break;
                     case 'change':
-                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped(collection.items(d.from, d.to+1))), start+d.from, start+d.to, start+d.to, 0, 0, true);
+                        items = d.from === d.to ? collection.mapped([collection.items()[d.from]]) : collection.mapped(collection.items(d.from, d.to+1));
+                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], items), start+d.from, start+d.to, start+d.to, 0, 0, true);
                         break;
                 }
             }
@@ -2126,7 +2128,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 rid = rnode.$mvId;
                                 if (
                                     (T2 !== T1)
-                                    || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                     || (!rid)
                                     || (rid !== vid)
                                     || (rcomponent !== vcomponent)
@@ -2230,7 +2232,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     morph = function morph(view, r, v, unconditionally) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, mi, m, mc, di, dc, index,
+            count = 0, offset = 0, matched, mi, m, mc, di, dc, index, items,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
             val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
@@ -2292,18 +2294,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else if (true === unconditionally)
             {
-                count = 0;//r.childNodes.length - vpc;
-                for (index=0; index<v.childNodes.length; index++)
+                count = r.childNodes.length - vc;
+                for (index=0; index<vc; index++)
                 {
                     vnode = v.childNodes[index];
                     if ('collection' === vnode.nodeType)
                     {
-                        v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()).childNodes));
+                        items = htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()).childNodes;
+                        v.childNodes.splice.apply(v.childNodes, [index, 1].concat(items));
+                        vc += items.length-1;
+                        count -= items.length-1;
                         vnode = v.childNodes[index];
                     }
                     if (index >= r.childNodes.length)
                     {
-                        insNodes(view, r, v, index, v.childNodes.length-index, null);
+                        insNodes(view, r, v, index, vc-index, null);
                         if (0 > count) count = 0;
                         break;
                     }
@@ -2365,7 +2370,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         rid = rnode.$mvId;
                                         if (
                                             (T2 !== T1)
-                                            || ('<input>' === T1 && (attr(vnode,TYPE)||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
+                                            || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                             || (!rid)
                                             || (rid !== vid)
                                             || (rcomponent !== vcomponent)
@@ -2393,7 +2398,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            if ((0 > count) && (index >= vpc+count))
+                            if ((0 > count) && (index >= vc+count))
                             {
                                 insNodes(view, r, v, index, -count, rnode);
                                 count = 0;
@@ -2462,7 +2467,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                if (r.childNodes.length > v.childNodes.length) delNodes(r, v.childNodes.length, r.childNodes.length-v.childNodes.length);
+                if (r.childNodes.length > vc) delNodes(r, vc, r.childNodes.length-vc);
             }
         }
     },
@@ -6165,6 +6170,7 @@ collection.concat(array);
 // map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
+// **NOTE** that map function should return only one html node for each original item passed, so that morphing works correctly and fast as expected
 collection.mapTo(func);
 
 [/DOC_MARKDOWN]**/
