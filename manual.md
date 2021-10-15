@@ -566,8 +566,8 @@ collection.concat(array);
 // map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
-// **NOTE** that map function should return only one html node for each original item passed, so that morphing works correctly and fast as expected
-collection.mapTo(func);
+// **NOTE** that map function should return that many html nodes for each item passed as denoted by `itemsReturned` parameter (default 1), so that fast morphing can work as expected
+collection.mapTo(func[, Number itemsReturned = 1]);
 
 
 

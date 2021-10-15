@@ -2062,6 +2062,7 @@ Collection[proto] = {
     ,_items: null
     ,diff: null
     ,mapper: null
+    ,mappedItem: 1
     ,dispose: function() {
         var self = this;
         self._items = null;
@@ -2082,6 +2083,7 @@ collection.reset();
         var self = this;
         self.diff = [];
         self.mapper = null;
+        self.mappedItem = 1;
         return self;
     }
 /**[DOC_MARKDOWN]
@@ -2090,10 +2092,14 @@ collection.clone(Boolean with_data_mapper = false);
 
 [/DOC_MARKDOWN]**/
     ,clone: function(with_mapper) {
-        var cloned = new Collection();
-        cloned._items = this._items.slice();
-        cloned.diff = this.diff.slice();
-        if (true === with_mapper) cloned.mapper = this.mapper;
+        var self = this, cloned = new Collection();
+        cloned._items = self._items.slice();
+        cloned.diff = self.diff.slice();
+        if (true === with_mapper)
+        {
+            cloned.mapper = self.mapper;
+            cloned.mappedItem = self.mappedItem;
+        }
         return cloned;
     }
 /**[DOC_MARKDOWN]
@@ -2239,12 +2245,13 @@ collection.concat(array);
 // map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
-// **NOTE** that map function should return only one html node for each original item passed, so that morphing works correctly and fast as expected
-collection.mapTo(func);
+// **NOTE** that map function should return that many html nodes for each item passed as denoted by `itemsReturned` parameter (default 1), so that fast morphing can work as expected
+collection.mapTo(func[, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
-    ,mapTo: function(f) {
+    ,mapTo: function(f, itemsReturned) {
         this.mapper = this.mapper ? (function(f0){return function(x, i){return f(f0(x, i), i);};})(this.mapper) : f;
+        this.mappedItem = +(itemsReturned || 1);
         return this;
     }
 /**[DOC_MARKDOWN]
