@@ -1992,7 +1992,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         break;
                     case 'add':
                         len = (d.to-d.from+1)*collection.mappedItem;
-                        items = d.from === d.to ? collection.mapped([collection.items()[d.from]]) : collection.mapped(collection.items(d.from, d.to+1));
+                        items = collection.mapped(collection.items(d.from, d.to+1));
                         insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from]);
                         if (0 > count) count += len;
                         break;
@@ -2003,7 +2003,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         break;
                     case 'change':
                         len = (d.to-d.from+1)*collection.mappedItem;
-                        items = d.from === d.to ? collection.mapped([collection.items()[d.from]]) : collection.mapped(collection.items(d.from, d.to+1));
+                        items = collection.mapped(collection.items(d.from, d.to+1));
                         morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], items), start+d.from, start+d.from+len-1, start+d.from+len-1, 0, 0, true);
                         break;
                 }
@@ -2090,10 +2090,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 rid = rnode.$mvId;
                                 if (
                                     (T2 !== T1)
-                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                    || (!rid)
-                                    || (rid !== vid)
                                     || (rcomponent !== vcomponent)
+                                    || (rid !== vid)
+                                    || (!rid)
+                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                 )
                                 {
                                     r.replaceChild(to_node(view, vnode, true), rnode);
@@ -2340,10 +2340,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                         rid = rnode.$mvId;
                                         if (
                                             (T2 !== T1)
-                                            || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                            || (!rid)
-                                            || (rid !== vid)
                                             || (rcomponent !== vcomponent)
+                                            || (rid !== vid)
+                                            || (!rid)
+                                            || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
                                         )
                                         {
                                             r.replaceChild(to_node(view, vnode, true), rnode);
