@@ -527,6 +527,12 @@ collection.set(newData);
 
 
 
+// swap data item at index1 with data item at index2, return same collection
+collection.swap(index1, index2);
+
+
+
+
 // push data item, return same collection
 collection.push(dataItem);
 

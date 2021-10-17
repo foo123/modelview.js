@@ -878,7 +878,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self, self.$renderdom, self.$out.call(self, htmlNode));
+                morph(self, self.$renderdom, self.$out.call(self, htmlNode), false, true);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };

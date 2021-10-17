@@ -1974,7 +1974,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count, unconditionally) {
         var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid,
-            collection, diff, di, dc, d, items, i, j, len;
+            collection, diff, di, dc, d, items, i, j, k, len;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -2000,6 +2000,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         len = (d.to-d.from+1)*collection.mappedItem;
                         delNodes(r, start+d.from, len);
                         if (0 < count) count -= len;
+                        break;
+                    case 'swap':
+                        i = r.childNodes[start+d.from];
+                        j = r.childNodes[start+d.to];
+                        k = j.nextSibling;
+                        r.replaceChild(j, i);
+                        if (k) r.insertBefore(i, k);
+                        else r.appendChild(i);
                         break;
                     case 'change':
                         len = (d.to-d.from+1)*collection.mappedItem;
@@ -2191,10 +2199,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return count;
     },
-    morph = function morph(view, r, v, unconditionally) {
+    morph = function morph(view, r, v, unconditionally, isRoot) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index,
+            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index, dummy,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
             val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
@@ -2206,6 +2214,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
 
+        //if (isRoot) r.parentNode.replaceChild(dummy=document.createElement('div'), r);
         if (!r.childNodes.length)
         {
             if (0 < vc) insNodes(view, r, v, 0, vc, null);
@@ -2440,6 +2449,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (r.childNodes.length > vc) delNodes(r, vc, r.childNodes.length-vc);
             }
         }
+        //if (isRoot) dummy.parentNode.replaceChild(r, dummy);
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
         var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el.$mvMod;

@@ -1,13 +1,20 @@
 /**
 *
-*   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: @@VERSION@@
-*
-*   A micro-MV* (MVVM) framework for complex (UI) screens
+*   ModelView jQuery Plugin
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function(ModelView, window, undef) {
+!function( root, name, factory ) {
+"use strict";
+if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
+    module.exports = factory.call( root, require(/\.min(\.js)?/i.test(__filename) ? './modelview.min' : './modelview') );
+else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&(require.specified(name)||require.specified('ModelView')) ) /* AMD */
+    define(name,['ModelView'],function(ModelView){return factory.call(root,ModelView);});
+else /* Browser/WebWorker/.. */
+    (factory.call(root,root['ModelView']))&&('function'===typeof(define))&&define.amd&&define(function(){return root['ModelView'];} );
+}(  /* current root */          this,
+    /* module name */           "ModelViewjQuery",
+    /* module factory */        function( ModelView ) {
 "use strict";
 ModelView.jquery = function($) {
     "use strict";
@@ -181,7 +188,7 @@ ModelView.jquery = function($) {
                 var self = this;
                 if (1 < arguments.length)
                 {
-                    self.$view.model().set(k, v, 1);
+                    self.$view.model().set(k, v, true);
                     return self.element;
                 }
                 return self.$view.model().get(k);
@@ -206,4 +213,4 @@ ModelView.jquery = function($) {
 
 // add to jQuery if available/accesible now
 if ('undefined' !== typeof window.jQuery) ModelView.jquery(window.jQuery);
-}(ModelView, this);
+});

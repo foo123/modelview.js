@@ -2151,6 +2151,22 @@ collection.set(newData);
         return self;
     }
 /**[DOC_MARKDOWN]
+// swap data item at index1 with data item at index2, return same collection
+collection.swap(index1, index2);
+
+[/DOC_MARKDOWN]**/
+    ,swap: function(index1, index2) {
+        var self = this, t;
+        if (index1 !== index2 && 0 <= index1 && 0 <= index2 && index1 < self._items.length && index2 < self._items.length)
+        {
+            t = self._items[index1]
+            self._items[index1] = self._items[index2];
+            self._items[index2] = t;
+            self._upd('swap', stdMath.min(index1, index2), stdMath.max(index1, index2));
+        }
+        return self;
+    }
+/**[DOC_MARKDOWN]
 // push data item, return same collection
 collection.push(dataItem);
 

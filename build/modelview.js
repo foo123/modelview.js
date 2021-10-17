@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-16 11:24:47
+*   @built on 2021-10-17 11:36:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.0
-*   @built on 2021-10-16 11:24:47
+*   @built on 2021-10-17 11:36:27
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2026,7 +2026,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count, unconditionally) {
         var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid,
-            collection, diff, di, dc, d, items, i, j, len;
+            collection, diff, di, dc, d, items, i, j, k, len;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -2052,6 +2052,14 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         len = (d.to-d.from+1)*collection.mappedItem;
                         delNodes(r, start+d.from, len);
                         if (0 < count) count -= len;
+                        break;
+                    case 'swap':
+                        i = r.childNodes[start+d.from];
+                        j = r.childNodes[start+d.to];
+                        k = j.nextSibling;
+                        r.replaceChild(j, i);
+                        if (k) r.insertBefore(i, k);
+                        else r.appendChild(i);
                         break;
                     case 'change':
                         len = (d.to-d.from+1)*collection.mappedItem;
@@ -2243,10 +2251,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return count;
     },
-    morph = function morph(view, r, v, unconditionally) {
+    morph = function morph(view, r, v, unconditionally, isRoot) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index,
+            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index, dummy,
             vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
             val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
@@ -2258,6 +2266,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
 
+        //if (isRoot) r.parentNode.replaceChild(dummy=document.createElement('div'), r);
         if (!r.childNodes.length)
         {
             if (0 < vc) insNodes(view, r, v, 0, vc, null);
@@ -2492,6 +2501,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (r.childNodes.length > vc) delNodes(r, vc, r.childNodes.length-vc);
             }
         }
+        //if (isRoot) dummy.parentNode.replaceChild(r, dummy);
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
         var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el.$mvMod;
@@ -6104,6 +6114,22 @@ collection.set(newData);
         return self;
     }
 /**[DOC_MARKDOWN]
+// swap data item at index1 with data item at index2, return same collection
+collection.swap(index1, index2);
+
+[/DOC_MARKDOWN]**/
+    ,swap: function(index1, index2) {
+        var self = this, t;
+        if (index1 !== index2 && 0 <= index1 && 0 <= index2 && index1 < self._items.length && index2 < self._items.length)
+        {
+            t = self._items[index1]
+            self._items[index1] = self._items[index2];
+            self._items[index2] = t;
+            self._upd('swap', stdMath.min(index1, index2), stdMath.max(index1, index2));
+        }
+        return self;
+    }
+/**[DOC_MARKDOWN]
 // push data item, return same collection
 collection.push(dataItem);
 
@@ -7100,7 +7126,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self, self.$renderdom, self.$out.call(self, htmlNode));
+                morph(self, self.$renderdom, self.$out.call(self, htmlNode), false, true);
                 // notify any 3rd-party also if needed
                 self.publish('render', {});
             };
@@ -7787,215 +7813,6 @@ var ModelView = {
     
     ,View: View
 };
-/**
-*
-*   ModelView.js (jQuery plugin, jQueryUI widget optional)
-*   @version: 3.2.0
-*
-*   A micro-MV* (MVVM) framework for complex (UI) screens
-*   https://github.com/foo123/modelview.js
-*
-**/
-!function(ModelView, window, undef) {
-"use strict";
-ModelView.jquery = function($) {
-    "use strict";
-
-    if (!$.ModelView)
-    {
-        // add it to root jQuery object as a jQuery reference
-        $.ModelView = ModelView;
-
-        var slice = Function.prototype.call.bind(Array.prototype.slice),
-            extend = $.extend, View = ModelView.View, Model = ModelView.Model;
-
-        // modelview jQuery plugin
-        $.fn.modelview = function(arg0, arg1, arg2) {
-            var argslen = arguments.length,
-                method = argslen ? arg0 : null, options = arg0,
-                isInit = true, optionsParsed = false,  map = []
-            ;
-
-            // apply for each matched element (better use one element per time)
-            this.each(function() {
-
-                var $dom = $(this), model, view, defaultModel, defaultOptions;
-
-                // modelview already set on element
-                if ($dom.data('modelview'))
-                {
-                    isInit = false;
-
-                    view = $dom.data('modelview');
-                    model = view.model();
-
-                    // methods
-                    if ('view' === method)
-                    {
-                        map.push(view);
-                    }
-                    else if ('model' === method)
-                    {
-                        if (argslen > 1)
-                        {
-                            view.model(arg1);
-                            return this;
-                        }
-                        map.push(model);
-                    }
-                    else if ('data' === method)
-                    {
-                        if (argslen > 1)
-                        {
-                            model.data(arg1);
-                            return this;
-                        }
-                        map.push(model.data());
-                    }
-                    else if ('sync' === method)
-                    {
-                        view.sync();
-                    }
-                    else if ('dispose' === method)
-                    {
-                        $dom.data('modelview', null);
-                        view.dispose();
-                    }
-                    return this;
-                }
-
-                if (!optionsParsed)
-                {
-                    defaultModel = {
-                        id: 'model'
-                        ,data: { }
-                        ,types: { }
-                        ,validators: { }
-                        ,getters: { }
-                        ,setters: { }
-                        ,dependencies: { }
-                    };
-                    defaultOptions = {
-
-                        viewClass: View
-                        ,modelClass: Model
-
-                        ,id: 'view'
-                        ,livebind: false
-                        ,autobind: false
-                        ,autovalidate: true
-                        ,events: null
-                        ,autoSync: true
-
-                        ,model: null
-                        ,template: null
-                        ,attribute: ''
-                        ,actions: { }
-                        ,context: { }
-                        ,handlers: { }
-                        ,shortcuts: { }
-                        ,components: { }
-                    };
-                    // parse options once
-                    options = extend({}, defaultOptions, options);
-
-                    if (options.model && !(options.model instanceof Model))
-                    {
-                        options.model = extend({}, defaultModel, options.model);
-                    }
-
-                    optionsParsed = true;
-                }
-
-                if (!options.model) return this;
-
-                model = (options.model instanceof Model)
-                        ? options.model
-                        : new options.modelClass(
-                            options.model.id,
-                            options.model.data,
-                            options.model.types,
-                            options.model.validators,
-                            options.model.getters,
-                            options.model.setters,
-                            options.model.dependencies
-                        )
-                    ;
-
-                view = new options.viewClass(options.id)
-                    .model(model)
-                    // custom view event handlers
-                    .events(options.handlers)
-                    // custom view hotkeys/keyboard shortcuts
-                    .shortcuts(options.shortcuts)
-                    // custom view actions
-                    .actions(options.actions)
-                    // custom view global context (eg funcs and vars)
-                    .context(options.context)
-                    // custom view components
-                    .components(options.components)
-                    .attribute(options.attribute||'')
-                    // init view
-                    .livebind(options.livebind)
-                    .autobind(options.autobind)
-                    .autovalidate(options.autovalidate)
-                    .bind(options.events, $dom[0])
-                ;
-                // custom view template renderer
-                if (null != options.template) view.template(options.template);
-                $dom.data('modelview', view);
-                if (options.autoSync) view.sync();
-            });
-
-            // chainable or values return
-            return !isInit && map.length ? (1 == this.length ? map[0] : map) : this;
-        };
-    }
-
-    // add modelview as a jQueryUI widget as well if jQueryuI is loaded
-    // to create state-full, self-contained, full-MVVM widgets (e.g calendars, grids, etc..)
-    if ($.widget && (!$.mvvm || !$.mvvm.ModelViewWidget))
-    {
-        $.widget('mvvm.ModelViewWidget', {
-
-            options: {},
-            $view: null,
-
-            _create: function() {
-                var self = this;
-                self.$view = self.element.modelview(self.options).modelview('view');
-            },
-
-            value: function(k, v) {
-                var self = this;
-                if (1 < arguments.length)
-                {
-                    self.$view.model().set(k, v, 1);
-                    return self.element;
-                }
-                return self.$view.model().get(k);
-            },
-
-            view: function() {
-                return this.$view;
-            },
-
-            model: function() {
-                return this.$view.model();
-            },
-
-            _destroy: function() {
-                var self = this.
-                self.$view = null;
-                self.element.modelview('dispose');
-            }
-        });
-    }
-};
-
-// add to jQuery if available/accesible now
-if ('undefined' !== typeof window.jQuery) ModelView.jquery(window.jQuery);
-}(ModelView, this);
 
 /* main code ends here */
 /* export the module */
