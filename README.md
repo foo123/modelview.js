@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.2.0 in progress** (77 kB minified)
+**Version 3.2.0** (77 kB minified)
 
 
 **see also:**
@@ -146,7 +146,7 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 **make sure** your custom component names **do not match default html element names!**
 
-ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
+ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
 
 ModelView also has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
 
@@ -199,7 +199,7 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some preliminary benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.2.0 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.2.0 and some popular frameworks (env: Windows 7 64bit, Chrome 94.0.4606.61 64bit).
 
 
 **Keyed Results**
@@ -217,7 +217,7 @@ Here are some preliminary benchmark results using [js-framework-benchmark](https
 
 ![Memory 2](/examples/mem2.png)
 
-It is shown that ModelView 3.2.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and is actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 3.2.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits (unlike other popular frameworks) and may be actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance. Until the next update..
 

@@ -2167,6 +2167,19 @@ collection.swap(index1, index2);
         return self;
     }
 /**[DOC_MARKDOWN]
+// sort items given a `compare` function (same as Array.sort), return same collection
+collection.sort(Function compare);
+
+[/DOC_MARKDOWN]**/
+    ,sort: function(compare) {
+        var self = this, items = self._items.map(function(it, i){return [it, i];});
+        compare = compare || function(a, b){return a < b ? -1 : (a > b ? 1 : 0);};
+        items.sort(function(a, b){return compare(a[0], b[0]);});
+        self._items = items.map(function(it){return it[0];});
+        self._upd('reorder', items.map(function(it){return it[1];}), null);
+        return self;
+    }
+/**[DOC_MARKDOWN]
 // push data item, return same collection
 collection.push(dataItem);
 

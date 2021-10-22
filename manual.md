@@ -533,6 +533,12 @@ collection.swap(index1, index2);
 
 
 
+// sort items given a `compare` function (same as Array.sort), return same collection
+collection.sort(Function compare);
+
+
+
+
 // push data item, return same collection
 collection.push(dataItem);
 

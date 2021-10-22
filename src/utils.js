@@ -1974,7 +1974,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count, unconditionally) {
         var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid,
-            collection, diff, di, dc, d, items, i, j, k, len;
+            collection, diff, di, dc, d, items, i, j, k, l, m, n, len, frag;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -1988,6 +1988,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         len = collection.items().length*collection.mappedItem;
                         morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped()), start, start+len-1, start+len-1, 0, count, true);
                         count = 0;
+                        return count; // break from diff loop completely, this should be only diff
+                        break;
+                    case 'reorder':
+                        len = collection.items().length;
+                        m = collection.mappedItem;
+                        k = len*m;
+                        frag = Fragment();
+                        j = r.childNodes[start+k-1].nextSibling;
+                        n = AP.slice.call(r.childNodes, start, start+k);
+                        count = 0;
+                        for (i=0; i<len; i++) for (l=0; l<m; l++) frag.appendChild(n[d.from[i]*m+l]);
+                        if (j) r.insertBefore(frag, j);
+                        else r.appendChild(frag);
                         return count; // break from diff loop completely, this should be only diff
                         break;
                     case 'add':
@@ -2025,8 +2038,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             vnode = v.childNodes[indexv];
             if (index >= r.childNodes.length)
             {
-                insNodes(view, r, v, indexv, end-index+1, null);
-                if (0 > count) count += end-index+1;
+                l = r.childNodes.length;
+                insNodes(view, r, v, indexv, end-l+1, null);
+                if (0 > count) count += end-l+1;
+                break;
+            }
+            if ((0 > count) && (index >= end2+count+1))
+            {
+                insNodes(view, r, v, indexv, -count, r.childNodes[end2+count+1]);
+                count = 0;
                 break;
             }
 
@@ -2086,7 +2106,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             if (index >= r.childNodes.length)
                             {
                                 //r.appendChild(to_node(view, vnode, true));
-                                insNodes(view, r, v, index, end-index+1, null);
+                                insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
                                 count = 0;
                                 break;
                             }
@@ -2126,13 +2146,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else
                 {
-                    if ((0 > count) && (index > end2+count))
-                    {
-                        insNodes(view, r, v, index, -count, rnode);
-                        count = 0;
-                        break;
-                    }
-                    else if (false !== vnode.changed)
+                    if (false !== vnode.changed)
                     {
                         if (vnode.unit)
                         {
@@ -2194,7 +2208,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         // finally remove any remaining nodes that need to be removed and haven't been already
         if (0 < count)
         {
-            delNodes(r, index, count);
+            delNodes(r, end+1, count);
             count = 0;
         }
         return count;
@@ -2277,7 +2291,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if (index >= r.childNodes.length)
                     {
-                        insNodes(view, r, v, index, vc-index, null);
+                        insNodes(view, r, v, index, vc-r.childNodes.length, null);
                         if (0 > count) count = 0;
                         break;
                     }
@@ -2337,7 +2351,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     if (index >= r.childNodes.length)
                                     {
                                         //r.appendChild(to_node(view, vnode, true));
-                                        insNodes(view, r, v, index, vc, null);
+                                        insNodes(view, r, v, index, vc-r.childNodes.length, null);
                                         count = 0;
                                         break;
                                     }
@@ -2377,13 +2391,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            if ((0 > count) && (index >= vc+count))
-                            {
-                                insNodes(view, r, v, index, -count, rnode);
-                                count = 0;
-                                break;
-                            }
-                            else if ((vcomponent !== rcomponent) || (vid !== rid))
+                            if ((vcomponent !== rcomponent) || (vid !== rid))
                             {
                                 r.replaceChild(to_node(view, vnode, true), rnode);
                             }
