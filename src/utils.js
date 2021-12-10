@@ -595,15 +595,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false;
     },
 
-    /*insert_after = function(node, refNode, parentNode) {
-        parentNode = parentNode || refNode.parentNode;
-        if (refNode && parentNode)
-        {
-            if (refNode.nextSibling) parentNode.insertBefore(node, refNode.nextSibling);
-            else parentNode.appendChild(node);
-        }
-    },*/
-
     Fragment = function() {
         return document.createDocumentFragment();
     },
@@ -1465,7 +1456,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return new_mod;
     },
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
-        var node = initVNode(nodeType, '', '', null, 0), index = 0, new_mod = false;
+        var node = initVNode(nodeType, '', '', null, 0), index = 0, new_mod = false, ch, c, l;
         node.id = id || null;
         node.type = type || null;
         node.attributes = atts || [];
@@ -1473,16 +1464,22 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
-            node.attributes = node.attributes.map(function(a){
-                if (a.value instanceof Value)
+            ch = false; c = 0; l = 0;
+            modified.atts.forEach(function(range){
+                for (var a,i=range.from; i<=range.to; i++)
                 {
-                    // reset Value after current render session
-                    view.$reset.push(a.value);
-                    node.changed = node.changed || a.value.dirty();
-                    a.value = a.value.val();
+                    l++; a = atts[i];
+                    if (a.value instanceof Value)
+                    {
+                        c++;
+                        // reset Value after current render session
+                        view.$reset.push(a.value);
+                        ch = ch || a.value.dirty();
+                        a.value = a.value.val();
+                    }
                 }
-                return a;
             });
+            node.changed = c === l ? ch : (0 < l);
         }
         if ('t' === nodeType || 'c' === nodeType)
         {
@@ -1533,6 +1530,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         var i = index;
                         childNodes = n.reduce(process, childNodes);
                         new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
+                        node.changed = true;
                         return childNodes;
                     }
                     else
@@ -1584,7 +1582,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
                         nn.parentNode = node;
                         nn.index = index++;
-                        nn.changed = nn.changed || n.changed;
+                        //nn.changed = nn.changed || n.changed;
                         nn.component = nn.component || n.component;
                         nn.unit = nn.unit || n.unit;
                         return nn;
@@ -1847,10 +1845,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             r[n] = '';
         }
-        else if ((n in r) && (T_BOOL === get_type(r[n])))
+        else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
         {
             r[n] = false;
         }
+        /*else if ((n in r) && (T_BOOL === get_type(r[n])))
+        {
+            r[n] = false;
+        }*/
         else
         {
             r[DEL_ATTR](n);
@@ -1863,7 +1868,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if ('id' === n)
         {
             s = Str(s);
-            if (unconditionally || (r[n] !== s)) r[n] = s;
+            /*if (unconditionally || (r[n] !== s))*/ r[n] = s;
         }
         else if ('class' === n)
         {
@@ -1892,6 +1897,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (r[n] !== s) r[n] = s;
         }
+        else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+        {
+            r[n] = true;
+        }
         /*else if (n in r)
         {
             t = get_type(r[n]);
@@ -1901,7 +1913,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             s = Str(true === s ? n : s);
-            if (unconditionally || (s !== r[ATTR](n))) r[SET_ATTR](n, s);
+            /*if (unconditionally || (s !== r[ATTR](n)))*/ r[SET_ATTR](n, s);
         }
         return r;
     },
@@ -1930,7 +1942,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     a = vAtts[i]; n = a.name
                     if (false === a.value) del_att(r, n, T, TT);
                     else set_att(r, n, a.value, T, TT);
-                    if ('<option>' === T && 'selected' === n)
+                    /*if ('<option>' === T && 'selected' === n)
                     {
                         r.selected = !!a.value;
                     }
@@ -1941,7 +1953,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (('<select>' === T || '<input>' === T || '<textarea>' === T) && ('disabled' === n || 'required' === n))
                     {
                         r[n] = !!a.value;
-                    }
+                    }*/
                 }
             }
         }
@@ -1964,7 +1976,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (false === a.value) del_att(r, n, T, TT);
                 else set_att(r, n, a.value, T, TT, true);
             }
-            if ('<option>' === T)
+            /*if ('<option>' === T)
             {
                 r.selected = !!attr(v, 'selected');
             }
@@ -1976,7 +1988,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 r.disabled = !!attr(v, 'disabled');
                 r.required = !!attr(v, 'required');
-            }
+            }*/
         }
         return r;
     },

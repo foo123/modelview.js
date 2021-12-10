@@ -2152,6 +2152,14 @@ function Value(_val, _key, _dirty)
     };
 }
 Model.Value = Value;
+Value[proto] = {
+    constructor: Value
+    ,key: null
+    ,val: null
+    ,set: null
+    ,reset: null
+    ,dirty: null
+};
 
 /**[DOC_MARKDOWN]
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested

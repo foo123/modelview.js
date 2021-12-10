@@ -37,7 +37,13 @@ function updateModelFromStorage()
         if (storedOptions)
         {
             // reset any editing flags
-            storedOptions.todoList.todos.forEach(todo => {todo.editing = false;});
+            storedOptions.todoList.todos.forEach(todo => {
+                todo.editing = false;
+                todo.uuid = Value(todo.uuid);
+                todo.title = Value(todo.title);
+                todo.completed = Value(todo.completed);
+                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+            });
             Model.set('todoList', storedOptions.todoList);
             return true;
         }
@@ -71,7 +77,7 @@ function route(displayMode)
     }
 }
 
-var Model, View, TypeCast = ModelView.Type.Cast, Validate = ModelView.Validation.Validate,
+var Model, View, Value = ModelView.Model.Value, TypeCast = ModelView.Type.Cast, Validate = ModelView.Validation.Validate,
     STORAGE_KEY = "modelview_todomvc", KEY_ENTER = 13, autostore = debounce(autoStoreModel, 500);
 
 // ModelView for App
@@ -99,21 +105,21 @@ Model = new ModelView.Model('model', {
         switch(this.$data.displayMode)
         {
             case 'active':
-                return this.$data.todoList.todos.filter(todo => !todo.completed);
+                return this.$data.todoList.todos.filter(todo => !todo.completed.val());
             case 'completed':
-                return this.$data.todoList.todos.filter(todo => todo.completed);
+                return this.$data.todoList.todos.filter(todo => todo.completed.val());
             default:
                 return this.$data.todoList.todos;
         }
     }
     ,'todoList.todos.active': function() {
-        return this.$data.todoList.todos.filter(todo => !todo.completed);
+        return this.$data.todoList.todos.filter(todo => !todo.completed.val());
     }
     ,'todoList.todos.completed': function() {
-        return this.$data.todoList.todos.filter(todo => todo.completed);
+        return this.$data.todoList.todos.filter(todo => todo.completed.val());
     }
     ,'todoList.allCompleted': function() {
-        var visible = this.get('todoList.display'), completed = visible.filter(todo => todo.completed);
+        var visible = this.get('todoList.display'), completed = visible.filter(todo => todo.completed.val());
         return 0 < visible.length && visible.length === completed.length;
     }
 })
@@ -134,7 +140,7 @@ View = new ModelView.View('todoview')
         'Todo',
         document.getElementById('TodoComponent').innerHTML,
         {
-            changed: (_old, _new) => (_old.uuid !== _new.uuid) || (_old.title !== _new.title) || (_old.completed !== _new.completed)
+            changed: (_old, _new) => (_old !== _new) || _new.uuid.dirty() || _new.title.dirty() || _new.completed.dirty()
         }
     )
 })
@@ -151,10 +157,11 @@ View = new ModelView.View('todoview')
         if (title.length )
         {
             Model.$data.todoList.todos.unshift({
-                uuid: ModelView.UUID('todo'),
-                title: title,
+                uuid: Value(ModelView.UUID('todo')),
+                title: Value(title),
                 time: new Date().getTime(),
-                completed: false,
+                completed: Value(false),
+                className: Value('todo'),
                 editing: false
             });
             Model.$data.todoList.active++;
@@ -165,12 +172,15 @@ View = new ModelView.View('todoview')
         var completed, visible;
 
         visible = Model.get('todoList.display');
-        completed = visible.filter(todo => todo.completed);
+        completed = visible.filter(todo => todo.completed.val());
 
         if (completed.length === visible.length)
         {
             // if all completed on current filter, uncomplete them
-            completed.forEach(todo => {todo.completed = false;});
+            completed.forEach(todo => {
+                todo.completed.set(false);
+                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+            });
             Model.$data.todoList.completed -= completed.length;
             Model.$data.todoList.active += completed.length;
             Model.notify('todoList');
@@ -179,9 +189,10 @@ View = new ModelView.View('todoview')
         {
             // complete visible todos on current filter
             visible.forEach(todo => {
-                if (!todo.completed)
+                if (!todo.completed.val())
                 {
-                    todo.completed = true;
+                    todo.completed.set(true);
+                    todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
                     Model.$data.todoList.completed++;
                     Model.$data.todoList.active--;
                 }
@@ -190,14 +201,14 @@ View = new ModelView.View('todoview')
         }
     }
     ,removeCompleted: function(evt, el){
-        Model.$data.todoList.todos = Model.$data.todoList.todos.filter(todo => !todo.completed);
+        Model.$data.todoList.todos = Model.$data.todoList.todos.filter(todo => !todo.completed.val());
         Model.$data.todoList.completed = 0;
         Model.$data.todoList.active = Model.$data.todoList.todos.length;
         Model.notify('todoList');
     }
     ,edit: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.id)[0] : null;
 
         if (todo && !todo.editing)
         {
@@ -208,7 +219,7 @@ View = new ModelView.View('todoview')
     }
     ,stopEditing: function(evt, el) {
         var title, $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.id)[0] : null;
 
         if (todo && todo.editing)
         {
@@ -226,7 +237,7 @@ View = new ModelView.View('todoview')
             {
                 // update
                 todo.editing = false;
-                todo.title = title;
+                todo.title.set(title);
                 $todo.classList.remove('editing');
                 Model.notify('todoList');
             }
@@ -234,20 +245,22 @@ View = new ModelView.View('todoview')
     }
     ,complete: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.id)[0] : null;
 
         if (!todo) return;
 
-        if (!todo.completed && el.checked)
+        if (!todo.completed.val() && el.checked)
         {
-            todo.completed = true;
+            todo.completed.set(true);
+            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
             Model.$data.todoList.completed++;
             Model.$data.todoList.active--;
             Model.notify('todoList');
         }
-        else if (todo.completed && !el.checked)
+        else if (todo.completed.val() && !el.checked)
         {
-            todo.completed = false;
+            todo.completed.set(false);
+            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
             Model.$data.todoList.completed--;
             Model.$data.todoList.active++;
             Model.notify('todoList');
@@ -255,7 +268,7 @@ View = new ModelView.View('todoview')
     }
     ,remove: function(evt, el) {
         var $todo = el.closest('.todo'),
-            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid == $todo.id)[0] : null;
+            todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.id)[0] : null;
 
         if (todo)
         {
