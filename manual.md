@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 3.2.0**
+**Version 3.2.1**
 
 ### Contents
 
@@ -430,6 +430,12 @@ model.get( String dottedKey [, Boolean RAW=false ] );
 
 
 
+// model get given key as dynamic Model.Value -- see Model.Value below -- (bypass custom model getters if RAW is true)
+model.getVal( String dottedKey [, Boolean RAW=false ] );
+
+
+
+
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -486,6 +492,17 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
 
 // model enable / disable atomic operations, do next update operations on key (and nested keys) as one atom
 model.atom( String dottedKey | Boolean false );
+
+
+
+
+// dynamic value data structure, which keeps note of when value is dirty (has changed)
+var value = new Model.Value(val [, key, isDirty]);
+var val = value.val(); // get value
+value.set(newVal); // set new value and update dirty flag
+var isDirty = value.dirty(); // get dirty flag
+value.reset(); // reset dirty flag
+var key = value.key(); // get key of value (if associated with some Model key, else undefined/null)
 
 
 

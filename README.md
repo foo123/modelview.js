@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 3.2.0** (77 kB minified)
+**Version 3.2.1** (78 kB minified)
 
 
 **see also:**
@@ -47,10 +47,10 @@ It knows **where**, **when** and **what** needs to be rendered.
 <script id="content" type="text/x-template">
     <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123; and &#125; template placeholders
     <br /><br />
-    <b>Hello {this.model().get('msg')}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
+    <b>Hello {this.model().getVal('msg')}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
     <br /><br />
-    <input type="text" name="model[msg]" size="50" value={this.model().get('msg')} />
-    <button class="button" title={this.model().get('msg')} mv-evt mv-on-click="alert">Hello</button>
+    <input type="text" name="model[msg]" size="50" value={this.model().getVal('msg')} />
+    <button class="button" title={this.model().getVal('msg')} mv-evt mv-on-click="alert">Hello</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
 </script>
 <div id="app"></div>
@@ -146,7 +146,7 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 **make sure** your custom component names **do not match default html element names!**
 
-ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
+ModelView furthermore has built-in data Model which is available in each template (or component) via `this.model()` or `view.model()` (`view` is an alias of `this`, and `this` is always the main View instance). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is.
 
 ModelView also has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
 

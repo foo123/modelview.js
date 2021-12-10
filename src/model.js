@@ -594,6 +594,7 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$validators: null
     ,$getters: null
     ,$setters: null
+    ,$upds: null
     ,atomic: false
     ,$atom: null
     ,$autovalidate: true
@@ -615,6 +616,7 @@ model.dispose( );
         model.$validators = null;
         model.$getters = null;
         model.$setters = null;
+        model.$upds = null;
         model.atomic = false;
         model.$atom = null;
         model.key = null;
@@ -638,6 +640,32 @@ model.data( [Object data] );
             return model;
         }
         return model.$data;
+    }
+
+    ,setDirty: function(ks) {
+        var model = this, i, l, u;
+        if (!model.$upds) model.$upds = {};
+        u = model.$upds;
+        for (i=0,l=ks.length; i<l; i++)
+        {
+            if (!u.k) u.k = {};
+            if (!u.k[ks[i]]) u.k[ks[i]] = {};
+            u = u.k[ks[i]];
+        }
+        return model;
+    }
+    ,isDirty: function(ks) {
+        var model = this, i, l, c, u = model.$upds;
+        for (c=0,i=0,l=ks.length; i<l; i++)
+        {
+            if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
+            u = u.k[ks[i]]; c++;
+        }
+        return (0 < l) && (c === l);
+    }
+    ,resetDirty: function() {
+        this.$upds = null;
+        return this;
     }
 
 /**[DOC_MARKDOWN]
@@ -881,6 +909,33 @@ model.get( String dottedKey [, Boolean RAW=false ] );
     }
 
 /**[DOC_MARKDOWN]
+// model get given key as dynamic Model.Value -- see Model.Value below -- (bypass custom model getters if RAW is true)
+model.getVal( String dottedKey [, Boolean RAW=false ] );
+
+[/DOC_MARKDOWN]**/
+    ,getVal: function(dottedKey, RAW) {
+        var model = this, data = model.$data, getters = model.$getters, r, ks;
+
+        // test and split (if needed) is fastest
+        if (0 > dottedKey.indexOf('.'))
+        {
+            // handle single key fast
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, true);
+            return Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+        }
+        else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
+        {
+            // nested sub-model
+            if (Model === r[ 0 ]) return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            // custom getter
+            else if (false === r[ 0 ]) return Value(r[ 1 ].call(model, dottedKey), dottedKey, true);
+            // model field
+            return Value(r[ 1 ], dottedKey, model.isDirty(ks));
+        }
+        return undef;
+    }
+
+/**[DOC_MARKDOWN]
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -1022,7 +1077,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
     // set/add, it can add last node also if not there
     ,set: function (dottedKey, val, pub, callData) {
         var model = this, r, cr, o, k, p, i, l,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -1047,6 +1102,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) ? r.v : null;
             type = (r=types[k] || types[WILDCARD]) ? r.v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) ? r.v : null;
@@ -1059,7 +1115,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
+        else if ((r = walk_and_get3( ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -1095,6 +1151,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         valuePrev: prevval,
                         $callData: callData
                     });
+                    model.setDirty(ks);
 
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
@@ -1178,7 +1235,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                             action: 'set',
                             $callData: callData
                         });
-
+                        model.setDirty(ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -1209,7 +1266,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         action: 'set',
                         $callData: callData
                     });
-
+                    model.setDirty(ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -1228,7 +1285,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
     // add/append/prepend value (for arrays like structures)
     ,add: function (dottedKey, val, prepend, pub, callData) {
         var model = this, r, cr, o, k, p, i, l, index = -1,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -1253,6 +1310,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
@@ -1265,7 +1323,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -1295,7 +1353,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         index: index,
                         $callData: callData
                     });
-
+                    model.setDirty(ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -1384,7 +1442,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             index: index,
                             $callData: callData
                         });
-
+                        model.setDirty(ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -1428,7 +1486,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     index: index,
                     $callData: callData
                 });
-
+                model.setDirty(ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
             }
@@ -1445,7 +1503,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
     // insert value at index (for arrays like structures)
     ,ins: function (dottedKey, val, index, pub, callData) {
         var model = this, r, cr, o, k, p, i, l,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -1470,6 +1528,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
@@ -1482,7 +1541,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
             }
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -1512,7 +1571,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: index,
                         $callData: callData
                     });
-
+                    model.setDirty(ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -1576,6 +1635,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: -1,
                         $callData: callData
                     });
+                    model.setDirty(ks);
                 }
                 return model;
             }
@@ -1597,7 +1657,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                             index: index,
                             $callData: callData
                         });
-
+                        model.setDirty(ks.concat(index));
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -1631,7 +1691,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     index: index,
                     $callData: callData
                 });
-
+                model.setDirty(ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
             }
@@ -2043,6 +2103,55 @@ Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
+
+/**[DOC_MARKDOWN]
+// dynamic value data structure, which keeps note of when value is dirty (has changed)
+var value = new Model.Value(val [, key, isDirty]);
+var val = value.val(); // get value
+value.set(newVal); // set new value and update dirty flag
+var isDirty = value.dirty(); // get dirty flag
+value.reset(); // reset dirty flag
+var key = value.key(); // get key of value (if associated with some Model key, else undefined/null)
+
+[/DOC_MARKDOWN]**/
+function Value(_val, _key, _dirty)
+{
+    var self = this;
+    if (_val instanceof Value) return new Value(_val.val(), _val.key(), _val.dirty());
+    if (arguments.length < 3) _dirty = true;
+    if (!(self instanceof Value)) return new Value(_val, _key, _dirty);
+
+    self.key = function() {
+        return _key;
+    };
+    self.val = function() {
+        return _val;
+    };
+    self.set = function(val, noDirty) {
+        if (val !== _val)
+        {
+            _val = val;
+            if (!noDirty) _dirty = true;
+        }
+        return self;
+    };
+    self.reset = function() {
+        _dirty = false;
+        return self;
+    };
+    self.dirty = function(isDirty) {
+        if (arguments.length)
+        {
+            _dirty = !!isDirty;
+            return self;
+        }
+        else
+        {
+            return _dirty;
+        }
+    };
+}
+Model.Value = Value;
 
 /**[DOC_MARKDOWN]
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested

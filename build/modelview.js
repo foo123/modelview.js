@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 3.2.0
-*   @built on 2021-10-22 17:27:14
+*   @version: 3.2.1
+*   @built on 2021-12-10 14:08:59
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 3.2.0
-*   @built on 2021-10-22 17:27:14
+*   @version: 3.2.1
+*   @built on 2021-12-10 14:08:59
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = 'undefined' !== typeof (document);
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 3.2.0**
+**Version 3.2.1**
 
 ### Contents
 
@@ -837,7 +837,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.potentialChildNodes = 0;
         self.modified = null;
         self.diff = null;
-        self.changed = null;
+        self.changed = false;
         self.unit = false;
     },
     initVNode = function(nodeType, nodeValue, nodeValue2, parentNode, index) {
@@ -1525,6 +1525,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
+            node.attributes = node.attributes.map(function(a){
+                if (a.value instanceof Value)
+                {
+                    // reset Value after current render session
+                    view.$reset.push(a.value);
+                    node.changed = node.changed || a.value.dirty();
+                    a.value = a.value.val();
+                }
+                return a;
+            });
         }
         if ('t' === nodeType || 'c' === nodeType)
         {
@@ -1545,13 +1555,31 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     childNodes.push(nn);
                     node.potentialChildNodes += len;
                     index += len;
-                    // reset collection DOM manipulations after current render session
-                    view.on('render', function(){n.reset();}, true);
+                    // reset Collection after current render session
+                    view.$reset.push(n);
+                    nn.changed = 0 < n.diff.length;
+                    node.changed = node.changed || nn.changed;
                     return childNodes;
+                }
+                else if (n instanceof Value)
+                {
+                    var val = n, v = Str(val.val());
+                    if ('' === v)
+                    {
+                        if (!node.modified) node.modified = {atts: [], nodes: []};
+                        new_mod = insMod(node.modified.nodes, index, index-1, new_mod);
+                        return childNodes;
+                    }
+                    n = initVNode('t', v, v, null, 0);
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                    // reset Value after current render session
+                    view.$reset.push(val);
+                    n.changed = val.dirty();
                 }
                 else if (!(n instanceof VNode))
                 {
-                    if (is_type(n, T_ARRAY))
+                    if (get_type(n) & T_ARRAY)
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         var i = index;
@@ -1569,6 +1597,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             return childNodes;
                         }
                         n = initVNode('t', v, v, null, 0);
+                        n.changed = true;
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         new_mod = insMod(node.modified.nodes, index, index, new_mod);
                     }
@@ -1612,6 +1641,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
+                    node.changed = node.changed || n.changed;
                     return childNodes;
                 }
                 else if ('collection' === n.nodeType)
@@ -1624,6 +1654,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     n.parentNode = node;
                     index += n.potentialChildNodes;
                     childNodes.push(n);
+                    node.changed = node.changed || n.changed;
                     return childNodes;
                 }
                 else if (('dyn' === n.nodeType) || ('jsx' === n.nodeType))
@@ -1633,11 +1664,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
+                        nn.changed = true;
                         return nn;
                     });
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     new_mod = insMod(node.modified.nodes, i, i+a.length-1, new_mod);
                     AP.push.apply(childNodes, a);
+                    node.changed = true;
                     return childNodes;
                 }
                 else if (!n.nodeType || !n.nodeType.length)
@@ -1652,6 +1685,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         nn.parentNode = node;
                         nn.index = index++;
                         nn.unit = nn.unit || n.unit;
+                        node.changed = node.changed || nn.changed;
                         return nn;
                     }));
                     return childNodes;
@@ -1665,6 +1699,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 n.parentNode = node;
                 n.index = index++;
                 childNodes.push(n);
+                node.changed = node.changed || n.changed;
                 return childNodes;
             }, []);
         }
@@ -1909,12 +1944,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (r[n] !== s) r[n] = s;
         }
-        else if (n in r)
+        /*else if (n in r)
         {
             t = get_type(r[n]);
             s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
             if (unconditionally || (r[n] !== s)) r[n] = s;
-        }
+        }*/
         else
         {
             s = Str(true === s ? n : s);
@@ -1997,6 +2032,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return r;
     },
+    eqNodes = function(r, v, T) {
+        T = T || nodeType(r);
+        return (T === v.nodeType) && (v.component === r.$mvComp) && (v.id === r.$mvId) && ('<input>' !== T || (v[TYPE]||'').toLowerCase() === (r[TYPE]||'').toLowerCase());
+    },
     delNodes = function(r, index, count) {
         if (0 <= index && index < r.childNodes.length)
         {
@@ -2024,9 +2063,53 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else r.appendChild(frag);
         return index;
     },
+    morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally, anyway) {
+        if (anyway || (false !== vnode.changed))
+        {
+            var T = vnode.nodeType, val;
+            if ('t' === T)
+            {
+                rnode.nodeValue = vnode.nodeValue2;
+            }
+            else if ('c' === T)
+            {
+                rnode.nodeValue = vnode.nodeValue;
+            }
+            else if ('<textarea>' === T)
+            {
+                // morph attributes/properties
+                morphAtts(rnode, vnode, unconditionally || anyway);
+                val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
+                /*if (rnode.value !== val)
+                {*/
+                    rnode.value = val;
+                    if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                /*}*/
+            }
+            else if ('<style>' === T || '<script>' === T)
+            {
+                morphAtts(rnode, vnode, unconditionally || anyway);
+                val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
+                rnode.textContent = val;
+            }
+            else
+            {
+                if (vnode.unit)
+                {
+                    r.replaceChild(to_node(view, vnode, true), rnode);
+                }
+                else
+                {
+                    // morph attributes/properties
+                    morphAtts(rnode, vnode, unconditionally || anyway);
+                    // morph children
+                    morph(view, rnode, vnode, unconditionally);
+                }
+            }
+        }
+    },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count, unconditionally) {
-        var index, indexv, vnode, rnode, T1, T2, rcomponent, vcomponent, vid, rid,
-            collection, diff, di, dc, d, items, i, j, k, l, m, n, len, frag;
+        var index, indexv, vnode, rnode, T, collection, diff, di, dc, d, items, i, j, k, l, m, n, len, frag;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -2038,7 +2121,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     case 'set':
                         len = collection.items().length*collection.mappedItem;
-                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], collection.mapped()), start, start+len-1, start+len-1, 0, count, true);
+                        frag = htmlNode(view, '', null, null, [], collection.mapped());
+                        morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count, true);
                         count = 0;
                         return count; // break from diff loop completely, this should be only diff
                         break;
@@ -2077,7 +2161,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     case 'change':
                         len = (d.to-d.from+1)*collection.mappedItem;
                         items = collection.mapped(collection.items(d.from, d.to+1));
-                        morphSelectedNodes(view, r, htmlNode(view, '', null, null, [], items), start+d.from, start+d.from+len-1, start+d.from+len-1, 0, 0, true);
+                        frag = htmlNode(view, '', null, null, [], items);
+                        morphSelectedNodes(view, r, frag, start+d.from, start+d.from+len-1, start+d.from+len-1, 0, 0, true);
                         break;
                 }
             }
@@ -2102,158 +2187,68 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 break;
             }
 
-            T2 = vnode.nodeType;
             rnode = r.childNodes[index];
-            T1 = nodeType(rnode);
-            vcomponent = vnode.component;
-            rcomponent = rnode.$mvComp;
-            vid = vnode.id;
-            rid = rnode.$mvId;
+            T = nodeType(rnode);
 
-            if (
-                (T2 !== T1)
-                || (/*(0 === count) &&*/ (vcomponent !== rcomponent))
-                || ((0 === count) && (vid !== rid))
-                || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                || ('<script>' === T1 || '<style>' === T1)
-            )
+            if (0 === count)
             {
-                r.replaceChild(to_node(view, vnode, true), rnode);
-            }
-            else if (0 !== count)
-            {
-                if (vid && rid)
+                if (eqNodes(rnode, vnode, T))
                 {
-                    if (vid === rid)
-                    {
-                        if (false !== vnode.changed)
-                        {
-                            // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
-                            // morph children
-                            morph(view, rnode, vnode, true);
-                        }
-                    }
-                    else
-                    {
-                        if (0 > count)
-                        {
-                            r.insertBefore(to_node(view, vnode, true), rnode);
-                            count++;
-                        }
-                        else
-                        {
-                            for (i=index,j=0; 0 < count && j < count; )
-                            {
-                                j++; //r.removeChild(rnode); count--;
-                                if (index+j >= r.childNodes.length) break;
-                                rnode = r.childNodes[index+j];
-                                if (!rnode.$mvId || (vid === rnode.$mvId)) break;
-                            }
-                            if (0 < j)
-                            {
-                                delNodes(r, i, j);
-                                count -= j;
-                            }
-                            if (index >= r.childNodes.length)
-                            {
-                                //r.appendChild(to_node(view, vnode, true));
-                                insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
-                                count = 0;
-                                break;
-                            }
-                            else
-                            {
-                                rnode = r.childNodes[index];
-                                T1 = nodeType(rnode);
-                                rcomponent = rnode.$mvComp;
-                                rid = rnode.$mvId;
-                                if (
-                                    (T2 !== T1)
-                                    || (rcomponent !== vcomponent)
-                                    || (rid !== vid)
-                                    || (!rid)
-                                    || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                )
-                                {
-                                    r.replaceChild(to_node(view, vnode, true), rnode);
-                                }
-                                else if (false !== vnode.changed)
-                                {
-                                    if (vnode.unit)
-                                    {
-                                        r.replaceChild(to_node(view, vnode, true), rnode);
-                                    }
-                                    else
-                                    {
-                                        // morph attributes/properties
-                                        morphAtts(rnode, vnode, unconditionally);
-                                        // morph children
-                                        morph(view, rnode, vnode, true);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    morphSingle(view, r, rnode, vnode, unconditionally);
                 }
                 else
-                {
-                    if (false !== vnode.changed)
-                    {
-                        if (vnode.unit)
-                        {
-                            r.replaceChild(to_node(view, vnode, true), rnode);
-                        }
-                        else
-                        {
-                            // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
-                            // morph children
-                            morph(view, rnode, vnode, true);
-                        }
-                    }
-                }
-            }
-            else if ('t' === T1)
-            {
-                if (false !== vnode.changed)
-                {
-                    rnode.nodeValue = vnode.nodeValue2;
-                }
-            }
-            else if ('c' === T1)
-            {
-                if (false !== vnode.changed)
-                {
-                    rnode.nodeValue = vnode.nodeValue;
-                }
-            }
-            else if ('<textarea>' === T1)
-            {
-                if (false !== vnode.changed)
-                {
-                    // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
-                    val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
-                    /*if (rnode.value !== val)
-                    {*/
-                        rnode.value = val;
-                        if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                    /*}*/
-                }
-            }
-            else if (false !== vnode.changed)
-            {
-                if (vnode.unit)
                 {
                     r.replaceChild(to_node(view, vnode, true), rnode);
                 }
+            }
+            else
+            {
+                if (eqNodes(rnode, vnode, T))
+                {
+                    morphSingle(view, r, rnode, vnode, unconditionally);
+                }
                 else
                 {
-                    // morph attributes/properties
-                    morphAtts(rnode, vnode, unconditionally);
-                    // morph children
-                    morph(view, rnode, vnode, true);
+                    if (0 > count)
+                    {
+                        r.insertBefore(to_node(view, vnode, true), rnode);
+                        count++;
+                    }
+                    else
+                    {
+                        for (i=index,j=0; 0 < count && j < count; )
+                        {
+                            j++; //r.removeChild(rnode); count--;
+                            if (index+j >= r.childNodes.length) break;
+                            rnode = r.childNodes[index+j];
+                            if (eqNodes(rnode, vnode)) break;
+                        }
+                        if (0 < j)
+                        {
+                            delNodes(r, i, j);
+                            count -= j;
+                        }
+                        if (index >= r.childNodes.length)
+                        {
+                            //r.appendChild(to_node(view, vnode, true));
+                            insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
+                            count = 0;
+                            break;
+                        }
+                        else
+                        {
+                            rnode = r.childNodes[index];
+                            T = nodeType(rnode);
+                            if (eqNodes(rnode, vnode, T))
+                            {
+                                morphSingle(view, r, rnode, vnode, unconditionally);
+                            }
+                            else
+                            {
+                                r.replaceChild(to_node(view, vnode, true), rnode);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2268,9 +2263,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     morph = function morph(view, r, v, unconditionally, isRoot) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index, dummy,
-            vnode, rnode, lastnode, to_remove, T1, T2, rid, vid,  rcomponent, vcomponent,
-            val, modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
+            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index,
+            vnode, rnode, lastnode, to_remove, T,
+            modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
         if (v.component) r.$mvComp = v.component;
         else if (r.$mvComp) r.$mvComp = null;
@@ -2280,7 +2275,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
 
-        //if (isRoot) r.parentNode.replaceChild(dummy=document.createElement('div'), r);
         if (!r.childNodes.length)
         {
             if (0 < vc) insNodes(view, r, v, 0, vc, null);
@@ -2349,167 +2343,72 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                     vnode = v.childNodes[index];
                     rnode = r.childNodes[index];
-                    T2 = vnode.nodeType;
-                    T1 = nodeType(rnode);
-                    vcomponent = vnode.component;
-                    rcomponent = rnode.$mvComp;
-                    vid = vnode.id;
-                    rid = rnode.$mvId;
-                    if (
-                        (T2 !== T1)
-                        || (/*(0 === count) &&*/ (vcomponent !== rcomponent))
-                        || ((0 === count) && (vid !== rid))
-                        || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                        || ('<script>' === T1 || '<style>' === T1)
-                    )
+                    T = nodeType(rnode);
+                    if (0 === count)
                     {
-                        r.replaceChild(to_node(view, vnode, true), rnode);
-                    }
-                    else if (0 !== count)
-                    {
-                        if (vid && rid)
+                        if (eqNodes(rnode, vnode, T))
                         {
-                            if (vid === rid)
-                            {
-                                if (false !== vnode.changed)
-                                {
-                                    // morph attributes/properties
-                                    morphAtts(rnode, vnode, unconditionally);
-                                    // morph children
-                                    morph(view, rnode, vnode, unconditionally);
-                                }
-                            }
-                            else
-                            {
-                                if (0 > count)
-                                {
-                                    r.insertBefore(to_node(view, vnode, true), rnode);
-                                    count++;
-                                }
-                                else
-                                {
-                                    for (i=index,j=0; 0 < count && j < count; )
-                                    {
-                                        j++; //r.removeChild(rnode); count--;
-                                        if (index+j >= r.childNodes.length) break;
-                                        rnode = r.childNodes[index+j];
-                                        if (!rnode.$mvId || (vid === rnode.$mvId)) break;
-                                    }
-                                    if (0 < j)
-                                    {
-                                        delNodes(r, i, j);
-                                        count -= j;
-                                    }
-                                    if (index >= r.childNodes.length)
-                                    {
-                                        //r.appendChild(to_node(view, vnode, true));
-                                        insNodes(view, r, v, index, vc-r.childNodes.length, null);
-                                        count = 0;
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        rnode = r.childNodes[index];
-                                        T1 = nodeType(rnode);
-                                        rcomponent = rnode.$mvComp;
-                                        rid = rnode.$mvId;
-                                        if (
-                                            (T2 !== T1)
-                                            || (rcomponent !== vcomponent)
-                                            || (rid !== vid)
-                                            || (!rid)
-                                            || ('<input>' === T1 && (vnode[TYPE]||'').toLowerCase() !== (rnode[TYPE]||'').toLowerCase())
-                                        )
-                                        {
-                                            r.replaceChild(to_node(view, vnode, true), rnode);
-                                        }
-                                        else if (false !== vnode.changed)
-                                        {
-                                            if (vnode.unit)
-                                            {
-                                                r.replaceChild(to_node(view, vnode, true), rnode);
-                                            }
-                                            else
-                                            {
-                                                // morph attributes/properties
-                                                morphAtts(rnode, vnode, unconditionally);
-                                                // morph children
-                                                morph(view, rnode, vnode, unconditionally);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            morphSingle(view, r, rnode, vnode, unconditionally, true);
                         }
                         else
-                        {
-                            if ((vcomponent !== rcomponent) || (vid !== rid))
-                            {
-                                r.replaceChild(to_node(view, vnode, true), rnode);
-                            }
-                            else if (false !== vnode.changed)
-                            {
-                                if (vnode.unit)
-                                {
-                                    r.replaceChild(to_node(view, vnode, true), rnode);
-                                }
-                                else
-                                {
-                                    // morph attributes/properties
-                                    morphAtts(rnode, vnode, unconditionally);
-                                    // morph children
-                                    morph(view, rnode, vnode, unconditionally);
-                                }
-                            }
-                        }
-                    }
-                    else if ('t' === T1)
-                    {
-                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue2)
-                        {
-                            rnode.nodeValue = vnode.nodeValue2;
-                        }
-                    }
-                    else if ('c' === T1)
-                    {
-                        if (/*false !== vnode.changed*/rnode.nodeValue !== vnode.nodeValue)
-                        {
-                            rnode.nodeValue = vnode.nodeValue;
-                        }
-                    }
-                    else if ('<textarea>' === T1)
-                    {
-                        if (false !== vnode.changed)
-                        {
-                            // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
-                            val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
-                            if (rnode.value !== val)
-                            {
-                                rnode.value = val;
-                                if (rnode.firstChild) rnode.firstChild.nodeValue = val;
-                            }
-                        }
-                    }
-                    else if (false !== vnode.changed)
-                    {
-                        if (vnode.unit)
                         {
                             r.replaceChild(to_node(view, vnode, true), rnode);
                         }
+                    }
+                    else
+                    {
+                        if (eqNodes(rnode, vnode, T))
+                        {
+                            morphSingle(view, r, rnode, vnode, unconditionally, true);
+                        }
                         else
                         {
-                            // morph attributes/properties
-                            morphAtts(rnode, vnode, unconditionally);
-                            // morph children
-                            morph(view, rnode, vnode, unconditionally);
+                            if (0 > count)
+                            {
+                                r.insertBefore(to_node(view, vnode, true), rnode);
+                                count++;
+                            }
+                            else
+                            {
+                                for (i=index,j=0; 0 < count && j < count; )
+                                {
+                                    j++; //r.removeChild(rnode); count--;
+                                    if (index+j >= r.childNodes.length) break;
+                                    rnode = r.childNodes[index+j];
+                                    if (eqNodes(rnode, vnode)) break;
+                                }
+                                if (0 < j)
+                                {
+                                    delNodes(r, i, j);
+                                    count -= j;
+                                }
+                                if (index >= r.childNodes.length)
+                                {
+                                    //r.appendChild(to_node(view, vnode, true));
+                                    insNodes(view, r, v, index, vc-r.childNodes.length, null);
+                                    count = 0;
+                                    break;
+                                }
+                                else
+                                {
+                                    rnode = r.childNodes[index];
+                                    T = nodeType(rnode);
+                                    if (eqNodes(rnode, vnode, T))
+                                    {
+                                        morphSingle(view, r, rnode, vnode, unconditionally, true);
+                                    }
+                                    else
+                                    {
+                                        r.replaceChild(to_node(view, vnode, true), rnode);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 if (r.childNodes.length > vc) delNodes(r, vc, r.childNodes.length-vc);
             }
         }
-        //if (isRoot) dummy.parentNode.replaceChild(r, dummy);
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
         var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el.$mvMod;
@@ -2623,8 +2522,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             m = m.c[k];
             if (ks.length-1 === i)
             {
-                if (!HAS.call(m, 'v')) m.v = [];
-                m.v.push(v);
+                if (!HAS.call(m, 'v')) m.v = [v];
+                else m.v.push(v);
             }
         });
     },
@@ -4565,6 +4464,7 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$validators: null
     ,$getters: null
     ,$setters: null
+    ,$upds: null
     ,atomic: false
     ,$atom: null
     ,$autovalidate: true
@@ -4586,6 +4486,7 @@ model.dispose( );
         model.$validators = null;
         model.$getters = null;
         model.$setters = null;
+        model.$upds = null;
         model.atomic = false;
         model.$atom = null;
         model.key = null;
@@ -4609,6 +4510,32 @@ model.data( [Object data] );
             return model;
         }
         return model.$data;
+    }
+
+    ,setDirty: function(ks) {
+        var model = this, i, l, u;
+        if (!model.$upds) model.$upds = {};
+        u = model.$upds;
+        for (i=0,l=ks.length; i<l; i++)
+        {
+            if (!u.k) u.k = {};
+            if (!u.k[ks[i]]) u.k[ks[i]] = {};
+            u = u.k[ks[i]];
+        }
+        return model;
+    }
+    ,isDirty: function(ks) {
+        var model = this, i, l, c, u = model.$upds;
+        for (c=0,i=0,l=ks.length; i<l; i++)
+        {
+            if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
+            u = u.k[ks[i]]; c++;
+        }
+        return (0 < l) && (c === l);
+    }
+    ,resetDirty: function() {
+        this.$upds = null;
+        return this;
     }
 
 /**[DOC_MARKDOWN]
@@ -4852,6 +4779,33 @@ model.get( String dottedKey [, Boolean RAW=false ] );
     }
 
 /**[DOC_MARKDOWN]
+// model get given key as dynamic Model.Value -- see Model.Value below -- (bypass custom model getters if RAW is true)
+model.getVal( String dottedKey [, Boolean RAW=false ] );
+
+[/DOC_MARKDOWN]**/
+    ,getVal: function(dottedKey, RAW) {
+        var model = this, data = model.$data, getters = model.$getters, r, ks;
+
+        // test and split (if needed) is fastest
+        if (0 > dottedKey.indexOf('.'))
+        {
+            // handle single key fast
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, true);
+            return Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+        }
+        else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
+        {
+            // nested sub-model
+            if (Model === r[ 0 ]) return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            // custom getter
+            else if (false === r[ 0 ]) return Value(r[ 1 ].call(model, dottedKey), dottedKey, true);
+            // model field
+            return Value(r[ 1 ], dottedKey, model.isDirty(ks));
+        }
+        return undef;
+    }
+
+/**[DOC_MARKDOWN]
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -4993,7 +4947,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
     // set/add, it can add last node also if not there
     ,set: function (dottedKey, val, pub, callData) {
         var model = this, r, cr, o, k, p, i, l,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -5018,6 +4972,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) ? r.v : null;
             type = (r=types[k] || types[WILDCARD]) ? r.v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) ? r.v : null;
@@ -5030,7 +4985,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3( dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
+        else if ((r = walk_and_get3( ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5066,6 +5021,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         valuePrev: prevval,
                         $callData: callData
                     });
+                    model.setDirty(ks);
 
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
@@ -5149,7 +5105,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                             action: 'set',
                             $callData: callData
                         });
-
+                        model.setDirty(ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -5180,7 +5136,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         action: 'set',
                         $callData: callData
                     });
-
+                    model.setDirty(ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -5199,7 +5155,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
     // add/append/prepend value (for arrays like structures)
     ,add: function (dottedKey, val, prepend, pub, callData) {
         var model = this, r, cr, o, k, p, i, l, index = -1,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -5224,6 +5180,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
@@ -5236,7 +5193,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5266,7 +5223,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         index: index,
                         $callData: callData
                     });
-
+                    model.setDirty(ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -5355,7 +5312,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             index: index,
                             $callData: callData
                         });
-
+                        model.setDirty(ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -5399,7 +5356,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     index: index,
                     $callData: callData
                 });
-
+                model.setDirty(ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
             }
@@ -5416,7 +5373,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
     // insert value at index (for arrays like structures)
     ,ins: function (dottedKey, val, index, pub, callData) {
         var model = this, r, cr, o, k, p, i, l,
-            type, validator, setter,
+            type, validator, setter, ks,
             collection_type = null, collection_validator = null,
             is_collection = false,
             types, validators, setters, ideps,
@@ -5441,6 +5398,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
         {
             // handle single key fast
             k = dottedKey;
+            ks = [dottedKey];
             setter = (r=setters[k]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             type = (r=types[k] || types[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
             validator = autovalidate && (r=validators[k] || validators[WILDCARD]) && r.n[WILDCARD] ? r.n[WILDCARD].v : null;
@@ -5453,7 +5411,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
             }
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
 
@@ -5483,7 +5441,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: index,
                         $callData: callData
                     });
-
+                    model.setDirty(ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                 }
@@ -5547,6 +5505,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: -1,
                         $callData: callData
                     });
+                    model.setDirty(ks);
                 }
                 return model;
             }
@@ -5568,7 +5527,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                             index: index,
                             $callData: callData
                         });
-
+                        model.setDirty(ks.concat(index));
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
                     }
@@ -5602,7 +5561,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     index: index,
                     $callData: callData
                 });
-
+                model.setDirty(ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
             }
@@ -6014,6 +5973,55 @@ Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
+
+/**[DOC_MARKDOWN]
+// dynamic value data structure, which keeps note of when value is dirty (has changed)
+var value = new Model.Value(val [, key, isDirty]);
+var val = value.val(); // get value
+value.set(newVal); // set new value and update dirty flag
+var isDirty = value.dirty(); // get dirty flag
+value.reset(); // reset dirty flag
+var key = value.key(); // get key of value (if associated with some Model key, else undefined/null)
+
+[/DOC_MARKDOWN]**/
+function Value(_val, _key, _dirty)
+{
+    var self = this;
+    if (_val instanceof Value) return new Value(_val.val(), _val.key(), _val.dirty());
+    if (arguments.length < 3) _dirty = true;
+    if (!(self instanceof Value)) return new Value(_val, _key, _dirty);
+
+    self.key = function() {
+        return _key;
+    };
+    self.val = function() {
+        return _val;
+    };
+    self.set = function(val, noDirty) {
+        if (val !== _val)
+        {
+            _val = val;
+            if (!noDirty) _dirty = true;
+        }
+        return self;
+    };
+    self.reset = function() {
+        _dirty = false;
+        return self;
+    };
+    self.dirty = function(isDirty) {
+        if (arguments.length)
+        {
+            _dirty = !!isDirty;
+            return self;
+        }
+        else
+        {
+            return _dirty;
+        }
+    };
+}
+Model.Value = Value;
 
 /**[DOC_MARKDOWN]
 // dynamic collection data structure, which keeps note of which manipulations are done and reflects these as DOM manipulations if requested
@@ -6663,6 +6671,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$cache: null
     ,$cache2: null
     ,$cnt: null
+    ,$reset: null
     ,$prat: ''
     ,_dbnc: null
 
@@ -6687,6 +6696,7 @@ view.dispose( );
         view.$cache = null;
         view.$cache2 = null;
         view.$cnt = null;
+        view.$reset = null;
         view.$upds = null;
         return view;
     }
@@ -7099,31 +7109,31 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self, self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
-        if ('text' === self.$livebind)
+        var view = this, out = '', callback;
+        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), view.$livebind, {trim:true, id:view.attr('mv-id')});
+        if ('text' === view.$livebind)
         {
-            if (!self.$renderdom)
+            if (!view.$renderdom)
             {
-                self.$upds = [];
-                if (self.$out) out = self.$out.call(self, function(key){return Str(self.$model.get(key));}); // return the rendered string
+                view.$upds = [];
+                if (view.$out) out = view.$out.call(view, function(key){return Str(view.$model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
                 return out;
             }
             else
             {
-                if (!self.$map)
+                if (!view.$map)
                 {
-                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{'+Str(key)+'}';});
-                    self.updateMap(self.$renderdom, 'add');
+                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                    view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    var upds = self.$upds;
-                    self.$upds = [];
-                    morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
+                    var upds = view.$upds;
+                    view.$upds = [];
+                    morphText(view.$map, view.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
-                    self.publish('render', {});
+                    view.publish('render', {});
                 };
                 if (true === immediate || 'sync' === immediate)
                 {
@@ -7131,25 +7141,33 @@ view.render( [Boolean immediate=false] );
                 }
                 else
                 {
-                    debounce(callback, self);
+                    debounce(callback, view);
                 }
             }
         }
-        else if (self.$out)
+        else if (view.$out)
         {
-            if (!self.$renderdom)
+            if (!view.$renderdom)
             {
-                self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
-                var out = to_string(self, self.$out.call(self, htmlNode)); // return the rendered string
+                view.$upds = []; view.$cache2 = {}; view.$cache = {}; view.$cnt = {}; view.$reset = [];
+                var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
+                // reset any Values/Collections present
+                view.model().resetDirty();
+                view.$reset.forEach(function(v){v.reset();});
+                view.$reset = null;
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
                 return out;
             }
             callback = function() {
-                self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self, self.$renderdom, self.$out.call(self, htmlNode), false, true);
+                view.$upds = []; view.$cache2 = view.$cache; view.$cache = {}; view.$cnt = {}; view.$reset = [];
+                morph(view, view.$renderdom, view.$out.call(view, htmlNode), false, true);
+                // reset any Values/Collections present
+                view.model().resetDirty();
+                view.$reset.forEach(function(v){v.reset();});
+                view.$reset = null;
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
             };
             if (true === immediate || 'sync' === immediate)
             {
@@ -7157,14 +7175,14 @@ view.render( [Boolean immediate=false] );
             }
             else
             {
-                debounce(callback, self);
+                debounce(callback, view);
             }
         }
         else
         {
-            self.$upds = [];
+            view.$upds = [];
         }
-        return self;
+        return view;
     }
 
 /**[DOC_MARKDOWN]
@@ -7815,7 +7833,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "3.2.0"
+    VERSION: "3.2.1"
     
     ,UUID: uuid
     

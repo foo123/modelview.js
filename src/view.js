@@ -394,6 +394,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$cache: null
     ,$cache2: null
     ,$cnt: null
+    ,$reset: null
     ,$prat: ''
     ,_dbnc: null
 
@@ -418,6 +419,7 @@ view.dispose( );
         view.$cache = null;
         view.$cache2 = null;
         view.$cnt = null;
+        view.$reset = null;
         view.$upds = null;
         return view;
     }
@@ -830,31 +832,31 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var self = this, out = '', callback;
-        if (!self.$out && self.$tpl) self.$out = tpl2code(self, self.$tpl, '', getCtxScoped(self, 'this'), self.$livebind, {trim:true, id:self.attr('mv-id')});
-        if ('text' === self.$livebind)
+        var view = this, out = '', callback;
+        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), view.$livebind, {trim:true, id:view.attr('mv-id')});
+        if ('text' === view.$livebind)
         {
-            if (!self.$renderdom)
+            if (!view.$renderdom)
             {
-                self.$upds = [];
-                if (self.$out) out = self.$out.call(self, function(key){return Str(self.$model.get(key));}); // return the rendered string
+                view.$upds = [];
+                if (view.$out) out = view.$out.call(view, function(key){return Str(view.$model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
                 return out;
             }
             else
             {
-                if (!self.$map)
+                if (!view.$map)
                 {
-                    if (self.$out) self.$renderdom.innerHTML = self.$out.call(self, function(key){return '{'+Str(key)+'}';});
-                    self.updateMap(self.$renderdom, 'add');
+                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                    view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    var upds = self.$upds;
-                    self.$upds = [];
-                    morphText(self.$map, self.model(), 'sync' === immediate ? null : upds);
+                    var upds = view.$upds;
+                    view.$upds = [];
+                    morphText(view.$map, view.model(), 'sync' === immediate ? null : upds);
                     // notify any 3rd-party also if needed
-                    self.publish('render', {});
+                    view.publish('render', {});
                 };
                 if (true === immediate || 'sync' === immediate)
                 {
@@ -862,25 +864,33 @@ view.render( [Boolean immediate=false] );
                 }
                 else
                 {
-                    debounce(callback, self);
+                    debounce(callback, view);
                 }
             }
         }
-        else if (self.$out)
+        else if (view.$out)
         {
-            if (!self.$renderdom)
+            if (!view.$renderdom)
             {
-                self.$upds = []; self.$cache2 = {}; self.$cache = {}; self.$cnt = {};
-                var out = to_string(self, self.$out.call(self, htmlNode)); // return the rendered string
+                view.$upds = []; view.$cache2 = {}; view.$cache = {}; view.$cnt = {}; view.$reset = [];
+                var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
+                // reset any Values/Collections present
+                view.model().resetDirty();
+                view.$reset.forEach(function(v){v.reset();});
+                view.$reset = null;
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
                 return out;
             }
             callback = function() {
-                self.$upds = []; self.$cache2 = self.$cache; self.$cache = {}; self.$cnt = {};
-                morph(self, self.$renderdom, self.$out.call(self, htmlNode), false, true);
+                view.$upds = []; view.$cache2 = view.$cache; view.$cache = {}; view.$cnt = {}; view.$reset = [];
+                morph(view, view.$renderdom, view.$out.call(view, htmlNode), false, true);
+                // reset any Values/Collections present
+                view.model().resetDirty();
+                view.$reset.forEach(function(v){v.reset();});
+                view.$reset = null;
                 // notify any 3rd-party also if needed
-                self.publish('render', {});
+                view.publish('render', {});
             };
             if (true === immediate || 'sync' === immediate)
             {
@@ -888,14 +898,14 @@ view.render( [Boolean immediate=false] );
             }
             else
             {
-                debounce(callback, self);
+                debounce(callback, view);
             }
         }
         else
         {
-            self.$upds = [];
+            view.$upds = [];
         }
-        return self;
+        return view;
     }
 
 /**[DOC_MARKDOWN]
