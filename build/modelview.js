@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.1
-*   @built on 2021-12-10 18:42:56
+*   @built on 2021-12-11 11:20:32
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.1
-*   @built on 2021-12-10 18:42:56
+*   @built on 2021-12-11 11:20:32
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -829,6 +829,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         self.modified = null;
         self.diff = null;
         self.changed = false;
+        self.achanged = false;
         self.unit = false;
     },
     initVNode = function(nodeType, nodeValue, nodeValue2, parentNode, index) {
@@ -999,8 +1000,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value += state.val;
                         //state.dom.atts[att.name] += state.val;
                     }
-                    if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? 'String('+att.value.code+')' : toJSON(att.value);
-                    if ('type' === att.name) state.dom.type = att.value instanceof VCode ? 'String('+att.value.code+')' : toJSON(att.value);
+                    if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
+                    if ('type' === att.name) state.dom.type = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
                     state.inatt = false;
                     state.q = '';
                     state.val = '';
@@ -1081,8 +1082,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                                 if (state.val.length)
                                                 {
                                                     att.value = new VCode(state.val);
-                                                    if (state.opts.id === att.name) state.dom.id = 'String('+att.value.code+')';
-                                                    if ('type' === att.name) state.dom.type = 'String('+att.value.code+')';
+                                                    if (state.opts.id === att.name) state.dom.id = '('+att.value.code+')';
+                                                    if ('type' === att.name) state.dom.type = '('+att.value.code+')';
                                                 }
                                                 else
                                                 {
@@ -1509,8 +1510,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = initVNode(nodeType, '', '', null, 0), index = 0, new_mod = false, ch, c, l;
-        node.id = id || null;
-        node.type = type || null;
+        id = id || null; type = type || null;
+        if (id instanceof Value) id = id.val();
+        if (type instanceof Value) type = type.val();
+        node.id = null == id ? null : Str(id);
+        node.type = null == type ? null : Str(type);
         node.attributes = atts || [];
         if (modified && modified.atts && modified.atts.length)
         {
@@ -1531,7 +1535,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     }
                 }
             });
-            node.changed = c === l ? ch : (0 < l);
+            node.achanged = c === l ? ch : (0 < l);
         }
         if ('t' === nodeType || 'c' === nodeType)
         {
@@ -1697,7 +1701,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 n.parentNode = node;
                 n.index = index++;
                 childNodes.push(n);
-                node.changed = node.changed || n.changed;
+                node.changed = node.changed || n.changed || n.achanged;
                 return childNodes;
             }, []);
         }
@@ -2076,21 +2080,24 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return index;
     },
     morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally, anyway) {
-        if (anyway || (false !== vnode.changed))
+        var T = vnode.nodeType, val;
+        if ('t' === T)
         {
-            var T = vnode.nodeType, val;
-            if ('t' === T)
-            {
-                rnode.nodeValue = vnode.nodeValue2;
-            }
-            else if ('c' === T)
-            {
-                rnode.nodeValue = vnode.nodeValue;
-            }
-            else if ('<textarea>' === T)
+            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue2;
+        }
+        else if ('c' === T)
+        {
+            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue;
+        }
+        else if ('<textarea>' === T)
+        {
+            if (anyway || (false !== vnode.achanged))
             {
                 // morph attributes/properties
                 morphAtts(rnode, vnode, unconditionally || anyway);
+            }
+            if (anyway || (false !== vnode.changed))
+            {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 /*if (rnode.value !== val)
                 {*/
@@ -2098,22 +2105,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (rnode.firstChild) rnode.firstChild.nodeValue = val;
                 /*}*/
             }
-            else if ('<style>' === T || '<script>' === T)
+        }
+        else if ('<style>' === T || '<script>' === T)
+        {
+            if (anyway || (false !== vnode.achanged))
             {
                 morphAtts(rnode, vnode, unconditionally || anyway);
+            }
+            if (anyway || (false !== vnode.changed))
+            {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 rnode.textContent = val;
             }
+        }
+        else
+        {
+            if (vnode.unit)
+            {
+                if (anyway || (false !== vnode.changed)) r.replaceChild(to_node(view, vnode, true), rnode);
+            }
             else
             {
-                if (vnode.unit)
-                {
-                    r.replaceChild(to_node(view, vnode, true), rnode);
-                }
-                else
+                if (anyway || (false !== vnode.achanged))
                 {
                     // morph attributes/properties
                     morphAtts(rnode, vnode, unconditionally || anyway);
+                }
+                if (anyway || (false !== vnode.changed))
+                {
                     // morph children
                     morph(view, rnode, vnode, unconditionally);
                 }

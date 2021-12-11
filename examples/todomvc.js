@@ -22,7 +22,17 @@ function autoStoreModel()
     // if supports localStorage
     if (Storage.isSupported)
     {
-        Storage.set(STORAGE_KEY, Model.serialize());
+        const todoList = {
+            todos: Model.get('todoList.todos').map(todo => ({
+                uuid: todo.uuid.val(),
+                title: todo.title.val(),
+                completed: todo.completed.val(),
+                time: todo.time
+            }))
+            ,active: Model.get('todoList.active')
+            ,completed: Model.get('todoList.completed')
+        };
+        Storage.set(STORAGE_KEY, {todoList});
         return true;
     }
     return false;
@@ -91,8 +101,8 @@ Model = new ModelView.Model('model', {
 })
 .types({
     'displayMode': function(v) {return String(v).trim().toLowerCase();}
-    ,'todoList.todos.*.title': TypeCast.STR
-    ,'todoList.todos.*.completed': TypeCast.BOOL
+    //,'todoList.todos.*.title': TypeCast.STR
+    //,'todoList.todos.*.completed': TypeCast.BOOL
 })
 .validators({
     'displayMode': Validate.IN('all', 'active', 'completed')
@@ -151,12 +161,12 @@ View = new ModelView.View('todoview')
 })
 .actions({
     addTodo: function(evt, el) {
-        var title = el.value.trim();
+        var title = el.value.trim(), todo;
         el.value = '';
 
         if (title.length )
         {
-            Model.$data.todoList.todos.unshift({
+            Model.$data.todoList.todos.unshift(todo={
                 uuid: Value(ModelView.UUID('todo')),
                 title: Value(title),
                 time: new Date().getTime(),
