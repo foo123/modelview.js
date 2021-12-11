@@ -357,7 +357,7 @@ var View = function View(id) {
     var view = this;
 
     // constructor-factory pattern
-    if (!(view instanceof View)) return new View(id);
+    if (!is_instance(view, View)) return new View(id);
 
     view.namespace = view.id = id || uuid('View');
     view.$shortcuts = {};
@@ -571,7 +571,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 [/DOC_MARKDOWN]**/
     ,component: function(name, id, props, childs) {
         var view = this, out, c, propsKey, prevProps, changed;
-        if (name && HAS.call(view.$components, name))
+        if (name && is_instance(view.$components[name], View.Component))
         {
             c = view.$components[name];
             if (c.tpl && !c.out)
@@ -602,7 +602,8 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
         return '';
     }
     ,hasComponent: function(name) {
-        return name && this.$components && HAS.call(this.$components, name);
+        var view = this;
+        return name && view.$components && is_instance(view.$components[name], View.Component);
     }
 
 /**[DOC_MARKDOWN]
@@ -887,7 +888,7 @@ view.render( [Boolean immediate=false] );
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode), false, true);
                 // reset any Values/Collections present
                 view.model().resetDirty();
-                view.$reset.forEach(function(v){v.reset();});
+                for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
                 view.$reset = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -1446,7 +1447,7 @@ MyComponent.dispose(); // dispose
 [/DOC_MARKDOWN]**/
 View.Component = function Component(name, tpl, opts) {
   var self = this;
-  if (!(self instanceof Component)) return new Component(name, tpl, opts);
+  if (!is_instance(self, Component)) return new Component(name, tpl, opts);
   self.name = trim(name);
   self.tpl = trim(tpl);
   self.out = null;

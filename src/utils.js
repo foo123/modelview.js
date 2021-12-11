@@ -56,19 +56,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     get_type = function(v) {
         var T = 0;
         if      (null === v)                T = T_NULL;
-        else if (true === v || false === v || v instanceof Boolean) T = T_BOOL;
+        else if (true === v || false === v || is_instance(v, Boolean)) T = T_BOOL;
         else if (undef === v)               T = T_UNDEF;
         else
         {
         T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
-        if      ((T_NUM === T)   || (v instanceof Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ((T_STR === T)   || (v instanceof String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
-        else if ((T_ARRAY === T) || (v instanceof Array))    T = T_ARRAY;
-        else if ((T_REGEX === T) || (v instanceof RegExp))   T = T_REGEX;
-        else if ((T_DATE === T)  || (v instanceof Date))     T = T_DATE;
-        else if ((T_FILE === T)  || ('undefined' !== typeof(File) && (v instanceof File)))     T = T_FILE;
-        else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && (v instanceof Blob)))     T = T_BLOB;
-        else if ((T_FUNC === T)  || (v instanceof Function) || ('function' === typeof(v))) T = T_FUNC;
+        if      ((T_NUM === T)   || is_instance(v, Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ((T_STR === T)   || is_instance(v, String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+        else if ((T_ARRAY === T) || is_instance(v, Array))    T = T_ARRAY;
+        else if ((T_REGEX === T) || is_instance(v, RegExp))   T = T_REGEX;
+        else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
+        else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
+        else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
+        else if ((T_FUNC === T)  || is_instance(v, Function) || ('function' === typeof(v))) T = T_FUNC;
         else if (T_OBJ === T)                            T = T_OBJ;
         else                                             T = T_UNKNOWN;
         }
@@ -759,7 +759,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     VNode = function VNode(nodeType, nodeValue, nodeValue2, parentNode, index) {
         var self = this;
-        if (!(self instanceof VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+        if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
         self.nodeType = nodeType || '';
         self.cnodeType = nodeType || '';
         self.nodeValue = nodeValue || '';
@@ -785,7 +785,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     VCode = function VCode(code) {
         var self = this;
-        if (!(self instanceof VCode)) return new VCode(code);
+        if (!is_instance(self, VCode)) return new VCode(code);
         self.code = code;
     },
     initState = function(opts, nodeType) {
@@ -938,7 +938,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value = state.val;
                         //state.dom.atts[att.name] = state.val;
                     }
-                    else if (att.value instanceof VCode)
+                    else if (is_instance(att.value, VCode))
                     {
                         if (state.val.length) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
                         //state.dom.atts[att.name] = att.value;
@@ -948,8 +948,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value += state.val;
                         //state.dom.atts[att.name] += state.val;
                     }
-                    if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
-                    if ('type' === att.name) state.dom.type = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
+                    if (state.opts.id === att.name) state.dom.id = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
+                    if ('type' === att.name) state.dom.type = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
                     state.inatt = false;
                     state.q = '';
                     state.val = '';
@@ -1103,7 +1103,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             component = state.dom;
                             state.dom = component.parentNode;
                             component.parentNode = null;
-                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
+                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
                             component = null;
                         }
                         else
@@ -1245,7 +1245,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 component = state.dom;
                                 state.dom = component.parentNode;
                                 component.parentNode = null;
-                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
+                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
                                 component = null;
                             }
                             else
@@ -1459,8 +1459,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = initVNode(nodeType, '', '', null, 0), index = 0, new_mod = false, ch, c, l;
         id = id || null; type = type || null;
-        if (id instanceof Value) id = id.val();
-        if (type instanceof Value) type = type.val();
+        if (is_instance(id, Value)) id = id.val();
+        if (is_instance(type, Value)) type = type.val();
         node.id = null == id ? null : Str(id);
         node.type = null == type ? null : Str(type);
         node.attributes = atts || [];
@@ -1473,7 +1473,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 for (var a,i=range.from; i<=range.to; i++)
                 {
                     l++; a = atts[i];
-                    if (a.value instanceof Value)
+                    if (is_instance(a.value, Value))
                     {
                         c++;
                         // reset Value after current render session
@@ -1494,7 +1494,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             children = children || [];
             node.childNodes = children.reduce(function process(childNodes, n) {
-                if (n instanceof Collection)
+                if (is_instance(n, Collection))
                 {
                     var nn = new VNode('collection', n, null, node, index), len = n.items().length*n.mappedItem;
                     nn.potentialChildNodes = len;
@@ -1510,7 +1510,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     node.changed = node.changed || nn.changed;
                     return childNodes;
                 }
-                else if (n instanceof Value)
+                else if (is_instance(n, Value))
                 {
                     var val = n, v = Str(val.val());
                     if ('' === v)
@@ -1526,7 +1526,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     view.$reset.push(val);
                     n.changed = val.dirty();
                 }
-                else if (!(n instanceof VNode))
+                else if (!is_instance(n, VNode))
                 {
                     if (get_type(n) & T_ARRAY)
                     {
@@ -1656,7 +1656,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node;
     },
     as_unit = function as_unit(node) {
-        if (node instanceof VNode)
+        if (is_instance(node, VNode))
         {
             node.unit = true;
             return node;
@@ -1665,7 +1665,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     to_code = function to_code(vnode) {
         var out = '_$$_(view, "", null, null, [], [])';
-        if (vnode instanceof VCode)
+        if (is_instance(vnode, VCode))
         {
             out = vnode.code;
         }
@@ -1682,8 +1682,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             else
             {
                 var modified = {atts: []};
-                out = '_$$_(view, "'+(HAS.call(svgElements, vnode.nodeType) ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
-                    if (a.value instanceof VCode)
+                out = '_$$_(view, "'+(svgElements[vnode.nodeType] ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
+                    if (is_instance(a.value, VCode))
                     {
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
                             modified.atts.push({from:i, to:i});
@@ -1734,7 +1734,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(view, vnode, with_meta) {
-        var rnode, i, l, a, v, n, t, isSVG;
+        var rnode, i, l, a, v, n, t, isSVG, T, TT;
         if (!vnode.nodeType || !vnode.nodeType.length)
         {
             rnode = Fragment();
@@ -1756,6 +1756,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             isSVG = /*HAS.call(svgElements, vnode.nodeType)*/svgElements[vnode.nodeType];
+            T = vnode.nodeType; TT = (vnode[TYPE] || '').toLowerCase();
             rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
             for (i=0,l=vnode.attributes.length; i<l; i++)
             {
@@ -1770,6 +1771,29 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if (isSVG) rnode[SET_ATTR](n, Str(v));
                     else rnode[CLASS] = Str(v);
+                }
+                else if ('selected' === n && '<option>' === T)
+                {
+                    rnode[n] = true;
+                }
+                else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
+                {
+                    rnode[n] = true;
+                }
+                else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
+                {
+                    rnode[n] = true;
+                }
+                else if ('value' === n && '<input>' === T)
+                {
+                    rnode[n] = Str(v);
+                }
+                else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+                    'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+                    'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+                    'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+                {
+                    rnode[n] = true;
                 }
                 /*else if (n in rnode)
                 {
@@ -1812,11 +1836,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (!vnode.atts)
         {
             vnode.atts = vnode.attributes.reduce(function(atts, a){
-                atts[a.name] = a.value;
+                atts['@'+a.name] = a.value;
                 return atts;
             }, {});
         }
-        return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
+        return vnode.atts['@'+name];
     },
     del_att = function(r, n, T, TT) {
         if ('id' === n)
@@ -1937,7 +1961,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (v.modified && v.modified.atts.length)
         {
             T = v.nodeType;
-            TT = (r[TYPE] || '').toLowerCase();
+            TT = (v[TYPE] || '').toLowerCase();
             // update modified attributes
             for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
             {
@@ -1964,7 +1988,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else if (true === unconditionally)
         {
             T = v.nodeType;
-            TT = (r[TYPE] || '').toLowerCase();
+            TT = (v[TYPE] || '').toLowerCase();
             vAtts = v.attributes;
             rAtts = r.attributes;
             // remove non-existent attributes
@@ -2028,23 +2052,25 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return index;
     },
     morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally, anyway) {
-        var T = vnode.nodeType, val;
+        var T = vnode.nodeType, changed = vnode.changed, achanged = vnode.achanged, val;
         if ('t' === T)
         {
-            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue2;
+            if ((anyway || changed) && (rnode.nodeValue !== vnode.nodeValue2))
+                rnode.nodeValue = vnode.nodeValue2;
         }
         else if ('c' === T)
         {
-            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue;
+            if ((anyway || changed) && (rnode.nodeValue !== vnode.nodeValue))
+                rnode.nodeValue = vnode.nodeValue;
         }
         else if ('<textarea>' === T)
         {
-            if (anyway || (false !== vnode.achanged))
+            if (anyway || achanged)
             {
                 // morph attributes/properties
                 morphAtts(rnode, vnode, unconditionally || anyway);
             }
-            if (anyway || (false !== vnode.changed))
+            if (anyway || changed)
             {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 /*if (rnode.value !== val)
@@ -2056,11 +2082,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if ('<style>' === T || '<script>' === T)
         {
-            if (anyway || (false !== vnode.achanged))
+            if (anyway || achanged)
             {
+                // morph attributes/properties
                 morphAtts(rnode, vnode, unconditionally || anyway);
             }
-            if (anyway || (false !== vnode.changed))
+            if (anyway || changed)
             {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 rnode.textContent = val;
@@ -2070,16 +2097,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (vnode.unit)
             {
-                if (anyway || (false !== vnode.changed)) r.replaceChild(to_node(view, vnode, true), rnode);
+                if (anyway || changed)
+                    r.replaceChild(to_node(view, vnode, true), rnode);
             }
             else
             {
-                if (anyway || (false !== vnode.achanged))
+                if (anyway || achanged)
                 {
                     // morph attributes/properties
                     morphAtts(rnode, vnode, unconditionally || anyway);
                 }
-                if (anyway || (false !== vnode.changed))
+                if (anyway || changed)
                 {
                     // morph children
                     morph(view, rnode, vnode, unconditionally);

@@ -72,7 +72,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection) o = o.items();
+            if (is_instance(o, Collection)) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -104,7 +104,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection) o = o.mapped();
+            if (is_instance(o, Collection)) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -112,7 +112,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
+                    if (is_instance(o, C)) return [C, o, p.slice(i)];
                     a && (a = get_next( a, k ));
                 }
                 else if (!a || !(a = get_next( a, k )))
@@ -136,7 +136,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection && i < l) o = o.mapped();
+            if (is_instance(o, Collection) && i < l) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -144,7 +144,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
+                    if (is_instance(o, C)) return [C, o, p.slice(i)];
                     else if (!a || !(a = get_next( a, k ))) return false;
                 }
                 else
@@ -155,8 +155,8 @@ var
             else
             {
                 // nested sub-composite class
-                if (o[k] instanceof C) return [C, o[k], p.slice(i)];
-                else if (a /*&& get_value( a, k )*/ && ((o instanceof Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+                if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
+                else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
                 return false;
             }
         }
@@ -173,10 +173,10 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection && i < l)
+            if (is_instance(o, Collection) && i < l)
             {
                 if (collections) collections.push([o, +k]);
-                o = o.mapped();
+                o = o.items();
             }
             to = get_type( o );
             if (i < l)
@@ -185,7 +185,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i), 0, null, null, null];
+                    if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
                     if (all3)
                     {
                         a1 = get_next( a1, k );
@@ -204,7 +204,7 @@ var
                     return [false, o, k, p, null, null, null];
                 }
             }
-            else if (o instanceof Collection)
+            else if (is_instance(o, Collection))
             {
                 return [true, o, k, p.slice(i), a1, a2, a3];
             }
@@ -212,7 +212,7 @@ var
             {
 
                 // nested sub-composite class
-                if (o[ k ] instanceof C)
+                if (is_instance(o[ k ], C))
                     return [C, o[k], p.slice(i), 0, null, null, null];
                 else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
                     return [true, o, k, p.slice(i), a1, a2, a3];
@@ -321,9 +321,10 @@ var
         var key, type;
         if (arguments.length < 3) data = model_instance.$data;
 
-        while (data instanceof model_class) { data = data.data( ); }
+        while (is_instance(data, model_class)) { data = data.data( ); }
 
-        if (data instanceof Collection) data = data.mapped();
+        if (is_instance(data, Value)) data = data.val();
+        if (is_instance(data, Collection)) data = data.items();
         type = dataType || get_type( data );
         data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
 
@@ -333,9 +334,11 @@ var
             {
                 if (HAS.call(data,key))
                 {
-                    if (data[ key ] instanceof Collection)
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].mapped(), type );
-                    else if (data[ key ] instanceof model_class)
+                    if (is_instance(data[ key ], Value))
+                        data[ key ] = data[ key ].val( );
+                    if (is_instance(data[ key ], Collection))
+                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
+                    else if (is_instance(data[ key ], model_class))
                         data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
                     else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
                         data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
@@ -351,7 +354,7 @@ var
         var o, key, val, typecaster, r, res, nestedKey, splitKey;
         prefixKey = !!prefixKey ? (prefixKey+'.') : '';
         data = data || model.$data;
-        if (data instanceof Collection) data = data.items();
+        if (is_instance(data, Collection)) data = data.items();
         typecasters = typecasters || [model.$types];
 
         if (typecasters && typecasters.length)
@@ -370,12 +373,15 @@ var
                     }
                     else
                     {
-                        if (o instanceof Collection) o = o.items();
+                        if (is_instance(o, Collection)) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
                         val = o[ key ]; typecaster = get_value( r[3], key );
                         if (typecaster)
                         {
-                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                            if (is_instance(val, Value))
+                                o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
+                            else
+                                o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
                         }
                         if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
                         {
@@ -412,7 +418,7 @@ var
         ;
         //breakOnError = !!breakOnError;
         data = data || model.$data;
-        if (data instanceof Collection) data = data.items();
+        if (is_instance(data, Collection)) data = data.items();
         validators = validators || [model.$validators];
 
         if (validators && validators.length)
@@ -440,10 +446,11 @@ var
                     }
                     else
                     {
-                        if (o instanceof Collection) o = o.items();
+                        if (is_instance(o, Collection)) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
 
                         val = o[ key ]; validator = get_value( r[3], key );
+                        if (is_instance(val, Value)) val = val.val();
                         if (validator && !validator.call(model, val, dottedKey))
                         {
                             result.errors.push(dottedKey/*fixKey( key )*/);
@@ -548,7 +555,7 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     var model = this;
 
     // constructor-factory pattern
-    if (!(model instanceof Model)) return new Model(id, data, types, validators, getters, setters, dependencies);
+    if (!is_instance(model, Model)) return new Model(id, data, types, validators, getters, setters, dependencies);
 
     model.$id = uuid('Model');
     model.namespace = model.id = id || model.$id;
@@ -569,7 +576,8 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
 // STATIC
 Model.count = function(o) {
     if (!arguments.length) return 0;
-    if (o instanceof Collection) o = o.items();
+    if (is_instance(o, Value)) o = o.val();
+    if (is_instance(o, Collection)) o = o.items();
     var T = get_type(o);
 
     if (T_OBJ === T) return Keys(o).length;
@@ -914,23 +922,30 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 
 [/DOC_MARKDOWN]**/
     ,getVal: function(dottedKey, RAW) {
-        var model = this, data = model.$data, getters = model.$getters, r, ks;
+        var model = this, data = model.$data, getters = model.$getters, r, ks, ret;
 
         // test and split (if needed) is fastest
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
             if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, true);
-            return Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
             // nested sub-model
-            if (Model === r[ 0 ]) return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            if (Model === r[ 0 ])
+            {
+                return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            }
             // custom getter
-            else if (false === r[ 0 ]) return Value(r[ 1 ].call(model, dottedKey), dottedKey, true);
+            else if (false === r[ 0 ])
+            {
+                ret = r[ 1 ].call(model, dottedKey);
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true);
+            }
             // model field
-            return Value(r[ 1 ], dottedKey, model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, model.isDirty(ks));
         }
         return undef;
     }
@@ -965,7 +980,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                 while (i < l)
                 {
                     k = p[i++];
-                    if (o instanceof Collection && i < l) o = o.mapped();
+                    if (is_instance(o, Collection) && i < l) o = o.items();
                     if (i < l)
                     {
                         t = get_type( o );
@@ -1126,6 +1141,8 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     k = k.join('.');
                     prevval = o.get(k);
+                    if (is_instance(prevval, Value)) prevval = prevval.val();
+                    if (is_instance(val, Value)) val = val.val();
                     if (prevval !== val)
                     {
                         o.set(k, val, pub, callData);
@@ -1180,6 +1197,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 
         if (canSet)
         {
+            if (is_instance(val, Value)) val = val.val();
             if (type)
             {
                 val = type.call(model, val, dottedKey);
@@ -1244,7 +1262,8 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 return model;
             }
 
-            prevval = o instanceof Collection ? o.get(k) : (o[k] instanceof Collection ? o[k].items() : o[ k ]);
+            prevval = is_instance(o, Collection) ? o.get(k) : (is_instance(o[k], Collection) ? o[k].items() : o[ k ]);
+            if (is_instance(prevval, Value)) prevval = prevval.val();
             // update/set only if different
             if (prevval !== val)
             {
@@ -1253,8 +1272,9 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 });
 
                 // modify or add final node here
-                if (o instanceof Collection) o.set(k, val);
-                else if (o[k] instanceof Collection) o[k].set(val);
+                if (is_instance(o, Collection)) o.set(k, val);
+                else if (is_instance(o[k], Collection)) o[k].set(val);
+                else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
                 if (pub)
@@ -1431,9 +1451,9 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     });
                     if (pub)
                     {
-                        if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+                        if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
                         {
-                            index = prepend ? 0 : (o[k] instanceof Collection ? o[k].items().length : o[k].length);
+                            index = prepend ? 0 : (is_instance(o[k], Collection) ? o[k].items().length : o[k].length);
                         }
                         model.publish('change', {
                             key: dottedKey,
@@ -1451,7 +1471,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 return model;
             }
 
-            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 if (prepend)
                 {
@@ -1462,7 +1482,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 else
                 {
                     // append node here
-                    index = o[k] instanceof Collection ? o[k].items().length : o[ k ].length;
+                    index = is_instance(o[k], Collection) ? o[k].items().length : o[ k ].length;
                     o[ k ].push(val);
                 }
             }
@@ -1666,7 +1686,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 return model;
             }
 
-            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 // insert node here
                 o[ k ].splice(index, 0, val);
@@ -1758,7 +1778,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
         if (canDel)
         {
-            if (o instanceof Collection)
+            if (is_instance(o, Collection))
             {
                 index = +k;
                 val = o.get(index);
@@ -1827,7 +1847,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 while (i < l)
                 {
                     k = p[i++];
-                    if (o instanceof Collection && i < l)
+                    if (is_instance(o, Collection) && i < l)
                     {
                         collections.push([o, +k]);
                         o = o.items();
@@ -1869,7 +1889,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                     else
                     {
                         t = get_type( o );
-                        if (o instanceof Collection)
+                        if (is_instance(o, Collection))
                         {
                             if (WILDCARD === k)
                             {
@@ -2117,9 +2137,9 @@ var key = value.key(); // get key of value (if associated with some Model key, e
 function Value(_val, _key, _dirty)
 {
     var self = this;
-    if (_val instanceof Value) return new Value(_val.val(), _val.key(), _val.dirty());
+    if (is_instance(_val, Value)) return new Value(_val.val(), _val.key(), _val.dirty());
     if (arguments.length < 3) _dirty = true;
-    if (!(self instanceof Value)) return new Value(_val, _key, _dirty);
+    if (!is_instance(self, Value)) return new Value(_val, _key, _dirty);
 
     self.key = function() {
         return _key;
@@ -2128,6 +2148,7 @@ function Value(_val, _key, _dirty)
         return _val;
     };
     self.set = function(val, noDirty) {
+        if (is_instance(val, Value)) val = val.val();
         if (val !== _val)
         {
             _val = val;
@@ -2169,8 +2190,8 @@ var collection = new Model.Collection( [Array array=[]] );
 function Collection(array)
 {
     var self = this;
-    if (array instanceof Collection) return array;
-    if (!(self instanceof Collection)) return new Collection(array);
+    if (is_instance(array, Collection)) return array;
+    if (!is_instance(self, Collection)) return new Collection(array);
     self.set(array || []);
 }
 Model.Collection = Collection;
@@ -2259,10 +2280,18 @@ collection.set(newData);
             {
                 self.push(data);
             }
-            else if (0 <= index && self._items[index] !== data)
+            else if (0 <= index)
             {
-                self._items[index] = data;
-                self._upd('change', index, index);
+                if (is_instance(self._items[index], Value))
+                {
+                    self._items[index].set(data);
+                    if (self._items[index].dirty()) self._upd('change', index, index);
+                }
+                else if (self._items[index] !== data)
+                {
+                    self._items[index] = data;
+                    self._upd('change', index, index);
+                }
             }
         }
         return self;

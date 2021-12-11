@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 3.2.1
-*   @built on 2021-12-11 11:20:32
+*   @built on 2021-12-11 19:04:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 3.2.1
-*   @built on 2021-12-11 11:20:32
+*   @built on 2021-12-11 19:04:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -108,19 +108,19 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     get_type = function(v) {
         var T = 0;
         if      (null === v)                T = T_NULL;
-        else if (true === v || false === v || v instanceof Boolean) T = T_BOOL;
+        else if (true === v || false === v || is_instance(v, Boolean)) T = T_BOOL;
         else if (undef === v)               T = T_UNDEF;
         else
         {
         T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
-        if      ((T_NUM === T)   || (v instanceof Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ((T_STR === T)   || (v instanceof String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
-        else if ((T_ARRAY === T) || (v instanceof Array))    T = T_ARRAY;
-        else if ((T_REGEX === T) || (v instanceof RegExp))   T = T_REGEX;
-        else if ((T_DATE === T)  || (v instanceof Date))     T = T_DATE;
-        else if ((T_FILE === T)  || ('undefined' !== typeof(File) && (v instanceof File)))     T = T_FILE;
-        else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && (v instanceof Blob)))     T = T_BLOB;
-        else if ((T_FUNC === T)  || (v instanceof Function) || ('function' === typeof(v))) T = T_FUNC;
+        if      ((T_NUM === T)   || is_instance(v, Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ((T_STR === T)   || is_instance(v, String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+        else if ((T_ARRAY === T) || is_instance(v, Array))    T = T_ARRAY;
+        else if ((T_REGEX === T) || is_instance(v, RegExp))   T = T_REGEX;
+        else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
+        else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
+        else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
+        else if ((T_FUNC === T)  || is_instance(v, Function) || ('function' === typeof(v))) T = T_FUNC;
         else if (T_OBJ === T)                            T = T_OBJ;
         else                                             T = T_UNKNOWN;
         }
@@ -811,7 +811,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     VNode = function VNode(nodeType, nodeValue, nodeValue2, parentNode, index) {
         var self = this;
-        if (!(self instanceof VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+        if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
         self.nodeType = nodeType || '';
         self.cnodeType = nodeType || '';
         self.nodeValue = nodeValue || '';
@@ -837,7 +837,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     VCode = function VCode(code) {
         var self = this;
-        if (!(self instanceof VCode)) return new VCode(code);
+        if (!is_instance(self, VCode)) return new VCode(code);
         self.code = code;
     },
     initState = function(opts, nodeType) {
@@ -990,7 +990,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value = state.val;
                         //state.dom.atts[att.name] = state.val;
                     }
-                    else if (att.value instanceof VCode)
+                    else if (is_instance(att.value, VCode))
                     {
                         if (state.val.length) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
                         //state.dom.atts[att.name] = att.value;
@@ -1000,8 +1000,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         att.value += state.val;
                         //state.dom.atts[att.name] += state.val;
                     }
-                    if (state.opts.id === att.name) state.dom.id = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
-                    if ('type' === att.name) state.dom.type = att.value instanceof VCode ? '('+att.value.code+')' : toJSON(att.value);
+                    if (state.opts.id === att.name) state.dom.id = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
+                    if ('type' === att.name) state.dom.type = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
                     state.inatt = false;
                     state.q = '';
                     state.val = '';
@@ -1155,7 +1155,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             component = state.dom;
                             state.dom = component.parentNode;
                             component.parentNode = null;
-                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
+                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
                             component = null;
                         }
                         else
@@ -1297,7 +1297,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                 component = state.dom;
                                 state.dom = component.parentNode;
                                 component.parentNode = null;
-                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(attr(component, 'id') instanceof VCode ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(attr(component, 'props') instanceof VCode ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
+                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
                                 component = null;
                             }
                             else
@@ -1511,8 +1511,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = initVNode(nodeType, '', '', null, 0), index = 0, new_mod = false, ch, c, l;
         id = id || null; type = type || null;
-        if (id instanceof Value) id = id.val();
-        if (type instanceof Value) type = type.val();
+        if (is_instance(id, Value)) id = id.val();
+        if (is_instance(type, Value)) type = type.val();
         node.id = null == id ? null : Str(id);
         node.type = null == type ? null : Str(type);
         node.attributes = atts || [];
@@ -1525,7 +1525,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 for (var a,i=range.from; i<=range.to; i++)
                 {
                     l++; a = atts[i];
-                    if (a.value instanceof Value)
+                    if (is_instance(a.value, Value))
                     {
                         c++;
                         // reset Value after current render session
@@ -1546,7 +1546,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             children = children || [];
             node.childNodes = children.reduce(function process(childNodes, n) {
-                if (n instanceof Collection)
+                if (is_instance(n, Collection))
                 {
                     var nn = new VNode('collection', n, null, node, index), len = n.items().length*n.mappedItem;
                     nn.potentialChildNodes = len;
@@ -1562,7 +1562,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     node.changed = node.changed || nn.changed;
                     return childNodes;
                 }
-                else if (n instanceof Value)
+                else if (is_instance(n, Value))
                 {
                     var val = n, v = Str(val.val());
                     if ('' === v)
@@ -1578,7 +1578,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     view.$reset.push(val);
                     n.changed = val.dirty();
                 }
-                else if (!(n instanceof VNode))
+                else if (!is_instance(n, VNode))
                 {
                     if (get_type(n) & T_ARRAY)
                     {
@@ -1708,7 +1708,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return node;
     },
     as_unit = function as_unit(node) {
-        if (node instanceof VNode)
+        if (is_instance(node, VNode))
         {
             node.unit = true;
             return node;
@@ -1717,7 +1717,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     to_code = function to_code(vnode) {
         var out = '_$$_(view, "", null, null, [], [])';
-        if (vnode instanceof VCode)
+        if (is_instance(vnode, VCode))
         {
             out = vnode.code;
         }
@@ -1734,8 +1734,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             else
             {
                 var modified = {atts: []};
-                out = '_$$_(view, "'+(HAS.call(svgElements, vnode.nodeType) ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
-                    if (a.value instanceof VCode)
+                out = '_$$_(view, "'+(svgElements[vnode.nodeType] ? vnode.nodeType : vnode.nodeType.toLowerCase())+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
+                    if (is_instance(a.value, VCode))
                     {
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
                             modified.atts.push({from:i, to:i});
@@ -1786,7 +1786,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(view, vnode, with_meta) {
-        var rnode, i, l, a, v, n, t, isSVG;
+        var rnode, i, l, a, v, n, t, isSVG, T, TT;
         if (!vnode.nodeType || !vnode.nodeType.length)
         {
             rnode = Fragment();
@@ -1808,6 +1808,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             isSVG = /*HAS.call(svgElements, vnode.nodeType)*/svgElements[vnode.nodeType];
+            T = vnode.nodeType; TT = (vnode[TYPE] || '').toLowerCase();
             rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', vnode.nodeType.slice(1,-1)) : document.createElement(vnode.nodeType.slice(1,-1));
             for (i=0,l=vnode.attributes.length; i<l; i++)
             {
@@ -1822,6 +1823,29 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     if (isSVG) rnode[SET_ATTR](n, Str(v));
                     else rnode[CLASS] = Str(v);
+                }
+                else if ('selected' === n && '<option>' === T)
+                {
+                    rnode[n] = true;
+                }
+                else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
+                {
+                    rnode[n] = true;
+                }
+                else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
+                {
+                    rnode[n] = true;
+                }
+                else if ('value' === n && '<input>' === T)
+                {
+                    rnode[n] = Str(v);
+                }
+                else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+                    'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+                    'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+                    'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+                {
+                    rnode[n] = true;
                 }
                 /*else if (n in rnode)
                 {
@@ -1864,11 +1888,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (!vnode.atts)
         {
             vnode.atts = vnode.attributes.reduce(function(atts, a){
-                atts[a.name] = a.value;
+                atts['@'+a.name] = a.value;
                 return atts;
             }, {});
         }
-        return vnode.atts && HAS.call(vnode.atts, name) ? vnode.atts[name] : null;
+        return vnode.atts['@'+name];
     },
     del_att = function(r, n, T, TT) {
         if ('id' === n)
@@ -1989,7 +2013,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         if (v.modified && v.modified.atts.length)
         {
             T = v.nodeType;
-            TT = (r[TYPE] || '').toLowerCase();
+            TT = (v[TYPE] || '').toLowerCase();
             // update modified attributes
             for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
             {
@@ -2016,7 +2040,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else if (true === unconditionally)
         {
             T = v.nodeType;
-            TT = (r[TYPE] || '').toLowerCase();
+            TT = (v[TYPE] || '').toLowerCase();
             vAtts = v.attributes;
             rAtts = r.attributes;
             // remove non-existent attributes
@@ -2080,23 +2104,25 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return index;
     },
     morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally, anyway) {
-        var T = vnode.nodeType, val;
+        var T = vnode.nodeType, changed = vnode.changed, achanged = vnode.achanged, val;
         if ('t' === T)
         {
-            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue2;
+            if ((anyway || changed) && (rnode.nodeValue !== vnode.nodeValue2))
+                rnode.nodeValue = vnode.nodeValue2;
         }
         else if ('c' === T)
         {
-            if (anyway || (false !== vnode.changed)) rnode.nodeValue = vnode.nodeValue;
+            if ((anyway || changed) && (rnode.nodeValue !== vnode.nodeValue))
+                rnode.nodeValue = vnode.nodeValue;
         }
         else if ('<textarea>' === T)
         {
-            if (anyway || (false !== vnode.achanged))
+            if (anyway || achanged)
             {
                 // morph attributes/properties
                 morphAtts(rnode, vnode, unconditionally || anyway);
             }
-            if (anyway || (false !== vnode.changed))
+            if (anyway || changed)
             {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 /*if (rnode.value !== val)
@@ -2108,11 +2134,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         else if ('<style>' === T || '<script>' === T)
         {
-            if (anyway || (false !== vnode.achanged))
+            if (anyway || achanged)
             {
+                // morph attributes/properties
                 morphAtts(rnode, vnode, unconditionally || anyway);
             }
-            if (anyway || (false !== vnode.changed))
+            if (anyway || changed)
             {
                 val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
                 rnode.textContent = val;
@@ -2122,16 +2149,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (vnode.unit)
             {
-                if (anyway || (false !== vnode.changed)) r.replaceChild(to_node(view, vnode, true), rnode);
+                if (anyway || changed)
+                    r.replaceChild(to_node(view, vnode, true), rnode);
             }
             else
             {
-                if (anyway || (false !== vnode.achanged))
+                if (anyway || achanged)
                 {
                     // morph attributes/properties
                     morphAtts(rnode, vnode, unconditionally || anyway);
                 }
-                if (anyway || (false !== vnode.changed))
+                if (anyway || changed)
                 {
                     // morph children
                     morph(view, rnode, vnode, unconditionally);
@@ -3973,7 +4001,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection) o = o.items();
+            if (is_instance(o, Collection)) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -4005,7 +4033,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection) o = o.mapped();
+            if (is_instance(o, Collection)) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -4013,7 +4041,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
+                    if (is_instance(o, C)) return [C, o, p.slice(i)];
                     a && (a = get_next( a, k ));
                 }
                 else if (!a || !(a = get_next( a, k )))
@@ -4037,7 +4065,7 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection && i < l) o = o.mapped();
+            if (is_instance(o, Collection) && i < l) o = o.items();
             to = get_type( o );
             if (i < l)
             {
@@ -4045,7 +4073,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
+                    if (is_instance(o, C)) return [C, o, p.slice(i)];
                     else if (!a || !(a = get_next( a, k ))) return false;
                 }
                 else
@@ -4056,8 +4084,8 @@ var
             else
             {
                 // nested sub-composite class
-                if (o[k] instanceof C) return [C, o[k], p.slice(i)];
-                else if (a /*&& get_value( a, k )*/ && ((o instanceof Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+                if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
+                else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
                 return false;
             }
         }
@@ -4074,10 +4102,10 @@ var
         while (i < l)
         {
             k = p[i++];
-            if (o instanceof Collection && i < l)
+            if (is_instance(o, Collection) && i < l)
             {
                 if (collections) collections.push([o, +k]);
-                o = o.mapped();
+                o = o.items();
             }
             to = get_type( o );
             if (i < l)
@@ -4086,7 +4114,7 @@ var
                 {
                     o = o[ k ];
                     // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i), 0, null, null, null];
+                    if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
                     if (all3)
                     {
                         a1 = get_next( a1, k );
@@ -4105,7 +4133,7 @@ var
                     return [false, o, k, p, null, null, null];
                 }
             }
-            else if (o instanceof Collection)
+            else if (is_instance(o, Collection))
             {
                 return [true, o, k, p.slice(i), a1, a2, a3];
             }
@@ -4113,7 +4141,7 @@ var
             {
 
                 // nested sub-composite class
-                if (o[ k ] instanceof C)
+                if (is_instance(o[ k ], C))
                     return [C, o[k], p.slice(i), 0, null, null, null];
                 else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
                     return [true, o, k, p.slice(i), a1, a2, a3];
@@ -4222,9 +4250,10 @@ var
         var key, type;
         if (arguments.length < 3) data = model_instance.$data;
 
-        while (data instanceof model_class) { data = data.data( ); }
+        while (is_instance(data, model_class)) { data = data.data( ); }
 
-        if (data instanceof Collection) data = data.mapped();
+        if (is_instance(data, Value)) data = data.val();
+        if (is_instance(data, Collection)) data = data.items();
         type = dataType || get_type( data );
         data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
 
@@ -4234,9 +4263,11 @@ var
             {
                 if (HAS.call(data,key))
                 {
-                    if (data[ key ] instanceof Collection)
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].mapped(), type );
-                    else if (data[ key ] instanceof model_class)
+                    if (is_instance(data[ key ], Value))
+                        data[ key ] = data[ key ].val( );
+                    if (is_instance(data[ key ], Collection))
+                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
+                    else if (is_instance(data[ key ], model_class))
                         data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
                     else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
                         data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
@@ -4252,7 +4283,7 @@ var
         var o, key, val, typecaster, r, res, nestedKey, splitKey;
         prefixKey = !!prefixKey ? (prefixKey+'.') : '';
         data = data || model.$data;
-        if (data instanceof Collection) data = data.items();
+        if (is_instance(data, Collection)) data = data.items();
         typecasters = typecasters || [model.$types];
 
         if (typecasters && typecasters.length)
@@ -4271,12 +4302,15 @@ var
                     }
                     else
                     {
-                        if (o instanceof Collection) o = o.items();
+                        if (is_instance(o, Collection)) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
                         val = o[ key ]; typecaster = get_value( r[3], key );
                         if (typecaster)
                         {
-                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                            if (is_instance(val, Value))
+                                o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
+                            else
+                                o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
                         }
                         if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
                         {
@@ -4313,7 +4347,7 @@ var
         ;
         //breakOnError = !!breakOnError;
         data = data || model.$data;
-        if (data instanceof Collection) data = data.items();
+        if (is_instance(data, Collection)) data = data.items();
         validators = validators || [model.$validators];
 
         if (validators && validators.length)
@@ -4341,10 +4375,11 @@ var
                     }
                     else
                     {
-                        if (o instanceof Collection) o = o.items();
+                        if (is_instance(o, Collection)) o = o.items();
                         nestedKey = splitKey.slice(0, -1).join('.');
 
                         val = o[ key ]; validator = get_value( r[3], key );
+                        if (is_instance(val, Value)) val = val.val();
                         if (validator && !validator.call(model, val, dottedKey))
                         {
                             result.errors.push(dottedKey/*fixKey( key )*/);
@@ -4449,7 +4484,7 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     var model = this;
 
     // constructor-factory pattern
-    if (!(model instanceof Model)) return new Model(id, data, types, validators, getters, setters, dependencies);
+    if (!is_instance(model, Model)) return new Model(id, data, types, validators, getters, setters, dependencies);
 
     model.$id = uuid('Model');
     model.namespace = model.id = id || model.$id;
@@ -4470,7 +4505,8 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
 // STATIC
 Model.count = function(o) {
     if (!arguments.length) return 0;
-    if (o instanceof Collection) o = o.items();
+    if (is_instance(o, Value)) o = o.val();
+    if (is_instance(o, Collection)) o = o.items();
     var T = get_type(o);
 
     if (T_OBJ === T) return Keys(o).length;
@@ -4815,23 +4851,30 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 
 [/DOC_MARKDOWN]**/
     ,getVal: function(dottedKey, RAW) {
-        var model = this, data = model.$data, getters = model.$getters, r, ks;
+        var model = this, data = model.$data, getters = model.$getters, r, ks, ret;
 
         // test and split (if needed) is fastest
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
             if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, true);
-            return Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
             // nested sub-model
-            if (Model === r[ 0 ]) return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            if (Model === r[ 0 ])
+            {
+                return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+            }
             // custom getter
-            else if (false === r[ 0 ]) return Value(r[ 1 ].call(model, dottedKey), dottedKey, true);
+            else if (false === r[ 0 ])
+            {
+                ret = r[ 1 ].call(model, dottedKey);
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true);
+            }
             // model field
-            return Value(r[ 1 ], dottedKey, model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, model.isDirty(ks));
         }
         return undef;
     }
@@ -4866,7 +4909,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                 while (i < l)
                 {
                     k = p[i++];
-                    if (o instanceof Collection && i < l) o = o.mapped();
+                    if (is_instance(o, Collection) && i < l) o = o.items();
                     if (i < l)
                     {
                         t = get_type( o );
@@ -5027,6 +5070,8 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     k = k.join('.');
                     prevval = o.get(k);
+                    if (is_instance(prevval, Value)) prevval = prevval.val();
+                    if (is_instance(val, Value)) val = val.val();
                     if (prevval !== val)
                     {
                         o.set(k, val, pub, callData);
@@ -5081,6 +5126,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
 
         if (canSet)
         {
+            if (is_instance(val, Value)) val = val.val();
             if (type)
             {
                 val = type.call(model, val, dottedKey);
@@ -5145,7 +5191,8 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 return model;
             }
 
-            prevval = o instanceof Collection ? o.get(k) : (o[k] instanceof Collection ? o[k].items() : o[ k ]);
+            prevval = is_instance(o, Collection) ? o.get(k) : (is_instance(o[k], Collection) ? o[k].items() : o[ k ]);
+            if (is_instance(prevval, Value)) prevval = prevval.val();
             // update/set only if different
             if (prevval !== val)
             {
@@ -5154,8 +5201,9 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 });
 
                 // modify or add final node here
-                if (o instanceof Collection) o.set(k, val);
-                else if (o[k] instanceof Collection) o[k].set(val);
+                if (is_instance(o, Collection)) o.set(k, val);
+                else if (is_instance(o[k], Collection)) o[k].set(val);
+                else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
                 if (pub)
@@ -5332,9 +5380,9 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     });
                     if (pub)
                     {
-                        if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+                        if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
                         {
-                            index = prepend ? 0 : (o[k] instanceof Collection ? o[k].items().length : o[k].length);
+                            index = prepend ? 0 : (is_instance(o[k], Collection) ? o[k].items().length : o[k].length);
                         }
                         model.publish('change', {
                             key: dottedKey,
@@ -5352,7 +5400,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 return model;
             }
 
-            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 if (prepend)
                 {
@@ -5363,7 +5411,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 else
                 {
                     // append node here
-                    index = o[k] instanceof Collection ? o[k].items().length : o[ k ].length;
+                    index = is_instance(o[k], Collection) ? o[k].items().length : o[ k ].length;
                     o[ k ].push(val);
                 }
             }
@@ -5567,7 +5615,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 return model;
             }
 
-            if ((o[k] instanceof Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
             {
                 // insert node here
                 o[ k ].splice(index, 0, val);
@@ -5659,7 +5707,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
         if (canDel)
         {
-            if (o instanceof Collection)
+            if (is_instance(o, Collection))
             {
                 index = +k;
                 val = o.get(index);
@@ -5728,7 +5776,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 while (i < l)
                 {
                     k = p[i++];
-                    if (o instanceof Collection && i < l)
+                    if (is_instance(o, Collection) && i < l)
                     {
                         collections.push([o, +k]);
                         o = o.items();
@@ -5770,7 +5818,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                     else
                     {
                         t = get_type( o );
-                        if (o instanceof Collection)
+                        if (is_instance(o, Collection))
                         {
                             if (WILDCARD === k)
                             {
@@ -6018,9 +6066,9 @@ var key = value.key(); // get key of value (if associated with some Model key, e
 function Value(_val, _key, _dirty)
 {
     var self = this;
-    if (_val instanceof Value) return new Value(_val.val(), _val.key(), _val.dirty());
+    if (is_instance(_val, Value)) return new Value(_val.val(), _val.key(), _val.dirty());
     if (arguments.length < 3) _dirty = true;
-    if (!(self instanceof Value)) return new Value(_val, _key, _dirty);
+    if (!is_instance(self, Value)) return new Value(_val, _key, _dirty);
 
     self.key = function() {
         return _key;
@@ -6029,6 +6077,7 @@ function Value(_val, _key, _dirty)
         return _val;
     };
     self.set = function(val, noDirty) {
+        if (is_instance(val, Value)) val = val.val();
         if (val !== _val)
         {
             _val = val;
@@ -6070,8 +6119,8 @@ var collection = new Model.Collection( [Array array=[]] );
 function Collection(array)
 {
     var self = this;
-    if (array instanceof Collection) return array;
-    if (!(self instanceof Collection)) return new Collection(array);
+    if (is_instance(array, Collection)) return array;
+    if (!is_instance(self, Collection)) return new Collection(array);
     self.set(array || []);
 }
 Model.Collection = Collection;
@@ -6160,10 +6209,18 @@ collection.set(newData);
             {
                 self.push(data);
             }
-            else if (0 <= index && self._items[index] !== data)
+            else if (0 <= index)
             {
-                self._items[index] = data;
-                self._upd('change', index, index);
+                if (is_instance(self._items[index], Value))
+                {
+                    self._items[index].set(data);
+                    if (self._items[index].dirty()) self._upd('change', index, index);
+                }
+                else if (self._items[index] !== data)
+                {
+                    self._items[index] = data;
+                    self._upd('change', index, index);
+                }
             }
         }
         return self;
@@ -6673,7 +6730,7 @@ var View = function View(id) {
     var view = this;
 
     // constructor-factory pattern
-    if (!(view instanceof View)) return new View(id);
+    if (!is_instance(view, View)) return new View(id);
 
     view.namespace = view.id = id || uuid('View');
     view.$shortcuts = {};
@@ -6887,7 +6944,7 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
 [/DOC_MARKDOWN]**/
     ,component: function(name, id, props, childs) {
         var view = this, out, c, propsKey, prevProps, changed;
-        if (name && HAS.call(view.$components, name))
+        if (name && is_instance(view.$components[name], View.Component))
         {
             c = view.$components[name];
             if (c.tpl && !c.out)
@@ -6918,7 +6975,8 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
         return '';
     }
     ,hasComponent: function(name) {
-        return name && this.$components && HAS.call(this.$components, name);
+        var view = this;
+        return name && view.$components && is_instance(view.$components[name], View.Component);
     }
 
 /**[DOC_MARKDOWN]
@@ -7203,7 +7261,7 @@ view.render( [Boolean immediate=false] );
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode), false, true);
                 // reset any Values/Collections present
                 view.model().resetDirty();
-                view.$reset.forEach(function(v){v.reset();});
+                for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
                 view.$reset = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -7762,7 +7820,7 @@ MyComponent.dispose(); // dispose
 [/DOC_MARKDOWN]**/
 View.Component = function Component(name, tpl, opts) {
   var self = this;
-  if (!(self instanceof Component)) return new Component(name, tpl, opts);
+  if (!is_instance(self, Component)) return new Component(name, tpl, opts);
   self.name = trim(name);
   self.tpl = trim(tpl);
   self.out = null;
