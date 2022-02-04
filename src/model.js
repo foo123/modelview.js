@@ -537,6 +537,16 @@ var
             }
             model.$atom = prev_atom; model.atomic = prev_atomic;
         }
+    },
+
+    getDirty = function getDirty(u) {
+        var upds = [];
+        if (u.k) Keys(u.k).forEach(function(k){
+            var rest = getDirty(u.k[k]);
+            if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+            else upds.push(k);
+        });
+        return upds;
     }
 ;
 
@@ -662,8 +672,13 @@ model.data( [Object data] );
         }
         return model;
     }
+    ,getDirty: function() {
+        var model = this;
+        return model.$upds ? getDirty(model.$upds) : [];
+    }
     ,isDirty: function(ks) {
         var model = this, i, l, c, u = model.$upds;
+        if (!arguments.length) return !!(u && u.k);
         for (c=0,i=0,l=ks.length; i<l; i++)
         {
             if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
@@ -2180,6 +2195,12 @@ Value[proto] = {
     ,set: null
     ,reset: null
     ,dirty: null
+    ,toString: function() {
+        return Str(this.val());
+    }
+    ,valueOf: function() {
+        return this.val().valueOf();
+    }
 };
 
 /**[DOC_MARKDOWN]

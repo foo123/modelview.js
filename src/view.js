@@ -29,7 +29,8 @@ var namedKeyProp = "mv_namedkey",
             input_type = (el[TYPE]||'').toLowerCase( );
 
             key = dotted(name);
-            if (startsWith(key, model_prefix)) key = key.slice(model_prefix.length);
+            if (!startsWith(key, model_prefix)) return;
+            key = key.slice(model_prefix.length);
 
             k = key.split('.'); o = model.$data;
             while (k.length)
@@ -224,20 +225,50 @@ var namedKeyProp = "mv_namedkey",
 
         if ('sync' === event) event = 'change';
         iterate(function(i) {
-            var el, do_action, name, key, data = {};
+            var el, cel, comp, do_action, data;
             el = elements[i]; if (!el) return;
             do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
-            if (!do_action) return;
-            if ('text' === do_action)
-            {
-                do_action = 'html';
-                data.text = true;
-            }
-
-            do_action = 'do_' + do_action;
-            if (!is_type(view[do_action], T_FUNC)) return;
-
-            view[do_action](evt, el, data);
+            if (!do_action || !do_action.length) return;
+            do_action.split(',').forEach(function(do_action){
+                do_action = trim(do_action);
+                if (!do_action.length) return;
+                data = {};
+                if (':' === do_action.charAt(0))
+                {
+                    // local component action
+                    do_action = do_action.slice(1);
+                    if (!do_action.length) return;
+                    cel = el;
+                    while (cel)
+                    {
+                        if (cel.$mvComp)
+                        {
+                            comp = view.$components['#'+cel.$mvComp.name];
+                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                            {
+                                data.component = cel.$mvComp;
+                                comp.opts.actions[do_action].call(cel.$mvComp, evt, el, data);
+                                return;
+                            }
+                        }
+                        cel = cel.parentNode;
+                        if (cel === view.$renderdom) return;
+                    }
+                }
+                else
+                {
+                    // main view action
+                    if ('text' === do_action)
+                    {
+                        do_action = 'html';
+                        data.text = true;
+                    }
+                    do_action = 'do_' + do_action;
+                    if ('function' !== typeof view[do_action]) return;
+                    data.view = view;
+                    view[do_action](evt, el, data);
+                }
+            });
         }, 0, elements.length-1);
     },
 
@@ -339,6 +370,49 @@ var namedKeyProp = "mv_namedkey",
                 code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
         }
         return code;
+    },
+
+    clearInvalid = function(view, dispose) {
+        // reset any Values/Collections present
+        if (view.$model) view.$model.resetDirty();
+        if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
+        view.$reset = null;
+        if (view.$cache) Keys(view.$cache).forEach(function(id){
+            var comp = view.$cache[id];
+            if (is_instance(comp, MVComponentInstance))
+            {
+                if (dispose && !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
+                {
+                    comp.dispose();
+                    delete view.$cache[id];
+                }
+                else if (comp.model)
+                {
+                    comp.model.resetDirty();
+                }
+            }
+        });
+    },
+
+    clearAll = function(view) {
+        if (view.$cache) Keys(view.$cache).forEach(function(id){
+            var comp = view.$cache[id];
+            if (is_instance(comp, MVComponentInstance))
+            {
+                comp.dispose();
+                delete view.$cache[id];
+            }
+        });
+    },
+
+    lifecycle = function(view, el, fn) {
+        var comp, COMP;
+        if (el && el.$mvComp && el.$mvComp.name && view.$components)
+        {
+            comp = el.$mvComp;
+            COMP = view.$components['#'+comp.name];
+            if (COMP && COMP.opts && 'function' === typeof COMP.opts[fn]) COMP.opts[fn].call(comp, comp);
+        }
     }
 ;
 
@@ -353,21 +427,21 @@ var view = new ModelView.View( [String id=UUID] );
 [/DOC_MARKDOWN]**/
 //
 // View Class
-var View = function View(id) {
+var View = function View(id, opts) {
     var view = this;
 
     // constructor-factory pattern
-    if (!is_instance(view, View)) return new View(id);
+    if (!is_instance(view, View)) return new View(id, opts);
 
-    view.namespace = view.id = id || uuid('View');
+    view.$opts = opts || Obj();
+    view.option('view.uuid', uuid('View'));
+    view.namespace = view.id = id || view.option('view.uuid');
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
     view.$components = {};
     view.$ctx = {};
-    view.$upds = [];
-    view.$cache = {};
-    view.$cache2 = {};
-    view.$cnt = {};
+    view.$cache = Obj();
+    view.$cnt = null;
     view.initPubSub();
 };
 // STATIC
@@ -378,6 +452,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     constructor: View
 
     ,id: null
+    ,$opts: null
     ,$dom: null
     ,$renderdom: null
     ,$model: null
@@ -390,12 +465,9 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$num_shortcuts: null
     ,$components: null
     ,$ctx: null
-    ,$upds: null
     ,$cache: null
-    ,$cache2: null
     ,$cnt: null
     ,$reset: null
-    ,$prat: ''
     ,_dbnc: null
 
 /**[DOC_MARKDOWN]
@@ -406,6 +478,7 @@ view.dispose( );
     ,dispose: function() {
         var view = this;
         view.unbind().disposePubSub();
+        view.$opts = null;
         view.$dom = null;
         view.$renderdom = null;
         view.$model = null;
@@ -417,10 +490,27 @@ view.dispose( );
         view.$components = null;
         view.$ctx = null;
         view.$cache = null;
-        view.$cache2 = null;
         view.$cnt = null;
         view.$reset = null;
-        view.$upds = null;
+        return view;
+    }
+
+/**[DOC_MARKDOWN]
+// get / set view builtin and user-defined options
+view.option(String key [, Any val]);
+
+[/DOC_MARKDOWN]**/
+    ,option: function(key, val) {
+        var view = this;
+        if (!view.$opts) view.$opts = Obj();
+        if (1 < arguments.length)
+        {
+            view.$opts[key] = val;
+        }
+        else if (key)
+        {
+            return HAS.call(view.$opts, key) ? view.$opts[key] : undef;
+        }
         return view;
     }
 
@@ -472,7 +562,7 @@ view.context( Object ctx );
     }
 
 /**[DOC_MARKDOWN]
-// add custom view event handlers for model/view/dom/document targets in {"target:eventName": handler} format
+// add custom view event handlers for model/view/dom/document/window targets in {"target:eventName": handler} format
 view.events( Object events );
 
 [/DOC_MARKDOWN]**/
@@ -559,43 +649,54 @@ view.components( Object components );
         {
             for (k in components)
                 if (HAS.call(components,k) && is_instance(components[k], View.Component))
-                    view.$components[k] = components[k];
+                    view.$components['#'+k] = components[k];
         }
         return view;
     }
-
-/**[DOC_MARKDOWN]
-// render a custom view named component
-view.component( String componentName, uniqueComponentInstanceId || null, Object props );
-
-[/DOC_MARKDOWN]**/
     ,component: function(name, id, props, childs) {
-        var view = this, out, c, propsKey, prevProps, changed;
-        if (name && is_instance(view.$components[name], View.Component))
+        var view = this, out, c, compId, nk, component, changed;
+        if (name && (c=view.$components[nk='#'+name]))
         {
-            c = view.$components[name];
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'this'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>');
+                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
             }
             if (c.out)
             {
-                if (!HAS.call(view.$cnt, name)) view.$cnt[name] = 0;
-                view.$cnt[name]++;
-                if ((arguments.length < 4) && is_type(id, T_OBJ))
+                if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)*/))
                 {
                     childs = props;
                     props = id;
                     id = null;
                 }
-                propsKey = null == id ? name+'_#'+Str(view.$cnt[name]) : name+'_id_'+Str(id);
-                prevProps = view.$cache2[propsKey];
-                changed = !prevProps && !props ? false : true;
-                if (prevProps && props && c.opts && c.opts.changed) changed = c.opts.changed(prevProps, props);
-                view.$cache[propsKey] = props;
-                out = c.out.call(view, props, childs||[], htmlNode);
+                if (view.$cache['#'] && view.$cache['#'].length)
+                {
+                    // already references given component instance, given in order of rendering
+                    component = view.$cache['#'].shift();
+                    if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
+                }
+                if (!component)
+                {
+                    if (null == view.$cnt[nk]) view.$cnt[nk] = 1;
+                    else view.$cnt[nk]++;
+                    compId = null == id ? name+'_#'+Str(view.$cnt[nk]) : name+'_id_'+Str(id);
+                    component = view.$cache[compId];
+                }
+                if (!component)
+                {
+                    component = new MVComponentInstance(view, compId, name, null, c.opts && c.opts.model ? c.opts.model() : null);
+                    view.$cache[compId] = component;
+                    if (component.model) component.model.on('change', function(){view.render();});
+                    changed = true;
+                }
+                else
+                {
+                    changed = (c.opts && c.opts.changed ? c.opts.changed(component.props, props) : false) || (component.model ? component.model.isDirty() : false);
+                }
+                component.props = props;
+                out = c.out.call(component, props, childs||[], htmlNode);
+                out.component = component;
                 out.changed = changed;
-                out.component = name;
                 return out;
             }
         }
@@ -603,7 +704,152 @@ view.component( String componentName, uniqueComponentInstanceId || null, Object 
     }
     ,hasComponent: function(name) {
         var view = this;
-        return name && view.$components && is_instance(view.$components[name], View.Component);
+        return name && view.$components && is_instance(view.$components['#'+name], View.Component);
+    }
+
+/**[DOC_MARKDOWN]
+// basic view Router component
+view.router({
+    type: "hash", // "hash" or "path", default "hash"
+    caseSensitive: false, // default true
+    prefix: "/prefix/", // default no prefix ""
+    routes: {
+        "/": () => (<IndexPage/>),
+        "/user/:id": (match) => (<UserPage props={{id:match.id}}/>),
+        "/msg/:id/:line?": (match) => (<MsgPage props={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
+    },
+    fail: () => (<ErrorPage/>) // default empty
+});
+
+[/DOC_MARKDOWN]**/
+    ,router: function(opts) {
+        var view = this, loc, fail, r, rl, route, prefix, pattern, i, l, m, match, matches;
+        opts = opts || {};
+        if (!HAS.call(opts, 'type')) opts.type = 'hash';
+        opts.type = Str(opts.type || 'hash').toLowerCase();
+        if (!HAS.call(opts, 'caseSensitive')) opts.caseSensitive = true;
+        opts.caseSensitive = !!opts.caseSensitive;
+        if (!HAS.call(opts, 'prefix')) opts.prefix = '';
+        opts.prefix = trim(opts.prefix || '');
+        if (!HAS.call(opts, 'routes')) opts.routes = {};
+        opts.routes = opts.routes || {};
+        fail = opts.fail || function(){return '';};
+        loc = (HASDOC ? window.location : view.option('router.location')) || {pathname:'/', hash:'#/'};
+        route = normalisePath(('path' === opts.type ? loc.pathname : loc.hash) || '');
+        if (opts.prefix && opts.prefix.length)
+        {
+            prefix = normalisePath(opts.prefix);
+            if (opts.caseSensitive)
+            {
+                if ('/'+prefix+'/' !== '/'+route.slice(0, prefix.length+1)) return fail();
+                else route = route.slice(prefix.length+2);
+            }
+            else
+            {
+                if ('/'+prefix.toLowerCase()+'/' !== '/'+route.slice(0, prefix.length+1).toLowerCase()) return fail();
+                else route = route.slice(prefix.length+2);
+            }
+        }
+        route = route.split('/'); rl = route.length;
+        for (r in opts.routes)
+        {
+            if (!HAS.call(opts.routes, r)) continue;
+            pattern = normalisePath(r).split('/');
+            l = pattern.length;
+            if (rl > l) continue;
+            match = {};
+            matches = true;
+            for (i = 0; i < l; i++)
+            {
+                m = null;
+                if (i >= rl)
+                {
+                    if ('?' === pattern[i].slice(-1))
+                    {
+                        if (':' === pattern[i].charAt(0))
+                        {
+                            m = pattern[i].slice(1, -1);
+                            match[m] = null;
+                        }
+                    }
+                    else
+                    {
+                        matches = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (':' === pattern[i].charAt(0))
+                    {
+                        m = pattern[i].slice(1);
+                        if ('?' === m.slice(-1)) m = m.slice(0, -1);
+                        match[m] = decodeURIComponent(route[i]);
+                    }
+                    else if (opts.caseSensitive)
+                    {
+                        if (pattern[i] !== route[i])
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if (pattern[i].toLowerCase() !== route[i].toLowerCase())
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (matches) return opts.routes[r](match);
+        }
+        return fail();
+    }
+/**[DOC_MARKDOWN]
+// navigate to full url or path, or hash using window.history (or directly if noHistory is true)
+view.navigateTo(String url[, Boolean noHistory = false]);
+
+[/DOC_MARKDOWN]**/
+    ,navigateTo: function(loc, noHistory) {
+        var view = this, evt;
+        if (HASDOC && loc)
+        {
+            loc = trim(loc);
+            if (!loc.length) return view;
+            if ('/' === loc.slice(-1) && '/' !== loc && '#/' !== loc)
+                loc = loc.slice(0, -1);
+            if (!noHistory && window.history && window.history.pushState)
+            {
+                window.history.pushState({}, '', loc);
+                if ('undefined' !== typeof PopStateEvent)
+                {
+                    evt = new PopStateEvent('popstate', {state: {}});
+                    evt.data = evt.data || {};
+                    evt.data.trigger = view;
+                    window.dispatchEvent(evt);
+                }
+            }
+            else if ('#' === loc.charAt(0))
+            {
+                window.location.hash = loc;
+            }
+            else if ('/' === loc.charAt(0))
+            {
+                window.location.pathname = loc;
+            }
+            else if ('..' === loc.slice(0, 2) || '.' === loc.slice(0, 1))
+            {
+                window.location.pathname = window.location.pathname + ('/'===window.location.pathname.slice(-1) ? '' : '/') + loc;
+            }
+            else
+            {
+                window.location.href = loc;
+            }
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]
@@ -616,8 +862,9 @@ view.widget( ..args );
         return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
     }
 
+
 /**[DOC_MARKDOWN]
-// dynamically parse html string to html virtual dom at run-time
+// dynamically parse html string to virtual html node(s) at run-time
 view.html( String htmlString );
 
 [/DOC_MARKDOWN]**/
@@ -633,22 +880,8 @@ view.unit( nodes );
         return as_unit(nodes);
     }
 
-/**[DOC_MARKDOWN]
-// get / set custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
-view.attribute( [String prefix] );
-
-[/DOC_MARKDOWN]**/
-    ,attribute: function(prefix) {
-        if (arguments.length)
-        {
-            this.$prat = trim(prefix);
-            return this;
-        }
-        return this.$prat;
-    }
-
     ,attr: function(attr) {
-        return this.$prat + Str(attr);
+        return (this.option('view.attr')||'') + Str(attr);
     }
 
 /**[DOC_MARKDOWN]
@@ -747,7 +980,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
             );
         }
 
-        // bind model/view/dom/document (custom) event handlers
+        // bind model/view/dom/document/window (custom) event handlers
         for (method in view)
         {
             if (!is_type(view[method], T_FUNC)) continue;
@@ -759,12 +992,22 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
             }
             else if (HASDOC)
             {
-                if (startsWith(method, 'on_document_'))
+                if (startsWith(method, 'on_window_'))
+                {
+                    evt = method.slice(10);
+                    evt.length && DOMEvent(window).on(
+                        namespaced(evt),
+                        viewHandler(view, method),
+                        true
+                    );
+                }
+                else if (startsWith(method, 'on_document_'))
                 {
                     evt = method.slice(12);
                     evt.length && DOMEvent(document.body).on(
                         namespaced(evt),
-                        viewHandler(view, method)
+                        viewHandler(view, method),
+                        false
                     );
                 }
                 else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
@@ -782,7 +1025,8 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt = method.slice(7);
                     evt.length && DOMEvent(view.$dom).on(
                         namespaced(evt),
-                        viewHandler(view, method)
+                        viewHandler(view, method),
+                        true
                     );
                 }
             }
@@ -818,16 +1062,18 @@ view.unbind( );
 
         // model events
         if (model) view.offFrom(model);
-        if (HASDOC && view.$dom)
+        if (HASDOC)
         {
-            DOMEvent(view.$dom).off(viewEvent);
+            if (view.$dom) DOMEvent(view.$dom).off(viewEvent);
             DOMEvent(document.body).off(viewEvent);
+            DOMEvent(window).off(viewEvent);
+            clearAll(view);
         }
         return view;
     }
 
 /**[DOC_MARKDOWN]
-// render view on actual DOM (immediately or deferred)
+// render view on actual DOM (immediately or deferred) or return rendered string if on server
 // .render is also called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
@@ -839,7 +1085,6 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$upds = [];
                 if (view.$out) out = view.$out.call(view, function(key){return Str(view.$model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -853,9 +1098,7 @@ view.render( [Boolean immediate=false] );
                     view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    var upds = view.$upds;
-                    view.$upds = [];
-                    morphText(view.$map, view.model(), 'sync' === immediate ? null : upds);
+                    morphText(view.$map, view.model(), 'sync' === immediate ? null : view.$model.getDirty());
                     // notify any 3rd-party also if needed
                     view.publish('render', {});
                 };
@@ -873,23 +1116,17 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$upds = []; view.$cache2 = {}; view.$cache = {}; view.$cnt = {}; view.$reset = [];
+                view.$cnt = Obj(); view.$reset = [];
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                // reset any Values/Collections present
-                view.model().resetDirty();
-                view.$reset.forEach(function(v){v.reset();});
-                view.$reset = null;
+                clearInvalid(view, false);
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
             }
             callback = function() {
-                view.$upds = []; view.$cache2 = view.$cache; view.$cache = {}; view.$cnt = {}; view.$reset = [];
-                morph(view, view.$renderdom, view.$out.call(view, htmlNode), false, true);
-                // reset any Values/Collections present
-                view.model().resetDirty();
-                for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
-                view.$reset = null;
+                view.$cnt = Obj(); view.$reset = [];
+                morph(view, view.$renderdom, view.$out.call(view, htmlNode), true);
+                clearInvalid(view, true);
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
             };
@@ -901,10 +1138,6 @@ view.render( [Boolean immediate=false] );
             {
                 debounce(callback, view);
             }
-        }
-        else
-        {
-            view.$upds = [];
         }
         return view;
     }
@@ -1165,6 +1398,16 @@ view.sync_model();
         }
     }
 
+    /*,on_window_resize: function(evt, data) {
+        var view = this;
+        view.render();
+    }
+
+    ,on_window_popstate: function(evt, data) {
+        var view = this;
+        view.render();
+    }*/
+
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model,
             autobind = view.$autobind, livebind = view.$livebind,
@@ -1205,7 +1448,6 @@ view.sync_model();
             // do view live DOM update action
             if (livebind)
             {
-                if (-1 === view.$upds.indexOf(data.key)) view.$upds.push(data.key);
                 view.render();
             }
         }
@@ -1251,6 +1493,27 @@ view.sync_model();
 
     // NOP action
     ,do_nop: null
+
+    // simulate link url change, through history api
+    ,do_link: function(evt, el, data) {
+        var view = this, path, withHash;
+
+        if (HASDOC && el)
+        {
+            path = trim(el[ATTR](view.attr('mv-link')) || el[ATTR]('href'));
+            if (path && path.length)
+            {
+                withHash = view.option('router.useHash');
+                if ('/' !== path.charAt(0) && '#' !== path.charAt(0)) path = '/'+path;
+                if (true === withHash && '#' !== path.charAt(0)) path = '#'+path;
+                if (false === withHash && '#' === path.charAt(0)) path = path.slice(1);
+                if ('/' !== path.charAt(0) && '#' !== path.charAt(0)) path = '/'+path;
+                //evt.stopPropagation();
+                evt.preventDefault();
+                view.navigateTo(path);
+            }
+        }
+    }
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
@@ -1435,13 +1698,30 @@ view.sync_model();
 
 [/DOC_MARKDOWN]**/
 
+// can integrate with HtmlWidget by setting the lib via this static property
+View.HtmlWidget = null;
+
 /**[DOC_MARKDOWN]
 #### View.Component
 
 ```javascript
 // **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
-var MyComponent = new ModelView.View.Component(String name, String htmlTpl [, Object options={changed:function(oldProps,newProps){return true}}]);
-MyComponent.dispose(); // dispose
+var MyComponent = ModelView.View.Component(
+    String name,
+    String htmlTpl [,
+    Object options = {
+        model: () => null // initial state model data, if state model is to be used, else null
+        ,changed: (oldProps, newProps) => false // whether component has changed given new props
+        ,attach: (componentInstance) => {} // component just attached to DOM, for componentInstance see below
+        ,detach: (componentInstance) => {} // component about to be detached from DOM, for componentInstance see below
+        ,actions: {
+            // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
+            click: function(evt, el, data) {
+                // update local clicks count and re-render
+                this.model.set('clicks', this.model.get('clicks')+1, true);
+            }
+        }
+}]);
 
 ```
 [/DOC_MARKDOWN]**/
@@ -1459,7 +1739,6 @@ View.Component[proto] = {
     ,opts: null
     ,tpl: ''
     ,out: null
-
     ,dispose: function() {
         var self = this;
         self.opts = null;
@@ -1468,5 +1747,54 @@ View.Component[proto] = {
         return self;
     }
 };
-// can integrate with HtmlWidget by setting the lib via this static property
-View.HtmlWidget = null;
+/**[DOC_MARKDOWN]
+#### View.Component.Instance
+
+```javascript
+MyComponentInstance {
+    view // the main view this component instance is attached to
+    model // component state model, if any, else null
+    props // current component instance props
+    dom // domElement this component instance is attached to
+    data // property to attach user-defined data, if needed
+}
+
+```
+[/DOC_MARKDOWN]**/
+function MVComponentInstance(view, id, name, props, state, dom)
+{
+    var self = this;
+    if (!is_instance(self, MVComponentInstance)) return new MVComponentInstance(view, id, name, props, state, dom);
+    self.view = view;
+    self.id = id;
+    self.name = name;
+    self.props = props || null;
+    self.model = state ? (is_instance(state, Model) ? state : new Model(self.id, state)) : null;
+    self.dom = dom || null;
+    //self.data = {};
+}
+View.Component.Instance = MVComponentInstance;
+MVComponentInstance[proto] = {
+    constructor: MVComponentInstance
+    ,id: null
+    ,name: null
+    ,top: null
+    ,props: null
+    ,model: null
+    ,view: null
+    ,dom: null
+    ,data: null
+    ,dispose: function() {
+        var self = this;
+        self.data = null;
+        self.props = null;
+        if (self.model) self.model.dispose();
+        self.model = null;
+        self.view = null;
+        if (self.dom) self.dom.$mvComp = null;
+        self.dom = null;
+        self.top = null;
+        self.name = null;
+        return self;
+    }
+};

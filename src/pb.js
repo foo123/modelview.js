@@ -52,6 +52,7 @@ var PublishSubscribe = {
 
     ,trigger: function(evt, data) {
         var self = this, PB = self.$PB, queue, q, qq, i, l, ns, ns_evt;
+        if (!PB) return self;
         ns = getNS( evt ); evt = ns[ 0 ]; ns_evt = 'evt_' + evt;
         if (HAS.call(PB,ns_evt) && (queue=PB[ns_evt]) && (l=queue.length))
         {
@@ -91,7 +92,7 @@ var PublishSubscribe = {
 
     ,on: function(evt, callback, oneOff/*, thisRef*/) {
         var self = this, PB = self.$PB, ns, evts, ns_evt, i, l;
-        if (evt && evt.length && is_type(callback, T_FUNC))
+        if (PB && evt && evt.length && is_type(callback, T_FUNC))
         {
             oneOff = !!oneOff;
             evts = evt.split( SPACES ).map( getNS );
@@ -121,6 +122,7 @@ var PublishSubscribe = {
 
     ,off: function(evt, callback) {
         var self = this, queue, e, i, l, q, PB = self.$PB, ns, isFunc, evts, j, jl, ns_evt;
+        if (!PB) return self;
         if (!evt || !evt.length)
         {
             for (e in PB)

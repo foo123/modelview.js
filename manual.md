@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 3.2.1**
+**Version 4.0.0**
 
 ### Contents
 
@@ -627,6 +627,12 @@ view.dispose( );
 
 
 
+// get / set view builtin and user-defined options
+view.option(String key [, Any val]);
+
+
+
+
 // get / set view model
 view.model( [Model model] );
 
@@ -645,7 +651,7 @@ view.context( Object ctx );
 
 
 
-// add custom view event handlers for model/view/dom/document targets in {"target:eventName": handler} format
+// add custom view event handlers for model/view/dom/document/window targets in {"target:eventName": handler} format
 view.events( Object events );
 
 
@@ -669,8 +675,24 @@ view.components( Object components );
 
 
 
-// render a custom view named component
-view.component( String componentName, uniqueComponentInstanceId || null, Object props );
+// basic view Router component
+view.router({
+    type: "hash", // "hash" or "path", default "hash"
+    caseSensitive: false, // default true
+    prefix: "/prefix/", // default no prefix ""
+    routes: {
+        "/": () => (<IndexPage/>),
+        "/user/:id": (match) => (<UserPage props={{id:match.id}}/>),
+        "/msg/:id/:line?": (match) => (<MsgPage props={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
+    },
+    fail: () => (<ErrorPage/>) // default empty
+});
+
+
+
+
+// navigate to full url or path, or hash using window.history (or directly if noHistory is true)
+view.navigateTo(String url[, Boolean noHistory = false]);
 
 
 
@@ -681,7 +703,7 @@ view.widget( ..args );
 
 
 
-// dynamically parse html string to html virtual dom at run-time
+// dynamically parse html string to virtual html node(s) at run-time
 view.html( String htmlString );
 
 
@@ -689,12 +711,6 @@ view.html( String htmlString );
 
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
 view.unit( nodes );
-
-
-
-
-// get / set custom prefix for ModelView specific attributes, eg 'data-', so [mv-evt] becomes [data-mv-evt] and so on..
-view.attribute( [String prefix] );
 
 
 
@@ -732,7 +748,7 @@ view.unbind( );
 
 
 
-// render view on actual DOM (immediately or deferred)
+// render view on actual DOM (immediately or deferred) or return rendered string if on server
 // .render is also called internally by view auto-update methods
 view.render( [Boolean immediate=false] );
 
@@ -784,8 +800,37 @@ view.sync_model();
 
 ```javascript
 // **Note** that component instances are attached to each view separately, if used in another view, a new instance should be used!
-var MyComponent = new ModelView.View.Component(String name, String htmlTpl [, Object options={changed:function(oldProps,newProps){return true}}]);
-MyComponent.dispose(); // dispose
+var MyComponent = ModelView.View.Component(
+    String name,
+    String htmlTpl [,
+    Object options = {
+        model: () => null // initial state model data, if state model is to be used, else null
+        ,changed: (oldProps, newProps) => false // whether component has changed given new props
+        ,attach: (componentInstance) => {} // component just attached to DOM, for componentInstance see below
+        ,detach: (componentInstance) => {} // component about to be detached from DOM, for componentInstance see below
+        ,actions: {
+            // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
+            click: function(evt, el, data) {
+                // update local clicks count and re-render
+                this.model.set('clicks', this.model.get('clicks')+1, true);
+            }
+        }
+}]);
+
+```
+
+
+
+#### View.Component.Instance
+
+```javascript
+MyComponentInstance {
+    view // the main view this component instance is attached to
+    model // component state model, if any, else null
+    props // current component instance props
+    dom // domElement this component instance is attached to
+    data // property to attach user-defined data, if needed
+}
 
 ```
 
@@ -797,14 +842,17 @@ MyComponent.dispose(); // dispose
 
 
 ```html
+<script id="HelloButtonComponent" type="text/x-template">
+    <button class="button" mv-evt mv-on-click=":hello_world">Hello World ({this.model.getVal('clicks')})</button>
+</script>
 <script id="content" type="text/x-template">
     <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123; and &#125; template placeholders
     <br /><br />
-    <b>Hello {this.model().get('msg')}</b> &nbsp;&nbsp;(updated live on <i>change</i>)
+    <b>Hello {view.model().getVal('msg')}</b> &nbsp;&nbsp;(updated live on <i>keyup</i>)
     <br /><br />
-    <input type="text" name="model[msg]" size="50" value={this.model().get('msg')} />
-    <button class="button" title={this.model().get('msg')} mv-evt mv-on-click="alert">Hello</button>
-    <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
+    <input type="text" name="model[msg]" size="50" value={view.model().getVal('msg')} mv-evt mv-on-keyup="update" />
+    <button class="button" title={view.model().getVal('msg')} mv-evt mv-on-click="alert">Hello</button>
+    <HelloButton/>
 </script>
 <div id="app"></div>
 ```
@@ -823,16 +871,32 @@ new ModelView.View('view')
     // model data validators (if any) here ..
     .validators({msg: ModelView.Validation.Validate.NOT_EMPTY})
 )
-.template(
-    document.getElementById('content').innerHTML
-)
+.template(document.getElementById('content').innerHTML)
+.components({
+    HelloButton: ModelView.View.Component(
+        'HelloButton',
+        document.getElementById('HelloButtonComponent').innerHTML,
+        {
+            model: () => ({clicks:0}),
+            actions: {
+                hello_world: function(evt, el) {
+                    this.model.set('clicks', this.model.get('clicks')+1, true);
+                    this.view.model().set('msg', 'World', true);
+                }
+            },
+            changed: (oldProps, newProps) => false,
+            attach: () => {console.log('HelloButton just attached to DOM')},
+            detach: () => {console.log('HelloButton about to be detached from DOM')}
+        }
+    )
+})
 .actions({
     // custom view actions (if any) here ..
     alert: function(evt, el) {
         alert(this.model().get('msg'));
     },
-    hello_world: function(evt, el) {
-        this.model().set('msg', "World", true);
+    update: function(evt, el) {
+        this.model().set('msg', el.value, true);
     }
 })
 .shortcuts({
@@ -841,7 +905,7 @@ new ModelView.View('view')
 .autovalidate(true)
 .autobind(true) // default
 .livebind(true) // default
-.bind(['click', 'change'], document.getElementById('app'))
+.bind(['click', 'keyup'], document.getElementById('app'))
 .sync()
 ;
 ```

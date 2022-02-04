@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>modelview.js • Hello World</title>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<meta name="description" content="modelview.js • Hello World" />
+
+<style type="text/css">
+#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}
+</style>
+</head>
+
+<body>
+    <span id="forkongithub"><a href="https://github.com/foo123/modelview.js">Fork me on GitHub</a></span>
+    <header id="header">
+        <h1>ModelView.js Router</h1>
+    </header>
+
+<script id="IndexComponent" type="text/x-template">
+<div>
+<h1>Index</h1>
+<ul>
+<li><a href="/hello" mv-evt mv-on-click="link">Hello</a></li>
+<li><a id="foo" href="#" mv-link="/hello/World" mv-evt mv-on-click="link">Hello World</a></li>
+</ul>
+</div>
+</script>
+<script id="HelloComponent" type="text/x-template">
+<div>
+<h1>Hello {props.msg || '..'}</h1>
+</div>
+</script>
+<script id="ErrorComponent" type="text/x-template">
+<div>
+<h1>404</h1>
+<ul>
+<li><a href="/" mv-evt mv-on-click="link">Index</a></li>
+<li><a href="/hello" mv-evt mv-on-click="link">Hello</a></li>
+<li><a href="#" mv-link="/hello/World" mv-evt mv-on-click="link">Hello World</a></li>
+</ul>
+</div>
+</script>
+<script id="content" type="text/x-template">
+{view.router({
+    type:"hash",
+    caseSensitive: false,
+    routes:{
+        "/": ()=>(<Index/>),
+        "/HELLO/:msg?": (match)=>(<Hello props={match}/>)
+    },
+    fail: ()=>(<Error/>)
+})}
+</script>
+<div id="app"></div>
+</div>
+
+<script src="../build/modelview.js"></script>
+<script type="text/javascript">
+(function modelView(ModelView)
+{
+    "use strict";
+    var view = new ModelView.View('view')
+    .model(
+        new ModelView.Model(
+            'model',
+            // model data here ..
+            {}
+        )
+    )
+    .template(document.getElementById('content').innerHTML)
+    .components({
+        Index: new ModelView.View.Component(
+            'Index',
+            document.getElementById('IndexComponent').innerHTML
+        ),
+        Hello: new ModelView.View.Component(
+            'Hello',
+            document.getElementById('HelloComponent').innerHTML,
+            {changed: (_old, _new) => _old.msg !== _new.msg}
+        ),
+        Error: new ModelView.View.Component(
+            'Error',
+            document.getElementById('ErrorComponent').innerHTML
+        )
+    })
+    .option('router.useHash', true)
+    .events({
+        'window:popstate': function(evt) {
+            console.log(evt);
+            this.render();
+        }
+    })
+    .actions({
+        click: function(){console.log('view handler');}
+    })
+    .autovalidate(false)
+    .autobind(false) // default
+    .livebind(true) // default
+    .bind(['click'], document.getElementById('app'))
+    .sync()
+    ;
+    
+    //document.getElementById('foo').addEventListener('click', function(){console.log('el handler');}, false);
+})(ModelView);
+</script>
+</body>
+</html>
