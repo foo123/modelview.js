@@ -804,10 +804,10 @@ var MyComponent = ModelView.View.Component(
     String name,
     String htmlTpl [,
     Object options = {
-        model: () => null // initial state model data, if state model is to be used, else null
+        model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,changed: (oldProps, newProps) => false // whether component has changed given new props
-        ,attach: (componentInstance) => {} // component just attached to DOM, for componentInstance see below
-        ,detach: (componentInstance) => {} // component about to be detached from DOM, for componentInstance see below
+        ,attach: (componentInstance) => {} // component attached to DOM, for componentInstance see below
+        ,detach: (componentInstance) => {} // component detached from DOM, for componentInstance see below
         ,actions: {
             // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
             click: function(evt, el, data) {
@@ -885,8 +885,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton just attached to DOM')},
-            detach: () => {console.log('HelloButton about to be detached from DOM')}
+            attach: () => {console.log('HelloButton attached to DOM')},
+            detach: () => {console.log('HelloButton detached from DOM')}
         }
     )
 })

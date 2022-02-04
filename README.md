@@ -87,8 +87,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton just attached to DOM')},
-            detach: () => {console.log('HelloButton about to be detached from DOM')}
+            attach: () => {console.log('HelloButton attached to DOM')},
+            detach: () => {console.log('HelloButton detached from DOM')}
         }
     )
 })
@@ -146,7 +146,7 @@ For those like me, who like to test code by commenting and uncommenting certain 
 
 HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed. Simple as that! So to dynamically remove attributes you simply make sure the code that is attached to that attribute evaluates to literally `false`.
 
-ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called components. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props and state of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see below) and/or passed props to manage state as needed if needed. **Important:** ModelView Components must be a single element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them inside a wrapper html element.
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called **components**. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props and state of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see below) and/or passed props to manage state as needed if needed. **Important:** ModelView components must return a single element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them with another html element. Also trivial wrapper components which simply return another component should not be used, **instead use the inner component directly**.
 
 The previous example using components:
 
@@ -218,7 +218,8 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 3.2.1 and some popular frameworks (env: Windows 7 64bit, Chrome 96.0.4664.93 64bit).
+<!--
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 4.0.0 and some popular frameworks (env: Windows 7 64bit, Chrome 98.0.4758.82 64bit).
 
 
 **Keyed Results**
@@ -228,7 +229,6 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
-
 **Non-Keyed Results**
 
 
@@ -236,10 +236,10 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory 2](/examples/mem2.png)
 
-It is shown that ModelView 3.2.1 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits and may be actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 4.0.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits and may be actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 As is clear from previous versions, ModelView consistently improves performance. Until the next update..
-
+-->
 
 #### JavaScript and Browser Support
 

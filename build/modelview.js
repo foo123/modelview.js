@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-04 14:38:36
+*   @built on 2022-02-04 23:53:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-04 14:38:36
+*   @built on 2022-02-04 23:53:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -636,12 +636,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var p = el;
         if (p && node)
         {
-            if (node === p) return node !== finalNode;
+            if (node === p) return true;
             else if (node.contains) return node.contains(p);
             //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
             while (p)
             {
-                if (p === node) return node !== finalNode;
+                if (p === node) return true;
                 if (p === finalNode) break;
                 p = p.parentNode;
             }
@@ -1651,8 +1651,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if ('<mv-component>' === n.nodeType)
                 {
-                    var comp = null;
-                    n.component.ndom = n.potentialChildNodes;
                     node.potentialChildNodes += n.potentialChildNodes;
                     node.componentNodes += n.childNodes.length;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1660,20 +1658,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                     /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
                     AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
-                        var comp;
                         nn.parentNode = node;
                         nn.index = index++;
                         //nn.changed = nn.changed || n.changed;
-                        if (nn.component)
-                        {
-                            comp = nn.component;
-                            while (comp.top) comp = comp.top;
-                            comp.top = n.component;
-                        }
-                        else
-                        {
-                            nn.component = n.component;
-                        }
+                        nn.component = nn.component || n.component;
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
@@ -1928,7 +1916,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     c = rnode.$mvComp = vnode.component;
                     vnode.component = null;
-                    c.dom = rnode; while (c.top) {c = c.top; c.dom = rnode;}
+                    c.dom = rnode;
                 }
                 if (vnode.id) rnode.$mvId = vnode.id;
                 if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
@@ -2091,18 +2079,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     a = vAtts[i]; n = a.name
                     if (false === a.value) del_att(r, n, T, TT);
                     else set_att(r, n, a.value, T, TT);
-                    /*if ('<option>' === T && 'selected' === n)
-                    {
-                        r.selected = !!a.value;
-                    }
-                    if ('<input>' === T && ('checkbox' === TT || 'radio' === TT) && ('checked' === n))
-                    {
-                        r.checked = !!a.value;
-                    }
-                    if (('<select>' === T || '<input>' === T || '<textarea>' === T) && ('disabled' === n || 'required' === n))
-                    {
-                        r[n] = !!a.value;
-                    }*/
                 }
             }
         }
@@ -2125,19 +2101,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (false === a.value) del_att(r, n, T, TT);
                 else set_att(r, n, a.value, T, TT, true);
             }
-            /*if ('<option>' === T)
-            {
-                r.selected = !!attr(v, 'selected');
-            }
-            if ('<input>' === T && ('checkbox' === TT || 'radio' === TT))
-            {
-                r.checked = !!attr(v, 'checked');
-            }
-            if ('<select>' === T || '<input>' === T || '<textarea>' === T)
-            {
-                r.disabled = !!attr(v, 'disabled');
-                r.required = !!attr(v, 'required');
-            }*/
         }
         return r;
     },
@@ -2148,7 +2111,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
         {
-            traverse(view, slice.call(r.childNodes, index+1, index+count+1), 'detach', 'dft');
+            nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})(slice.call(r.childNodes, index+1, index+count+1)));
             var range = Range();
             if (range)
             {
@@ -2182,7 +2145,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         {
             if (lastNode) r.insertBefore(frag, lastNode);
             else r.appendChild(frag);
-            traverse(view, els, 'attach', 'bft');
+            nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})(els));
         }
         return index;
     },
@@ -2228,10 +2191,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 if (changed || unconditionally)
                 {
                     el = to_node(view, vnode, true);
-                    traverse(view, [rnode], 'detach', 'dft');
                     r.replaceChild(el, rnode);
-                    rnode.$mvComp = null;
-                    traverse(view, [el], 'attach', 'bft');
+                    nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
+                    nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([el]));
                 }
             }
             else
@@ -2254,10 +2216,11 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             for (di=0,dc=diff.length; di<dc; di++)
             {
                 d = diff[di];
+                m = collection.mappedItem;
                 switch (d.action)
                 {
                     case 'set':
-                        len = collection.items().length*collection.mappedItem;
+                        len = collection.items().length*m;
                         items = collection.mapped();
                         frag = htmlNode(view, '', null, null, [], items);
                         morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
@@ -2266,10 +2229,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         break;
                     case 'reorder':
                         len = collection.items().length;
-                        m = collection.mappedItem;
                         k = len*m;
                         frag = Fragment();
-                        j = r.childNodes[start+k-1].nextSibling;
+                        j = r.childNodes[start+k];
                         n = slice.call(r.childNodes, start, start+k);
                         count = 0;
                         for (i=0; i<len; i++) for (l=0; l<m; l++) frag.appendChild(n[d.from[i]*m+l]);
@@ -2278,34 +2240,34 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         return count; // break from diff loop completely, this should be only diff
                         break;
                     case 'add':
-                        len = (d.to-d.from+1)*collection.mappedItem;
+                        len = (d.to-d.from+1)*m;
                         items = collection.mapped(collection.items(d.from, d.to+1));
-                        insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from]);
+                        insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from*m]);
                         if (0 > count) count += len;
                         break;
                     case 'del':
-                        len = (d.to-d.from+1)*collection.mappedItem;
-                        delNodes(view, r, start+d.from, len);
+                        len = (d.to-d.from+1)*m;
+                        delNodes(view, r, start+d.from*m, len);
                         if (0 < count) count -= len;
                         break;
                     case 'swap':
-                        i = r.childNodes[start+d.from];
-                        j = r.childNodes[start+d.to];
-                        k = j.nextSibling;
-                        r.replaceChild(j, i);
-                        if (k) r.insertBefore(i, k);
-                        else r.appendChild(i);
+                        i = slice.call(r.childNodes, start+d.from*m, start+d.from*m+m);
+                        j = slice.call(r.childNodes, start+d.to*m, start+d.to*m+m);
+                        k = j[j.length-1].nextSibling;
+                        for (l=0; l<m; l++) r.replaceChild(j[l], i[l]);
+                        if (k) for (l=0; l<m; l++) r.insertBefore(i[l], k);
+                        else for (l=0; l<m; l++) r.appendChild(i[l]);
                         break;
                     case 'change':
-                        len = (d.to-d.from+1)*collection.mappedItem;
-                        view.$cache['#'] = slice.call(r.childNodes, start+d.from, start+d.from+len).reduce(function(c, n){
+                        len = (d.to-d.from+1)*m;
+                        view.$cache['#'] = slice.call(r.childNodes, start+d.from*m, start+d.from*m+len).reduce(function(c, n){
                             if (n.$mvComp) c.push(n.$mvComp);
                             return c;
                         }, []);
+                        view.$cache['#'] = null;
                         items = collection.mapped(collection.items(d.from, d.to+1));
-                        delete view.$cache['#'];
                         frag = htmlNode(view, '', null, null, [], items);
-                        morphSelectedNodes(view, r, frag, start+d.from, start+d.from+len-1, start+d.from+len-1, 0, 0);
+                        morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
                         break;
                 }
             }
@@ -2341,10 +2303,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else
                 {
-                    traverse(view, [rnode], 'detach', 'dft');
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    rnode.$mvComp = null;
-                    traverse(view, [frag], 'attach', 'bft');
+                    nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
+                    nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                 }
             }
             else
@@ -2358,8 +2319,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     if (0 > count)
                     {
                         r.insertBefore(frag=to_node(view, vnode, true), rnode);
-                        traverse(view, [frag], 'attach', 'bft');
                         count++;
+                        nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                     }
                     else
                     {
@@ -2392,10 +2353,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             }
                             else
                             {
-                                traverse(view, [rnode], 'detach', 'dft');
                                 r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                                rnode.$mvComp = null;
-                                traverse(view, [frag], 'attach', 'bft');
+                                nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
+                                nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                             }
                         }
                     }
@@ -2503,10 +2463,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                         else
                         {
-                            traverse(view, [rnode], 'detach', 'dft');
                             r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                            rnode.$mvComp = null;
-                            traverse(view, [frag], 'attach', 'bft');
+                            nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
+                            nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                         }
                     }
                     else
@@ -2521,7 +2480,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             {
                                 r.insertBefore(frag=to_node(view, vnode, true), rnode);
                                 count++;
-                                traverse(view, [frag], 'attach', 'bft');
+                                nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                             }
                             else
                             {
@@ -2554,10 +2513,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     }
                                     else
                                     {
-                                        traverse(view, [rnode], 'detach', 'dft');
                                         r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                                        rnode.$mvComp = null;
-                                        traverse(view, [frag], 'attach', 'bft');
+                                        nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
+                                        nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                                     }
                                 }
                             }
@@ -2869,18 +2827,18 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             path = trim(path);
         }
         return path;
-    }/*,
+    },
     nextTick = 'undefined' !== typeof Promise
         ? Promise.resolve().then.bind(Promise.resolve())
-        : function(cb) {setTimeout(cb, 0);}*/
+        : function(cb) {setTimeout(cb, 0);}
 ;
 
-if (HASDOC && window.Node /*&& window.Element*/)
+if (HASDOC && window.Node)
 {
     // add these auxiliary props to DOM Node/Element prototype so browser optimization is not affected
-    window.Node[proto].$mvComp = /*window.Element[proto].$mvComp =*/ null;
-    window.Node[proto].$mvId = /*window.Element[proto].$mvId =*/ null;
-    window.Node[proto].$mvMod = /*window.Element[proto].$mvMod =*/ null;
+    window.Node[proto].$mvComp = null;
+    window.Node[proto].$mvId = null;
+    window.Node[proto].$mvMod = null;
 }
 
 // namespaced events, play nice with possible others
@@ -6751,19 +6709,16 @@ var namedKeyProp = "mv_namedkey",
                     while (cel)
                     {
                         c = cel.$mvComp;
-                        do {
-                            if (c)
+                        if (c)
+                        {
+                            comp = view.$components['#'+c.name];
+                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
                             {
-                                comp = view.$components['#'+c.name];
-                                if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
-                                {
-                                    data.component = c;
-                                    comp.opts.actions[do_action].call(c, evt, el, data);
-                                    return;
-                                }
+                                data.component = c;
+                                comp.opts.actions[do_action].call(c, evt, el, data);
+                                return;
                             }
-                            c = c.top;
-                        } while (c);
+                        }
                         cel = cel.parentNode;
                         if (cel === view.$renderdom) return;
                     }
@@ -6890,6 +6845,7 @@ var namedKeyProp = "mv_namedkey",
         if (view.$model) view.$model.resetDirty();
         if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
         view.$reset = null;
+        nextTick(function(){
         if (view.$cache) Keys(view.$cache).forEach(function(id){
             var comp = view.$cache[id];
             if (is_instance(comp, MVComponentInstance))
@@ -6904,7 +6860,7 @@ var namedKeyProp = "mv_namedkey",
                     comp.model.resetDirty();
                 }
             }
-        });
+        });});
     },
 
     clearAll = function(view) {
@@ -6923,11 +6879,8 @@ var namedKeyProp = "mv_namedkey",
         if (el && el.$mvComp && el.$mvComp.name && view.$components)
         {
             comp = el.$mvComp;
-            do {
             COMP = view.$components['#'+comp.name];
             if (COMP && COMP.opts && 'function' === typeof COMP.opts[fn]) COMP.opts[fn].call(comp, comp);
-            comp = comp.top;
-            } while (comp);
         }
     }
 ;
@@ -7179,19 +7132,11 @@ view.components( Object components );
             }
             if (c.out)
             {
-                /*if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)* /))
-                {
-                    childs = props;
-                    props = id;
-                    id = null;
-                }*/
                 if (is_instance(id, Value)) id = id.val();
-                if (is_instance(props, Value)) props = props.val();
                 if (view.$cache['#'] && view.$cache['#'].length)
                 {
                     // already references given component instance, given in order of rendering
                     component = view.$cache['#'].shift();
-                    while (component.top) component = component.top;
                     if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
                 }
                 if (!component)
@@ -7635,16 +7580,19 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$cnt = Obj(); view.$reset = [];
+                view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                clearInvalid(view, false);
+                view.$model.resetDirty();
+                view.$reset = null;
+                view.$cache['#'] = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
             }
             callback = function() {
-                view.$cnt = Obj(); view.$reset = [];
+                view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode), true);
+                view.$cache['#'] = null;
                 clearInvalid(view, true);
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -8229,10 +8177,10 @@ var MyComponent = ModelView.View.Component(
     String name,
     String htmlTpl [,
     Object options = {
-        model: () => null // initial state model data, if state model is to be used, else null
+        model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,changed: (oldProps, newProps) => false // whether component has changed given new props
-        ,attach: (componentInstance) => {} // component just attached to DOM, for componentInstance see below
-        ,detach: (componentInstance) => {} // component about to be detached from DOM, for componentInstance see below
+        ,attach: (componentInstance) => {} // component attached to DOM, for componentInstance see below
+        ,detach: (componentInstance) => {} // component detached from DOM, for componentInstance see below
         ,actions: {
             // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
             click: function(evt, el, data) {
@@ -8297,12 +8245,10 @@ MVComponentInstance[proto] = {
     constructor: MVComponentInstance
     ,id: null
     ,name: null
-    ,top: null
     ,props: null
     ,model: null
     ,view: null
     ,dom: null
-    ,ndom: 0
     ,data: null
     ,dispose: function() {
         var self = this;
@@ -8313,8 +8259,6 @@ MVComponentInstance[proto] = {
         self.view = null;
         if (self.dom) self.dom.$mvComp = null;
         self.dom = null;
-        self.ndom = null;
-        self.top = null;
         self.name = null;
         return self;
     }
@@ -8369,8 +8313,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton just attached to DOM')},
-            detach: () => {console.log('HelloButton about to be detached from DOM')}
+            attach: () => {console.log('HelloButton attached to DOM')},
+            detach: () => {console.log('HelloButton detached from DOM')}
         }
     )
 })

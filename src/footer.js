@@ -48,8 +48,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton just attached to DOM')},
-            detach: () => {console.log('HelloButton about to be detached from DOM')}
+            attach: () => {console.log('HelloButton attached to DOM')},
+            detach: () => {console.log('HelloButton detached from DOM')}
         }
     )
 })
