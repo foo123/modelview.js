@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-04 10:46:57
+*   @built on 2022-02-04 14:38:36
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-04 10:46:57
+*   @built on 2022-02-04 14:38:36
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1651,6 +1651,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if ('<mv-component>' === n.nodeType)
                 {
+                    var comp = null;
+                    n.component.ndom = n.potentialChildNodes;
                     node.potentialChildNodes += n.potentialChildNodes;
                     node.componentNodes += n.childNodes.length;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1658,11 +1660,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                     /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
                     AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
+                        var comp;
                         nn.parentNode = node;
                         nn.index = index++;
                         //nn.changed = nn.changed || n.changed;
-                        if (nn.component) nn.component.top = n.component;
-                        else nn.component = n.component;
+                        if (nn.component)
+                        {
+                            comp = nn.component;
+                            while (comp.top) comp = comp.top;
+                            comp.top = n.component;
+                        }
+                        else
+                        {
+                            nn.component = n.component;
+                        }
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
@@ -1840,7 +1851,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(view, vnode, with_meta) {
-        var rnode, i, l, a, v, n, t, isSVG, T = vnode.nodeType, TT;
+        var rnode, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
         if ('t' === T)
         {
             rnode = Text(vnode.nodeValue2);
@@ -1913,7 +1924,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (true === with_meta)
             {
-                if (vnode.component) {rnode.$mvComp = vnode.component; rnode.$mvComp.dom = rnode; vnode.component = null;}
+                if (vnode.component)
+                {
+                    c = rnode.$mvComp = vnode.component;
+                    vnode.component = null;
+                    c.dom = rnode; while (c.top) {c = c.top; c.dom = rnode;}
+                }
                 if (vnode.id) rnode.$mvId = vnode.id;
                 if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
             }
@@ -6718,7 +6734,7 @@ var namedKeyProp = "mv_namedkey",
 
         if ('sync' === event) event = 'change';
         iterate(function(i) {
-            var el, cel, comp, do_action, data;
+            var el, cel, c, comp, do_action, data;
             el = elements[i]; if (!el) return;
             do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
             if (!do_action || !do_action.length) return;
@@ -6734,16 +6750,20 @@ var namedKeyProp = "mv_namedkey",
                     cel = el;
                     while (cel)
                     {
-                        if (cel.$mvComp)
-                        {
-                            comp = view.$components['#'+cel.$mvComp.name];
-                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                        c = cel.$mvComp;
+                        do {
+                            if (c)
                             {
-                                data.component = cel.$mvComp;
-                                comp.opts.actions[do_action].call(cel.$mvComp, evt, el, data);
-                                return;
+                                comp = view.$components['#'+c.name];
+                                if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                                {
+                                    data.component = c;
+                                    comp.opts.actions[do_action].call(c, evt, el, data);
+                                    return;
+                                }
                             }
-                        }
+                            c = c.top;
+                        } while (c);
                         cel = cel.parentNode;
                         if (cel === view.$renderdom) return;
                     }
@@ -6903,8 +6923,11 @@ var namedKeyProp = "mv_namedkey",
         if (el && el.$mvComp && el.$mvComp.name && view.$components)
         {
             comp = el.$mvComp;
+            do {
             COMP = view.$components['#'+comp.name];
             if (COMP && COMP.opts && 'function' === typeof COMP.opts[fn]) COMP.opts[fn].call(comp, comp);
+            comp = comp.top;
+            } while (comp);
         }
     }
 ;
@@ -7156,16 +7179,19 @@ view.components( Object components );
             }
             if (c.out)
             {
-                if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)*/))
+                /*if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)* /))
                 {
                     childs = props;
                     props = id;
                     id = null;
-                }
+                }*/
+                if (is_instance(id, Value)) id = id.val();
+                if (is_instance(props, Value)) props = props.val();
                 if (view.$cache['#'] && view.$cache['#'].length)
                 {
                     // already references given component instance, given in order of rendering
                     component = view.$cache['#'].shift();
+                    while (component.top) component = component.top;
                     if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
                 }
                 if (!component)
@@ -8276,6 +8302,7 @@ MVComponentInstance[proto] = {
     ,model: null
     ,view: null
     ,dom: null
+    ,ndom: 0
     ,data: null
     ,dispose: function() {
         var self = this;
@@ -8286,6 +8313,7 @@ MVComponentInstance[proto] = {
         self.view = null;
         if (self.dom) self.dom.$mvComp = null;
         self.dom = null;
+        self.ndom = null;
         self.top = null;
         self.name = null;
         return self;

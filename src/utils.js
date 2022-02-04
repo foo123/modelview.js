@@ -1599,6 +1599,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 else if ('<mv-component>' === n.nodeType)
                 {
+                    var comp = null;
+                    n.component.ndom = n.potentialChildNodes;
                     node.potentialChildNodes += n.potentialChildNodes;
                     node.componentNodes += n.childNodes.length;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1606,11 +1608,20 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                     /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
                     AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
+                        var comp;
                         nn.parentNode = node;
                         nn.index = index++;
                         //nn.changed = nn.changed || n.changed;
-                        if (nn.component) nn.component.top = n.component;
-                        else nn.component = n.component;
+                        if (nn.component)
+                        {
+                            comp = nn.component;
+                            while (comp.top) comp = comp.top;
+                            comp.top = n.component;
+                        }
+                        else
+                        {
+                            nn.component = n.component;
+                        }
                         nn.unit = nn.unit || n.unit;
                         return nn;
                     }));
@@ -1788,7 +1799,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return out;
     },
     to_node = function to_node(view, vnode, with_meta) {
-        var rnode, i, l, a, v, n, t, isSVG, T = vnode.nodeType, TT;
+        var rnode, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
         if ('t' === T)
         {
             rnode = Text(vnode.nodeValue2);
@@ -1861,7 +1872,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             if (true === with_meta)
             {
-                if (vnode.component) {rnode.$mvComp = vnode.component; rnode.$mvComp.dom = rnode; vnode.component = null;}
+                if (vnode.component)
+                {
+                    c = rnode.$mvComp = vnode.component;
+                    vnode.component = null;
+                    c.dom = rnode; while (c.top) {c = c.top; c.dom = rnode;}
+                }
                 if (vnode.id) rnode.$mvId = vnode.id;
                 if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
             }

@@ -225,7 +225,7 @@ var namedKeyProp = "mv_namedkey",
 
         if ('sync' === event) event = 'change';
         iterate(function(i) {
-            var el, cel, comp, do_action, data;
+            var el, cel, c, comp, do_action, data;
             el = elements[i]; if (!el) return;
             do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
             if (!do_action || !do_action.length) return;
@@ -241,16 +241,20 @@ var namedKeyProp = "mv_namedkey",
                     cel = el;
                     while (cel)
                     {
-                        if (cel.$mvComp)
-                        {
-                            comp = view.$components['#'+cel.$mvComp.name];
-                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                        c = cel.$mvComp;
+                        do {
+                            if (c)
                             {
-                                data.component = cel.$mvComp;
-                                comp.opts.actions[do_action].call(cel.$mvComp, evt, el, data);
-                                return;
+                                comp = view.$components['#'+c.name];
+                                if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                                {
+                                    data.component = c;
+                                    comp.opts.actions[do_action].call(c, evt, el, data);
+                                    return;
+                                }
                             }
-                        }
+                            c = c.top;
+                        } while (c);
                         cel = cel.parentNode;
                         if (cel === view.$renderdom) return;
                     }
@@ -410,8 +414,11 @@ var namedKeyProp = "mv_namedkey",
         if (el && el.$mvComp && el.$mvComp.name && view.$components)
         {
             comp = el.$mvComp;
+            do {
             COMP = view.$components['#'+comp.name];
             if (COMP && COMP.opts && 'function' === typeof COMP.opts[fn]) COMP.opts[fn].call(comp, comp);
+            comp = comp.top;
+            } while (comp);
         }
     }
 ;
@@ -663,16 +670,19 @@ view.components( Object components );
             }
             if (c.out)
             {
-                if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)*/))
+                /*if ((arguments.length < 4) && ('object' === typeof(id) && null != id/*is_type(id, T_OBJ)* /))
                 {
                     childs = props;
                     props = id;
                     id = null;
-                }
+                }*/
+                if (is_instance(id, Value)) id = id.val();
+                if (is_instance(props, Value)) props = props.val();
                 if (view.$cache['#'] && view.$cache['#'].length)
                 {
                     // already references given component instance, given in order of rendering
                     component = view.$cache['#'].shift();
+                    while (component.top) component = component.top;
                     if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
                 }
                 if (!component)
@@ -1783,6 +1793,7 @@ MVComponentInstance[proto] = {
     ,model: null
     ,view: null
     ,dom: null
+    ,ndom: 0
     ,data: null
     ,dispose: function() {
         var self = this;
@@ -1793,6 +1804,7 @@ MVComponentInstance[proto] = {
         self.view = null;
         if (self.dom) self.dom.$mvComp = null;
         self.dom = null;
+        self.ndom = null;
         self.top = null;
         self.name = null;
         return self;
