@@ -153,7 +153,6 @@ if (!$.ModelView)
                 .context(options.context)
                 // custom view components
                 .components(options.components)
-                .attribute(options.attribute||'')
                 // init view
                 .livebind(options.livebind)
                 .autobind(options.autobind)

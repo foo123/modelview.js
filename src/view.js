@@ -688,7 +688,8 @@ view.components( Object components );
                 }
                 else
                 {
-                    changed = (c.opts && c.opts.changed ? c.opts.changed(component.props, props) : false) || (component.model ? component.model.isDirty() : false);
+                    changed = component.model ? component.model.isDirty() : false;
+                    changed = (c.opts && 'function' === typeof(c.opts.changed) ? c.opts.changed(component.props, props, component) : false) || changed;
                 }
                 component.props = props;
                 out = c.out.call(component, props, childs||[], htmlNode);
@@ -1713,12 +1714,12 @@ var MyComponent = ModelView.View.Component(
     String name,
     String htmlTpl [,
     Object options = {
-        model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
-        ,changed: (oldProps, newProps) => false // whether component has changed given new props
-        ,attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
+         attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
         ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
+        ,changed: (oldProps, newProps, componentInstance) => false // whether component has changed given new props
+        ,model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,actions: {
-            // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
+            // custom component actions here, if any, eg referenced as <.. mv-evt mv-on-click=":click"></..>
             click: function(evt, el, data) {
                 // update local clicks count and re-render
                 this.model.set('clicks', this.model.get('clicks')+1, true);
