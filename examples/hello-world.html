@@ -65,8 +65,9 @@
                         this.view.model().set('msg', 'World', true);
                     }
                 },
-                attach: () => {console.log('HelloButton attached to DOM')},
-                detach: () => {console.log('HelloButton detached from DOM')}
+                changed: (oldProps, newProps) => false,
+                attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
+                detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
             }
         )
     })

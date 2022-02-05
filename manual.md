@@ -806,8 +806,8 @@ var MyComponent = ModelView.View.Component(
     Object options = {
         model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,changed: (oldProps, newProps) => false // whether component has changed given new props
-        ,attach: (componentInstance) => {} // component attached to DOM, for componentInstance see below
-        ,detach: (componentInstance) => {} // component detached from DOM, for componentInstance see below
+        ,attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
+        ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
         ,actions: {
             // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
             click: function(evt, el, data) {
@@ -885,8 +885,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton attached to DOM')},
-            detach: () => {console.log('HelloButton detached from DOM')}
+            attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
+            detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
         }
     )
 })

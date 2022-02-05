@@ -373,27 +373,37 @@ var namedKeyProp = "mv_namedkey",
         return code;
     },
 
-    clearInvalid = function(view, dispose) {
+    clearInvalid = function(view) {
         // reset any Values/Collections present
         if (view.$model) view.$model.resetDirty();
         if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
         view.$reset = null;
-        nextTick(function(){
         if (view.$cache) Keys(view.$cache).forEach(function(id){
-            var comp = view.$cache[id];
+            var comp = view.$cache[id], COMP;
             if (is_instance(comp, MVComponentInstance))
             {
-                if (dispose && !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
+                COMP = view.$components['#'+comp.name];
+                if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
                 {
+                    if (1 === comp.status)
+                    {
+                        comp.status = 2;
+                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.detached) COMP.opts.detached.call(comp, comp);
+                    }
                     comp.dispose();
                     delete view.$cache[id];
                 }
-                else if (comp.model)
+                else
                 {
-                    comp.model.resetDirty();
+                    if (comp.model) comp.model.resetDirty();
+                    if (0 === comp.status)
+                    {
+                        comp.status = 1;
+                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.attached) COMP.opts.attached.call(comp, comp);
+                    }
                 }
             }
-        });});
+        });
     },
 
     clearAll = function(view) {
@@ -405,16 +415,6 @@ var namedKeyProp = "mv_namedkey",
                 delete view.$cache[id];
             }
         });
-    },
-
-    lifecycle = function(view, el, fn) {
-        var comp, COMP;
-        if (el && el.$mvComp && el.$mvComp.name && view.$components)
-        {
-            comp = el.$mvComp;
-            COMP = view.$components['#'+comp.name];
-            if (COMP && COMP.opts && 'function' === typeof COMP.opts[fn]) COMP.opts[fn].call(comp, comp);
-        }
     }
 ;
 
@@ -1096,8 +1096,10 @@ view.render( [Boolean immediate=false] );
                 }
                 callback = function() {
                     morphText(view.$map, view.model(), 'sync' === immediate ? null : view.$model.getDirty());
-                    // notify any 3rd-party also if needed
-                    view.publish('render', {});
+                    nextTick(function(){
+                        // notify any 3rd-party also if needed
+                        view.publish('render', {});
+                    });
                 };
                 if (true === immediate || 'sync' === immediate)
                 {
@@ -1116,8 +1118,7 @@ view.render( [Boolean immediate=false] );
                 view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
                 view.$model.resetDirty();
-                view.$reset = null;
-                view.$cache['#'] = null;
+                view.$reset = null; view.$cache['#'] = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
@@ -1126,9 +1127,11 @@ view.render( [Boolean immediate=false] );
                 view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode), true);
                 view.$cache['#'] = null;
-                clearInvalid(view, true);
-                // notify any 3rd-party also if needed
-                view.publish('render', {});
+                nextTick(function(){
+                    clearInvalid(view);
+                    // notify any 3rd-party also if needed
+                    view.publish('render', {});
+                });
             };
             if (true === immediate || 'sync' === immediate)
             {
@@ -1712,8 +1715,8 @@ var MyComponent = ModelView.View.Component(
     Object options = {
         model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,changed: (oldProps, newProps) => false // whether component has changed given new props
-        ,attach: (componentInstance) => {} // component attached to DOM, for componentInstance see below
-        ,detach: (componentInstance) => {} // component detached from DOM, for componentInstance see below
+        ,attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
+        ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
         ,actions: {
             // custom component actions here, if any, eg (referenced as <.. mv-evt mv-on-click=":click"></..>):
             click: function(evt, el, data) {
@@ -1765,17 +1768,19 @@ function MVComponentInstance(view, id, name, props, state, dom)
 {
     var self = this;
     if (!is_instance(self, MVComponentInstance)) return new MVComponentInstance(view, id, name, props, state, dom);
-    self.view = view;
+    self.status = 0;
     self.id = id;
     self.name = name;
     self.props = props || null;
-    self.model = state ? (is_instance(state, Model) ? state : new Model(self.id, state)) : null;
+    self.model = state ? (is_instance(state, Model) ? state : new Model(self.name, state)) : null;
+    self.view = view;
     self.dom = dom || null;
-    //self.data = {};
+    self.data = {};
 }
 View.Component.Instance = MVComponentInstance;
 MVComponentInstance[proto] = {
     constructor: MVComponentInstance
+    ,status: 0
     ,id: null
     ,name: null
     ,props: null
@@ -1785,6 +1790,7 @@ MVComponentInstance[proto] = {
     ,data: null
     ,dispose: function() {
         var self = this;
+        self.status = 2;
         self.data = null;
         self.props = null;
         if (self.model) self.model.dispose();
@@ -1792,7 +1798,6 @@ MVComponentInstance[proto] = {
         self.view = null;
         if (self.dom) self.dom.$mvComp = null;
         self.dom = null;
-        self.name = null;
         return self;
     }
 };

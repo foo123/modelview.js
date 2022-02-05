@@ -1686,28 +1686,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return node;
     },
-    traverse = function traverse(view, elements, fn, type) {
-        var el, i, l;
-        if (elements)
-        {
-            for (i = 0, l = elements.length; i < l; i++)
-            {
-                el = elements[i];
-                if ('bft' === type)
-                {
-                    // BFT
-                    lifecycle(view, el, fn);
-                    traverse(view, el.childNodes, fn, type);
-                }
-                else
-                {
-                    // DFT
-                    traverse(view, el.childNodes, fn, type);
-                    lifecycle(view, el, fn);
-                }
-            }
-        }
-    },
     as_unit = function as_unit(node) {
         if (is_instance(node, VNode))
         {
@@ -2059,7 +2037,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
         {
-            nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})(slice.call(r.childNodes, index+1, index+count+1)));
             var range = Range();
             if (range)
             {
@@ -2076,24 +2053,21 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
     },
     insNodes = function(view, r, v, index, count, lastNode) {
-        var frag = null, vc = v.childNodes.length, els;
+        var frag = null, vc = v.childNodes.length;
         if (1 < count)
         {
             // using fragment really faster??
             for (frag = Fragment(); 0 < count && index < vc /*&& frag.childNodes.length < count*/; count--,index++)
                 frag.appendChild(to_node(view, v.childNodes[index], true));
-            els = slice.call(frag.childNodes);
         }
         else if (0 < count && index < vc)
         {
             frag = to_node(view, v.childNodes[index++], true);
-            els = [frag];
         }
         if (frag)
         {
             if (lastNode) r.insertBefore(frag, lastNode);
             else r.appendChild(frag);
-            nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})(els));
         }
         return index;
     },
@@ -2140,8 +2114,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 {
                     el = to_node(view, vnode, true);
                     r.replaceChild(el, rnode);
-                    nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
-                    nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([el]));
                 }
             }
             else
@@ -2252,8 +2224,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 else
                 {
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
-                    nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                 }
             }
             else
@@ -2268,7 +2238,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                     {
                         r.insertBefore(frag=to_node(view, vnode, true), rnode);
                         count++;
-                        nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                     }
                     else
                     {
@@ -2302,8 +2271,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             else
                             {
                                 r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                                nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
-                                nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                             }
                         }
                     }
@@ -2325,10 +2292,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             vnode, rnode, lastnode, to_remove, T, frag, unconditionally,
             modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
 
-        if (v.component) {r.$mvComp = v.component; v.component = null;}
-        else if (r.$mvComp) r.$mvComp = null;
-        if (v.id) r.$mvId = v.id;
-        else if (r.$mvId) r.$mvId = null;
         // keeping ref both at node and vnode may hinder GC and increase mem consumption
         if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
@@ -2412,8 +2375,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         else
                         {
                             r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                            nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
-                            nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                         }
                     }
                     else
@@ -2428,7 +2389,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             {
                                 r.insertBefore(frag=to_node(view, vnode, true), rnode);
                                 count++;
-                                nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                             }
                             else
                             {
@@ -2462,8 +2422,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                                     else
                                     {
                                         r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                                        nextTick((function(els){return function(){traverse(view, els, 'detach', 'dft');};})([rnode]));
-                                        nextTick((function(els){return function(){traverse(view, els, 'attach', 'bft');};})([frag]));
                                     }
                                 }
                             }

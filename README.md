@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 4.0.0 in progress** (84 kB minified)
+**Version 4.0.0 in progress** (83 kB minified)
 
 
 **see also:**
@@ -87,8 +87,8 @@ new ModelView.View('view')
                 }
             },
             changed: (oldProps, newProps) => false,
-            attach: () => {console.log('HelloButton attached to DOM')},
-            detach: () => {console.log('HelloButton detached from DOM')}
+            attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
+            detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
         }
     )
 })
@@ -165,7 +165,7 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 **make sure** your custom component names **do not match default html element names!**
 
-ModelView furthermore has built-in (global) data Model which is available in each template (or component) via `view.model()` (`view` reference is available in all contexts and is always the main View instance, while `this` references the main view in main template, whereas it references the current component instance in a component template). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is. Components can have their own local Model as well to manage internal local state, see documentation.
+ModelView furthermore has built-in (global) data Model which is available in each template (or component) via `view.model()` (`view` reference is available in all contexts and is always the main View instance, while `this` references the main view in main template, whereas it references the current component instance in a component template). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Global Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is. Components can have their own local Model as well to manage internal local state, see documentation.
 
 ModelView also has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
 
@@ -218,7 +218,6 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-<!--
 Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 4.0.0 and some popular frameworks (env: Windows 7 64bit, Chrome 98.0.4758.82 64bit).
 
 
@@ -229,6 +228,7 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory](/examples/mem.png)
 
+
 **Non-Keyed Results**
 
 
@@ -236,10 +236,8 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory 2](/examples/mem2.png)
 
-It is shown that ModelView 4.0.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits and may be actually lower due to a bug in memory measurement (see noted issue) and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView 4.0.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits, and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
-As is clear from previous versions, ModelView consistently improves performance. Until the next update..
--->
 
 #### JavaScript and Browser Support
 
