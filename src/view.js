@@ -448,6 +448,7 @@ var View = function View(id, opts) {
 };
 // STATIC
 View.serialize = serialize_fields;
+View.nextTick = nextTick;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
@@ -665,6 +666,7 @@ view.components( Object components );
             }
             if (c.out)
             {
+                view.$cnt[nk] = (view.$cnt[nk] || 0)+1;
                 if (is_instance(id, Value)) id = id.val();
                 if (view.$cache['#'] && view.$cache['#'].length)
                 {
@@ -674,8 +676,6 @@ view.components( Object components );
                 }
                 if (!component)
                 {
-                    if (null == view.$cnt[nk]) view.$cnt[nk] = 1;
-                    else view.$cnt[nk]++;
                     compId = null == id ? name+'_#'+Str(view.$cnt[nk]) : name+'_id_'+Str(id);
                     component = view.$cache[compId];
                 }
@@ -1096,7 +1096,8 @@ view.render( [Boolean immediate=false] );
                     view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    morphText(view.$map, view.model(), 'sync' === immediate ? null : view.$model.getDirty());
+                    morphText(view.$map, view.$model, 'sync' === immediate ? null : view.$model.getDirty());
+                    view.$model.resetDirty();
                     nextTick(function(){
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
