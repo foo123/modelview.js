@@ -2152,8 +2152,8 @@ var key = value.key(); // get key of value (if associated with some Model key, e
 function Value(_val, _key, _dirty)
 {
     var self = this;
-    if (is_instance(_val, Value)) return new Value(_val.val(), _val.key(), _val.dirty());
     if (arguments.length < 3) _dirty = true;
+    if (is_instance(_val, Value)) {_dirty = _val.dirty(); _key = _val.key(); _val = _val.val();}
     if (!is_instance(self, Value)) return new Value(_val, _key, _dirty);
 
     self.key = function() {
@@ -2167,7 +2167,7 @@ function Value(_val, _key, _dirty)
         if (val !== _val)
         {
             _val = val;
-            if (!noDirty) _dirty = true;
+            _dirty = !noDirty;
         }
         return self;
     };

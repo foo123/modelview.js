@@ -239,7 +239,7 @@ View = new ModelView.View('todoview')
             {
                 // remove
                 Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
-                if (todo.completed) Model.$data.todoList.completed--;
+                if (todo.completed.val()) Model.$data.todoList.completed--;
                 else Model.$data.todoList.active--;
                 Model.notify('todoList');
             }
@@ -284,7 +284,7 @@ View = new ModelView.View('todoview')
         {
             // remove
             Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
-            if (todo.completed) Model.$data.todoList.completed--;
+            if (todo.completed.val()) Model.$data.todoList.completed--;
             else Model.$data.todoList.active--;
             Model.notify('todoList');
         }
