@@ -28,24 +28,52 @@ DnDSortable.prototype = {
             window.Element.prototype.$dndRect = null;
 
         var self = this, draggingEle, handlerEle, parent, parentRect,
-            y0, lastY, isDraggingStarted = false, closestEle, dir;
+            y0, lastY, isDraggingStarted = false, closestEle, dir, moved;
 
         if (self.handler) return;
 
-        var swap = function(nodeA, nodeB, withRect) {
-            var siblingA = nodeA.nextSibling === nodeB ? nodeA : nodeA.nextSibling, tmp, delta;
-            if (withRect)
+        var move = function(movedNode, refNode, dir) {
+            var next, delta, pos, limitNode;
+            if (0 > dir)
             {
-                delta = nodeA.$dndRect.height-nodeB.$dndRect.height;
-                tmp = nodeA.$dndRect.top;
-                nodeA.$dndRect.top = nodeB.$dndRect.top-delta;
-                nodeB.$dndRect.top = tmp+delta;
+                limitNode = movedNode.nextElementSibling;
+                pos = movedNode.$dndRect.top;
+                // Move `movedNode` before the `refNode`
+                parent.insertBefore(movedNode, refNode);
+                movedNode.$dndRect.top = refNode.$dndRect.top;
+                delta = movedNode.$dndRect.height-refNode.$dndRect.height;
+                while ((next = refNode.nextElementSibling) && (next !== limitNode))
+                {
+                    refNode.$dndRect.top = next.$dndRect.top+delta;
+                    refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
+                    delta = refNode.$dndRect.height-next.$dndRect.height;
+                    refNode = next;
+                }
+                refNode.$dndRect.top = pos+delta;
+                refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
             }
-            // Move `nodeA` before the `nodeB`
-            parent.insertBefore(nodeA, nodeB);
-            // Move `nodeB` before the sibling of `nodeA`
-            parent.insertBefore(nodeB, siblingA);
-        };
+            else if (0 < dir)
+            {
+                limitNode = movedNode.previousElementSibling;
+                pos = movedNode.$dndRect.top;
+                // Move `movedNode` after the `refNode`
+                if (refNode.nextElementSibling)
+                    parent.insertBefore(movedNode, refNode.nextElementSibling);
+                else
+                    parent.appendChild(movedNode);
+                movedNode.$dndRect.top = refNode.$dndRect.top;
+                delta = movedNode.$dndRect.height-refNode.$dndRect.height;
+                while ((next = refNode.previousElementSibling) && (next !== limitNode))
+                {
+                    refNode.$dndRect.top = next.$dndRect.top-delta;
+                    refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
+                    delta = refNode.$dndRect.height-next.$dndRect.height;
+                    refNode = next;
+                }
+                refNode.$dndRect.top = pos-delta;
+                refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
+            }
+       };
 
         var intersect = function(nodeA, nodeB) {
             var rectA = nodeA.getBoundingClientRect(), rectB = nodeB.getBoundingClientRect();
@@ -100,27 +128,37 @@ DnDSortable.prototype = {
         };
 
         var dragMove = throttle(function(e) {
-            var prevEle, nextEle, p = 0, y;
+            var prevEle, nextEle, hoverEle, p = 0, y, x;
 
             y = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY;
+            x = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientX : e.clientX;
             // Set position for dragging element
             draggingEle.style.top = String(y - y0)+'px';
 
-            if (closestEle && ((1 === dir && lastY < y) || (-1 === dir && lastY > y)))
+            if (closestEle && ((-1 === dir && lastY < y) || (1 === dir && lastY > y)))
             {
                 closestEle.classList.remove(self.opts.closest || 'dnd-closest');
                 closestEle = null;
             }
 
-            lastY = y;
-
             if (!closestEle)
+            {
+                hoverEle = document.elementsFromPoint(x, y).filter(function(el){
+                    return (el !== draggingEle) && el.matches(self.opts.item || '.dnd-item');
+                })[0];
+                if (hoverEle && (p=intersect(draggingEle, hoverEle)))
+                {
+                    closestEle = hoverEle; dir = lastY < y ? 1 : -1; moved = false;
+                }
+            }
+
+            /*if (!closestEle)
             {
                 // User moves the dragging element to the top
                 prevEle = draggingEle.previousElementSibling;
                 if (prevEle && (p=intersect(draggingEle, prevEle)))
                 {
-                    closestEle = prevEle; dir = 1;
+                    closestEle = prevEle; dir = -1; moved = false;
                 }
             }
 
@@ -130,10 +168,12 @@ DnDSortable.prototype = {
                 nextEle = draggingEle.nextElementSibling;
                 if (nextEle && (p=intersect(nextEle, draggingEle)))
                 {
-                    closestEle = nextEle; dir = -1;
+                    closestEle = nextEle; dir = 1; moved = false;
                 }
-            }
+            }*/
 
+            lastY = y;
+            
             if (closestEle)
             {
                 p = p || intersect(draggingEle, closestEle);
@@ -147,19 +187,10 @@ DnDSortable.prototype = {
                     {
                         closestEle.classList.remove(self.opts.closest || 'dnd-closest');
                     }
-                    if (p <= 0.5)
+                    if ((p <= 0.5) && !moved)
                     {
-                        if (p <= 0.25)
-                        {
-                            if (
-                            (1 === dir && draggingEle !== closestEle.previousElementSibling) ||
-                            (-1 === dir && draggingEle !== closestEle.nextElementSibling)
-                            )
-                            {
-                                swap(draggingEle, closestEle, true);
-                            }
-                        }
-                        closestEle.style.top = String(closestEle.$dndRect.top-parentRect.top + dir*p*closestEle.$dndRect.height)+'px';
+                        moved = true;
+                        move(draggingEle, closestEle, dir);
                     }
                 }
                 else
@@ -213,7 +244,7 @@ function throttle(f, limit)
         if (!inThrottle)
         {
             f.apply(context, args);
-            inThrottle = true
+            inThrottle = true;
             setTimeout(function(){inThrottle = false;}, limit);
         }
     };
@@ -519,14 +550,13 @@ View = new ModelView.View('todoview')
 
         if (todo)
         {
+            Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
             if ($todo.nextElementSibling)
             {
-                Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
                 Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.nextElementSibling.id)[0]), 0, todo);
             }
             else
             {
-                Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
                 Model.$data.todoList.todos.push(todo);
             }
             autoStoreModel();
