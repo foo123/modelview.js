@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-08 03:30:56
+*   @built on 2022-02-08 03:51:43
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-08 03:30:56
+*   @built on 2022-02-08 03:51:43
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2084,7 +2084,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     eqNodes = function(r, v, T) {
         T = T || nodeType(r);
-        return (T === v.nodeType) && ((!v.component && !r.$mvComp) || (v.component.name === r.$mvComp.name)) && (v.id === r.$mvId) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
+        return (T === v.nodeType) && ((null == v.component && null == r.$mvComp) || (null != v.component && null != r.$mvComp && (v.component.name === r.$mvComp.name))) && (v.id === r.$mvId) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
     },
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)

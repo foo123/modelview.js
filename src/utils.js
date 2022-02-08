@@ -2032,7 +2032,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     eqNodes = function(r, v, T) {
         T = T || nodeType(r);
-        return (T === v.nodeType) && ((!v.component && !r.$mvComp) || (v.component.name === r.$mvComp.name)) && (v.id === r.$mvId) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
+        return (T === v.nodeType) && ((null == v.component && null == r.$mvComp) || (null != v.component && null != r.$mvComp && (v.component.name === r.$mvComp.name))) && (v.id === r.$mvId) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
     },
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
