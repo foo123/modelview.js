@@ -25,7 +25,7 @@ body {
 	line-height: 1.4em;
 	background: #eaeaea url('bg.png');
 	color: #4d4d4d;
-	width: 550px;
+	width: 700px;
     max-width: 100%;
 	margin: 0 auto;
 	-webkit-font-smoothing: antialiased;
@@ -220,8 +220,8 @@ label[for='toggle-all'] {
 	-ms-appearance: none;
 	-o-appearance: none;
 	appearance: none;
+    outline: none;
 }
-
 #todo-list li .toggle:after {
 	content: '✔';
 	line-height: 43px; /* 40 + a couple of pixels visual adjustment */
@@ -229,19 +229,47 @@ label[for='toggle-all'] {
 	color: #d9d9d9;
 	text-shadow: 0 -1px 0 #bfbfbf;
 }
-
 #todo-list li .toggle:checked:after {
 	color: #85ada7;
 	text-shadow: 0 1px 0 #669991;
 	bottom: 1px;
 	position: relative;
 }
-
+#todo-list li .drag {
+	text-align: center;
+	width: 40px;
+	/* auto, since non-WebKit browsers doesn't support input styling */
+	height: auto;
+	position: absolute;
+    text-decoration: none;
+    left: 40px;
+	top: 0;
+	bottom: 0;
+    display: block;
+	margin: auto 0;
+    background: none;
+	border: none;
+    outline: none;
+    cursor: ns-resize;
+}
+#todo-list li .drag:after {
+	content: '⇅';
+	line-height: 64px; /* 40 + a couple of pixels visual adjustment */
+	font-size: 32px;
+	color: #d9d9d9;
+    display: inline-block;
+	text-shadow: 0 -1px 0 #bfbfbf;
+}
+#todo-list li .drag:active:after,
+#todo-list li .drag:hover:after {
+	color: #444;
+    font-weight: bold;
+}
 #todo-list li label {
 	word-break: break-word;
 	padding: 15px;
     padding-right: 90px;
-	margin-left: 45px;
+	margin-left: 85px;
 	display: block;
 	line-height: 1.2;
 	-webkit-transition: color 0.4s;
@@ -316,9 +344,9 @@ label[for='toggle-all'] {
 	content: '✎';
 }
 
-#todo-list li:hover .time-added,
-#todo-list li:hover .process,
-#todo-list li:hover .destroy {
+#todo-list li:not(.dnd-dragged):hover .time-added,
+#todo-list li:not(.dnd-dragged):hover .process,
+#todo-list li:not(.dnd-dragged):hover .destroy {
 	display: block;
 }
 
@@ -328,6 +356,25 @@ label[for='toggle-all'] {
 
 #todo-list li.editing:last-child {
 	margin-bottom: -1px;
+}
+
+#todo-list li.dnd-dragged {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-height: 50px;
+    overflow: hidden;
+    border: 4px dashed #669991;
+    z-index: 100;
+}
+#todo-list li.dnd-closest {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-height: 50px;
+    border: 2px dashed #f00;
+    overflow: hidden;
+    z-index: 90;
 }
 
 #footer {

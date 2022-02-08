@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-06 13:29:09
+*   @built on 2022-02-08 03:30:56
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 4.0.0
-*   @built on 2022-02-06 13:29:09
+*   @built on 2022-02-08 03:30:56
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -1892,8 +1892,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if (vnode.component)
                 {
-                    c = rnode.$mvComp = vnode.component;
-                    vnode.component = null;
+                    c = rnode.$mvComp = vnode.component; vnode.component = null;
+                    if (c.dom) c.dom.$mvComp = null;
                     c.dom = rnode;
                 }
                 if (vnode.id) rnode.$mvId = vnode.id;
@@ -2342,8 +2342,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
             count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index,
             vnode, rnode, lastnode, to_remove, T, frag, unconditionally,
-            modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes;
+            modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes,
+            rComp = r.$mvComp, vComp = v.component;
 
+        r.$mvId = v.id;
+        r.$mvComp = vComp; v.component = null;
+        if ((rComp !== vComp) && rComp) rComp.dom = null;
+        if (vComp) vComp.dom = r;
         // keeping ref both at node and vnode may hinder GC and increase mem consumption
         if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
         else if (r.$mvMod) r.$mvMod = null;
@@ -6813,7 +6818,8 @@ var namedKeyProp = "mv_namedkey",
                     if (1 === comp.status)
                     {
                         comp.status = 2;
-                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.detached) COMP.opts.detached.call(comp, comp);
+                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
+                            COMP.opts.detached.call(comp, comp);
                     }
                     comp.dispose();
                     delete view.$cache[id];
@@ -6824,7 +6830,8 @@ var namedKeyProp = "mv_namedkey",
                     if (0 === comp.status)
                     {
                         comp.status = 1;
-                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.attached) COMP.opts.attached.call(comp, comp);
+                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
+                            COMP.opts.attached.call(comp, comp);
                     }
                 }
             }

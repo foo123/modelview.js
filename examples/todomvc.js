@@ -1,6 +1,224 @@
 !function(window, Storage, ModelView) {
 "use strict";
 
+function DnDSortable(opts)
+{
+    var self = this;
+    if (!(self instanceof DnDSortable)) return new DnDSortable(opts);
+    self.opts = opts || {};
+    self.init();
+}
+DnDSortable.prototype = {
+    constructor: DnDSortable
+    ,opts: null
+    ,handler: null
+    ,dispose: function() {
+        var self = this;
+        if (self.handler)
+        {
+            document.removeEventListener('touchstart', self.handler, true);
+            document.removeEventListener('mousedown', self.handler, true);
+        }
+        self.handler = null;
+        self.opts = null;
+        return self;
+    }
+    ,init: function() {
+        if (!Object.prototype.hasOwnProperty.call(window.Element.prototype, '$dndRect'))
+            window.Element.prototype.$dndRect = null;
+
+        var self = this, draggingEle, handlerEle, parent, parentRect,
+            y0, lastY, isDraggingStarted = false, closestEle, dir;
+
+        if (self.handler) return;
+
+        var swap = function(nodeA, nodeB, withRect) {
+            var siblingA = nodeA.nextSibling === nodeB ? nodeA : nodeA.nextSibling, tmp, delta;
+            if (withRect)
+            {
+                delta = nodeA.$dndRect.height-nodeB.$dndRect.height;
+                tmp = nodeA.$dndRect.top;
+                nodeA.$dndRect.top = nodeB.$dndRect.top-delta;
+                nodeB.$dndRect.top = tmp+delta;
+            }
+            // Move `nodeA` before the `nodeB`
+            parent.insertBefore(nodeA, nodeB);
+            // Move `nodeB` before the sibling of `nodeA`
+            parent.insertBefore(nodeB, siblingA);
+        };
+
+        var intersect = function(nodeA, nodeB) {
+            var rectA = nodeA.getBoundingClientRect(), rectB = nodeB.getBoundingClientRect();
+            if (rectA.top > rectB.top && rectA.top < rectB.top + rectB.height)
+                return (rectA.top-rectB.top) / (rectB.height);
+            else if (rectB.top > rectA.top && rectB.top < rectA.top + rectA.height)
+                return (rectB.top-rectA.top) / (rectA.height);
+            return 0;
+        };
+
+        var dragStart = self.handler = function(e) {
+            if (isDraggingStarted || !e.target || !e.target.matches(self.opts.handle || '.dnd-handle')) return;
+            handlerEle = e.target;
+            draggingEle = handlerEle.closest(self.opts.item || '.dnd-item');
+            if (!draggingEle) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            parent = draggingEle.parentNode;
+
+            if ('function' === typeof self.opts.onStart) self.opts.onStart(draggingEle);
+
+            isDraggingStarted = true;
+            closestEle = null;
+
+            parentRect = parent.getBoundingClientRect();
+            [].forEach.call(parent.children, function(el){
+                var r = el.getBoundingClientRect();
+                el.$dndRect = {top: r.top, left: r.left, width: r.width, height: r.height};
+            });
+            parent.classList.add(self.opts.container || 'dnd-container');
+            parent.style.paddingBottom = String(parentRect.height) + 'px';
+            parent.style.height = '0px';
+            draggingEle.draggable = false; // disable native drag
+            draggingEle.classList.add(self.opts.dragged || 'dnd-dragged');
+            [].forEach.call(parent.children, function(el){
+                el.style.position = 'absolute';
+                el.style.top = String(el.$dndRect.top-parentRect.top)+'px';
+                el.style.left = String(el.$dndRect.left-parentRect.left)+'px';
+            });
+            lastY = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY;
+            y0 = lastY + parentRect.top - draggingEle.$dndRect.top;
+            // Set position for dragging element
+            draggingEle.style.top = String((e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY) - y0)+'px';
+
+            // Attach the listeners to `document`
+            document.addEventListener('touchmove', dragMove, false);
+            document.addEventListener('touchend', dragEnd, false);
+            document.addEventListener('touchcancel', dragEnd, false);
+            document.addEventListener('mousemove', dragMove, false);
+            document.addEventListener('mouseup', dragEnd, false);
+        };
+
+        var dragMove = throttle(function(e) {
+            var prevEle, nextEle, p = 0, y;
+
+            y = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY;
+            // Set position for dragging element
+            draggingEle.style.top = String(y - y0)+'px';
+
+            if (closestEle && ((1 === dir && lastY < y) || (-1 === dir && lastY > y)))
+            {
+                closestEle.classList.remove(self.opts.closest || 'dnd-closest');
+                closestEle = null;
+            }
+
+            lastY = y;
+
+            if (!closestEle)
+            {
+                // User moves the dragging element to the top
+                prevEle = draggingEle.previousElementSibling;
+                if (prevEle && (p=intersect(draggingEle, prevEle)))
+                {
+                    closestEle = prevEle; dir = 1;
+                }
+            }
+
+            if (!closestEle)
+            {
+                // User moves the dragging element to the bottom
+                nextEle = draggingEle.nextElementSibling;
+                if (nextEle && (p=intersect(nextEle, draggingEle)))
+                {
+                    closestEle = nextEle; dir = -1;
+                }
+            }
+
+            if (closestEle)
+            {
+                p = p || intersect(draggingEle, closestEle);
+                if (p)
+                {
+                    if (p >= 0.2)
+                    {
+                        closestEle.classList.add(self.opts.closest || 'dnd-closest');
+                    }
+                    else
+                    {
+                        closestEle.classList.remove(self.opts.closest || 'dnd-closest');
+                    }
+                    if (p <= 0.5)
+                    {
+                        if (p <= 0.25)
+                        {
+                            if (
+                            (1 === dir && draggingEle !== closestEle.previousElementSibling) ||
+                            (-1 === dir && draggingEle !== closestEle.nextElementSibling)
+                            )
+                            {
+                                swap(draggingEle, closestEle, true);
+                            }
+                        }
+                        closestEle.style.top = String(closestEle.$dndRect.top-parentRect.top + dir*p*closestEle.$dndRect.height)+'px';
+                    }
+                }
+                else
+                {
+                    closestEle.classList.remove(self.opts.closest || 'dnd-closest');
+                    closestEle = null;
+                }
+            }
+        }, 20);
+
+        var dragEnd = function(e) {
+            // Remove the handlers of `mousemove` and `mouseup`
+            document.removeEventListener('touchmove', dragMove, false);
+            document.removeEventListener('touchend', dragEnd, false);
+            document.removeEventListener('touchcancel', dragEnd, false);
+            document.removeEventListener('mousemove', dragMove, false);
+            document.removeEventListener('mouseup', dragEnd, false);
+
+            [].forEach.call(parent.children, function(el){
+                el.$dndRect = null;
+                el.style.removeProperty('position');
+                el.style.removeProperty('top');
+                el.style.removeProperty('left');
+            });
+            parent.style.removeProperty('padding-bottom');
+            parent.style.removeProperty('height');
+            parent.classList.remove(self.opts.container || 'dnd-container');
+            if (closestEle) closestEle.classList.remove(self.opts.closest || 'dnd-closest');
+            draggingEle.classList.remove(self.opts.dragged || 'dnd-dragged');
+
+            if ('function' === typeof self.opts.onEnd) self.opts.onEnd(draggingEle);
+
+            draggingEle = null;
+            handlerEle = null;
+            parent = null;
+            parentRect = null;
+            closestEle = null;
+            isDraggingStarted = false;
+        };
+
+        document.addEventListener('touchstart', dragStart, true);
+        document.addEventListener('mousedown', dragStart, true);
+    }
+};
+
+function throttle(f, limit)
+{
+    var inThrottle = false;
+    return function() {
+        var args = arguments, context = this;
+        if (!inThrottle)
+        {
+            f.apply(context, args);
+            inThrottle = true
+            setTimeout(function(){inThrottle = false;}, limit);
+        }
+    };
+}
+
 function debounce(f, wait, immediate)
 {
     var timeout;
@@ -289,6 +507,31 @@ View = new ModelView.View('todoview')
             Model.notify('todoList');
         }
     }
+    ,reorder: function($todo) {
+        /*var todos = Model.$data.todoList.todos.reduce(function(todos, todo){
+            todos[todo.uuid.val()] = todo;
+            return todos;
+        }, {});
+        Model.$data.todoList.todos = [].map.call(document.getElementById('todo-list').children, function($todo){
+            return todos[$todo.id];
+        });*/
+        var todo = $todo ? Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.id)[0] : null;
+
+        if (todo)
+        {
+            if ($todo.nextElementSibling)
+            {
+                Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
+                Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(Model.$data.todoList.todos.filter(todo => todo.uuid.val() == $todo.nextElementSibling.id)[0]), 0, todo);
+            }
+            else
+            {
+                Model.$data.todoList.todos.splice(Model.$data.todoList.todos.indexOf(todo), 1);
+                Model.$data.todoList.todos.push(todo);
+            }
+            autoStoreModel();
+        }
+    }
 })
 .bind(['change', 'click', 'dblclick', 'blur'/*'focusout'*/], document.getElementById('todoapp'))
 ;
@@ -297,6 +540,14 @@ View = new ModelView.View('todoview')
 updateModelFromStorage();
 
 window.addEventListener('hashchange', function() {route(location.hash);}, false);
+
+DnDSortable({
+    handle: '.drag',
+    item: '.todo',
+    onEnd: function($todo){
+        View.do_reorder($todo);
+    }
+});
 
 if (location.hash) route(location.hash);
 // auto-trigger

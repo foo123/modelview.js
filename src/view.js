@@ -388,7 +388,8 @@ var namedKeyProp = "mv_namedkey",
                     if (1 === comp.status)
                     {
                         comp.status = 2;
-                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.detached) COMP.opts.detached.call(comp, comp);
+                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
+                            COMP.opts.detached.call(comp, comp);
                     }
                     comp.dispose();
                     delete view.$cache[id];
@@ -399,7 +400,8 @@ var namedKeyProp = "mv_namedkey",
                     if (0 === comp.status)
                     {
                         comp.status = 1;
-                        if (COMP && COMP.opts && 'function' === typeof COMP.opts.attached) COMP.opts.attached.call(comp, comp);
+                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
+                            COMP.opts.attached.call(comp, comp);
                     }
                 }
             }
