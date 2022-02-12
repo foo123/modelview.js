@@ -1,254 +1,5 @@
-!function(window, Storage, ModelView) {
+!function(window, Storage, AreaSortable, ModelView) {
 "use strict";
-
-function DnDSortable(opts)
-{
-    var self = this;
-    if (!(self instanceof DnDSortable)) return new DnDSortable(opts);
-    self.opts = opts || {};
-    self.init();
-}
-DnDSortable.prototype = {
-    constructor: DnDSortable
-    ,opts: null
-    ,handler: null
-    ,dispose: function() {
-        var self = this;
-        if (self.handler)
-        {
-            document.removeEventListener('touchstart', self.handler, true);
-            document.removeEventListener('mousedown', self.handler, true);
-        }
-        self.handler = null;
-        self.opts = null;
-        return self;
-    }
-    ,init: function() {
-        if (!Object.prototype.hasOwnProperty.call(window.Element.prototype, '$dndRect'))
-            window.Element.prototype.$dndRect = null;
-
-        var self = this, draggingEle, handlerEle, parent, parentRect,
-            y0, lastY, isDraggingStarted = false, closestEle, dir, moved;
-
-        if (self.handler) return;
-
-        var move = function(movedNode, refNode, dir) {
-            var next, delta, pos, limitNode;
-            if (0 > dir)
-            {
-                limitNode = movedNode.nextElementSibling;
-                pos = movedNode.$dndRect.top;
-                // Move `movedNode` before the `refNode`
-                parent.insertBefore(movedNode, refNode);
-                movedNode.$dndRect.top = refNode.$dndRect.top;
-                delta = movedNode.$dndRect.height-refNode.$dndRect.height;
-                while ((next = refNode.nextElementSibling) && (next !== limitNode))
-                {
-                    refNode.$dndRect.top = next.$dndRect.top+delta;
-                    refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
-                    delta = refNode.$dndRect.height-next.$dndRect.height;
-                    refNode = next;
-                }
-                refNode.$dndRect.top = pos+delta;
-                refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
-            }
-            else if (0 < dir)
-            {
-                limitNode = movedNode.previousElementSibling;
-                pos = movedNode.$dndRect.top;
-                // Move `movedNode` after the `refNode`
-                if (refNode.nextElementSibling)
-                    parent.insertBefore(movedNode, refNode.nextElementSibling);
-                else
-                    parent.appendChild(movedNode);
-                movedNode.$dndRect.top = refNode.$dndRect.top;
-                delta = movedNode.$dndRect.height-refNode.$dndRect.height;
-                while ((next = refNode.previousElementSibling) && (next !== limitNode))
-                {
-                    refNode.$dndRect.top = next.$dndRect.top-delta;
-                    refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
-                    delta = refNode.$dndRect.height-next.$dndRect.height;
-                    refNode = next;
-                }
-                refNode.$dndRect.top = pos-delta;
-                refNode.style.top = String(refNode.$dndRect.top-parentRect.top)+'px';
-            }
-       };
-
-        var intersect = function(nodeA, nodeB) {
-            var rectA = nodeA.getBoundingClientRect(), rectB = nodeB.getBoundingClientRect();
-            if (rectA.top > rectB.top && rectA.top < rectB.top + rectB.height)
-                return (rectA.top-rectB.top) / (rectB.height);
-            else if (rectB.top > rectA.top && rectB.top < rectA.top + rectA.height)
-                return (rectB.top-rectA.top) / (rectA.height);
-            return 0;
-        };
-
-        var dragStart = self.handler = function(e) {
-            if (isDraggingStarted || !e.target || !e.target.matches(self.opts.handle || '.dnd-handle')) return;
-            handlerEle = e.target;
-            draggingEle = handlerEle.closest(self.opts.item || '.dnd-item');
-            if (!draggingEle) return;
-
-            e.preventDefault();
-            e.stopPropagation();
-            parent = draggingEle.parentNode;
-
-            if ('function' === typeof self.opts.onStart) self.opts.onStart(draggingEle);
-
-            isDraggingStarted = true;
-            closestEle = null;
-
-            parentRect = parent.getBoundingClientRect();
-            [].forEach.call(parent.children, function(el){
-                var r = el.getBoundingClientRect();
-                el.$dndRect = {top: r.top, left: r.left, width: r.width, height: r.height};
-            });
-            parent.classList.add(self.opts.container || 'dnd-container');
-            parent.style.paddingBottom = String(parentRect.height) + 'px';
-            parent.style.height = '0px';
-            draggingEle.draggable = false; // disable native drag
-            draggingEle.classList.add(self.opts.dragged || 'dnd-dragged');
-            [].forEach.call(parent.children, function(el){
-                el.style.position = 'absolute';
-                el.style.top = String(el.$dndRect.top-parentRect.top)+'px';
-                el.style.left = String(el.$dndRect.left-parentRect.left)+'px';
-            });
-            lastY = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY;
-            y0 = lastY + parentRect.top - draggingEle.$dndRect.top;
-            // Set position for dragging element
-            draggingEle.style.top = String((e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY) - y0)+'px';
-
-            // Attach the listeners to `document`
-            document.addEventListener('touchmove', dragMove, false);
-            document.addEventListener('touchend', dragEnd, false);
-            document.addEventListener('touchcancel', dragEnd, false);
-            document.addEventListener('mousemove', dragMove, false);
-            document.addEventListener('mouseup', dragEnd, false);
-        };
-
-        var dragMove = throttle(function(e) {
-            var prevEle, nextEle, hoverEle, p = 0, y, x;
-
-            y = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientY : e.clientY;
-            x = e.changedTouches && e.changedTouches.length ? e.changedTouches[0].clientX : e.clientX;
-            // Set position for dragging element
-            draggingEle.style.top = String(y - y0)+'px';
-
-            if (closestEle && ((-1 === dir && lastY < y) || (1 === dir && lastY > y)))
-            {
-                closestEle.classList.remove(self.opts.closest || 'dnd-closest');
-                closestEle = null;
-            }
-
-            if (!closestEle)
-            {
-                hoverEle = document.elementsFromPoint(x, y).filter(function(el){
-                    return (el !== draggingEle) && el.matches(self.opts.item || '.dnd-item');
-                })[0];
-                if (hoverEle && (p=intersect(draggingEle, hoverEle)))
-                {
-                    closestEle = hoverEle; dir = lastY < y ? 1 : -1; moved = false;
-                }
-            }
-
-            /*if (!closestEle)
-            {
-                // User moves the dragging element to the top
-                prevEle = draggingEle.previousElementSibling;
-                if (prevEle && (p=intersect(draggingEle, prevEle)))
-                {
-                    closestEle = prevEle; dir = -1; moved = false;
-                }
-            }
-
-            if (!closestEle)
-            {
-                // User moves the dragging element to the bottom
-                nextEle = draggingEle.nextElementSibling;
-                if (nextEle && (p=intersect(nextEle, draggingEle)))
-                {
-                    closestEle = nextEle; dir = 1; moved = false;
-                }
-            }*/
-
-            lastY = y;
-            
-            if (closestEle)
-            {
-                p = p || intersect(draggingEle, closestEle);
-                if (p)
-                {
-                    if (p >= 0.2)
-                    {
-                        closestEle.classList.add(self.opts.closest || 'dnd-closest');
-                    }
-                    else
-                    {
-                        closestEle.classList.remove(self.opts.closest || 'dnd-closest');
-                    }
-                    if ((p <= 0.5) && !moved)
-                    {
-                        moved = true;
-                        move(draggingEle, closestEle, dir);
-                    }
-                }
-                else
-                {
-                    closestEle.classList.remove(self.opts.closest || 'dnd-closest');
-                    closestEle = null;
-                }
-            }
-        }, 20);
-
-        var dragEnd = function(e) {
-            // Remove the handlers of `mousemove` and `mouseup`
-            document.removeEventListener('touchmove', dragMove, false);
-            document.removeEventListener('touchend', dragEnd, false);
-            document.removeEventListener('touchcancel', dragEnd, false);
-            document.removeEventListener('mousemove', dragMove, false);
-            document.removeEventListener('mouseup', dragEnd, false);
-
-            [].forEach.call(parent.children, function(el){
-                el.$dndRect = null;
-                el.style.removeProperty('position');
-                el.style.removeProperty('top');
-                el.style.removeProperty('left');
-            });
-            parent.style.removeProperty('padding-bottom');
-            parent.style.removeProperty('height');
-            parent.classList.remove(self.opts.container || 'dnd-container');
-            if (closestEle) closestEle.classList.remove(self.opts.closest || 'dnd-closest');
-            draggingEle.classList.remove(self.opts.dragged || 'dnd-dragged');
-
-            if ('function' === typeof self.opts.onEnd) self.opts.onEnd(draggingEle);
-
-            draggingEle = null;
-            handlerEle = null;
-            parent = null;
-            parentRect = null;
-            closestEle = null;
-            isDraggingStarted = false;
-        };
-
-        document.addEventListener('touchstart', dragStart, true);
-        document.addEventListener('mousedown', dragStart, true);
-    }
-};
-
-function throttle(f, limit)
-{
-    var inThrottle = false;
-    return function() {
-        var args = arguments, context = this;
-        if (!inThrottle)
-        {
-            f.apply(context, args);
-            inThrottle = true;
-            setTimeout(function(){inThrottle = false;}, limit);
-        }
-    };
-}
 
 function debounce(f, wait, immediate)
 {
@@ -264,6 +15,19 @@ function debounce(f, wait, immediate)
         timeout = setTimeout(later, wait);
         if (callNow) f.apply(ctx, args);
     };
+}
+
+function disableScroll()
+{
+    // Get the current page scroll position
+    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0,
+        scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    // if any scroll is attempted, set this to the previous value
+    window.onscroll = function() {window.scrollTo(scrollLeft, scrollTop);};
+}
+function enableScroll()
+{
+    window.onscroll = function() {};
 }
 
 function autoStoreModel()
@@ -571,10 +335,16 @@ updateModelFromStorage();
 
 window.addEventListener('hashchange', function() {route(location.hash);}, false);
 
-DnDSortable({
-    handle: '.drag',
-    item: '.todo',
+AreaSortable('vertical', {
+    container: 'todo-list',
+    handle: 'drag',
+    item: 'todo',
+    activeItem: 'dnd-dragged',
+    closestItem: 'dnd-closest',
+    animationMs: 180,
+    onStart: disableScroll,
     onEnd: function($todo){
+        enableScroll()
         View.do_reorder($todo);
     }
 });
@@ -584,4 +354,4 @@ if (location.hash) route(location.hash);
 else location.hash = '#/all';
 
 View.render();
-}(window, Storage, ModelView);
+}(window, Storage, AreaSortable, ModelView);
