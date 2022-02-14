@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.0.0
-*   @built on 2022-02-08 03:51:43
+*   @version: 4.0.1
+*   @built on 2022-02-14 15:41:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 4.0.0
-*   @built on 2022-02-08 03:51:43
+*   @version: 4.0.1
+*   @built on 2022-02-14 15:41:23
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.0.0**
+**Version 4.0.1**
 
 ### Contents
 
@@ -146,7 +146,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 
     // http://jsperf.com/functional-loop-unrolling/2
     // http://jsperf.com/functional-loop-unrolling/3
-    operate = function operate(a, f, f0) {
+    /*operate = function operate(a, f, f0) {
         var i, l=a.length, r=l&15, q=r&1, fv=q?f(f0,a[0]):f0;
         for (i=q; i<r; i+=2)  fv = f(f(fv,a[i]),a[i+1]);
         for (i=r; i<l; i+=16) fv = f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(fv,a[i]),a[i+1]),a[i+2]),a[i+3]),a[i+4]),a[i+5]),a[i+6]),a[i+7]),a[i+8]),a[i+9]),a[i+10]),a[i+11]),a[i+12]),a[i+13]),a[i+14]),a[i+15]);
@@ -210,7 +210,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         if (j < fv.length) fv.length = j;
         return fv;
-    },
+    },*/
     each = function each(a, f) {
         var i, l=a.length, r=l&15, q=r&1;
         if (q) f(a[0]);
@@ -311,7 +311,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     // adapted from jQuery
     getNS = function(evt) {
         var ns = evt.split('.'), e = ns[0];
-        ns = filter(ns.slice(1), notEmpty);
+        ns = ns.slice(1).filter(notEmpty);
         return [e, ns.sort()];
     },
     getNSMatcher = function(givenNamespaces) {
@@ -560,7 +560,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
 
     select_set = function(el, v) {
-        var values = map([].concat(v), tostr),
+        var values = [].concat(v).map(tostr),
             options = el[OPTIONS], selected,
             opt, i, sel_index = -1, ret = false
         ;
@@ -2812,8 +2812,26 @@ function NSEvent(evt, namespace)
     return nsevent.join('.')
 }
 
+function hasEventOptions()
+{
+    var passiveSupported = false, options = {};
+    try {
+        Object.defineProperty(options, 'passive', {
+            get: function(){
+                passiveSupported = true;
+                return false;
+            }
+        });
+        window.addEventListener('test', null, options);
+        window.removeEventListener('test', null, options);
+    } catch(e) {
+        passiveSupported = false;
+    }
+    return passiveSupported;
+}
+
 // adapted from https://github.com/ftlabs/ftdomdelegate
-var EVENTSTOPPED = "DOMEVENT_STOPPED",
+var EVENTSTOPPED = "DOMEVENT_STOPPED", eventOptionsSupported = null,
     captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
 function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); }
@@ -2966,8 +2984,8 @@ DOMEvent[proto] = {
         return self;
     },
 
-    on: function(eventType, selector, handler, useCapture) {
-        var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture;
+    on: function(eventType, selector, handler, options) {
+        var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture, useCapture;
 
         root = self.$element; if (!root) return self;
 
@@ -2981,13 +2999,16 @@ DOMEvent[proto] = {
         // the second or third argument
         if ('function' === typeof selector)
         {
-            useCapture = handler;
+            options = handler;
             handler = selector;
             selector = null;
         }
 
         if ('function' !== typeof handler)
             throw new TypeError('Handler must be a type of Function');
+
+        useCapture = 'object' === typeof(options) ? options.capture : options;
+        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         // Add master handler for type if not created yet
         for (i=0,l=eventTypes.length; i<l; i++)
@@ -3003,7 +3024,8 @@ DOMEvent[proto] = {
             if (!listeners[eventTypes[i][0]])
             {
                 listeners[ eventTypes[i][0] ] = [ ];
-                root.addEventListener( eventTypes[i][0], self.$handle, capture );
+                if ('object' === typeof(options)) options.capture = capture;
+                root.addEventListener( eventTypes[i][0], self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : capture) );
             }
 
             if (!selector)
@@ -3040,9 +3062,9 @@ DOMEvent[proto] = {
         return self;
     },
 
-    off: function(eventType, selector, handler, useCapture) {
+    off: function(eventType, selector, handler, options) {
         var self = this, i, listener, listeners, listenerList, e, c,
-            root = self.$element,
+            root = self.$element, useCapture,
             singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
         if (!root) return self;
@@ -3051,15 +3073,18 @@ DOMEvent[proto] = {
         // the second or third argument
         if ('function' === typeof selector)
         {
-            useCapture = handler;
+            options = handler;
             handler = selector;
             selector = null;
         }
+
+        useCapture = 'object' === typeof(options) ? options.capture : options;
 
         // If useCapture not set, remove
         // all event listeners
         if (undef === useCapture) allCaptures = [0, 1];
         else allCaptures = useCapture ? [1] : [0];
+        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
 
@@ -3085,8 +3110,9 @@ DOMEvent[proto] = {
                     if (!listenerList.length)
                     {
                         delete listeners[ singleEventType ];
+                        if ('object' === typeof(options)) options.capture = !!allCaptures[c];
                         // Remove the main handler
-                        root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                        root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
                     }
                 }
             }
@@ -3121,8 +3147,9 @@ DOMEvent[proto] = {
                         if (!listenerList.length)
                         {
                             delete listeners[ singleEventType ];
+                            if ('object' === typeof(options)) options.capture = !!allCaptures[c];
                             // Remove the main handler
-                            root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                            root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
                         }
                     }
                     else
@@ -4404,7 +4431,7 @@ var
                         res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
                         if (!res.isValid)
                         {
-                            result.errors = result.errors.concat(map(res.errors, fixKey));
+                            result.errors = result.errors.concat(res.errors.map(fixKey));
                             result.isValid = false;
                         }
                         if (!result.isValid && breakOnError) return result;
@@ -4433,7 +4460,7 @@ var
                                     res = validateModel(model, modelClass, breakOnError, key, val, validators);
                                     if (!res.isValid)
                                     {
-                                        result.errors = result.errors.concat(map(res.errors, fixKey));
+                                        result.errors = result.errors.concat(res.errors.map(fixKey));
                                         result.isValid = false;
                                     }
                                     if (breakOnError && !result.isValid) return result;
@@ -7387,7 +7414,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
             DOMEvent(view.$dom).on(
-                map(events, namespaced).join(' '),
+                events.map(namespaced).join(' '),
 
                 autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
 
@@ -7406,7 +7433,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     return true;
                 },
 
-                true
+                {capture: true, passive: false}
             );
         }
 
@@ -7428,7 +7455,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(window).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
                 else if (startsWith(method, 'on_document_'))
@@ -7437,7 +7464,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(document.body).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        false
+                        {capture: false, passive: false}
                     );
                 }
                 else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
@@ -7447,7 +7474,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         namespaced(evt),
                         autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
                 else if (view.$dom && startsWith(method, 'on_dom_'))
@@ -7456,7 +7483,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(view.$dom).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
             }
@@ -7486,7 +7513,9 @@ view.unbind( );
         {
             DOMEvent(view.$dom).off(
                 viewEvent,
-                autobind ? [autobindSelector, bindSelector].join( ',' ) : bindSelector
+                autobind ? [autobindSelector, bindSelector].join( ',' ) : bindSelector,
+                null,
+                {passive: false}
             );
         }
 
@@ -7494,9 +7523,9 @@ view.unbind( );
         if (model) view.offFrom(model);
         if (HASDOC)
         {
-            if (view.$dom) DOMEvent(view.$dom).off(viewEvent);
-            DOMEvent(document.body).off(viewEvent);
-            DOMEvent(window).off(viewEvent);
+            if (view.$dom) DOMEvent(view.$dom).off(viewEvent, null, null, {passive: false});
+            DOMEvent(document.body).off(viewEvent, null, null, {passive: false});
+            DOMEvent(window).off(viewEvent, null, null, {passive: false});
             clearAll(view);
         }
         return view;
@@ -7828,8 +7857,9 @@ view.sync_model();
             if (false === ret)
             {
                 // stop the event
-                evt.stopPropagation();
-                evt.preventDefault();
+                evt.stopPropagation && evt.stopPropagation();
+                evt.stopImmediatePropagation && evt.stopImmediatePropagation();
+                evt.preventDefault && evt.preventDefault();
                 return false;
             }
         }
@@ -7865,8 +7895,8 @@ view.sync_model();
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = filter(bindElements, notTriggerElem);
-                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
+                bindElements = bindElements.filter(notTriggerElem);
+                if (autobind) autoBindElements = autoBindElements.filter(notTriggerElem);
                 data.$callData = null;
             }
             // do actions ..
@@ -7945,8 +7975,7 @@ view.sync_model();
                 if (true === withHash && '#' !== path.charAt(0)) path = '#'+path;
                 if (false === withHash && '#' === path.charAt(0)) path = path.slice(1);
                 if ('/' !== path.charAt(0) && '#' !== path.charAt(0)) path = '/'+path;
-                //evt.stopPropagation();
-                evt.preventDefault();
+                evt.preventDefault && evt.preventDefault();
                 view.navigateTo(path);
             }
         }
@@ -8341,7 +8370,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.0.0"
+    VERSION: "4.0.1"
     
     ,UUID: uuid
     

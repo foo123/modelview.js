@@ -7,8 +7,26 @@ function NSEvent(evt, namespace)
     return nsevent.join('.')
 }
 
+function hasEventOptions()
+{
+    var passiveSupported = false, options = {};
+    try {
+        Object.defineProperty(options, 'passive', {
+            get: function(){
+                passiveSupported = true;
+                return false;
+            }
+        });
+        window.addEventListener('test', null, options);
+        window.removeEventListener('test', null, options);
+    } catch(e) {
+        passiveSupported = false;
+    }
+    return passiveSupported;
+}
+
 // adapted from https://github.com/ftlabs/ftdomdelegate
-var EVENTSTOPPED = "DOMEVENT_STOPPED",
+var EVENTSTOPPED = "DOMEVENT_STOPPED", eventOptionsSupported = null,
     captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
 ;
 function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); }
@@ -161,8 +179,8 @@ DOMEvent[proto] = {
         return self;
     },
 
-    on: function(eventType, selector, handler, useCapture) {
-        var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture;
+    on: function(eventType, selector, handler, options) {
+        var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture, useCapture;
 
         root = self.$element; if (!root) return self;
 
@@ -176,13 +194,16 @@ DOMEvent[proto] = {
         // the second or third argument
         if ('function' === typeof selector)
         {
-            useCapture = handler;
+            options = handler;
             handler = selector;
             selector = null;
         }
 
         if ('function' !== typeof handler)
             throw new TypeError('Handler must be a type of Function');
+
+        useCapture = 'object' === typeof(options) ? options.capture : options;
+        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         // Add master handler for type if not created yet
         for (i=0,l=eventTypes.length; i<l; i++)
@@ -198,7 +219,8 @@ DOMEvent[proto] = {
             if (!listeners[eventTypes[i][0]])
             {
                 listeners[ eventTypes[i][0] ] = [ ];
-                root.addEventListener( eventTypes[i][0], self.$handle, capture );
+                if ('object' === typeof(options)) options.capture = capture;
+                root.addEventListener( eventTypes[i][0], self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : capture) );
             }
 
             if (!selector)
@@ -235,9 +257,9 @@ DOMEvent[proto] = {
         return self;
     },
 
-    off: function(eventType, selector, handler, useCapture) {
+    off: function(eventType, selector, handler, options) {
         var self = this, i, listener, listeners, listenerList, e, c,
-            root = self.$element,
+            root = self.$element, useCapture,
             singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
         if (!root) return self;
@@ -246,15 +268,18 @@ DOMEvent[proto] = {
         // the second or third argument
         if ('function' === typeof selector)
         {
-            useCapture = handler;
+            options = handler;
             handler = selector;
             selector = null;
         }
+
+        useCapture = 'object' === typeof(options) ? options.capture : options;
 
         // If useCapture not set, remove
         // all event listeners
         if (undef === useCapture) allCaptures = [0, 1];
         else allCaptures = useCapture ? [1] : [0];
+        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
 
@@ -280,8 +305,9 @@ DOMEvent[proto] = {
                     if (!listenerList.length)
                     {
                         delete listeners[ singleEventType ];
+                        if ('object' === typeof(options)) options.capture = !!allCaptures[c];
                         // Remove the main handler
-                        root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                        root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
                     }
                 }
             }
@@ -316,8 +342,9 @@ DOMEvent[proto] = {
                         if (!listenerList.length)
                         {
                             delete listeners[ singleEventType ];
+                            if ('object' === typeof(options)) options.capture = !!allCaptures[c];
                             // Remove the main handler
-                            root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                            root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
                         }
                     }
                     else

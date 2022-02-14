@@ -335,7 +335,7 @@ updateModelFromStorage();
 
 window.addEventListener('hashchange', function() {route(location.hash);}, false);
 
-AreaSortable('vertical', {
+if (AreaSortable) AreaSortable('vertical', {
     container: 'todo-list',
     handle: 'drag',
     item: 'todo',
@@ -354,4 +354,4 @@ if (location.hash) route(location.hash);
 else location.hash = '#/all';
 
 View.render();
-}(window, Storage, AreaSortable, ModelView);
+}(window, Storage, window.AreaSortable, ModelView);

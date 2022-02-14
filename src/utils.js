@@ -94,7 +94,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 
     // http://jsperf.com/functional-loop-unrolling/2
     // http://jsperf.com/functional-loop-unrolling/3
-    operate = function operate(a, f, f0) {
+    /*operate = function operate(a, f, f0) {
         var i, l=a.length, r=l&15, q=r&1, fv=q?f(f0,a[0]):f0;
         for (i=q; i<r; i+=2)  fv = f(f(fv,a[i]),a[i+1]);
         for (i=r; i<l; i+=16) fv = f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(fv,a[i]),a[i+1]),a[i+2]),a[i+3]),a[i+4]),a[i+5]),a[i+6]),a[i+7]),a[i+8]),a[i+9]),a[i+10]),a[i+11]),a[i+12]),a[i+13]),a[i+14]),a[i+15]);
@@ -158,7 +158,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         if (j < fv.length) fv.length = j;
         return fv;
-    },
+    },*/
     each = function each(a, f) {
         var i, l=a.length, r=l&15, q=r&1;
         if (q) f(a[0]);
@@ -259,7 +259,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     // adapted from jQuery
     getNS = function(evt) {
         var ns = evt.split('.'), e = ns[0];
-        ns = filter(ns.slice(1), notEmpty);
+        ns = ns.slice(1).filter(notEmpty);
         return [e, ns.sort()];
     },
     getNSMatcher = function(givenNamespaces) {
@@ -508,7 +508,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
 
     select_set = function(el, v) {
-        var values = map([].concat(v), tostr),
+        var values = [].concat(v).map(tostr),
             options = el[OPTIONS], selected,
             opt, i, sel_index = -1, ret = false
         ;

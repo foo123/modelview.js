@@ -957,7 +957,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
             DOMEvent(view.$dom).on(
-                map(events, namespaced).join(' '),
+                events.map(namespaced).join(' '),
 
                 autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
 
@@ -976,7 +976,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     return true;
                 },
 
-                true
+                {capture: true, passive: false}
             );
         }
 
@@ -998,7 +998,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(window).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
                 else if (startsWith(method, 'on_document_'))
@@ -1007,7 +1007,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(document.body).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        false
+                        {capture: false, passive: false}
                     );
                 }
                 else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
@@ -1017,7 +1017,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                         namespaced(evt),
                         autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
                 else if (view.$dom && startsWith(method, 'on_dom_'))
@@ -1026,7 +1026,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     evt.length && DOMEvent(view.$dom).on(
                         namespaced(evt),
                         viewHandler(view, method),
-                        true
+                        {capture: true, passive: false}
                     );
                 }
             }
@@ -1056,7 +1056,9 @@ view.unbind( );
         {
             DOMEvent(view.$dom).off(
                 viewEvent,
-                autobind ? [autobindSelector, bindSelector].join( ',' ) : bindSelector
+                autobind ? [autobindSelector, bindSelector].join( ',' ) : bindSelector,
+                null,
+                {passive: false}
             );
         }
 
@@ -1064,9 +1066,9 @@ view.unbind( );
         if (model) view.offFrom(model);
         if (HASDOC)
         {
-            if (view.$dom) DOMEvent(view.$dom).off(viewEvent);
-            DOMEvent(document.body).off(viewEvent);
-            DOMEvent(window).off(viewEvent);
+            if (view.$dom) DOMEvent(view.$dom).off(viewEvent, null, null, {passive: false});
+            DOMEvent(document.body).off(viewEvent, null, null, {passive: false});
+            DOMEvent(window).off(viewEvent, null, null, {passive: false});
             clearAll(view);
         }
         return view;
@@ -1398,8 +1400,9 @@ view.sync_model();
             if (false === ret)
             {
                 // stop the event
-                evt.stopPropagation();
-                evt.preventDefault();
+                evt.stopPropagation && evt.stopPropagation();
+                evt.stopImmediatePropagation && evt.stopImmediatePropagation();
+                evt.preventDefault && evt.preventDefault();
                 return false;
             }
         }
@@ -1435,8 +1438,8 @@ view.sync_model();
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = filter(bindElements, notTriggerElem);
-                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
+                bindElements = bindElements.filter(notTriggerElem);
+                if (autobind) autoBindElements = autoBindElements.filter(notTriggerElem);
                 data.$callData = null;
             }
             // do actions ..
@@ -1515,8 +1518,7 @@ view.sync_model();
                 if (true === withHash && '#' !== path.charAt(0)) path = '#'+path;
                 if (false === withHash && '#' === path.charAt(0)) path = path.slice(1);
                 if ('/' !== path.charAt(0) && '#' !== path.charAt(0)) path = '/'+path;
-                //evt.stopPropagation();
-                evt.preventDefault();
+                evt.preventDefault && evt.preventDefault();
                 view.navigateTo(path);
             }
         }
