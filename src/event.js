@@ -202,8 +202,9 @@ DOMEvent[proto] = {
         if ('function' !== typeof handler)
             throw new TypeError('Handler must be a type of Function');
 
-        useCapture = 'object' === typeof(options) ? options.capture : options;
         if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
+        
+        useCapture = 'object' === typeof(options) ? options.capture : options;
 
         // Add master handler for type if not created yet
         for (i=0,l=eventTypes.length; i<l; i++)
@@ -220,7 +221,8 @@ DOMEvent[proto] = {
             {
                 listeners[ eventTypes[i][0] ] = [ ];
                 if ('object' === typeof(options)) options.capture = capture;
-                root.addEventListener( eventTypes[i][0], self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : capture) );
+                else options = capture;
+                root.addEventListener( eventTypes[i][0], self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
             }
 
             if (!selector)
@@ -263,6 +265,7 @@ DOMEvent[proto] = {
             singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
 
         if (!root) return self;
+        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         // Handler can be passed as
         // the second or third argument
@@ -279,7 +282,6 @@ DOMEvent[proto] = {
         // all event listeners
         if (undef === useCapture) allCaptures = [0, 1];
         else allCaptures = useCapture ? [1] : [0];
-        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
 
         eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
 
@@ -306,8 +308,9 @@ DOMEvent[proto] = {
                     {
                         delete listeners[ singleEventType ];
                         if ('object' === typeof(options)) options.capture = !!allCaptures[c];
+                        else options = !!allCaptures[c];
                         // Remove the main handler
-                        root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
+                        root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
                     }
                 }
             }
@@ -343,8 +346,9 @@ DOMEvent[proto] = {
                         {
                             delete listeners[ singleEventType ];
                             if ('object' === typeof(options)) options.capture = !!allCaptures[c];
+                            else options = !!allCaptures[c];
                             // Remove the main handler
-                            root.removeEventListener( singleEventType, self.$handle, eventOptionsSupported ? options : ('object' === typeof(options) ? options.capture : !!allCaptures[c]) );
+                            root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
                         }
                     }
                     else
@@ -369,8 +373,10 @@ DOMEvent[proto] = {
                             if (!listenerList.length)
                             {
                                 delete listeners[ singleEventType ];
+                                if ('object' === typeof(options)) options.capture = !!allCaptures[c];
+                                else options = !!allCaptures[c];
                                 // Remove the main handler
-                                root.removeEventListener( singleEventType, self.$handle, !!allCaptures[c] );
+                                root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
                             }
                         }
                     }
