@@ -1,7 +1,7 @@
 modelview.js
 ============
 
-A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript
+A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript (Browser and Server)
 
 
 It knows **where**, **when** and **what** needs to be rendered.
@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 4.0.1** (83 kB minified)
+**Version 4.0.2** (84 kB minified)
 
 
 **see also:**
@@ -218,7 +218,7 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for ModelView 4.0.0 and some popular frameworks (env: Windows 7 64bit, Chrome 98.0.4758.82 64bit).
+Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for Latest ModelView and some popular frameworks (env: Windows 7 64bit, Chrome 98.0.4758.82 64bit).
 
 
 **Keyed Results**
@@ -236,7 +236,7 @@ Here are some benchmark results using [js-framework-benchmark](https://github.co
 
 ![Memory 2](/examples/mem2.png)
 
-It is shown that ModelView 4.0.0 has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits, and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits, and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
 
 
 #### JavaScript and Browser Support

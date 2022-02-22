@@ -452,18 +452,31 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     }(HASDOC && window.Element ? window.Element[proto] : null)),
 
     // http://stackoverflow.com/a/2364000/3591273
-    get_style = HASDOC && 'undefined' !== typeof window && window.getComputedStyle
-        ? function(el){return window.getComputedStyle(el, null);}
+    get_style = HASDOC && window.getComputedStyle
+        ? function(el) {return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
-
+    $style = function(el, prop, val) {
+        if (null == val)
+        {
+            return el[STYLE].getPropertyValue(prop);
+        }
+        else
+        {
+            if ('' === val)
+                el[STYLE].removeProperty(prop);
+            else
+                el[STYLE].setProperty(prop, Str(val));
+            return el;
+        }
+    },
     show = function(el) {
-        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
-        el[STYLE].display = 'none' !== el._displayCached ? el._displayCached : 'block';
-        el._displayCached = undef;
+        if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
+        el[STYLE].display = 'none' !== $style(el, '--mvDisplay') ? $style(el, '--mvDisplay') : 'block';
+        $style(el, '--mvDisplay', '');
     },
 
     hide = function(el) {
-        if (!el._displayCached) el._displayCached = get_style(el).display || 'block';
+        if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
         el[STYLE].display = 'none';
     },
 
@@ -1340,7 +1353,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 continue;
             }
-            if ('&' === c)
+            if (('&' === c) /*&& ('<script>' !== state.dom.cnodeType) && ('<style>' !== state.dom.cnodeType)*/)
             {
                 // support numeric html entities and some basic named html entities, out of the box
                 j = html.indexOf(';', i);
@@ -2037,8 +2050,13 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
         {
-            var range = Range();
-            if (range)
+            var range;
+            if (0 >= index && r.childNodes.length <= index+count)
+            {
+                // delete all children
+                r.textContent = ''; // faster than range below ??
+            }
+            else if (range = Range())
             {
                 range.setStart(r, index);
                 range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
@@ -2047,6 +2065,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
             else
             {
+                // old-fashioned way
                 for (; (0 < count) && (index < r.childNodes.length); count--)
                     r.removeChild(r.childNodes[index]);
             }

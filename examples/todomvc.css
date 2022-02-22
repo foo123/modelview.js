@@ -2,6 +2,7 @@ html,
 body {
 	margin: 0;
 	padding: 0;
+    height: 100%;
 }
 
 button {
@@ -377,6 +378,11 @@ label[for='toggle-all'] {
     border: 2px dashed #f00;
     overflow: hidden;
     z-index: 5;
+}
+#todo-list li.dnd-sortable-placeholder {
+    border: 1px dotted #fff;
+    background: #BFDFE0;
+    opacity: 0.5;
 }
 
 #footer {
