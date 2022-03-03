@@ -76,19 +76,23 @@ function updateModelFromStorage()
 
 function timeSince(time)
 {
-  var seconds = Math.floor((new Date().getTime() - time) / 1000), interval;
+  var seconds = Math.floor((new Date().getTime() - time) / 1000),
+    then = 0 > seconds ? " later" : " ago",
+    now = 0 > seconds ? "about now" : "just now",
+    interval;
+  seconds = Math.abs(seconds);
   interval = Math.floor(seconds / 31536000);
-  if (interval > 0) return String(interval) + " "+(1===interval?'year':'years')+" ago";
+  if (interval > 0) return String(interval) + " " + (1===interval?'year':'years') + then;
   interval = Math.floor(seconds / 2592000);
-  if (interval > 0) return String(interval) + " "+(1===interval?'month':'months')+" ago";
+  if (interval > 0) return String(interval) + " " + (1===interval?'month':'months') + then;
   interval = Math.floor(seconds / 86400);
-  if (interval > 0) return String(interval) + " "+(1===interval?'day':'days')+" ago";
+  if (interval > 0) return String(interval) + " " + (1===interval?'day':'days') + then;
   interval = Math.floor(seconds / 3600);
-  if (interval > 0) return String(interval) + " "+(1===interval?'hour':'hours')+" ago";
+  if (interval > 0) return String(interval) + " " + (1===interval?'hour':'hours') + then;
   interval = Math.floor(seconds / 60);
-  if (interval > 0) return String(interval) + " "+(1===interval?'minute':'minutes')+" ago";
+  if (interval > 0) return String(interval) + " " + (1===interval?'minute':'minutes') + then;
   interval = Math.floor(seconds);
-  return interval < 30 ? "just now" : String(interval) + " seconds ago";
+  return interval < 30 ? now : String(interval) + " seconds" + then;
 }
 
 function route(displayMode)

@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.0.2
-*   @built on 2022-02-22 11:13:41
+*   @version: 4.0.3
+*   @built on 2022-03-03 09:50:25
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 4.0.2
-*   @built on 2022-02-22 11:13:41
+*   @version: 4.0.3
+*   @built on 2022-03-03 09:50:25
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.0.2**
+**Version 4.0.3**
 
 ### Contents
 
@@ -4960,7 +4960,7 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
-            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, true);
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, model.isDirty([dottedKey]));
             return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
@@ -4974,7 +4974,7 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             else if (false === r[ 0 ])
             {
                 ret = r[ 1 ].call(model, dottedKey);
-                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true);
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, model.isDirty(ks));
             }
             // model field
             return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, model.isDirty(ks));
@@ -5203,7 +5203,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     model.setDirty(ks);
 
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        model.notify(ideps[dottedKey]);
+                    }
                 }
                 return model;
             }
@@ -5287,7 +5291,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         });
                         model.setDirty(ks);
                         // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                        if (HAS.call(ideps,dottedKey))
+                        {
+                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            model.notify(ideps[dottedKey]);
+                        }
                     }
                     if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
                 }
@@ -5320,7 +5328,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     });
                     model.setDirty(ks);
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        model.notify(ideps[dottedKey]);
+                    }
                 }
 
                 if (model.$atom && dottedKey === model.$atom) model.atomic = true;
@@ -5407,7 +5419,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     });
                     model.setDirty(ks.concat(index));
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        model.notify(ideps[dottedKey]);
+                    }
                 }
                 return model;
             }
@@ -5496,7 +5512,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         });
                         model.setDirty(ks);
                         // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                        if (HAS.call(ideps,dottedKey))
+                        {
+                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            model.notify(ideps[dottedKey]);
+                        }
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -5540,7 +5560,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 });
                 model.setDirty(ks.concat(index));
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                if (HAS.call(ideps,dottedKey))
+                {
+                    ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                    model.notify(ideps[dottedKey]);
+                }
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -5625,7 +5649,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     });
                     model.setDirty(ks.concat(index));
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        model.notify(ideps[dottedKey]);
+                    }
                 }
                 return model;
             }
@@ -5711,7 +5739,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         });
                         model.setDirty(ks.concat(index));
                         // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                        if (HAS.call(ideps,dottedKey))
+                        {
+                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            model.notify(ideps[dottedKey]);
+                        }
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -5745,7 +5777,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 });
                 model.setDirty(ks.concat(index));
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey)) model.notify(ideps[dottedKey]);
+                if (HAS.call(ideps,dottedKey))
+                {
+                    ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                    model.notify(ideps[dottedKey]);
+                }
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -8395,7 +8431,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.0.2"
+    VERSION: "4.0.3"
     
     ,UUID: uuid
     
