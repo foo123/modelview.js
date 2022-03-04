@@ -547,6 +547,11 @@ var
             else upds.push(k);
         });
         return upds;
+    },
+
+    setDirty = function setDirty(model, key, many) {
+        if (many) key.forEach(function(k){model.setDirty(k.split('.'));});
+        else model.setDirty(key);
     }
 ;
 
@@ -1183,12 +1188,12 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         valuePrev: prevval,
                         $callData: callData
                     });
-                    model.setDirty(ks);
+                    setDirty(model, ks);
 
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
-                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        setDirty(model, ideps[dottedKey], true);
                         model.notify(ideps[dottedKey]);
                     }
                 }
@@ -1272,11 +1277,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                             action: 'set',
                             $callData: callData
                         });
-                        model.setDirty(ks);
+                        setDirty(model, ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey))
                         {
-                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            setDirty(model, ideps[dottedKey], true);
                             model.notify(ideps[dottedKey]);
                         }
                     }
@@ -1309,11 +1314,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         action: 'set',
                         $callData: callData
                     });
-                    model.setDirty(ks);
+                    setDirty(model, ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
-                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        setDirty(model, ideps[dottedKey], true);
                         model.notify(ideps[dottedKey]);
                     }
                 }
@@ -1400,11 +1405,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         index: index,
                         $callData: callData
                     });
-                    model.setDirty(ks.concat(index));
+                    setDirty(model, ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
-                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        setDirty(model, ideps[dottedKey], true);
                         model.notify(ideps[dottedKey]);
                     }
                 }
@@ -1493,11 +1498,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             index: index,
                             $callData: callData
                         });
-                        model.setDirty(ks);
+                        setDirty(model, ks);
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey))
                         {
-                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            setDirty(model, ideps[dottedKey], true);
                             model.notify(ideps[dottedKey]);
                         }
                     }
@@ -1541,11 +1546,11 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     index: index,
                     $callData: callData
                 });
-                model.setDirty(ks.concat(index));
+                setDirty(model, ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
-                    ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                    setDirty(model, ideps[dottedKey], true);
                     model.notify(ideps[dottedKey]);
                 }
             }
@@ -1630,11 +1635,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: index,
                         $callData: callData
                     });
-                    model.setDirty(ks.concat(index));
+                    setDirty(model, ks.concat(index));
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
-                        ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                        setDirty(model, ideps[dottedKey], true);
                         model.notify(ideps[dottedKey]);
                     }
                 }
@@ -1698,7 +1703,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: -1,
                         $callData: callData
                     });
-                    model.setDirty(ks);
+                    setDirty(model, ks);
                 }
                 return model;
             }
@@ -1720,11 +1725,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                             index: index,
                             $callData: callData
                         });
-                        model.setDirty(ks.concat(index));
+                        setDirty(model, ks.concat(index));
                         // notify any dependencies as well
                         if (HAS.call(ideps,dottedKey))
                         {
-                            ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                            setDirty(model, ideps[dottedKey], true);
                             model.notify(ideps[dottedKey]);
                         }
                     }
@@ -1758,11 +1763,11 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     index: index,
                     $callData: callData
                 });
-                model.setDirty(ks.concat(index));
+                setDirty(model, ks.concat(index));
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
-                    ideps[dottedKey].forEach(function(kk){model.setDirty(kk.split('.'));});
+                    setDirty(model, ideps[dottedKey], true);
                     model.notify(ideps[dottedKey]);
                 }
             }

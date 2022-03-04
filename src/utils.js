@@ -2619,11 +2619,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     },
     placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     get_placeholders = function get_placeholders(node, map) {
-        var m, k, t, s;
+        var m, k, t, s, n;
         if (node)
         {
             if (3 === node.nodeType)
             {
+                n = node;
                 s = n.nodeValue;
                 while (s.length && (m = s.match(placeholder_re)))
                 {
@@ -2645,8 +2646,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             {
                 if (node.attributes && node.attributes.length)
                 {
-                    slice.call(node.attributes).forEach(function(a){
-                        var m, k, s = a.value, index = 0, txt = [s], keys = [];
+                    slice.call(node.attributes).forEach(function(a) {
+                        var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
                         while (s.length && (m = s.match(placeholder_re)))
                         {
                             k = trim(m[1]);
@@ -2654,14 +2655,16 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             {
                                 if (-1 === keys.indexOf(k)) keys.push(k);
                                 txt.pop();
-                                txt.push(a.value.slice(index, index+m.index));
+                                a1 = a.value.slice(index, index+m.index);
+                                a2 = a.value.slice(index+m.index+m[0].length);
+                                if (a1.length) txt.push(a1);
                                 txt.push({mvKey:k});
-                                txt.push(a.value.slice(index+m.index+m[0].length));
+                                if (a2.length) txt.push(a2);
                             }
                             s = s.slice(m.index+m[0].length);
                             index += m.index + m[0].length;
                         }
-                        keys.forEach(function(k){
+                        keys.forEach(function(k) {
                             var t = {node:node, att:a.name, txt:txt.slice()};
                             insert_map(map.att, k.split('.'), t);
                         });
@@ -2669,7 +2672,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 }
                 if (node.childNodes.length)
                 {
-                    slice.call(node.childNodes).forEach(function(n){
+                    slice.call(node.childNodes).forEach(function(n) {
                         var m, k, t, s;
                         if (3 === n.nodeType)
                         {
@@ -2700,51 +2703,80 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         }
         return node;
     },
+    morphTextVal = function(list, key, model) {
+        var val = Str(model.get(key));
+        list.forEach(function(t) {
+            //if (t.nodeValue !== val)
+                t.nodeValue = val;
+        });
+    },
+    morphTextAtt = function(list, model) {
+        list.forEach(function(a) {
+            var r = a.node, n = a.att,
+                v = 1 === a.txt.length ? model.get(a.txt[0].mvKey) : a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+            if (true === v || false === v)
+            {
+                // allow to enable/disable attributes via single boolean values
+                if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+                    'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+                    'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+                    'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+                {
+                    r[n] = v;
+                }
+                else
+                {
+                    if (v) r[SET_ATTR](n, n);
+                    else r[DEL_ATTR](n);
+                }
+            }
+            else
+            {
+                v = Str(v);
+                if ('id' === n)
+                {
+                    r[n] = v;
+                }
+                else if ('class' === n)
+                {
+                    r[CLASS] = v;
+                }
+                else if ('style' === n)
+                {
+                    r[n].cssText = v;
+                }
+                else if ('value' === n)
+                {
+                    if (r[n] !== v) r[n] = v;
+                }
+                else//if (r[ATTR](n) !== v)
+                {
+                    r[SET_ATTR](n, v);
+                }
+            }
+        });
+    },
     morphText = function morphText(map, model, keys) {
         if (!map || !map.txt || !map.att) return;
         if (keys)
         {
-            keys.forEach(function(ks){
+            keys.forEach(function(ks) {
                 var kk = ks.split('.'), mt = map.txt, ma = map.att;
-                kk.forEach(function(k, i){
+                kk.forEach(function(k, i) {
                     mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
                     ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
                     if (kk.length-1 === i)
                     {
-                        walk_map(mt, function(list, k){
-                            var v = Str(model.get(k));
-                            list.forEach(function(t){
-                                //if (t.nodeValue !== v)
-                                    t.nodeValue = v;
-                            });
-                        }, ks);
-                        walk_map(ma, function(list){
-                            list.forEach(function(a){
-                                var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                                //if (a.node[ATTR](a.att) !== v)
-                                    a.node[SET_ATTR](a.att, v);
-                            });
-                        }, ks);
+                        walk_map(mt, function(list, k) {morphTextVal(list, k, model);}, ks);
+                        walk_map(ma, function(list) {morphTextAtt(list, model);}, ks);
                     }
                 });
             });
         }
         else
         {
-            walk_map(map.txt, function(list, k){
-                var v = Str(model.get(k));
-                list.forEach(function(t){
-                    //if (t.nodeValue !== v)
-                        t.nodeValue = v;
-                });
-            }, '');
-            walk_map(map.att, function(list){
-                list.forEach(function(a){
-                    var v = a.txt.map(function(s){return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-                    //if (a.node[ATTR](a.att) !== v)
-                        a.node[SET_ATTR](a.att, v);
-                });
-            }, '');
+            walk_map(map.txt, function(list, k) {morphTextVal(list, k, model);}, '');
+            walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
         }
     },
     normalisePath = function normalisePath(path) {

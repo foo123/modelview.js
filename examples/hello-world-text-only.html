@@ -26,7 +26,7 @@
     <b>Hello {msg}</b> &nbsp;&nbsp;(updated live on <i>keyup</i>)
     <br /><br />
     <input type="text" name="model[msg]" size="50" value="" mv-evt mv-on-keyup="update" />
-    <button class="button" title="{msg.hello}" mv-evt mv-on-click="alert">{hello}</button>
+    <button class="button" title="{msg.hello}" type="{buttonType}" mv-evt mv-on-click="alert">{hello}</button>
     <button class="button" mv-evt mv-on-click="hello_world">Hello World</button>
 </script>
 <div id="app"></div>
@@ -45,6 +45,9 @@
             {msg: 'Earth!'}
         )
         .getters({
+            buttonType: function(){
+                return 'World' === this.$data.msg ? 'button' : false /* remove attribute */;
+            },
             hello: function(){
                 return 'Hello ' + this.$data.msg;
             },
@@ -53,6 +56,7 @@
             }
         })
         .dependencies({
+            "buttonType": ["msg"],
             "hello": ["msg"]
         })
         // model data type-casters (if any) here ..
