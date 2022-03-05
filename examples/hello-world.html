@@ -23,6 +23,9 @@
 <script id="HelloButtonComponent" type="text/x-template">
     <button class="button" mv-evt mv-on-click=":hello_world">Hello World ({this.model.getVal('clicks')})</button>
 </script>
+<script id="InputControlComponent" type="text/x-template">
+    The local component value "{this.model.getVal('mylocalvar')}" can be updated here: <input type="text" name=":model[mylocalvar]" size="5" value={this.model.getVal('mylocalvar')} />
+</script>
 <script id="content" type="text/x-template">
     <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123; and &#125; template placeholders
     <br /><br />
@@ -31,6 +34,8 @@
     <input type="text" name="model[msg]" size="50" value={view.model().getVal('msg')} mv-evt mv-on-keyup="update" />
     <button class="button" title={view.model().getVal('msg')} mv-evt mv-on-click="alert">Hello</button>
     <HelloButton/>
+    <br />
+    <InputControl/>
 </script>
 <div id="app"></div>
 </div>
@@ -69,6 +74,14 @@
                 attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
                 detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
             }
+        ),
+        InputControl: ModelView.View.Component(
+            'InputControl',
+            document.getElementById('InputControlComponent').innerHTML,
+            {
+                model: () => ({mylocalvar:0}),
+                changed: (oldProps, newProps) => false
+            }
         )
     })
     .actions({
@@ -89,7 +102,7 @@
     .autovalidate(true)
     .autobind(true) // default
     .livebind(true) // default
-    .bind(['click', 'keyup'], document.getElementById('app'))
+    .bind(['click', 'change', 'keyup'], document.getElementById('app'))
     .sync()
     ;
 })(ModelView);

@@ -2834,6 +2834,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 if (HASDOC && window.Node)
 {
     // add these auxiliary props to DOM Node/Element prototype so browser optimization is not affected
+    window.Node[proto].$mvNamedKey = null;
     window.Node[proto].$mvComp = null;
     window.Node[proto].$mvId = null;
     window.Node[proto].$mvMod = null;

@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.0.4
-*   @built on 2022-03-05 10:55:44
+*   @version: 4.0.5
+*   @built on 2022-03-05 20:41:42
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -24,8 +24,8 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 /**
 *
 *   ModelView.js
-*   @version: 4.0.4
-*   @built on 2022-03-05 10:55:44
+*   @version: 4.0.5
+*   @built on 2022-03-05 20:41:42
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -40,7 +40,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.0.4**
+**Version 4.0.5**
 
 ### Contents
 
@@ -2886,6 +2886,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
 if (HASDOC && window.Node)
 {
     // add these auxiliary props to DOM Node/Element prototype so browser optimization is not affected
+    window.Node[proto].$mvNamedKey = null;
     window.Node[proto].$mvComp = null;
     window.Node[proto].$mvId = null;
     window.Node[proto].$mvMod = null;
@@ -2925,6 +2926,8 @@ function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); 
 function matchesRoot(root, element){ return root === element; }
 function matchesTag(tagName, element){ return tagName.toLowerCase() === element.tagName.toLowerCase(); }
 function matchesId(id, element){ return id === element.id; }
+function matchesAttribute(att, element){ return element[HAS_ATTR](att); }
+function matchesAttributeValue(attval, element){ return attval[1].slice(1, -1) === element[ATTR](attval[0]); }
 function matchesSelector(selector, element){ return element[MATCHES](selector); }
 
 function DOMEvent(el)
@@ -3095,7 +3098,7 @@ DOMEvent[proto] = {
             throw new TypeError('Handler must be a type of Function');
 
         if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
-        
+
         useCapture = 'object' === typeof(options) ? options.capture : options;
 
         // Add master handler for type if not created yet
@@ -3132,6 +3135,16 @@ DOMEvent[proto] = {
             {
                 matcherParam = selector.slice(1);
                 matcher = matchesId;
+            }
+            else if (/^\[[a-z0-9\-_]+\]$/i.test(selector))
+            {
+                matcherParam = selector.slice(1, -1);
+                matcher = matchesAttribute;
+            }
+            else if (/^\[[a-z0-9\-_]+\s*=\s*"[^"]+"\]$/i.test(selector))
+            {
+                matcherParam = selector.slice(1, -1).split('=').map(trim);
+                matcher = matchesAttributeValue;
             }
             else
             {
@@ -4661,7 +4674,6 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     model.namespace = model.id = id || model.$id;
     model.key = removePrefix(model.id);
 
-    model.$view = null;
     model.atomic = false;  model.$atom = null;
     model.$autovalidate = true;
     model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
@@ -4695,6 +4707,7 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     constructor: Model
 
     ,id: null
+    ,namespace: null
     ,$id: null
     ,$data: null
     ,$types: null
@@ -4734,6 +4747,8 @@ model.dispose( );
         model.__syncing = null;
         return model;
     }
+
+    ,key: null
 
 /**[DOC_MARKDOWN]
 // get / set model data
@@ -6591,7 +6606,7 @@ collection.mapped([Array items=collection.items()]);
 [/DOC_MARKDOWN]**/
 
 // View utils
-var namedKeyProp = "mv_namedkey",
+var namedKeyProp = "$mvNamedKey",
 
     contains_non_strict = function(collection, value) {
         if (collection)
@@ -6707,7 +6722,7 @@ var namedKeyProp = "mv_namedkey",
 
     serialize_fields = function(node, name_prefix) {
         var data = { },
-            model_prefix = name_prefix&&name_prefix.length ? name_prefix + '.' : null,
+            model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
             elements = $sel('input,textarea,select', node), checkboxes_done = { }
         ;
 
@@ -7529,7 +7544,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
 [/DOC_MARKDOWN]**/
     ,bind: function(events, dom, renderdom) {
         var view = this, model = view.$model,
-            method, evt, namespaced, autobindSelector, bindSelector,
+            method, evt, namespaced, autobindSelector, automodelSelector, bindSelector,
             autobind = view.$autobind, livebind = view.$livebind
         ;
 
@@ -7541,6 +7556,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         // default view/dom binding events
         events = events || ['change', 'click'];
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
+        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
         bindSelector = '['+view.attr('mv-evt')+']';
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
@@ -7550,7 +7566,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
             DOMEvent(view.$dom).on(
                 events.map(namespaced).join(' '),
 
-                autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
+                autobind ? [autobindSelector, automodelSelector, bindSelector].join(',') : bindSelector,
 
                 function(evt) {
                     // event triggered by view itself, ignore
@@ -7560,9 +7576,9 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
                     // add "bubble" option in modelview bind params
                     var el = this, isAutoBind = false, isBind = false;
                     // view/dom change events
-                    isBind = el[MATCHES]('['+view.attr('mv-evt')+']') && el[ATTR](view.attr('mv-on-'+evt.type));
+                    isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
                     // view change autobind events
-                    isAutoBind = autobind && ("change" == evt.type) && el[MATCHES](autobindSelector);
+                    isAutoBind = autobind && ("change" == evt.type) && (el[MATCHES](autobindSelector) || el[MATCHES](automodelSelector));
                     if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
                     return true;
                 },
@@ -7633,13 +7649,14 @@ view.unbind( );
 [/DOC_MARKDOWN]**/
     ,unbind: function() {
         var view = this, model = view.$model,
-            autobindSelector, bindSelector,
+            autobindSelector, automodelSelector, bindSelector,
             namespaced, viewEvent = NSEvent('', view.namespace),
             autobind = view.$autobind, livebind = !!view.$livebind
         ;
 
         namespaced = function(evt) {return NSEvent(evt, view.namespace);};
         autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
+        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
         bindSelector = '['+view.attr('mv-evt')+']';
 
         // view/dom change events
@@ -7647,7 +7664,7 @@ view.unbind( );
         {
             DOMEvent(view.$dom).off(
                 viewEvent,
-                autobind ? [autobindSelector, bindSelector].join( ',' ) : bindSelector,
+                autobind ? [autobindSelector, automodelSelector, bindSelector].join( ',' ) : bindSelector,
                 null,
                 {passive: false}
             );
@@ -7871,7 +7888,7 @@ view.sync_model();
     ,on_view_change: function(evt, data) {
         var view = this, model = view.$model,
             el = data.el, name, key, val,
-            checkboxes, is_dynamic_array, input_type, alternative,
+            checkboxes, is_dynamic_array, input_type, alternative, comp, isFromComponent = false,
             modeldata = { }
         ;
 
@@ -7881,7 +7898,15 @@ view.sync_model();
         // update model and propagate to other elements of same view (via model publish hook)
         if (data.isAutoBind && !!(name=el[NAME]))
         {
-            if (!el[namedKeyProp]) el[namedKeyProp] = model.key(name, 1);
+            if (':model[' === name.slice(0, 7))
+            {
+                isFromComponent = true;
+                if (!el[namedKeyProp]) el[namedKeyProp] = dotted(name.slice(6));
+            }
+            else
+            {
+                if (!el[namedKeyProp]) el[namedKeyProp] = model.key(name, 1);
+            }
             key = el[namedKeyProp];
 
             if (key /*&& model.has( key )*/)
@@ -7930,7 +7955,21 @@ view.sync_model();
                 }
 
                 modeldata.$trigger = el;
-                model.set(key, val, 1, modeldata);
+                if (isFromComponent)
+                {
+                    comp = el;
+                    while (comp)
+                    {
+                        if (comp.$mvComp) break;
+                        comp = comp.parentNode;
+                    }
+                    if (comp && comp.$mvComp)
+                        comp.$mvComp.model.set(key, val, 1, modeldata);
+                }
+                else
+                {
+                    model.set(key, val, 1, modeldata);
+                }
             }
         }
 
@@ -7953,7 +7992,7 @@ view.sync_model();
         //
         input_type = 'TEXTAREA' === el[TAG].toUpperCase() ? 'text' : ('INPUT' === el[TAG].toUpperCase() ? (el[TYPE]||'').toLowerCase() : '');
         // no hotkeys assigned or text input element is the target, bypass
-        if (!view.$num_shortcuts || 'text' === input_type || 'email' === input_type || 'url' === input_type || 'number' === input_type) return;
+        if (!view.$num_shortcuts || 'text' === input_type || 'email' === input_type || 'password' === input_type || 'url' === input_type || 'number' === input_type || 'tel' === input_type) return;
 
         // find which key is pressed
         code = evt.keyCode || evt.which;
@@ -8514,7 +8553,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.0.4"
+    VERSION: "4.0.5"
     
     ,UUID: uuid
     

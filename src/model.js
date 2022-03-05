@@ -576,7 +576,6 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     model.namespace = model.id = id || model.$id;
     model.key = removePrefix(model.id);
 
-    model.$view = null;
     model.atomic = false;  model.$atom = null;
     model.$autovalidate = true;
     model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
@@ -610,6 +609,7 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     constructor: Model
 
     ,id: null
+    ,namespace: null
     ,$id: null
     ,$data: null
     ,$types: null
@@ -649,6 +649,8 @@ model.dispose( );
         model.__syncing = null;
         return model;
     }
+
+    ,key: null
 
 /**[DOC_MARKDOWN]
 // get / set model data

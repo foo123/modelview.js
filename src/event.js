@@ -33,6 +33,8 @@ function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); 
 function matchesRoot(root, element){ return root === element; }
 function matchesTag(tagName, element){ return tagName.toLowerCase() === element.tagName.toLowerCase(); }
 function matchesId(id, element){ return id === element.id; }
+function matchesAttribute(att, element){ return element[HAS_ATTR](att); }
+function matchesAttributeValue(attval, element){ return attval[1].slice(1, -1) === element[ATTR](attval[0]); }
 function matchesSelector(selector, element){ return element[MATCHES](selector); }
 
 function DOMEvent(el)
@@ -203,7 +205,7 @@ DOMEvent[proto] = {
             throw new TypeError('Handler must be a type of Function');
 
         if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
-        
+
         useCapture = 'object' === typeof(options) ? options.capture : options;
 
         // Add master handler for type if not created yet
@@ -240,6 +242,16 @@ DOMEvent[proto] = {
             {
                 matcherParam = selector.slice(1);
                 matcher = matchesId;
+            }
+            else if (/^\[[a-z0-9\-_]+\]$/i.test(selector))
+            {
+                matcherParam = selector.slice(1, -1);
+                matcher = matchesAttribute;
+            }
+            else if (/^\[[a-z0-9\-_]+\s*=\s*"[^"]+"\]$/i.test(selector))
+            {
+                matcherParam = selector.slice(1, -1).split('=').map(trim);
+                matcher = matchesAttributeValue;
             }
             else
             {
