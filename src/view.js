@@ -1193,7 +1193,7 @@ view.updateMap( node, action='add'|'remove' );
         {
             if ('add' === action)
             {
-                if (!view.$map) view.$map = {att:{}, txt:{}};
+                if (!view.$map) view.$map = {att:{}, att1:{}, txt:{}};
                 get_placeholders(node, view.$map);
             }
             else if (('remove' === action) && view.$map)
@@ -1201,6 +1201,16 @@ view.updateMap( node, action='add'|'remove' );
                 del_map(view.$map.txt, function(v){
                     v.reduce(function(rem, t, i){
                         if (is_child_of(t, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+                del_map(view.$map.att1, function(v){
+                    v.reduce(function(rem, a, i){
+                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
                         return rem;
                     }, [])
                     .reverse()

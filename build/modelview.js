@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.4
-*   @built on 2022-03-04 20:28:24
+*   @built on 2022-03-05 10:55:44
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -25,7 +25,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
 *
 *   ModelView.js
 *   @version: 4.0.4
-*   @built on 2022-03-04 20:28:24
+*   @built on 2022-03-05 10:55:44
 *
 *   A simple, light-weight, versatile and fast MVVM framework
 *   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
@@ -2716,10 +2716,17 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                             s = s.slice(m.index+m[0].length);
                             index += m.index + m[0].length;
                         }
-                        keys.forEach(function(k) {
-                            var t = {node:node, att:a.name, txt:txt.slice()};
-                            insert_map(map.att, k.split('.'), t);
-                        });
+                        if (1 === keys.length && 1 === txt.length)
+                        {
+                            insert_map(map.att1, keys[0].split('.'), {node:node, att:a.name});
+                        }
+                        else
+                        {
+                            keys.forEach(function(k) {
+                                var t = {node:node, att:a.name, txt:txt.slice()};
+                                insert_map(map.att, k.split('.'), t);
+                            });
+                        }
                     });
                 }
                 if (node.childNodes.length)
@@ -2762,10 +2769,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                 t.nodeValue = val;
         });
     },
-    morphTextAtt = function(list, model) {
+    morphTextAtt1 = function(list, key, model) {
+        var v = model.get(key);
         list.forEach(function(a) {
-            var r = a.node, n = a.att,
-                v = 1 === a.txt.length ? model.get(a.txt[0].mvKey) : a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+            var n = a.att, r = a.node;
             if (true === v || false === v)
             {
                 // allow to enable/disable attributes via single boolean values
@@ -2808,18 +2815,46 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             }
         });
     },
+    morphTextAtt = function(list, model) {
+        list.forEach(function(a) {
+            var r = a.node, n = a.att,
+                v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+            if ('id' === n)
+            {
+                r[n] = v;
+            }
+            else if ('class' === n)
+            {
+                r[CLASS] = v;
+            }
+            else if ('style' === n)
+            {
+                r[n].cssText = v;
+            }
+            else if ('value' === n)
+            {
+                if (r[n] !== v) r[n] = v;
+            }
+            else//if (r[ATTR](n) !== v)
+            {
+                r[SET_ATTR](n, v);
+            }
+        });
+    },
     morphText = function morphText(map, model, keys) {
-        if (!map || !map.txt || !map.att) return;
+        if (!map || (!map.txt && !map.att1 && !map.att)) return;
         if (keys)
         {
             keys.forEach(function(ks) {
-                var kk = ks.split('.'), mt = map.txt, ma = map.att;
+                var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
                 kk.forEach(function(k, i) {
                     mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
+                    ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
                     ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
                     if (kk.length-1 === i)
                     {
                         walk_map(mt, function(list, k) {morphTextVal(list, k, model);}, ks);
+                        walk_map(ma1, function(list, k) {morphTextAtt1(list, k, model);}, ks);
                         walk_map(ma, function(list) {morphTextAtt(list, model);}, ks);
                     }
                 });
@@ -2828,6 +2863,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
             walk_map(map.txt, function(list, k) {morphTextVal(list, k, model);}, '');
+            walk_map(map.att1, function(list, k) {morphTextAtt1(list, k, model);}, '');
             walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
         }
     },
@@ -7748,7 +7784,7 @@ view.updateMap( node, action='add'|'remove' );
         {
             if ('add' === action)
             {
-                if (!view.$map) view.$map = {att:{}, txt:{}};
+                if (!view.$map) view.$map = {att:{}, att1:{}, txt:{}};
                 get_placeholders(node, view.$map);
             }
             else if (('remove' === action) && view.$map)
@@ -7756,6 +7792,16 @@ view.updateMap( node, action='add'|'remove' );
                 del_map(view.$map.txt, function(v){
                     v.reduce(function(rem, t, i){
                         if (is_child_of(t, node, view.$dom)) rem.push(i);
+                        return rem;
+                    }, [])
+                    .reverse()
+                    .forEach(function(i){
+                        v.splice(i, 1);
+                    });
+                });
+                del_map(view.$map.att1, function(v){
+                    v.reduce(function(rem, a, i){
+                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
                         return rem;
                     }, [])
                     .reverse()
