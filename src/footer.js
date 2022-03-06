@@ -110,9 +110,6 @@ var ModelView = {
     
     ,Extend: Merge
     
-    //,Field: ModelField // transfered to Model.Field
-    ,Event: DOMEvent
-    
     ,Type: Type
     
     ,Validation: Validation
@@ -123,3 +120,8 @@ var ModelView = {
     
     ,View: View
 };
+
+/* main code ends here */
+/* export the module */
+return ModelView;
+});

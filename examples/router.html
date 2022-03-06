@@ -23,6 +23,7 @@
 <div>
 <h1>Index</h1>
 <ul>
+<!-- multiple ways to set the link route and action -->
 <li><a href="/hello" mv-evt mv-on-click="link">Hello</a></li>
 <li><a id="foo" href="#" mv-link="/hello/World" mv-evt mv-on-click="link">Hello World</a></li>
 </ul>
@@ -37,6 +38,7 @@
 <div>
 <h1>404</h1>
 <ul>
+<!-- multiple ways to set the link route and action -->
 <li><a href="/" mv-evt mv-on-click="link">Index</a></li>
 <li><a href="/hello" mv-evt mv-on-click="link">Hello</a></li>
 <li><a href="#" mv-link="/hello/World" mv-evt mv-on-click="link">Hello World</a></li>
@@ -97,7 +99,7 @@
         click: function(){console.log('view handler');}
     })
     .autovalidate(false)
-    .autobind(false) // default
+    .autobind(false)
     .livebind(true) // default
     .bind(['click'], document.getElementById('app'))
     .sync()

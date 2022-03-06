@@ -4,7 +4,6 @@
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-
 var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
@@ -12,11 +11,71 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
     toString = OP.toString, HAS = OP.hasOwnProperty, slice = AP.slice,
+    newFunc = function(args, code){return new Func(args, code);},
+    is_instance = function(o, T){return o instanceof T;}
+;
+
+function Node(val, next)
+{
+    var self = this;
+    self.v = val || null;
+    self.n = next || {};
+}
+Node[proto] = {
+    constructor: Node
+    ,v: null
+    ,n: null
+};
+function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
+{
+    var self = this;
+    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+    self.nodeType = nodeType || '';
+    self.cnodeType = nodeType || '';
+    self.nodeValue = nodeValue || '';
+    self.nodeValue2 = nodeValue2 || '';
+    self.parentNode = parentNode || null;
+    self.index = index || 0;
+    self.attributes = [];
+    self.childNodes = [];
+}
+VNode[proto] = {
+    constructor: VNode
+    ,nodeType: ''
+    ,cnodeType: ''
+    ,nodeValue: ''
+    ,nodeValue2: ''
+    ,parentNode: null
+    ,index: 0
+    ,component: null
+    ,id: null
+    ,type: null
+    ,attributes: null
+    ,atts: null
+    ,childNodes: null
+    ,componentNodes: 0
+    ,potentialChildNodes: 0
+    ,modified: null
+    ,diff: null
+    ,changed: false
+    ,achanged: false
+    ,unit: false
+};
+function VCode(code)
+{
+    var self = this;
+    if (!is_instance(self, VCode)) return new VCode(code);
+    self.code = code;
+}
+VCode[proto] = {
+    constructor: VCode
+    ,code: ''
+};
+
+var
     tostr = function(s){return Str(s);},
     lower = function(s){return s.toLowerCase();},
     upper = function(s){return s.toUpperCase();},
-    newFunc = function(args, code){return new Func(args, code);},
-    is_instance = function(o, T){return o instanceof T;},
 
     err = function(msg, data) {
         var e = new Error(msg);
@@ -63,10 +122,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
         T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
-        if      ((T_NUM === T)   || is_instance(v, Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ((T_STR === T)   || is_instance(v, String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
-        else if ((T_ARRAY === T) || is_instance(v, Array))    T = T_ARRAY;
-        else if ((T_REGEX === T) || is_instance(v, RegExp))   T = T_REGEX;
+        if      ((T_NUM === T)   || is_instance(v, Num))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ((T_STR === T)   || is_instance(v, Str) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+        else if ((T_ARRAY === T) || is_instance(v, Arr))    T = T_ARRAY;
+        else if ((T_REGEX === T) || is_instance(v, Regex))   T = T_REGEX;
         else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
         else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
         else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
@@ -92,133 +151,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false
     },
 
-    // http://jsperf.com/functional-loop-unrolling/2
-    // http://jsperf.com/functional-loop-unrolling/3
-    /*operate = function operate(a, f, f0) {
-        var i, l=a.length, r=l&15, q=r&1, fv=q?f(f0,a[0]):f0;
-        for (i=q; i<r; i+=2)  fv = f(f(fv,a[i]),a[i+1]);
-        for (i=r; i<l; i+=16) fv = f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(fv,a[i]),a[i+1]),a[i+2]),a[i+3]),a[i+4]),a[i+5]),a[i+6]),a[i+7]),a[i+8]),a[i+9]),a[i+10]),a[i+11]),a[i+12]),a[i+13]),a[i+14]),a[i+15]);
-        return fv;
-    },
-    map = function map(a, f) {
-        var i, l=a.length, r=l&15, q=r&1, fv=new Array(l);
-        if (q) fv[0] = f(a[0]);
-        for (i=q; i<r; i+=2)
-        {
-            fv[i  ] = f(a[i  ]);
-            fv[i+1] = f(a[i+1]);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            fv[i  ] = f(a[i  ]);
-            fv[i+1] = f(a[i+1]);
-            fv[i+2] = f(a[i+2]);
-            fv[i+3] = f(a[i+3]);
-            fv[i+4] = f(a[i+4]);
-            fv[i+5] = f(a[i+5]);
-            fv[i+6] = f(a[i+6]);
-            fv[i+7] = f(a[i+7]);
-            fv[i+8] = f(a[i+8]);
-            fv[i+9] = f(a[i+9]);
-            fv[i+10] = f(a[i+10]);
-            fv[i+11] = f(a[i+11]);
-            fv[i+12] = f(a[i+12]);
-            fv[i+13] = f(a[i+13]);
-            fv[i+14] = f(a[i+14]);
-            fv[i+15] = f(a[i+15]);
-        }
-        return fv;
-    },
-    filter = function filter(a, f) {
-        var i, l=a.length, r=l&15, q=r&1, fv=new Array(l), j=0;
-        if (q && f(a[0])) fv[j++] = a[0];
-        for (i=q; i<r; i+=2)
-        {
-            if (f(a[i  ])) fv[j++] = a[i  ];
-            if (f(a[i+1])) fv[j++] = a[i+1];
-        }
-        for (i=r; i<l; i+=16)
-        {
-            if (f(a[i  ])) fv[j++] = a[i  ];
-            if (f(a[i+1])) fv[j++] = a[i+1];
-            if (f(a[i+2])) fv[j++] = a[i+2];
-            if (f(a[i+3])) fv[j++] = a[i+3];
-            if (f(a[i+4])) fv[j++] = a[i+4];
-            if (f(a[i+5])) fv[j++] = a[i+5];
-            if (f(a[i+6])) fv[j++] = a[i+6];
-            if (f(a[i+7])) fv[j++] = a[i+7];
-            if (f(a[i+8])) fv[j++] = a[i+8];
-            if (f(a[i+9])) fv[j++] = a[i+9];
-            if (f(a[i+10])) fv[j++] = a[i+10];
-            if (f(a[i+11])) fv[j++] = a[i+11];
-            if (f(a[i+12])) fv[j++] = a[i+12];
-            if (f(a[i+13])) fv[j++] = a[i+13];
-            if (f(a[i+14])) fv[j++] = a[i+14];
-            if (f(a[i+15])) fv[j++] = a[i+15];
-        }
-        if (j < fv.length) fv.length = j;
-        return fv;
-    },*/
     each = function each(a, f) {
-        var i, l=a.length, r=l&15, q=r&1;
-        if (q) f(a[0]);
-        for (i=q; i<r; i+=2)
-        {
-            f(a[i  ]);
-            f(a[i+1]);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            f(a[i  ]);
-            f(a[i+1]);
-            f(a[i+2]);
-            f(a[i+3]);
-            f(a[i+4]);
-            f(a[i+5]);
-            f(a[i+6]);
-            f(a[i+7]);
-            f(a[i+8]);
-            f(a[i+9]);
-            f(a[i+10]);
-            f(a[i+11]);
-            f(a[i+12]);
-            f(a[i+13]);
-            f(a[i+14]);
-            f(a[i+15]);
-        }
+        [].forEach.call(a, f);
         return a;
     },
     iterate = function(F, i0, i1, F0) {
-        if (i0 > i1) return F0;
-        else if (i0 === i1) {F(i0, F0, i0, i1); return F0;}
-        var l=i1-i0+1, i, k, r=l&15, q=r&1;
-        if (q) F(i0, F0, i0, i1);
-        for (i=q; i<r; i+=2)
-        {
-            k = i0+i;
-            F(  k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            k = i0+i;
-            F(  k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-        }
+        for (var i=i0; i<=i1; i++) F(i, F0, i0, i1);
         return F0;
     },
 
@@ -266,12 +204,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return givenNamespaces.length
             ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
             : false;
-    },
-
-    Node = function(val, next) {
-        var self = this;
-        self.v = val || null;
-        self.n = next || {};
     },
 
     WILDCARD = "*", NAMESPACE = "modelview",
@@ -774,34 +706,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     '<unknown>':1,
     '<use>':1,
     '<view>':1
-    },
-    VNode = function VNode(nodeType, nodeValue, nodeValue2, parentNode, index) {
-        var self = this;
-        if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
-        self.nodeType = nodeType || '';
-        self.cnodeType = nodeType || '';
-        self.nodeValue = nodeValue || '';
-        self.nodeValue2 = nodeValue2 || '';
-        self.parentNode = parentNode || null;
-        self.index = index || 0;
-        self.component = null;
-        self.id = null;
-        self.type = null;
-        self.attributes = [];
-        self.atts = null;//{};
-        self.childNodes = [];
-        self.componentNodes = 0;
-        self.potentialChildNodes = 0;
-        self.modified = null;
-        self.diff = null;
-        self.changed = false;
-        self.achanged = false;
-        self.unit = false;
-    },
-    VCode = function VCode(code) {
-        var self = this;
-        if (!is_instance(self, VCode)) return new VCode(code);
-        self.code = code;
     },
     initState = function(opts, nodeType) {
         return {
@@ -2054,7 +1958,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (0 >= index && r.childNodes.length <= index+count)
             {
                 // delete all children
-                r.textContent = ''; // faster than range below ??
+                r.textContent = ''; // faster than using range below ??
             }
             else if (range = Range())
             {
@@ -2545,8 +2449,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                range = Range();
-                if (range && (1 < l))
+                range = 1 < l ? Range() : null;
+                if (range)
                 {
                     range.setStart(el, index);
                     range.setEnd(el, stdMath.min(el.childNodes.length, index+l));

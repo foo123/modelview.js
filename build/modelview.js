@@ -1,38 +1,34 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.0.5
-*   @built on 2022-03-05 20:41:42
+*   @version: 4.0.6
+*   @built on 2022-03-06 12:48:42
 *
-*   A simple, light-weight, versatile and fast MVVM framework
-*   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
+*   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
 *
-**/!function( root, name, factory ){
-"use strict";
-if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
-    (module.$deps = module.$deps||{}) && (module.exports = module.$deps[name] = factory.call(root));
-else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&require.specified(name) /*&& !require.defined(name)*/ ) /* AMD */
-    define(name,['module'],function(module){factory.moduleUri = module.uri; return factory.call(root);});
-else if ( !(name in root) ) /* Browser/WebWorker/.. */
-    (root[name] = factory.call(root)||1)&&('function'===typeof(define))&&define.amd&&define(function(){return root[name];} );
-}(  /* current root */          'undefined' !== typeof self ? self : this, 
-    /* module name */           "ModelView",
-    /* module factory */        function ModuleFactory__ModelView( ){
-/* main code starts here */
-
-/**
+**//**
 *
 *   ModelView.js
-*   @version: 4.0.5
-*   @built on 2022-03-05 20:41:42
+*   @version: 4.0.6
+*   @built on 2022-03-06 12:48:42
 *
-*   A simple, light-weight, versatile and fast MVVM framework
-*   optionaly integrates into both jQuery as MVVM plugin and jQueryUI as MVC widget
+*   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
 *
 **/
-
+!function(root, name, factory) {
+"use strict";
+if (('object' === typeof module) && module.exports) 
+    module.exports = factory.call(root); /* CommonJS */
+else if (('function' === typeof define) && define.amd && ('function' === typeof require) && ('function' === typeof require.specified) && require.specified(name))
+    define(name, function() {return factory.call(root);}); /* AMD */
+else if (!(name in root)) /* Browser/WebWorker/.. */
+    (root[name] = factory.call(root) || 1) && (('function' === typeof define) && define.amd) && define(function() {return root[name];});
+}(  /* current root */          'undefined' !== typeof self ? self : this, 
+    /* module name */           "ModelView",
+    /* module factory */        function ModuleFactory__ModelView() {
+/* main code starts here */
 "use strict";
 
 var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document);
@@ -40,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.0.5**
+**Version 4.0.6**
 
 ### Contents
 
@@ -56,7 +52,6 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-
 var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
@@ -64,11 +59,71 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
     toString = OP.toString, HAS = OP.hasOwnProperty, slice = AP.slice,
+    newFunc = function(args, code){return new Func(args, code);},
+    is_instance = function(o, T){return o instanceof T;}
+;
+
+function Node(val, next)
+{
+    var self = this;
+    self.v = val || null;
+    self.n = next || {};
+}
+Node[proto] = {
+    constructor: Node
+    ,v: null
+    ,n: null
+};
+function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
+{
+    var self = this;
+    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+    self.nodeType = nodeType || '';
+    self.cnodeType = nodeType || '';
+    self.nodeValue = nodeValue || '';
+    self.nodeValue2 = nodeValue2 || '';
+    self.parentNode = parentNode || null;
+    self.index = index || 0;
+    self.attributes = [];
+    self.childNodes = [];
+}
+VNode[proto] = {
+    constructor: VNode
+    ,nodeType: ''
+    ,cnodeType: ''
+    ,nodeValue: ''
+    ,nodeValue2: ''
+    ,parentNode: null
+    ,index: 0
+    ,component: null
+    ,id: null
+    ,type: null
+    ,attributes: null
+    ,atts: null
+    ,childNodes: null
+    ,componentNodes: 0
+    ,potentialChildNodes: 0
+    ,modified: null
+    ,diff: null
+    ,changed: false
+    ,achanged: false
+    ,unit: false
+};
+function VCode(code)
+{
+    var self = this;
+    if (!is_instance(self, VCode)) return new VCode(code);
+    self.code = code;
+}
+VCode[proto] = {
+    constructor: VCode
+    ,code: ''
+};
+
+var
     tostr = function(s){return Str(s);},
     lower = function(s){return s.toLowerCase();},
     upper = function(s){return s.toUpperCase();},
-    newFunc = function(args, code){return new Func(args, code);},
-    is_instance = function(o, T){return o instanceof T;},
 
     err = function(msg, data) {
         var e = new Error(msg);
@@ -115,10 +170,10 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         else
         {
         T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
-        if      ((T_NUM === T)   || is_instance(v, Number))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ((T_STR === T)   || is_instance(v, String) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
-        else if ((T_ARRAY === T) || is_instance(v, Array))    T = T_ARRAY;
-        else if ((T_REGEX === T) || is_instance(v, RegExp))   T = T_REGEX;
+        if      ((T_NUM === T)   || is_instance(v, Num))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+        else if ((T_STR === T)   || is_instance(v, Str) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+        else if ((T_ARRAY === T) || is_instance(v, Arr))    T = T_ARRAY;
+        else if ((T_REGEX === T) || is_instance(v, Regex))   T = T_REGEX;
         else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
         else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
         else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
@@ -144,133 +199,12 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return false
     },
 
-    // http://jsperf.com/functional-loop-unrolling/2
-    // http://jsperf.com/functional-loop-unrolling/3
-    /*operate = function operate(a, f, f0) {
-        var i, l=a.length, r=l&15, q=r&1, fv=q?f(f0,a[0]):f0;
-        for (i=q; i<r; i+=2)  fv = f(f(fv,a[i]),a[i+1]);
-        for (i=r; i<l; i+=16) fv = f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(fv,a[i]),a[i+1]),a[i+2]),a[i+3]),a[i+4]),a[i+5]),a[i+6]),a[i+7]),a[i+8]),a[i+9]),a[i+10]),a[i+11]),a[i+12]),a[i+13]),a[i+14]),a[i+15]);
-        return fv;
-    },
-    map = function map(a, f) {
-        var i, l=a.length, r=l&15, q=r&1, fv=new Array(l);
-        if (q) fv[0] = f(a[0]);
-        for (i=q; i<r; i+=2)
-        {
-            fv[i  ] = f(a[i  ]);
-            fv[i+1] = f(a[i+1]);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            fv[i  ] = f(a[i  ]);
-            fv[i+1] = f(a[i+1]);
-            fv[i+2] = f(a[i+2]);
-            fv[i+3] = f(a[i+3]);
-            fv[i+4] = f(a[i+4]);
-            fv[i+5] = f(a[i+5]);
-            fv[i+6] = f(a[i+6]);
-            fv[i+7] = f(a[i+7]);
-            fv[i+8] = f(a[i+8]);
-            fv[i+9] = f(a[i+9]);
-            fv[i+10] = f(a[i+10]);
-            fv[i+11] = f(a[i+11]);
-            fv[i+12] = f(a[i+12]);
-            fv[i+13] = f(a[i+13]);
-            fv[i+14] = f(a[i+14]);
-            fv[i+15] = f(a[i+15]);
-        }
-        return fv;
-    },
-    filter = function filter(a, f) {
-        var i, l=a.length, r=l&15, q=r&1, fv=new Array(l), j=0;
-        if (q && f(a[0])) fv[j++] = a[0];
-        for (i=q; i<r; i+=2)
-        {
-            if (f(a[i  ])) fv[j++] = a[i  ];
-            if (f(a[i+1])) fv[j++] = a[i+1];
-        }
-        for (i=r; i<l; i+=16)
-        {
-            if (f(a[i  ])) fv[j++] = a[i  ];
-            if (f(a[i+1])) fv[j++] = a[i+1];
-            if (f(a[i+2])) fv[j++] = a[i+2];
-            if (f(a[i+3])) fv[j++] = a[i+3];
-            if (f(a[i+4])) fv[j++] = a[i+4];
-            if (f(a[i+5])) fv[j++] = a[i+5];
-            if (f(a[i+6])) fv[j++] = a[i+6];
-            if (f(a[i+7])) fv[j++] = a[i+7];
-            if (f(a[i+8])) fv[j++] = a[i+8];
-            if (f(a[i+9])) fv[j++] = a[i+9];
-            if (f(a[i+10])) fv[j++] = a[i+10];
-            if (f(a[i+11])) fv[j++] = a[i+11];
-            if (f(a[i+12])) fv[j++] = a[i+12];
-            if (f(a[i+13])) fv[j++] = a[i+13];
-            if (f(a[i+14])) fv[j++] = a[i+14];
-            if (f(a[i+15])) fv[j++] = a[i+15];
-        }
-        if (j < fv.length) fv.length = j;
-        return fv;
-    },*/
     each = function each(a, f) {
-        var i, l=a.length, r=l&15, q=r&1;
-        if (q) f(a[0]);
-        for (i=q; i<r; i+=2)
-        {
-            f(a[i  ]);
-            f(a[i+1]);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            f(a[i  ]);
-            f(a[i+1]);
-            f(a[i+2]);
-            f(a[i+3]);
-            f(a[i+4]);
-            f(a[i+5]);
-            f(a[i+6]);
-            f(a[i+7]);
-            f(a[i+8]);
-            f(a[i+9]);
-            f(a[i+10]);
-            f(a[i+11]);
-            f(a[i+12]);
-            f(a[i+13]);
-            f(a[i+14]);
-            f(a[i+15]);
-        }
+        [].forEach.call(a, f);
         return a;
     },
     iterate = function(F, i0, i1, F0) {
-        if (i0 > i1) return F0;
-        else if (i0 === i1) {F(i0, F0, i0, i1); return F0;}
-        var l=i1-i0+1, i, k, r=l&15, q=r&1;
-        if (q) F(i0, F0, i0, i1);
-        for (i=q; i<r; i+=2)
-        {
-            k = i0+i;
-            F(  k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-        }
-        for (i=r; i<l; i+=16)
-        {
-            k = i0+i;
-            F(  k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-            F(++k, F0, i0, i1);
-        }
+        for (var i=i0; i<=i1; i++) F(i, F0, i0, i1);
         return F0;
     },
 
@@ -318,12 +252,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
         return givenNamespaces.length
             ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
             : false;
-    },
-
-    Node = function(val, next) {
-        var self = this;
-        self.v = val || null;
-        self.n = next || {};
     },
 
     WILDCARD = "*", NAMESPACE = "modelview",
@@ -826,34 +754,6 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     '<unknown>':1,
     '<use>':1,
     '<view>':1
-    },
-    VNode = function VNode(nodeType, nodeValue, nodeValue2, parentNode, index) {
-        var self = this;
-        if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
-        self.nodeType = nodeType || '';
-        self.cnodeType = nodeType || '';
-        self.nodeValue = nodeValue || '';
-        self.nodeValue2 = nodeValue2 || '';
-        self.parentNode = parentNode || null;
-        self.index = index || 0;
-        self.component = null;
-        self.id = null;
-        self.type = null;
-        self.attributes = [];
-        self.atts = null;//{};
-        self.childNodes = [];
-        self.componentNodes = 0;
-        self.potentialChildNodes = 0;
-        self.modified = null;
-        self.diff = null;
-        self.changed = false;
-        self.achanged = false;
-        self.unit = false;
-    },
-    VCode = function VCode(code) {
-        var self = this;
-        if (!is_instance(self, VCode)) return new VCode(code);
-        self.code = code;
     },
     initState = function(opts, nodeType) {
         return {
@@ -2106,7 +2006,7 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
             if (0 >= index && r.childNodes.length <= index+count)
             {
                 // delete all children
-                r.textContent = ''; // faster than range below ??
+                r.textContent = ''; // faster than using range below ??
             }
             else if (range = Range())
             {
@@ -2597,8 +2497,8 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
                         }
                     }
                 }
-                range = Range();
-                if (range && (1 < l))
+                range = 1 < l ? Range() : null;
+                if (range)
                 {
                     range.setStart(el, index);
                     range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
@@ -2891,406 +2791,6 @@ if (HASDOC && window.Node)
     window.Node[proto].$mvId = null;
     window.Node[proto].$mvMod = null;
 }
-
-// namespaced events, play nice with possible others
-function NSEvent(evt, namespace)
-{
-    var nsevent = [( evt || "" ), NAMESPACE];
-    if (namespace) nsevent = nsevent.concat(namespace);
-    return nsevent.join('.')
-}
-
-function hasEventOptions()
-{
-    var passiveSupported = false, options = {};
-    try {
-        Object.defineProperty(options, 'passive', {
-            get: function(){
-                passiveSupported = true;
-                return false;
-            }
-        });
-        window.addEventListener('test', null, options);
-        window.removeEventListener('test', null, options);
-    } catch(e) {
-        passiveSupported = false;
-    }
-    return passiveSupported;
-}
-
-// adapted from https://github.com/ftlabs/ftdomdelegate
-var EVENTSTOPPED = "DOMEVENT_STOPPED", eventOptionsSupported = null,
-    captureEvts = ['blur', 'error', 'focus', 'focusin', 'focusout', 'load', 'resize', 'scroll']
-;
-function captureForType(eventType){ return -1 < captureEvts.indexOf(eventType); }
-function matchesRoot(root, element){ return root === element; }
-function matchesTag(tagName, element){ return tagName.toLowerCase() === element.tagName.toLowerCase(); }
-function matchesId(id, element){ return id === element.id; }
-function matchesAttribute(att, element){ return element[HAS_ATTR](att); }
-function matchesAttributeValue(attval, element){ return attval[1].slice(1, -1) === element[ATTR](attval[0]); }
-function matchesSelector(selector, element){ return element[MATCHES](selector); }
-
-function DOMEvent(el)
-{
-    var self = this;
-    if (!(self instanceof DOMEvent)) return new DOMEvent(el);
-    if (el) self.element(el);
-    self.$handle = DOMEvent.Handler.bind(self);
-}
-DOMEvent.Handler = function(event) {
-    if (event[EVENTSTOPPED]) return;
-
-    var self = this, i, l, listeners,
-        type = event.type, target = event.target/*?event.target:event.srcElement*/,
-        root, phase, listener, returned, listenerList = [ ];
-
-    // Hardcode value of Node.TEXT_NODE
-    // as not defined in IE8
-    if (target && 3 === target.nodeType) target = target.parentNode;
-
-    root = self.$element;
-    listeners = root.$listeners;
-    phase = event.eventPhase || (event.target !== event.currentTarget ? 3 : 2);
-
-    switch (phase)
-    {
-        case 1: //Event.CAPTURING_PHASE:
-            listenerList = listeners[1][type];
-            break;
-        case 2: //Event.AT_TARGET:
-            if (listeners[0] && listeners[0][type]) listenerList = listenerList.concat(listeners[0][type]);
-            if (listeners[1] && listeners[1][type]) listenerList = listenerList.concat(listeners[1][type]);
-            break;
-        case 3: //Event.BUBBLING_PHASE:
-            listenerList = listeners[0][type];
-            break;
-    }
-    if (!listenerList) return;
-
-    // Need to continuously check
-    // that the specific list is
-    // still populated in case one
-    // of the callbacks actually
-    // causes the list to be destroyed.
-    l = listenerList.length;
-    while (l && target)
-    {
-        for (i=0; i<l; i++)
-        {
-            if (!listenerList) return;
-            listener = listenerList[i];
-            if (!listener) break;
-
-            if (listener.matcher(listener.matcherParam, target))
-            {
-                returned = listener.handler.call(target, event, target);
-            }
-
-            // Stop propagation to subsequent
-            // callbacks if the callback returned
-            // false
-            if (false === returned || false === event.returnValue)
-            {
-                event[EVENTSTOPPED] = true;
-                event.preventDefault();
-                return;
-            }
-        }
-
-        // TODO:MCG:20120117: Need a way to
-        // check if event#stopPropagation
-        // was called. If so, break looping
-        // through the DOM. Stop if the
-        // delegation root has been reached
-        if (/*event.isPropagationStopped( ) ||*/ root === target)  break;
-        l = listenerList.length;
-        target = target.parentElement;
-    }
-};
-DOMEvent.Dispatch = function(event, element, data) {
-    var evt; // The custom event that will be created
-    if (!HASDOC || !element) return;
-    if (document.createEvent)
-    {
-        evt = document.createEvent("HTMLEvents");
-        evt.initEvent(event, true, true);
-        evt.eventName = event;
-        if (null != data) evt.data = data;
-        element.dispatchEvent(evt);
-    }
-    else
-    {
-        evt = document.createEventObject();
-        evt.eventType = event;
-        evt.eventName = event;
-        if (null != data) evt.data = data;
-        element.fireEvent("on" + event, evt);
-    }
-};
-
-DOMEvent[proto] = {
-    constructor: DOMEvent,
-
-    $element: null,
-    $handle: null,
-
-    dispose: function() {
-        var self = this;
-        self.off().element();
-        self.$element = null;
-        self.$handle = null;
-        return self;
-    },
-
-    element: function(el) {
-        var self = this, listeners, element = self.$element,
-            eventTypes, k;
-
-        // Remove master event listeners
-        if (element)
-        {
-            listeners = element.$listeners;
-            eventTypes = Keys( listeners[1] );
-            for (k=0; k<eventTypes.length; k++ )
-                element.removeEventListener(eventTypes[k], self.$handle, true);
-            eventTypes = Keys( listeners[0] );
-            for (k=0; k<eventTypes.length; k++ )
-                element.removeEventListener(eventTypes[k], self.$handle, false);
-            element.$listeners = undef;
-        }
-
-        // If no root or root is not
-        // a dom node, then remove internal
-        // root reference and exit here
-        if (!el || !el.addEventListener)
-        {
-            self.$element = null;
-            return self;
-        }
-
-        self.$element = el;
-        el.$listeners = el.$listeners || [{}, {}];
-
-        return self;
-    },
-
-    on: function(eventType, selector, handler, options) {
-        var self = this, root, listeners, matcher, i, l, matcherParam, eventTypes, capture, useCapture;
-
-        root = self.$element; if (!root) return self;
-
-        if (!eventType)
-            throw new TypeError('Invalid event type: ' + eventType);
-
-        eventTypes = eventType.split( SPACES ).map( getNS );
-        if (!eventTypes.length) return self;
-
-        // handler can be passed as
-        // the second or third argument
-        if ('function' === typeof selector)
-        {
-            options = handler;
-            handler = selector;
-            selector = null;
-        }
-
-        if ('function' !== typeof handler)
-            throw new TypeError('Handler must be a type of Function');
-
-        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
-
-        useCapture = 'object' === typeof(options) ? options.capture : options;
-
-        // Add master handler for type if not created yet
-        for (i=0,l=eventTypes.length; i<l; i++)
-        {
-            // Fallback to sensible defaults
-            // if useCapture not set
-            if (undef === useCapture)
-                capture = captureForType( eventTypes[i][0] );
-            else
-                capture = !!useCapture;
-            listeners = root.$listeners[capture ? 1 : 0];
-
-            if (!listeners[eventTypes[i][0]])
-            {
-                listeners[ eventTypes[i][0] ] = [ ];
-                if ('object' === typeof(options)) options.capture = capture;
-                else options = capture;
-                root.addEventListener( eventTypes[i][0], self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
-            }
-
-            if (!selector)
-            {
-                matcherParam = root;
-                matcher = matchesRoot;
-            }
-            else if (/^[a-z]+$/i.test(selector))
-            {
-                // Compile a matcher for the given selector
-                matcherParam = selector;
-                matcher = matchesTag;
-            }
-            else if (/^#[a-z0-9\-_]+$/i.test(selector))
-            {
-                matcherParam = selector.slice(1);
-                matcher = matchesId;
-            }
-            else if (/^\[[a-z0-9\-_]+\]$/i.test(selector))
-            {
-                matcherParam = selector.slice(1, -1);
-                matcher = matchesAttribute;
-            }
-            else if (/^\[[a-z0-9\-_]+\s*=\s*"[^"]+"\]$/i.test(selector))
-            {
-                matcherParam = selector.slice(1, -1).split('=').map(trim);
-                matcher = matchesAttributeValue;
-            }
-            else
-            {
-                matcherParam = selector;
-                matcher = matchesSelector;
-            }
-
-            // Add to the list of listeners
-            listeners[ eventTypes[i][0] ].push({
-                selector: selector,
-                handler: handler,
-                matcher: matcher,
-                matcherParam: matcherParam,
-                namespace: eventTypes[ i ][ 1 ].join('.')
-            });
-        }
-        return self;
-    },
-
-    off: function(eventType, selector, handler, options) {
-        var self = this, i, listener, listeners, listenerList, e, c,
-            root = self.$element, useCapture,
-            singleEventType, singleEventNS, nsMatcher, eventTypes, allCaptures = false;
-
-        if (!root) return self;
-        if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
-
-        // Handler can be passed as
-        // the second or third argument
-        if ('function' === typeof selector)
-        {
-            options = handler;
-            handler = selector;
-            selector = null;
-        }
-
-        useCapture = 'object' === typeof(options) ? options.capture : options;
-
-        // If useCapture not set, remove
-        // all event listeners
-        if (undef === useCapture) allCaptures = [0, 1];
-        else allCaptures = useCapture ? [1] : [0];
-
-        eventTypes = eventType ? eventType.split( /\s+/g ).map( getNS ) : [ ];
-
-        if (!eventTypes.length)
-        {
-            for (c=0; c<allCaptures.length; c++)
-            {
-                listeners = root.$listeners[allCaptures[c]];
-                for (singleEventType in listeners)
-                {
-                    listenerList = listeners[ singleEventType ];
-                    if (!listenerList || !listenerList.length) continue;
-                    // Remove only parameter matches
-                    // if specified
-                    for (i=listenerList.length-1; i>=0; i--)
-                    {
-                        listener = listenerList[ i ];
-                        if ((!selector || selector === listener.selector) &&
-                            (!handler || handler === listener.handler))
-                            listenerList.splice( i, 1 );
-                    }
-                    // All listeners removed
-                    if (!listenerList.length)
-                    {
-                        delete listeners[ singleEventType ];
-                        if ('object' === typeof(options)) options.capture = !!allCaptures[c];
-                        else options = !!allCaptures[c];
-                        // Remove the main handler
-                        root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
-                    }
-                }
-            }
-        }
-        else
-        {
-            for (c=0; c<allCaptures.length; c++)
-            {
-                listeners = root.$listeners[ allCaptures[c] ];
-                for (e=0; e<eventTypes.length; e++)
-                {
-                    singleEventNS = eventTypes[e][1];
-                    singleEventType = eventTypes[e][0];
-                    nsMatcher = getNSMatcher( singleEventNS );
-                    if (singleEventType.length)
-                    {
-                        listenerList = listeners[ singleEventType ];
-                        if (!listenerList || !listenerList.length) continue;
-                        // Remove only parameter matches
-                        // if specified
-                        for (i=listenerList.length-1; i>=0; i--)
-                        {
-                            listener = listenerList[ i ];
-                            if (
-                                (!selector || selector === listener.selector) &&
-                                (!handler || handler === listener.handler) &&
-                                (!nsMatcher || nsMatcher.test(listener.namespace))
-                            )
-                                listenerList.splice( i, 1 );
-                        }
-                        // All listeners removed
-                        if (!listenerList.length)
-                        {
-                            delete listeners[ singleEventType ];
-                            if ('object' === typeof(options)) options.capture = !!allCaptures[c];
-                            else options = !!allCaptures[c];
-                            // Remove the main handler
-                            root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
-                        }
-                    }
-                    else
-                    {
-                        for (singleEventType in listeners)
-                        {
-                            listenerList = listeners[ singleEventType ];
-                            if (!listenerList || !listenerList.length) continue;
-                            // Remove only parameter matches
-                            // if specified
-                            for (i=listenerList.length-1; i>=0; i--)
-                            {
-                                listener = listenerList[ i ];
-                                if (
-                                    (!selector || selector === listener.selector) &&
-                                    (!handler || handler === listener.handler) &&
-                                    (!nsMatcher || nsMatcher.test(listener.namespace))
-                                )
-                                    listenerList.splice( i, 1 );
-                            }
-                            // All listeners removed
-                            if (!listenerList.length)
-                            {
-                                delete listeners[ singleEventType ];
-                                if ('object' === typeof(options)) options.capture = !!allCaptures[c];
-                                else options = !!allCaptures[c];
-                                // Remove the main handler
-                                root.removeEventListener( singleEventType, self.$handle, 'object' === typeof(options) ? (eventOptionsSupported ? options : options.capture) : options );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return self;
-    }
-};
 
 //
 // PublishSubscribe (Interface)
@@ -6964,10 +6464,6 @@ var namedKeyProp = "$mvNamedKey",
     ,123 : 'f12'
     },
 
-    viewHandler = function(view, method) {
-        return function(evt){return view[method](evt, {el:this});};
-    },
-
     getCtxScoped = function(view, viewvar) {
         var k, code = '';
         viewvar = viewvar || 'this';
@@ -7023,8 +6519,79 @@ var namedKeyProp = "$mvNamedKey",
                 delete view.$cache[id];
             }
         });
-    }
+    },
+
+    viewHandler = function(view, method) {
+        return function(evt) {return method.call(view, evt, {el:evt.target});};
+    },
+
+    closestEvtEl = function(el, evt, view) {
+        var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
+        while (el)
+        {
+            if (view.$dom === el) break;
+            if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
+            el = el.parentNode;
+        }
+    },
+
+    eventOptionsSupported = null
 ;
+
+function hasEventOptions()
+{
+    var passiveSupported = false, options = {};
+    try {
+        Object.defineProperty(options, 'passive', {
+            get: function(){
+                passiveSupported = true;
+                return false;
+            }
+        });
+        window.addEventListener('test', null, options);
+        window.removeEventListener('test', null, options);
+    } catch(e) {
+        passiveSupported = false;
+    }
+    return passiveSupported;
+}
+function addEvent(target, event, handler, options)
+{
+    if (!HASDOC || !target) return;
+    if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
+    if (target.attachEvent) target.attachEvent('on' + event, handler);
+    else target.addEventListener(event, handler, eventOptionsSupported ? options : ('object' === typeof options ? !!options.capture : !!options));
+}
+function removeEvent(target, event, handler, options)
+{
+    if (!HASDOC || !target) return;
+    if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
+    // if (el.removeEventListener) not working in IE11
+    if (target.detachEvent) target.detachEvent('on' + event, handler);
+    else target.removeEventListener(event, handler, eventOptionsSupported ? options : ('object' === typeof options ? !!options.capture : !!options));
+}
+function dispatchEvent(target, event, data)
+{
+    var evt; // The custom event that will be created
+    if (!HASDOC || !target) return;
+    if (document.createEvent)
+    {
+        evt = document.createEvent("HTMLEvents");
+        evt.initEvent(event, true, true);
+        evt.eventName = event;
+        if (null != data) evt.data = data;
+        target.dispatchEvent(evt);
+    }
+    else
+    {
+        evt = document.createEventObject();
+        evt.eventType = event;
+        evt.eventName = event;
+        if (null != data) evt.data = data;
+        target.fireEvent('on' + event, evt);
+    }
+}
+
 
 /**[DOC_MARKDOWN]
 #### View
@@ -7045,6 +6612,8 @@ var View = function View(id, opts) {
 
     view.$opts = opts || Obj();
     view.option('view.uuid', uuid('View'));
+    view.option('view.livebind', true);
+    view.option('view.autobind', true);
     view.namespace = view.id = id || view.option('view.uuid');
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
@@ -7052,6 +6621,7 @@ var View = function View(id, opts) {
     view.$ctx = {};
     view.$cache = Obj();
     view.$cnt = null;
+    view.changeHandler = bindF(view.changeHandler, view);
     view.initPubSub();
 };
 // STATIC
@@ -7063,6 +6633,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     constructor: View
 
     ,id: null
+    ,namespace: null
     ,$opts: null
     ,$dom: null
     ,$renderdom: null
@@ -7070,8 +6641,6 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$tpl: ''
     ,$out: null
     ,$map: null
-    ,$livebind: true
-    ,$autobind: true
     ,$shortcuts: null
     ,$num_shortcuts: null
     ,$components: null
@@ -7105,6 +6674,22 @@ view.dispose( );
         view.$reset = null;
         return view;
     }
+
+    ,changeHandler: function changeHandler(evt) {
+        var view = this;
+        // event triggered by view itself, ignore
+        if (evt.data && (view === evt.data.trigger)) return;
+        // avoid "ghosting" events on other elements which may be inside a bind element
+        // Chrome issue on nested button clicked, when bind on original button
+        // add "bubble" option in modelview bind params
+        var el = evt.target, tag = (el.tagName || '').toLowerCase(),
+            isAutoBind = ('change' == evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && (startsWith(el.name || '', view.$model.id+'[') || startsWith(el.name || '', ':model[')),
+            isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
+        if (!isBind && !isAutoBind) isBind = !!(el = closestEvtEl(el.parentNode, evt, view));
+        if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
+        return true;
+    }
+
 
 /**[DOC_MARKDOWN]
 // get / set view builtin and user-defined options
@@ -7514,10 +7099,10 @@ view.livebind( [type=true|false|'text'] );
         var view = this;
         if (arguments.length)
         {
-            view.$livebind = 'text' === enable ? 'text' : !!enable;
+            view.option('view.livebind', 'text' === enable ? 'text' : !!enable);
             return view;
         }
-        return view.$livebind;
+        return view.option('view.livebind');
     }
 
 /**[DOC_MARKDOWN]
@@ -7530,10 +7115,10 @@ view.autobind( [Boolean enabled] );
         var view = this;
         if (arguments.length)
         {
-            view.$autobind = !!enable;
+            view.option('view.autobind', !!enable);
             return view;
         }
-        return view.$autobind;
+        return view.option('view.autobind');
     }
 
 /**[DOC_MARKDOWN]
@@ -7543,98 +7128,49 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
 
 [/DOC_MARKDOWN]**/
     ,bind: function(events, dom, renderdom) {
-        var view = this, model = view.$model,
-            method, evt, namespaced, autobindSelector, automodelSelector, bindSelector,
-            autobind = view.$autobind, livebind = view.$livebind
-        ;
+        var view = this, model = view.$model, method, evt;
 
         view.$dom = dom || (HASDOC ? document.body : null);
         view.$renderdom = renderdom || view.$dom;
 
-        namespaced = function(evt) {return NSEvent(evt, view.namespace);};
-
         // default view/dom binding events
-        events = events || ['change', 'click'];
-        autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
-        bindSelector = '['+view.attr('mv-evt')+']';
+        view.option('view.events', events || ['change', 'click']);
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
-            DOMEvent(view.$dom).on(
-                events.map(namespaced).join(' '),
-
-                autobind ? [autobindSelector, automodelSelector, bindSelector].join(',') : bindSelector,
-
-                function(evt) {
-                    // event triggered by view itself, ignore
-                    if (evt.data && (view === evt.data.trigger)) return;
-                    // avoid "ghosting" events on other elements which may be inside a bind element
-                    // Chrome issue on nested button clicked, when bind on original button
-                    // add "bubble" option in modelview bind params
-                    var el = this, isAutoBind = false, isBind = false;
-                    // view/dom change events
-                    isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
-                    // view change autobind events
-                    isAutoBind = autobind && ("change" == evt.type) && (el[MATCHES](autobindSelector) || el[MATCHES](automodelSelector));
-                    if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
-                    return true;
-                },
-
-                {capture: true, passive: false}
-            );
+            view.option('view.events').forEach(function(event) {
+                addEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
+            });
         }
 
-        // bind model/view/dom/document/window (custom) event handlers
+        // bind model/dom/document/window (custom) event handlers
         for (method in view)
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (view.$dom && startsWith(method, 'on_model_'))
+            if (startsWith(method, 'on_model_'))
             {
                 evt = method.slice(9);
-                evt.length && view.onTo(model, evt, bindF(view[method], view));
+                evt.length && view.onTo(model, evt, view[method] = bindF(view[method], view));
             }
             else if (HASDOC)
             {
                 if (startsWith(method, 'on_window_'))
                 {
                     evt = method.slice(10);
-                    evt.length && DOMEvent(window).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(window, evt, view[method] = viewHandler(view, view[method]), {capture:true, passive:false});
                 }
                 else if (startsWith(method, 'on_document_'))
                 {
                     evt = method.slice(12);
-                    evt.length && DOMEvent(document.body).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: false, passive: false}
-                    );
-                }
-                else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
-                {
-                    evt = method.slice(8);
-                    evt.length && DOMEvent(view.$dom).on(
-                        namespaced(evt),
-                        autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(document.body, evt, view[method] = viewHandler(view, view[method]), {capture:false, passive:false});
                 }
                 else if (view.$dom && startsWith(method, 'on_dom_'))
                 {
                     evt = method.slice(7);
-                    evt.length && DOMEvent(view.$dom).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(view.$dom, evt, view[method] = viewHandler(view, view[method]), {capture:true, passive:false});
                 }
             }
         }
@@ -7648,35 +7184,41 @@ view.unbind( );
 
 [/DOC_MARKDOWN]**/
     ,unbind: function() {
-        var view = this, model = view.$model,
-            autobindSelector, automodelSelector, bindSelector,
-            namespaced, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind
-        ;
-
-        namespaced = function(evt) {return NSEvent(evt, view.namespace);};
-        autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
-        bindSelector = '['+view.attr('mv-evt')+']';
-
-        // view/dom change events
-        if (HASDOC && view.$dom && view.on_view_change)
-        {
-            DOMEvent(view.$dom).off(
-                viewEvent,
-                autobind ? [autobindSelector, automodelSelector, bindSelector].join( ',' ) : bindSelector,
-                null,
-                {passive: false}
-            );
-        }
+        var view = this, model = view.$model;
 
         // model events
         if (model) view.offFrom(model);
+
+        if (HASDOC && view.$dom && view.on_view_change && view.option('view.events'))
+        {
+            view.option('view.events').forEach(function(event) {
+                removeEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
+            });
+        }
+
+        // unbind dom/document/window (custom) event handlers
         if (HASDOC)
         {
-            if (view.$dom) DOMEvent(view.$dom).off(viewEvent, null, null, {passive: false});
-            DOMEvent(document.body).off(viewEvent, null, null, {passive: false});
-            DOMEvent(window).off(viewEvent, null, null, {passive: false});
+            for (method in view)
+            {
+                if (!is_type(view[method], T_FUNC)) continue;
+
+                if (startsWith(method, 'on_window_'))
+                {
+                    evt = method.slice(10);
+                    evt.length && removeEvent(window, evt, view[method], {capture:true, passive:false});
+                }
+                else if (startsWith(method, 'on_document_'))
+                {
+                    evt = method.slice(12);
+                    evt.length && removeEvent(document.body, evt, view[method], {capture:false, passive:false});
+                }
+                else if (view.$dom && startsWith(method, 'on_dom_'))
+                {
+                    evt = method.slice(7);
+                    evt.length && removeEvent(view.$dom, evt, view[method], {capture:true, passive:false});
+                }
+            }
             clearAll(view);
         }
         return view;
@@ -7689,9 +7231,9 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var view = this, out = '', callback;
-        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), view.$livebind, {trim:true, id:view.attr('mv-id')});
-        if ('text' === view.$livebind)
+        var view = this, out = '', callback, livebind = view.option('view.livebind');
+        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
+        if ('text' === livebind)
         {
             if (!view.$renderdom)
             {
@@ -7797,7 +7339,7 @@ view.updateMap( node, action='add'|'remove' );
 [/DOC_MARKDOWN]**/
     ,updateMap: function(node, action) {
         var view = this;
-        if (view.$dom && node && ('text' === view.$livebind))
+        if (view.$dom && node && ('text' === view.option('view.livebind')))
         {
             if ('add' === action)
             {
@@ -7847,16 +7389,18 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        var view = this, model = view.$model, els;
+        var view = this, model = view.$model, els,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind');
 
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (view.$autobind && (true !== view.$livebind || view.$dom !== view.$renderdom))
+            if (true !== livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
-                //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, {type:'change'}, els, null);
             }
         }
@@ -7870,7 +7414,7 @@ view.sync_model();
 [/DOC_MARKDOWN]**/
     ,sync_model: function() {
         var view = this, model = view.$model,
-            autobind = view.$autobind, autobinds
+            autobind = view.option('view.autobind'), autobinds
         ;
 
         if (HASDOC && view.$dom && autobind)
@@ -8060,7 +7604,8 @@ view.sync_model();
 
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model,
-            autobind = view.$autobind, livebind = view.$livebind,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind'),
             key, autobindSelector, bindSelector,
             bindElements = [], autoBindElements = [], notTriggerElem
         ;
@@ -8105,7 +7650,8 @@ view.sync_model();
 
     ,on_model_error: function(evt, data) {
         var view = this, model = view.$model,
-            autobind = view.$autobind, livebind = view.$livebind,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind'),
             key, autobindSelector, bindSelector,
             bindElements, autoBindElements
         ;
@@ -8166,7 +7712,8 @@ view.sync_model();
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -8181,16 +7728,17 @@ view.sync_model();
                 if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // set element(s) css props based on model key value
     ,do_css: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -8213,16 +7761,17 @@ view.sync_model();
                 }
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -8240,16 +7789,17 @@ view.sync_model();
                 else hide(el);
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -8267,23 +7817,23 @@ view.sync_model();
                 else show(el);
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function(evt, el, data) {
-        var view = this, model = view.$model, trigger = DOMEvent.Dispatch,
+        var view = this, model = view.$model,
             name = data.name, key = data.key,
             input_type = (el[TYPE]||'').toLowerCase(),
             value, value_type, checked, checkboxes, is_dynamic_array
         ;
 
         // if should be updated via new live render, ignore
-        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return;
+        if (true===view.option('view.livebind') && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return;
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
@@ -8299,7 +7849,7 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = true;
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
         }
 
@@ -8313,14 +7863,14 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
             else if (/*checkboxes.length > 1 &&*/ (T_ARRAY === value_type))
             {
                 checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
 
             else
@@ -8328,13 +7878,13 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = T_BOOL === value_type ? value : (Str(value) == el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
         }
         else
         {
             if (set_val(el, value))
-                trigger('change', el, {trigger:view});
+                dispatchEvent(el, 'change', {trigger:view});
         }
     }
 
@@ -8553,14 +8103,11 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.0.5"
+    VERSION: "4.0.6"
     
     ,UUID: uuid
     
     ,Extend: Merge
-    
-    //,Field: ModelField // transfered to Model.Field
-    ,Event: DOMEvent
     
     ,Type: Type
     

@@ -358,10 +358,6 @@ var namedKeyProp = "$mvNamedKey",
     ,123 : 'f12'
     },
 
-    viewHandler = function(view, method) {
-        return function(evt){return view[method](evt, {el:this});};
-    },
-
     getCtxScoped = function(view, viewvar) {
         var k, code = '';
         viewvar = viewvar || 'this';
@@ -417,8 +413,79 @@ var namedKeyProp = "$mvNamedKey",
                 delete view.$cache[id];
             }
         });
-    }
+    },
+
+    viewHandler = function(view, method) {
+        return function(evt) {return method.call(view, evt, {el:evt.target});};
+    },
+
+    closestEvtEl = function(el, evt, view) {
+        var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
+        while (el)
+        {
+            if (view.$dom === el) break;
+            if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
+            el = el.parentNode;
+        }
+    },
+
+    eventOptionsSupported = null
 ;
+
+function hasEventOptions()
+{
+    var passiveSupported = false, options = {};
+    try {
+        Object.defineProperty(options, 'passive', {
+            get: function(){
+                passiveSupported = true;
+                return false;
+            }
+        });
+        window.addEventListener('test', null, options);
+        window.removeEventListener('test', null, options);
+    } catch(e) {
+        passiveSupported = false;
+    }
+    return passiveSupported;
+}
+function addEvent(target, event, handler, options)
+{
+    if (!HASDOC || !target) return;
+    if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
+    if (target.attachEvent) target.attachEvent('on' + event, handler);
+    else target.addEventListener(event, handler, eventOptionsSupported ? options : ('object' === typeof options ? !!options.capture : !!options));
+}
+function removeEvent(target, event, handler, options)
+{
+    if (!HASDOC || !target) return;
+    if (null == eventOptionsSupported) eventOptionsSupported = hasEventOptions();
+    // if (el.removeEventListener) not working in IE11
+    if (target.detachEvent) target.detachEvent('on' + event, handler);
+    else target.removeEventListener(event, handler, eventOptionsSupported ? options : ('object' === typeof options ? !!options.capture : !!options));
+}
+function dispatchEvent(target, event, data)
+{
+    var evt; // The custom event that will be created
+    if (!HASDOC || !target) return;
+    if (document.createEvent)
+    {
+        evt = document.createEvent("HTMLEvents");
+        evt.initEvent(event, true, true);
+        evt.eventName = event;
+        if (null != data) evt.data = data;
+        target.dispatchEvent(evt);
+    }
+    else
+    {
+        evt = document.createEventObject();
+        evt.eventType = event;
+        evt.eventName = event;
+        if (null != data) evt.data = data;
+        target.fireEvent('on' + event, evt);
+    }
+}
+
 
 /**[DOC_MARKDOWN]
 #### View
@@ -439,6 +506,8 @@ var View = function View(id, opts) {
 
     view.$opts = opts || Obj();
     view.option('view.uuid', uuid('View'));
+    view.option('view.livebind', true);
+    view.option('view.autobind', true);
     view.namespace = view.id = id || view.option('view.uuid');
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
@@ -446,6 +515,7 @@ var View = function View(id, opts) {
     view.$ctx = {};
     view.$cache = Obj();
     view.$cnt = null;
+    view.changeHandler = bindF(view.changeHandler, view);
     view.initPubSub();
 };
 // STATIC
@@ -457,6 +527,7 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     constructor: View
 
     ,id: null
+    ,namespace: null
     ,$opts: null
     ,$dom: null
     ,$renderdom: null
@@ -464,8 +535,6 @@ View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,$tpl: ''
     ,$out: null
     ,$map: null
-    ,$livebind: true
-    ,$autobind: true
     ,$shortcuts: null
     ,$num_shortcuts: null
     ,$components: null
@@ -499,6 +568,22 @@ view.dispose( );
         view.$reset = null;
         return view;
     }
+
+    ,changeHandler: function changeHandler(evt) {
+        var view = this;
+        // event triggered by view itself, ignore
+        if (evt.data && (view === evt.data.trigger)) return;
+        // avoid "ghosting" events on other elements which may be inside a bind element
+        // Chrome issue on nested button clicked, when bind on original button
+        // add "bubble" option in modelview bind params
+        var el = evt.target, tag = (el.tagName || '').toLowerCase(),
+            isAutoBind = ('change' == evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && (startsWith(el.name || '', view.$model.id+'[') || startsWith(el.name || '', ':model[')),
+            isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
+        if (!isBind && !isAutoBind) isBind = !!(el = closestEvtEl(el.parentNode, evt, view));
+        if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
+        return true;
+    }
+
 
 /**[DOC_MARKDOWN]
 // get / set view builtin and user-defined options
@@ -908,10 +993,10 @@ view.livebind( [type=true|false|'text'] );
         var view = this;
         if (arguments.length)
         {
-            view.$livebind = 'text' === enable ? 'text' : !!enable;
+            view.option('view.livebind', 'text' === enable ? 'text' : !!enable);
             return view;
         }
-        return view.$livebind;
+        return view.option('view.livebind');
     }
 
 /**[DOC_MARKDOWN]
@@ -924,10 +1009,10 @@ view.autobind( [Boolean enabled] );
         var view = this;
         if (arguments.length)
         {
-            view.$autobind = !!enable;
+            view.option('view.autobind', !!enable);
             return view;
         }
-        return view.$autobind;
+        return view.option('view.autobind');
     }
 
 /**[DOC_MARKDOWN]
@@ -937,98 +1022,49 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
 
 [/DOC_MARKDOWN]**/
     ,bind: function(events, dom, renderdom) {
-        var view = this, model = view.$model,
-            method, evt, namespaced, autobindSelector, automodelSelector, bindSelector,
-            autobind = view.$autobind, livebind = view.$livebind
-        ;
+        var view = this, model = view.$model, method, evt;
 
         view.$dom = dom || (HASDOC ? document.body : null);
         view.$renderdom = renderdom || view.$dom;
 
-        namespaced = function(evt) {return NSEvent(evt, view.namespace);};
-
         // default view/dom binding events
-        events = events || ['change', 'click'];
-        autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
-        bindSelector = '['+view.attr('mv-evt')+']';
+        view.option('view.events', events || ['change', 'click']);
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
             // use one event handler for bind and autobind
             // avoid running same (view) action twice on autobind and bind elements
-            DOMEvent(view.$dom).on(
-                events.map(namespaced).join(' '),
-
-                autobind ? [autobindSelector, automodelSelector, bindSelector].join(',') : bindSelector,
-
-                function(evt) {
-                    // event triggered by view itself, ignore
-                    if (evt.data && (view === evt.data.trigger)) return;
-                    // avoid "ghosting" events on other elements which may be inside a bind element
-                    // Chrome issue on nested button clicked, when bind on original button
-                    // add "bubble" option in modelview bind params
-                    var el = this, isAutoBind = false, isBind = false;
-                    // view/dom change events
-                    isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
-                    // view change autobind events
-                    isAutoBind = autobind && ("change" == evt.type) && (el[MATCHES](autobindSelector) || el[MATCHES](automodelSelector));
-                    if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
-                    return true;
-                },
-
-                {capture: true, passive: false}
-            );
+            view.option('view.events').forEach(function(event) {
+                addEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
+            });
         }
 
-        // bind model/view/dom/document/window (custom) event handlers
+        // bind model/dom/document/window (custom) event handlers
         for (method in view)
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (view.$dom && startsWith(method, 'on_model_'))
+            if (startsWith(method, 'on_model_'))
             {
                 evt = method.slice(9);
-                evt.length && view.onTo(model, evt, bindF(view[method], view));
+                evt.length && view.onTo(model, evt, view[method] = bindF(view[method], view));
             }
             else if (HASDOC)
             {
                 if (startsWith(method, 'on_window_'))
                 {
                     evt = method.slice(10);
-                    evt.length && DOMEvent(window).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(window, evt, view[method] = viewHandler(view, view[method]), {capture:true, passive:false});
                 }
                 else if (startsWith(method, 'on_document_'))
                 {
                     evt = method.slice(12);
-                    evt.length && DOMEvent(document.body).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: false, passive: false}
-                    );
-                }
-                else if (view.$dom && startsWith(method, 'on_view_') && 'on_view_change' !== method)
-                {
-                    evt = method.slice(8);
-                    evt.length && DOMEvent(view.$dom).on(
-                        namespaced(evt),
-                        autobind ? [autobindSelector, bindSelector].join(',') : bindSelector,
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(document.body, evt, view[method] = viewHandler(view, view[method]), {capture:false, passive:false});
                 }
                 else if (view.$dom && startsWith(method, 'on_dom_'))
                 {
                     evt = method.slice(7);
-                    evt.length && DOMEvent(view.$dom).on(
-                        namespaced(evt),
-                        viewHandler(view, method),
-                        {capture: true, passive: false}
-                    );
+                    evt.length && addEvent(view.$dom, evt, view[method] = viewHandler(view, view[method]), {capture:true, passive:false});
                 }
             }
         }
@@ -1042,35 +1078,41 @@ view.unbind( );
 
 [/DOC_MARKDOWN]**/
     ,unbind: function() {
-        var view = this, model = view.$model,
-            autobindSelector, automodelSelector, bindSelector,
-            namespaced, viewEvent = NSEvent('', view.namespace),
-            autobind = view.$autobind, livebind = !!view.$livebind
-        ;
-
-        namespaced = function(evt) {return NSEvent(evt, view.namespace);};
-        autobindSelector = 'input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]';
-        automodelSelector = 'input[name^=":model["],textarea[name^=":model["],select[name^=":model["]';
-        bindSelector = '['+view.attr('mv-evt')+']';
-
-        // view/dom change events
-        if (HASDOC && view.$dom && view.on_view_change)
-        {
-            DOMEvent(view.$dom).off(
-                viewEvent,
-                autobind ? [autobindSelector, automodelSelector, bindSelector].join( ',' ) : bindSelector,
-                null,
-                {passive: false}
-            );
-        }
+        var view = this, model = view.$model;
 
         // model events
         if (model) view.offFrom(model);
+
+        if (HASDOC && view.$dom && view.on_view_change && view.option('view.events'))
+        {
+            view.option('view.events').forEach(function(event) {
+                removeEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
+            });
+        }
+
+        // unbind dom/document/window (custom) event handlers
         if (HASDOC)
         {
-            if (view.$dom) DOMEvent(view.$dom).off(viewEvent, null, null, {passive: false});
-            DOMEvent(document.body).off(viewEvent, null, null, {passive: false});
-            DOMEvent(window).off(viewEvent, null, null, {passive: false});
+            for (method in view)
+            {
+                if (!is_type(view[method], T_FUNC)) continue;
+
+                if (startsWith(method, 'on_window_'))
+                {
+                    evt = method.slice(10);
+                    evt.length && removeEvent(window, evt, view[method], {capture:true, passive:false});
+                }
+                else if (startsWith(method, 'on_document_'))
+                {
+                    evt = method.slice(12);
+                    evt.length && removeEvent(document.body, evt, view[method], {capture:false, passive:false});
+                }
+                else if (view.$dom && startsWith(method, 'on_dom_'))
+                {
+                    evt = method.slice(7);
+                    evt.length && removeEvent(view.$dom, evt, view[method], {capture:true, passive:false});
+                }
+            }
             clearAll(view);
         }
         return view;
@@ -1083,9 +1125,9 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var view = this, out = '', callback;
-        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), view.$livebind, {trim:true, id:view.attr('mv-id')});
-        if ('text' === view.$livebind)
+        var view = this, out = '', callback, livebind = view.option('view.livebind');
+        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
+        if ('text' === livebind)
         {
             if (!view.$renderdom)
             {
@@ -1191,7 +1233,7 @@ view.updateMap( node, action='add'|'remove' );
 [/DOC_MARKDOWN]**/
     ,updateMap: function(node, action) {
         var view = this;
-        if (view.$dom && node && ('text' === view.$livebind))
+        if (view.$dom && node && ('text' === view.option('view.livebind')))
         {
             if ('add' === action)
             {
@@ -1241,16 +1283,18 @@ view.sync();
 
 [/DOC_MARKDOWN]**/
     ,sync: function() {
-        var view = this, model = view.$model, els;
+        var view = this, model = view.$model, els,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind');
 
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (true !== view.$livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (view.$autobind && (true !== view.$livebind || view.$dom !== view.$renderdom))
+            if (true !== livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
-                //if (view.$livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, {type:'change'}, els, null);
             }
         }
@@ -1264,7 +1308,7 @@ view.sync_model();
 [/DOC_MARKDOWN]**/
     ,sync_model: function() {
         var view = this, model = view.$model,
-            autobind = view.$autobind, autobinds
+            autobind = view.option('view.autobind'), autobinds
         ;
 
         if (HASDOC && view.$dom && autobind)
@@ -1454,7 +1498,8 @@ view.sync_model();
 
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model,
-            autobind = view.$autobind, livebind = view.$livebind,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind'),
             key, autobindSelector, bindSelector,
             bindElements = [], autoBindElements = [], notTriggerElem
         ;
@@ -1499,7 +1544,8 @@ view.sync_model();
 
     ,on_model_error: function(evt, data) {
         var view = this, model = view.$model,
-            autobind = view.$autobind, livebind = view.$livebind,
+            autobind = view.option('view.autobind'),
+            livebind = view.option('view.livebind'),
             key, autobindSelector, bindSelector,
             bindElements, autoBindElements
         ;
@@ -1560,7 +1606,8 @@ view.sync_model();
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -1575,16 +1622,17 @@ view.sync_model();
                 if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // set element(s) css props based on model key value
     ,do_css: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -1607,16 +1655,17 @@ view.sync_model();
                 }
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -1634,16 +1683,17 @@ view.sync_model();
                 else hide(el);
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key, domref, callback;
+        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+            domref, callback, livebind = view.option('view.livebind');
 
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
@@ -1661,23 +1711,23 @@ view.sync_model();
                 else show(el);
             });
         };
-        if (true !== view.$livebind)
+        if (true !== livebind)
         {
-            if (!view.$livebind || ('sync' === evt.type)) callback();
-            else if ('text' === view.$livebind) view.on('render', callback, true);
+            if (!livebind || ('sync' === evt.type)) callback();
+            else if ('text' === livebind) view.on('render', callback, true);
         }
     }
 
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function(evt, el, data) {
-        var view = this, model = view.$model, trigger = DOMEvent.Dispatch,
+        var view = this, model = view.$model,
             name = data.name, key = data.key,
             input_type = (el[TYPE]||'').toLowerCase(),
             value, value_type, checked, checkboxes, is_dynamic_array
         ;
 
         // if should be updated via new live render, ignore
-        if (true===view.$livebind && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return;
+        if (true===view.option('view.livebind') && (view.$dom===view.$renderdom || is_child_of(el, view.$renderdom, view.$dom))) return;
 
         // use already computed/cached key/value from calling method passed in "data"
         //if (!key) return;
@@ -1693,7 +1743,7 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = true;
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
         }
 
@@ -1707,14 +1757,14 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
             else if (/*checkboxes.length > 1 &&*/ (T_ARRAY === value_type))
             {
                 checked = el[CHECKED];
                 el[CHECKED] = contains_non_strict(value, el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
 
             else
@@ -1722,13 +1772,13 @@ view.sync_model();
                 checked = el[CHECKED];
                 el[CHECKED] = T_BOOL === value_type ? value : (Str(value) == el[VAL]);
                 if (checked !== el[CHECKED])
-                    trigger('change', el, {trigger:view});
+                    dispatchEvent(el, 'change', {trigger:view});
             }
         }
         else
         {
             if (set_val(el, value))
-                trigger('change', el, {trigger:view});
+                dispatchEvent(el, 'change', {trigger:view});
         }
     }
 
