@@ -229,7 +229,7 @@ var namedKeyProp = "$mvNamedKey",
             el = elements[i]; if (!el) return;
             do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
             if (!do_action || !do_action.length) return;
-            do_action.split(',').forEach(function(do_action){
+            each(do_action.split(','), function(do_action){
                 do_action = trim(do_action);
                 if (!do_action.length) return;
                 data = {};
@@ -374,7 +374,7 @@ var namedKeyProp = "$mvNamedKey",
         if (view.$model) view.$model.resetDirty();
         if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
         view.$reset = null;
-        if (view.$cache) Keys(view.$cache).forEach(function(id){
+        if (view.$cache) each(Keys(view.$cache), function(id){
             var comp = view.$cache[id], COMP;
             if (is_instance(comp, MVComponentInstance))
             {
@@ -405,7 +405,7 @@ var namedKeyProp = "$mvNamedKey",
     },
 
     clearAll = function(view) {
-        if (view.$cache) Keys(view.$cache).forEach(function(id){
+        if (view.$cache) each(Keys(view.$cache), function(id){
             var comp = view.$cache[id];
             if (is_instance(comp, MVComponentInstance))
             {
@@ -1028,13 +1028,11 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         view.$renderdom = renderdom || view.$dom;
 
         // default view/dom binding events
-        view.option('view.events', events || ['change', 'click']);
+        view.option('view.events', events = events || ['change', 'click']);
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
-            // use one event handler for bind and autobind
-            // avoid running same (view) action twice on autobind and bind elements
-            view.option('view.events').forEach(function(event) {
+            each(events, function(event) {
                 addEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
             });
         }
@@ -1085,7 +1083,7 @@ view.unbind( );
 
         if (HASDOC && view.$dom && view.on_view_change && view.option('view.events'))
         {
-            view.option('view.events').forEach(function(event) {
+            each(view.option('view.events'), function(event) {
                 removeEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
             });
         }
@@ -1294,7 +1292,7 @@ view.sync();
             if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
-                //if (livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, {type:'change'}, els, null);
             }
         }
@@ -1517,8 +1515,8 @@ view.sync_model();
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = bindElements.filter(notTriggerElem);
-                if (autobind) autoBindElements = autoBindElements.filter(notTriggerElem);
+                bindElements = filter(bindElements, notTriggerElem);
+                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
             // do actions ..
@@ -1531,7 +1529,7 @@ view.sync_model();
             // do view autobind action to bind input elements that map to the model, afterwards
             if (autobind && autoBindElements.length)
             {
-                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, evt, autoBindElements, data);
             }
             // do view live DOM update action
@@ -1566,7 +1564,7 @@ view.sync_model();
             if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 autoBindElements = $sel(autobindSelector, view.$dom);
-                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, evt, autoBindElements, data);
             }
             // do view live DOM bindings update action

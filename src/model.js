@@ -541,7 +541,7 @@ var
 
     getDirty = function getDirty(u) {
         var upds = [];
-        if (u.k) Keys(u.k).forEach(function(k){
+        if (u.k) each(Keys(u.k), function(k){
             var rest = getDirty(u.k[k]);
             if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
             else upds.push(k);
@@ -550,7 +550,7 @@ var
     },
 
     setDirty = function setDirty(model, key, many) {
-        if (many) key.forEach(function(k){model.setDirty(k.split('.'));});
+        if (many) each(key, function(k){model.setDirty(k.split('.'));});
         else model.setDirty(key);
     }
 ;
@@ -1168,7 +1168,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     if (prevval !== val)
                     {
                         o.set(k, val, pub, callData);
-                        collections.forEach(function(collection){
+                        each(collections, function(collection){
                             collection[0]._upd('change', collection[1], collection[1]);
                         });
                     }
@@ -1268,7 +1268,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -1297,7 +1297,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             // update/set only if different
             if (prevval !== val)
             {
-                collections.forEach(function(collection){
+                each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
                 });
 
@@ -1388,7 +1388,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     k = k.join('.');
                     o.add(k, val, prepend, pub, callData);
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                 }
@@ -1484,7 +1484,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -1535,7 +1535,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 o[ k ] = val;
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -1618,7 +1618,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     k = k.join('.');
                     o.ins(k, val, index, pub, callData);
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                 }
@@ -1715,7 +1715,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -1752,7 +1752,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 o[ k ] = val;
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -1811,7 +1811,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 k = k.join('.');
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
-                collections.forEach(function(collection){
+                each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
                 });
                 pub && model.publish('change', {
@@ -1859,7 +1859,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 }
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -2005,7 +2005,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 }
             }
         }
-        collections.forEach(function(collection){
+        each(collections, function(collection){
             collection[0]._upd('change', collection[1], collection[1]);
         });
         return model;

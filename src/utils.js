@@ -73,9 +73,9 @@ VCode[proto] = {
 };
 
 var
-    tostr = function(s){return Str(s);},
-    lower = function(s){return s.toLowerCase();},
-    upper = function(s){return s.toUpperCase();},
+    tostr = function(s) {return Str(s);},
+    lower = function(s) {return s.toLowerCase();},
+    upper = function(s) {return s.toUpperCase();},
 
     err = function(msg, data) {
         var e = new Error(msg);
@@ -151,7 +151,10 @@ var
         return false
     },
 
-    each = function each(a, f) {
+    filter = function(a, f) {
+        return [].filter.call(a, f);
+    },
+    each = function(a, f) {
         [].forEach.call(a, f);
         return a;
     },
@@ -197,7 +200,7 @@ var
     // adapted from jQuery
     getNS = function(evt) {
         var ns = evt.split('.'), e = ns[0];
-        ns = ns.slice(1).filter(notEmpty);
+        ns = filter(ns.slice(1), notEmpty);
         return [e, ns.sort()];
     },
     getNSMatcher = function(givenNamespaces) {
@@ -1426,7 +1429,7 @@ var
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
             ch = false; c = 0; l = 0;
-            modified.atts.forEach(function(range){
+            each(modified.atts, function(range){
                 for (var a,i=range.from; i<=range.to; i++)
                 {
                     l++; a = atts[i];
@@ -2466,7 +2469,7 @@ var
 
     insert_map = function(map, ks, v) {
         var m = map;
-        ks.forEach(function(k, i){
+        each(ks, function(k, i){
             if (!HAS.call(m, 'c')) m.c = {};
             if (!HAS.call(m.c, k)) m.c[k] = {};
             m = m.c[k];
@@ -2485,7 +2488,7 @@ var
         }
         if (m.c)
         {
-            Keys(m.c).forEach(function(k){
+            each(Keys(m.c), function(k){
                 if (m.c[k].c)
                 {
                     del_map(m.c[k], d);
@@ -2514,7 +2517,7 @@ var
         }
         if (m.c)
         {
-            Keys(m.c).forEach(function(k){
+            each(Keys(m.c), function(k){
                 var kk = key + (key.length ? '.' : '') + k;
                 if (m.c[k].c) walk_map(m.c[k], f, kk);
                 else if (m.c[k].v) f(m.c[k].v, kk);
@@ -2550,7 +2553,7 @@ var
             {
                 if (node.attributes && node.attributes.length)
                 {
-                    slice.call(node.attributes).forEach(function(a) {
+                    each(node.attributes, function(a) {
                         var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
                         while (s.length && (m = s.match(placeholder_re)))
                         {
@@ -2574,7 +2577,7 @@ var
                         }
                         else
                         {
-                            keys.forEach(function(k) {
+                            each(keys, function(k) {
                                 var t = {node:node, att:a.name, txt:txt.slice()};
                                 insert_map(map.att, k.split('.'), t);
                             });
@@ -2583,7 +2586,7 @@ var
                 }
                 if (node.childNodes.length)
                 {
-                    slice.call(node.childNodes).forEach(function(n) {
+                    each(node.childNodes, function(n) {
                         var m, k, t, s;
                         if (3 === n.nodeType)
                         {
@@ -2616,14 +2619,14 @@ var
     },
     morphTextVal = function(list, key, model) {
         var val = Str(model.get(key));
-        list.forEach(function(t) {
+        each(list, function(t) {
             //if (t.nodeValue !== val)
                 t.nodeValue = val;
         });
     },
     morphTextAtt1 = function(list, key, model) {
         var v = model.get(key);
-        list.forEach(function(a) {
+        each(list, function(a) {
             var n = a.att, r = a.node;
             if (true === v || false === v)
             {
@@ -2668,7 +2671,7 @@ var
         });
     },
     morphTextAtt = function(list, model) {
-        list.forEach(function(a) {
+        each(list, function(a) {
             var r = a.node, n = a.att,
                 v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
             if ('id' === n)
@@ -2697,9 +2700,9 @@ var
         if (!map || (!map.txt && !map.att1 && !map.att)) return;
         if (keys)
         {
-            keys.forEach(function(ks) {
+            each(keys, function(ks) {
                 var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
-                kk.forEach(function(k, i) {
+                each(kk, function(k, i) {
                     mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
                     ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
                     ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;

@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-06 12:48:42
+*   @built on 2022-03-06 13:32:47
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-06 12:48:42
+*   @built on 2022-03-06 13:32:47
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -121,9 +121,9 @@ VCode[proto] = {
 };
 
 var
-    tostr = function(s){return Str(s);},
-    lower = function(s){return s.toLowerCase();},
-    upper = function(s){return s.toUpperCase();},
+    tostr = function(s) {return Str(s);},
+    lower = function(s) {return s.toLowerCase();},
+    upper = function(s) {return s.toUpperCase();},
 
     err = function(msg, data) {
         var e = new Error(msg);
@@ -199,7 +199,10 @@ var
         return false
     },
 
-    each = function each(a, f) {
+    filter = function(a, f) {
+        return [].filter.call(a, f);
+    },
+    each = function(a, f) {
         [].forEach.call(a, f);
         return a;
     },
@@ -245,7 +248,7 @@ var
     // adapted from jQuery
     getNS = function(evt) {
         var ns = evt.split('.'), e = ns[0];
-        ns = ns.slice(1).filter(notEmpty);
+        ns = filter(ns.slice(1), notEmpty);
         return [e, ns.sort()];
     },
     getNSMatcher = function(givenNamespaces) {
@@ -1474,7 +1477,7 @@ var
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
             ch = false; c = 0; l = 0;
-            modified.atts.forEach(function(range){
+            each(modified.atts, function(range){
                 for (var a,i=range.from; i<=range.to; i++)
                 {
                     l++; a = atts[i];
@@ -2514,7 +2517,7 @@ var
 
     insert_map = function(map, ks, v) {
         var m = map;
-        ks.forEach(function(k, i){
+        each(ks, function(k, i){
             if (!HAS.call(m, 'c')) m.c = {};
             if (!HAS.call(m.c, k)) m.c[k] = {};
             m = m.c[k];
@@ -2533,7 +2536,7 @@ var
         }
         if (m.c)
         {
-            Keys(m.c).forEach(function(k){
+            each(Keys(m.c), function(k){
                 if (m.c[k].c)
                 {
                     del_map(m.c[k], d);
@@ -2562,7 +2565,7 @@ var
         }
         if (m.c)
         {
-            Keys(m.c).forEach(function(k){
+            each(Keys(m.c), function(k){
                 var kk = key + (key.length ? '.' : '') + k;
                 if (m.c[k].c) walk_map(m.c[k], f, kk);
                 else if (m.c[k].v) f(m.c[k].v, kk);
@@ -2598,7 +2601,7 @@ var
             {
                 if (node.attributes && node.attributes.length)
                 {
-                    slice.call(node.attributes).forEach(function(a) {
+                    each(node.attributes, function(a) {
                         var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
                         while (s.length && (m = s.match(placeholder_re)))
                         {
@@ -2622,7 +2625,7 @@ var
                         }
                         else
                         {
-                            keys.forEach(function(k) {
+                            each(keys, function(k) {
                                 var t = {node:node, att:a.name, txt:txt.slice()};
                                 insert_map(map.att, k.split('.'), t);
                             });
@@ -2631,7 +2634,7 @@ var
                 }
                 if (node.childNodes.length)
                 {
-                    slice.call(node.childNodes).forEach(function(n) {
+                    each(node.childNodes, function(n) {
                         var m, k, t, s;
                         if (3 === n.nodeType)
                         {
@@ -2664,14 +2667,14 @@ var
     },
     morphTextVal = function(list, key, model) {
         var val = Str(model.get(key));
-        list.forEach(function(t) {
+        each(list, function(t) {
             //if (t.nodeValue !== val)
                 t.nodeValue = val;
         });
     },
     morphTextAtt1 = function(list, key, model) {
         var v = model.get(key);
-        list.forEach(function(a) {
+        each(list, function(a) {
             var n = a.att, r = a.node;
             if (true === v || false === v)
             {
@@ -2716,7 +2719,7 @@ var
         });
     },
     morphTextAtt = function(list, model) {
-        list.forEach(function(a) {
+        each(list, function(a) {
             var r = a.node, n = a.att,
                 v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
             if ('id' === n)
@@ -2745,9 +2748,9 @@ var
         if (!map || (!map.txt && !map.att1 && !map.att)) return;
         if (keys)
         {
-            keys.forEach(function(ks) {
+            each(keys, function(ks) {
                 var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
-                kk.forEach(function(k, i) {
+                each(kk, function(k, i) {
                     mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
                     ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
                     ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
@@ -4139,7 +4142,7 @@ var
 
     getDirty = function getDirty(u) {
         var upds = [];
-        if (u.k) Keys(u.k).forEach(function(k){
+        if (u.k) each(Keys(u.k), function(k){
             var rest = getDirty(u.k[k]);
             if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
             else upds.push(k);
@@ -4148,7 +4151,7 @@ var
     },
 
     setDirty = function setDirty(model, key, many) {
-        if (many) key.forEach(function(k){model.setDirty(k.split('.'));});
+        if (many) each(key, function(k){model.setDirty(k.split('.'));});
         else model.setDirty(key);
     }
 ;
@@ -4766,7 +4769,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     if (prevval !== val)
                     {
                         o.set(k, val, pub, callData);
-                        collections.forEach(function(collection){
+                        each(collections, function(collection){
                             collection[0]._upd('change', collection[1], collection[1]);
                         });
                     }
@@ -4866,7 +4869,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -4895,7 +4898,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             // update/set only if different
             if (prevval !== val)
             {
-                collections.forEach(function(collection){
+                each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
                 });
 
@@ -4986,7 +4989,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     k = k.join('.');
                     o.add(k, val, prepend, pub, callData);
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                 }
@@ -5082,7 +5085,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -5133,7 +5136,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 o[ k ] = val;
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -5216,7 +5219,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     k = k.join('.');
                     o.ins(k, val, index, pub, callData);
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                 }
@@ -5313,7 +5316,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    collections.forEach(function(collection){
+                    each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
                     });
                     if (pub)
@@ -5350,7 +5353,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 o[ k ] = val;
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -5409,7 +5412,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 k = k.join('.');
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
-                collections.forEach(function(collection){
+                each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
                 });
                 pub && model.publish('change', {
@@ -5457,7 +5460,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 }
             }
 
-            collections.forEach(function(collection){
+            each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
             });
 
@@ -5603,7 +5606,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 }
             }
         }
-        collections.forEach(function(collection){
+        each(collections, function(collection){
             collection[0]._upd('change', collection[1], collection[1]);
         });
         return model;
@@ -6335,7 +6338,7 @@ var namedKeyProp = "$mvNamedKey",
             el = elements[i]; if (!el) return;
             do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
             if (!do_action || !do_action.length) return;
-            do_action.split(',').forEach(function(do_action){
+            each(do_action.split(','), function(do_action){
                 do_action = trim(do_action);
                 if (!do_action.length) return;
                 data = {};
@@ -6480,7 +6483,7 @@ var namedKeyProp = "$mvNamedKey",
         if (view.$model) view.$model.resetDirty();
         if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
         view.$reset = null;
-        if (view.$cache) Keys(view.$cache).forEach(function(id){
+        if (view.$cache) each(Keys(view.$cache), function(id){
             var comp = view.$cache[id], COMP;
             if (is_instance(comp, MVComponentInstance))
             {
@@ -6511,7 +6514,7 @@ var namedKeyProp = "$mvNamedKey",
     },
 
     clearAll = function(view) {
-        if (view.$cache) Keys(view.$cache).forEach(function(id){
+        if (view.$cache) each(Keys(view.$cache), function(id){
             var comp = view.$cache[id];
             if (is_instance(comp, MVComponentInstance))
             {
@@ -7134,13 +7137,11 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         view.$renderdom = renderdom || view.$dom;
 
         // default view/dom binding events
-        view.option('view.events', events || ['change', 'click']);
+        view.option('view.events', events = events || ['change', 'click']);
 
         if (HASDOC && view.$dom && view.on_view_change && events.length)
         {
-            // use one event handler for bind and autobind
-            // avoid running same (view) action twice on autobind and bind elements
-            view.option('view.events').forEach(function(event) {
+            each(events, function(event) {
                 addEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
             });
         }
@@ -7191,7 +7192,7 @@ view.unbind( );
 
         if (HASDOC && view.$dom && view.on_view_change && view.option('view.events'))
         {
-            view.option('view.events').forEach(function(event) {
+            each(view.option('view.events'), function(event) {
                 removeEvent(view.$dom, event, view.changeHandler, {capture:true, passive:false});
             });
         }
@@ -7400,7 +7401,7 @@ view.sync();
             if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
-                //if (livebind) els = els.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, {type:'change'}, els, null);
             }
         }
@@ -7623,8 +7624,8 @@ view.sync_model();
             if (data.$callData && data.$callData.$trigger)
             {
                 notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = bindElements.filter(notTriggerElem);
-                if (autobind) autoBindElements = autoBindElements.filter(notTriggerElem);
+                bindElements = filter(bindElements, notTriggerElem);
+                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
                 data.$callData = null;
             }
             // do actions ..
@@ -7637,7 +7638,7 @@ view.sync_model();
             // do view autobind action to bind input elements that map to the model, afterwards
             if (autobind && autoBindElements.length)
             {
-                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, evt, autoBindElements, data);
             }
             // do view live DOM update action
@@ -7672,7 +7673,7 @@ view.sync_model();
             if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 autoBindElements = $sel(autobindSelector, view.$dom);
-                //if (livebind) autoBindElements = autoBindElements.filter(function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
+                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
                 do_auto_bind_action(view, evt, autoBindElements, data);
             }
             // do view live DOM bindings update action
