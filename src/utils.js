@@ -1957,24 +1957,27 @@ var
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
         {
-            var range;
             if (0 >= index && r.childNodes.length <= index+count)
             {
                 // delete all children
                 r.textContent = ''; // faster than using range below ??
             }
-            else if (range = Range())
-            {
-                range.setStart(r, index);
-                range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
-                range.deleteContents();
-                //range.detach();
-            }
             else
             {
-                // old-fashioned way
-                for (; (0 < count) && (index < r.childNodes.length); count--)
-                    r.removeChild(r.childNodes[index]);
+                var range = Range();
+                if (range)
+                {
+                    range.setStart(r, index);
+                    range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
+                    range.deleteContents();
+                    //range.detach();
+                }
+                else
+                {
+                    // old-fashioned way
+                    for (; (0 < count) && (index < r.childNodes.length); count--)
+                        r.removeChild(r.childNodes[index]);
+                }
             }
         }
     },
@@ -2054,7 +2057,9 @@ var
         }
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count) {
-        var index, indexv, vnode, rnode, T, collection, diff, di, dc, d, items, i, j, k, l, m, n, len, frag;
+        var index, indexv, vnode, rnode, T, collection,
+            diff, di, dc, d, items,
+            i, j, k, l, m, n, w, x, z, len, frag;
         if ('collection' === v.childNodes[startv].nodeType)
         {
             collection = v.childNodes[startv].nodeValue;
@@ -2106,14 +2111,26 @@ var
                         break;
                     case 'change':
                         len = (d.to-d.from+1)*m;
-                        view.$cache['#'] = slice.call(r.childNodes, start+d.from*m, start+d.from*m+len).reduce(function(c, n){
-                            if (n.$mvComp) c.push(n.$mvComp);
-                            return c;
-                        }, []);
-                        view.$cache['#'] = null;
+                        z = new Array(len);
+                        for (w=start+d.from*m,j=0,i=0; i<len; i++)
+                        {
+                            x = r.childNodes[w+i].$mvComp;
+                            if (x) z[j++] = x;
+                        }
+                        //z.length = j;
+                        view.$cache['#'] = z;
                         items = collection.mapped(collection.items(d.from, d.to+1));
                         frag = htmlNode(view, '', null, null, [], items);
-                        morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
+                        view.$cache['#'] = z = null;
+                        for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; i++)
+                        {
+                            vnode = n[i]; rnode = r.childNodes[w+i];
+                            if (eqNodes(rnode, vnode))
+                                morphSingle(view, r, rnode, vnode);
+                            else
+                                r.replaceChild(to_node(view, vnode, true), rnode);
+                        }
+                        //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
                         break;
                 }
             }
@@ -2214,8 +2231,9 @@ var
     morph = function morph(view, r, v, isRoot) {
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, mi, m, mc, di, dc, i, j, index,
-            vnode, rnode, lastnode, to_remove, T, frag, unconditionally,
+            count = 0, offset = 0, matched, match,
+            mi, m, mc, di, dc, i, j, index,
+            vnode, rnode, T, frag, unconditionally,
             modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes,
             rComp = r.$mvComp, vComp = v.component;
 
@@ -2236,12 +2254,18 @@ var
             modifiedNodesPrev = modifiedNodesPrev || [];
             modifiedNodes = modifiedNodes || [];
             offset = 0;
-            matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length) && (modifiedNodes.length === modifiedNodes.reduce(function(matched, m, i){
-                var match = (m.from === offset + modifiedNodesPrev[i].from);
-                offset += (m.to - m.from + 1) - (modifiedNodesPrev[i].to - modifiedNodesPrev[i].from + 1);
-                return matched + match;
-            }, 0)) && (offset+r.childNodes.length === vpc);
-
+            matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length);
+            if (matched)
+            {
+                for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+                {
+                    m = modifiedNodes[mi];
+                    match = (m.from === offset + modifiedNodesPrev[mi].from);
+                    offset += (m.to - m.from + 1) - (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+                    count += match;
+                }
+                matched = (modifiedNodes.length === count) && (offset+r.childNodes.length === vpc);
+            }
             if (matched)
             {
                 for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
