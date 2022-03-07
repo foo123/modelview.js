@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-06 18:17:56
+*   @built on 2022-03-07 10:56:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-06 18:17:56
+*   @built on 2022-03-07 10:56:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1485,7 +1485,9 @@ var
                     {
                         c++;
                         // reset Value after current render session
-                        view.$reset.push(a.value);
+                        // if dirty and not not from model.getVal() (ie has no key)
+                        if (a.value.dirty() && !a.value.key())
+                            view.$reset.push(a.value);
                         ch = ch || a.value.dirty();
                         a.value = a.value.val();
                     }
@@ -1536,7 +1538,9 @@ var
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     new_mod = insMod(node.modified.nodes, index, index, new_mod);
                     // reset Value after current render session
-                    view.$reset.push(val);
+                    // if dirty and not not from model.getVal() (ie has no key)
+                    if (val.dirty() && !val.key())
+                        view.$reset.push(val);
                     n.changed = val.dirty();
                 }
                 else if (!is_instance(n, VNode))
@@ -2106,7 +2110,7 @@ var
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count) {
         var index, indexv, vnode, rnode, T, collection,
-            diff, di, dc, d, items,
+            diff, di, dc, d, items, nodes,
             i, j, k, l, m, n, w, x, z, len, frag;
         if ('collection' === v.childNodes[startv].nodeType)
         {
@@ -2186,6 +2190,14 @@ var
             return count;
         }
 
+        for (nodes=Obj(),index=start; index<=end; index++)
+        {
+            if (index >= r.childNodes.length) break;
+            rnode = r.childNodes[index];
+            // store the keyed nodes in a map
+            // to be retrieved easily below
+            if (rnode.$mvId) nodes['#'+rnode.$mvId] = rnode;
+        }
         for (indexv=startv,index=start; index<=end; index++,indexv++)
         {
             vnode = v.childNodes[indexv];
@@ -2206,64 +2218,55 @@ var
             rnode = r.childNodes[index];
             T = nodeType(rnode);
 
-            if (0 === count)
+            if (eqNodes(rnode, vnode, T))
             {
-                if (eqNodes(rnode, vnode, T))
-                {
-                    morphSingle(view, r, rnode, vnode);
-                }
-                else
-                {
-                    r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                }
+                morphSingle(view, r, rnode, vnode);
+            }
+            else if (vnode.id && (frag=nodes['#'+vnode.id]) && eqNodes(frag, vnode))
+            {
+                r.replaceChild(frag, rnode);
+                morphSingle(view, r, frag, vnode);
+            }
+            else if (0 === count)
+            {
+                r.replaceChild(frag=to_node(view, vnode, true), rnode);
+            }
+            else if (0 > count)
+            {
+                r.insertBefore(frag=to_node(view, vnode, true), rnode);
+                count++;
             }
             else
             {
-                if (eqNodes(rnode, vnode, T))
+                for (i=index,j=0; 0 < count && j < count; )
                 {
-                    morphSingle(view, r, rnode, vnode);
+                    j++;
+                    if (index+j >= r.childNodes.length) break;
+                    rnode = r.childNodes[index+j];
+                    if (eqNodes(rnode, vnode)) break;
+                }
+                if (0 < j)
+                {
+                    delNodes(view, r, i, j);
+                    count -= j;
+                }
+                if (index >= r.childNodes.length)
+                {
+                    insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
+                    count = 0;
+                    break;
                 }
                 else
                 {
-                    if (0 > count)
+                    rnode = r.childNodes[index];
+                    T = nodeType(rnode);
+                    if (eqNodes(rnode, vnode, T))
                     {
-                        r.insertBefore(frag=to_node(view, vnode, true), rnode);
-                        count++;
+                        morphSingle(view, r, rnode, vnode);
                     }
                     else
                     {
-                        for (i=index,j=0; 0 < count && j < count; )
-                        {
-                            j++; //r.removeChild(rnode); count--;
-                            if (index+j >= r.childNodes.length) break;
-                            rnode = r.childNodes[index+j];
-                            if (eqNodes(rnode, vnode)) break;
-                        }
-                        if (0 < j)
-                        {
-                            delNodes(view, r, i, j);
-                            count -= j;
-                        }
-                        if (index >= r.childNodes.length)
-                        {
-                            //r.appendChild(to_node(view, vnode, true));
-                            insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
-                            count = 0;
-                            break;
-                        }
-                        else
-                        {
-                            rnode = r.childNodes[index];
-                            T = nodeType(rnode);
-                            if (eqNodes(rnode, vnode, T))
-                            {
-                                morphSingle(view, r, rnode, vnode);
-                            }
-                            else
-                            {
-                                r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                            }
-                        }
+                        r.replaceChild(frag=to_node(view, vnode, true), rnode);
                     }
                 }
             }
@@ -2280,7 +2283,7 @@ var
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
             count = 0, offset = 0, matched, match,
-            mi, m, mc, di, dc, i, j, index,
+            mi, m, mc, di, dc, i, j, index, nodes,
             vnode, rnode, T, frag, unconditionally,
             modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes,
             rComp = r.$mvComp, vComp = v.component;
@@ -2356,6 +2359,13 @@ var
                     if ('collection' === v.childNodes[index].nodeType)
                         v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
                 }
+                for (nodes=Obj(),index=0,count=r.childNodes.length; index<count; index++)
+                {
+                    rnode = r.childNodes[index];
+                    // store the keyed nodes in a map
+                    // to be retrieved easily below
+                    if (rnode.$mvId) nodes['#'+rnode.$mvId] = rnode;
+                }
                 vc = v.childNodes.length;
                 count = r.childNodes.length - vc;
                 for (index=0; index<vc; index++)
@@ -2369,64 +2379,56 @@ var
                     vnode = v.childNodes[index];
                     rnode = r.childNodes[index];
                     T = nodeType(rnode);
-                    if (0 === count)
+
+                    if (eqNodes(rnode, vnode, T))
                     {
-                        if (eqNodes(rnode, vnode, T))
-                        {
-                            morphSingle(view, r, rnode, vnode, unconditionally);
-                        }
-                        else
-                        {
-                            r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                        }
+                        morphSingle(view, r, rnode, vnode, unconditionally);
+                    }
+                    else if (vnode.id && (frag=nodes['#'+vnode.id]) && eqNodes(frag, vnode))
+                    {
+                        r.replaceChild(frag, rnode);
+                        morphSingle(view, r, frag, vnode, unconditionally);
+                    }
+                    else if (0 === count)
+                    {
+                        r.replaceChild(frag=to_node(view, vnode, true), rnode);
+                    }
+                    else if (0 > count)
+                    {
+                        r.insertBefore(frag=to_node(view, vnode, true), rnode);
+                        count++;
                     }
                     else
                     {
-                        if (eqNodes(rnode, vnode, T))
+                        for (i=index,j=0; 0 < count && j < count; )
                         {
-                            morphSingle(view, r, rnode, vnode, unconditionally);
+                            j++;
+                            if (index+j >= r.childNodes.length) break;
+                            rnode = r.childNodes[index+j];
+                            if (eqNodes(rnode, vnode)) break;
+                        }
+                        if (0 < j)
+                        {
+                            delNodes(view, r, i, j);
+                            count -= j;
+                        }
+                        if (index >= r.childNodes.length)
+                        {
+                            insNodes(view, r, v, index, vc-r.childNodes.length, null);
+                            count = 0;
+                            break;
                         }
                         else
                         {
-                            if (0 > count)
+                            rnode = r.childNodes[index];
+                            T = nodeType(rnode);
+                            if (eqNodes(rnode, vnode, T))
                             {
-                                r.insertBefore(frag=to_node(view, vnode, true), rnode);
-                                count++;
+                                morphSingle(view, r, rnode, vnode, unconditionally);
                             }
                             else
                             {
-                                for (i=index,j=0; 0 < count && j < count; )
-                                {
-                                    j++; //r.removeChild(rnode); count--;
-                                    if (index+j >= r.childNodes.length) break;
-                                    rnode = r.childNodes[index+j];
-                                    if (eqNodes(rnode, vnode)) break;
-                                }
-                                if (0 < j)
-                                {
-                                    delNodes(view, r, i, j);
-                                    count -= j;
-                                }
-                                if (index >= r.childNodes.length)
-                                {
-                                    //r.appendChild(to_node(view, vnode, true));
-                                    insNodes(view, r, v, index, vc-r.childNodes.length, null);
-                                    count = 0;
-                                    break;
-                                }
-                                else
-                                {
-                                    rnode = r.childNodes[index];
-                                    T = nodeType(rnode);
-                                    if (eqNodes(rnode, vnode, T))
-                                    {
-                                        morphSingle(view, r, rnode, vnode, unconditionally);
-                                    }
-                                    else
-                                    {
-                                        r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                                    }
-                                }
+                                r.replaceChild(frag=to_node(view, vnode, true), rnode);
                             }
                         }
                     }
