@@ -1,8 +1,6 @@
 
 // View utils
-var namedKeyProp = "$mvNamedKey",
-
-    contains_non_strict = function(collection, value) {
+var contains_non_strict = function(collection, value) {
         if (collection)
         {
             for (var i=0,l=collection.length; i<l; i++)
@@ -11,6 +9,18 @@ var namedKeyProp = "$mvNamedKey",
         return false;
     },
 
+    normalisePath = function normalisePath(path) {
+        if (path && path.length)
+        {
+            path = trim(path);
+            if ('#' === path.charAt(0)) path = path.slice(1);
+            if ('/' === path.charAt(0)) path = path.slice(1);
+            if ('/' === path.slice(-1)) path = path.slice(0, -1);
+            path = trim(path);
+        }
+        return path;
+    },
+    
     numeric_re = /^\d+$/,
     empty_brackets_re = /\[\s*\]$/,
 
@@ -241,7 +251,7 @@ var namedKeyProp = "$mvNamedKey",
                     cel = el;
                     while (cel)
                     {
-                        c = cel.$mvComp;
+                        c = cel[MV] ? cel[MV].comp : null;
                         if (c)
                         {
                             comp = view.$components['#'+c.name];
@@ -280,8 +290,9 @@ var namedKeyProp = "$mvNamedKey",
             var el, name, key, ns_key, value;
             el = elements[i];  if (!el) return;
             name = el[NAME]; key = 0;
-            if (!el[namedKeyProp] && !!name) el[namedKeyProp] = model.key(name, 1);
-            key = el[namedKeyProp]; if (!key) return;
+            el[MV] = el[MV] || MV0();
+            if (!el[MV].key && !!name) el[MV].key = model.key(name, 1);
+            key = el[MV].key; if (!key) return;
 
             // use already cached key/value
             ns_key = '_'+key;
@@ -504,7 +515,7 @@ var View = function View(id, opts) {
     // constructor-factory pattern
     if (!is_instance(view, View)) return new View(id, opts);
 
-    view.$opts = opts || Obj();
+    view.$opts = opts || {};
     view.option('view.uuid', uuid('View'));
     view.option('view.livebind', true);
     view.option('view.autobind', true);
@@ -513,7 +524,7 @@ var View = function View(id, opts) {
     view.$num_shortcuts = 0;
     view.$components = {};
     view.$ctx = {};
-    view.$cache = Obj();
+    view.$cache = {};
     view.$cnt = null;
     view.changeHandler = bindF(view.changeHandler, view);
     view.initPubSub();
@@ -592,7 +603,7 @@ view.option(String key [, Any val]);
 [/DOC_MARKDOWN]**/
     ,option: function(key, val) {
         var view = this;
-        if (!view.$opts) view.$opts = Obj();
+        if (!view.$opts) view.$opts = {};
         if (1 < arguments.length)
         {
             view.$opts[key] = val;
@@ -1163,7 +1174,7 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
                 view.$model.resetDirty();
                 view.$reset = null; view.$cache['#'] = null;
@@ -1172,7 +1183,7 @@ view.render( [Boolean immediate=false] );
                 return out;
             }
             callback = function() {
-                view.$cnt = Obj(); view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode), true);
                 view.$cache['#'] = null;
                 nextTick(function(){
@@ -1334,16 +1345,17 @@ view.sync_model();
         // update model and propagate to other elements of same view (via model publish hook)
         if (data.isAutoBind && !!(name=el[NAME]))
         {
+            el[MV] = el[MV] || MV0();
             if (':model[' === name.slice(0, 7))
             {
                 isFromComponent = true;
-                if (!el[namedKeyProp]) el[namedKeyProp] = dotted(name.slice(6));
+                if (!el[MV].key) el[MV].key = dotted(name.slice(6));
             }
             else
             {
-                if (!el[namedKeyProp]) el[namedKeyProp] = model.key(name, 1);
+                if (!el[MV].key) el[MV].key = model.key(name, 1);
             }
-            key = el[namedKeyProp];
+            key = el[MV].key;
 
             if (key /*&& model.has( key )*/)
             {
@@ -1396,11 +1408,11 @@ view.sync_model();
                     comp = el;
                     while (comp)
                     {
-                        if (comp.$mvComp) break;
+                        if (comp[MV] && comp[MV].comp) break;
                         comp = comp.parentNode;
                     }
-                    if (comp && comp.$mvComp)
-                        comp.$mvComp.model.set(key, val, 1, modeldata);
+                    if (comp && comp[MV] && comp[MV].comp)
+                        comp[MV].comp.model.set(key, val, 1, modeldata);
                 }
                 else
                 {
@@ -1884,7 +1896,7 @@ MVComponentInstance[proto] = {
         if (self.model) self.model.dispose();
         self.model = null;
         self.view = null;
-        if (self.dom) self.dom.$mvComp = null;
+        if (self.dom && self.dom[MV]) self.dom[MV].comp = null;
         self.dom = null;
         return self;
     }

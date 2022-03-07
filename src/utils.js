@@ -8,11 +8,15 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
+    MV = '$MV', MV0 = function(){return {mod:null,id:null,comp:null,key:null};},
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
     toString = OP.toString, HAS = OP.hasOwnProperty, slice = AP.slice,
     newFunc = function(args, code){return new Func(args, code);},
-    is_instance = function(o, T){return o instanceof T;}
+    is_instance = function(o, T){return o instanceof T;},
+    nextTick = 'undefined' !== typeof Promise
+        ? Promise.resolve().then.bind(Promise.resolve())
+        : function(cb) {setTimeout(cb, 0);}
 ;
 
 function Node(val, next)
@@ -97,7 +101,7 @@ var
 
     // types
     T_UNKNOWN = 4, T_UNDEF = 8, T_NULL = 16,
-    T_NUM = 32, T_INF = 33, T_NAN = 34, T_BOOL = 64,
+    T_NUM = 32, T_BIGINT = 33, T_INF = 34, T_NAN = 35, T_BOOL = 64,
     T_STR = 128, T_CHAR = 129,
     T_ARRAY = 256, T_OBJ = 512, T_FUNC = 1024, T_REGEX = 2048, T_DATE = 4096,
     T_BLOB = 8192, T_FILE = 8192,
@@ -105,6 +109,7 @@ var
     T_ARRAY_OR_STR = T_STR|T_ARRAY, T_ARRAY_OR_OBJ = T_OBJ|T_ARRAY,
     TYPE_STRING = {
     "[object Number]"   : T_NUM,
+    "[object BigInt]"   : T_BIGINT,
     "[object String]"   : T_STR,
     "[object Array]"    : T_ARRAY,
     "[object RegExp]"   : T_REGEX,
@@ -124,18 +129,17 @@ var
         T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
         if      ((T_NUM === T)   || is_instance(v, Num))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
         else if ((T_STR === T)   || is_instance(v, Str) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+        else if (T_UNKNOWN !== T)                          {/*T = T;*/}
         else if ((T_ARRAY === T) || is_instance(v, Arr))    T = T_ARRAY;
         else if ((T_REGEX === T) || is_instance(v, Regex))   T = T_REGEX;
         else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
         else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
         else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
         else if ((T_FUNC === T)  || is_instance(v, Function) || ('function' === typeof(v))) T = T_FUNC;
-        else if (T_OBJ === T)                            T = T_OBJ;
         else                                             T = T_UNKNOWN;
         }
         return T;
     },
-
     is_type = function(v, type) {return !!(type & get_type(v));},
 
     // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
@@ -1679,17 +1683,20 @@ var
                     if (false !== att.value) atts.push(true === att.value ? att.name : att.name+'="'+att.value+'"');
                     return atts;
                 }, []).join(' ') : '')+(selfclosed ? '/>' : '>');
-                if (!selfclosed) out += vnode.childNodes.map(function(n){return to_string(view, n);}).join('')+'</'+T.slice(1);
+                if (!selfclosed) out += to_string_all(view, vnode.childNodes)+'</'+T.slice(1);
             }
         }
         else if (vnode.childNodes.length)
         {
-            out = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
+            out = to_string_all(view, vnode.childNodes);
         }
         return out;
     },
+    to_string_all = function(view, nodes) {
+        return nodes.map(function(n){return to_string(view, n);}).join('');
+    },
     to_node = function to_node(view, vnode, with_meta) {
-        var rnode, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
+        var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
         if ('t' === T)
         {
             rnode = Text(vnode.nodeValue2);
@@ -1718,9 +1725,13 @@ var
                 a = vnode.attributes[i];
                 n = a.name; v = a.value;
                 if (false === v) continue;
-                if ('id' === n || 'style' === n)
+                if ('id' === n)
                 {
                     rnode[n] = Str(v);
+                }
+                else if ('style' === n)
+                {
+                    rnode[n].cssText = Str(v);
                 }
                 else if ('class' === n)
                 {
@@ -1762,26 +1773,28 @@ var
             }
             if (true === with_meta)
             {
+                rnode[MV] = rmv = MV0();
                 if (vnode.component)
                 {
-                    c = rnode.$mvComp = vnode.component; vnode.component = null;
-                    if (c.dom) c.dom.$mvComp = null;
+                    c = rmv.comp = vnode.component; vnode.component = null;
+                    if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
                     c.dom = rnode;
                 }
-                if (vnode.id) rnode.$mvId = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length) {rnode.$mvMod = vnode.modified.nodes; vnode.modified = null;}
+                if (vnode.id) rmv.id = vnode.id;
+                if (vnode.modified && vnode.modified.nodes.length) {rmv.mod = vnode.modified.nodes; vnode.modified = null;}
             }
             if (vnode.childNodes.length)
             {
                 if ('<textarea>' === T)
                 {
-                    v = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
+                    v = to_string_all(view, vnode.childNodes);
+                    rnode[VAL] = v;
+                    rnode[TEXTC] = v;
                     //rnode.innerHTML = v;
-                    rnode.value = v; rnode.appendChild(Text(v));
                 }
                 else if ('<script>' === T || '<style>' === T)
                 {
-                    rnode.appendChild(Text(vnode.childNodes.map(function(n){return to_string(view, n);}).join('')));
+                    rnode[TEXTC] = to_string_all(view, vnode.childNodes);
                 }
                 else
                 {
@@ -1956,7 +1969,8 @@ var
     },
     eqNodes = function(r, v, T) {
         T = T || nodeType(r);
-        return (T === v.nodeType) && ((null == v.component && null == r.$mvComp) || (null != v.component && null != r.$mvComp && (v.component.name === r.$mvComp.name))) && (v.id === r.$mvId) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
+        var rmv = r[MV] || MV0();
+        return (T === v.nodeType) && ((null == v.component && null == rmv.comp) || (null != v.component && null != rmv.comp && (v.component.name === rmv.comp.name))) && (v.id === rmv.id) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
     },
     delNodes = function(view, r, index, count) {
         if (0 <= index && index < r.childNodes.length)
@@ -2005,7 +2019,7 @@ var
         return index;
     },
     morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally) {
-        var T = vnode.nodeType, changed = vnode.changed, achanged = vnode.achanged, val, el;
+        var T = vnode.nodeType, changed = vnode.changed, achanged = vnode.achanged, val;
         if ('t' === T)
         {
             if (changed || (unconditionally && (rnode.nodeValue !== vnode.nodeValue2)))
@@ -2023,11 +2037,11 @@ var
                 morphAtts(rnode, vnode, unconditionally);
             if (changed || unconditionally)
             {
-                val = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
-                /*if (rnode.value !== val)
+                val = to_string_all(view, vnode.childNodes);
+                /*if (rnode[VAL] !== val)
                 {*/
-                    rnode.value = val;
-                    if (rnode.firstChild) rnode.firstChild.nodeValue = val;
+                    rnode[VAL] = val;
+                    rnode[TEXTC] = val;
                 /*}*/
             }
         }
@@ -2037,7 +2051,7 @@ var
             if (achanged || unconditionally)
                 morphAtts(rnode, vnode, unconditionally);
             if (changed || unconditionally)
-                rnode.textContent = vnode.childNodes.map(function(n){return to_string(view, n);}).join('');
+                rnode[TEXTC] = to_string_all(view, vnode.childNodes);
         }
         else
         {
@@ -2045,8 +2059,7 @@ var
             {
                 if (changed || unconditionally)
                 {
-                    el = to_node(view, vnode, true);
-                    r.replaceChild(el, rnode);
+                    r.replaceChild(to_node(view, vnode, true), rnode);
                 }
             }
             else
@@ -2118,7 +2131,8 @@ var
                         z = new Array(len);
                         for (w=start+d.from*m,j=0,i=0; i<len; i++)
                         {
-                            x = r.childNodes[w+i].$mvComp;
+                            rnode = r.childNodes[w+i];
+                            x = rnode[MV] ? rnode[MV].comp : null;
                             if (x) z[j++] = x;
                         }
                         //z.length = j;
@@ -2142,13 +2156,14 @@ var
             return count;
         }
 
-        for (nodes=Obj(),index=start; index<=end; index++)
+        for (nodes={},index=start; index<=end; index++)
         {
             if (index >= r.childNodes.length) break;
             rnode = r.childNodes[index];
+            rnode[MV] = rnode[MV] || MV0();
             // store the keyed nodes in a map
             // to be retrieved easily below
-            if (rnode.$mvId) nodes['#'+rnode.$mvId] = rnode;
+            if (rnode[MV].id) nodes['#'+rnode[MV].id] = rnode;
         }
         for (indexv=startv,index=start; index<=end; index++,indexv++)
         {
@@ -2237,16 +2252,19 @@ var
             count = 0, offset = 0, matched, match,
             mi, m, mc, di, dc, i, j, index, nodes,
             vnode, rnode, T, frag, unconditionally,
-            modifiedNodesPrev = r.$mvMod, modifiedNodes = v.modified && v.modified.nodes,
-            rComp = r.$mvComp, vComp = v.component;
+            rmv = r[MV] || MV0(),
+            modifiedNodesPrev = rmv.mod,
+            modifiedNodes = v.modified && v.modified.nodes,
+            rComp = rmv.comp, vComp = v.component;
 
-        r.$mvId = v.id;
-        r.$mvComp = vComp; v.component = null;
+        r[MV] = rmv;
+        rmv.id = v.id;
+        rmv.comp = vComp; v.component = null;
         if ((rComp !== vComp) && rComp) rComp.dom = null;
         if (vComp) vComp.dom = r;
         // keeping ref both at node and vnode may hinder GC and increase mem consumption
-        if (v.modified && v.modified.nodes.length) {r.$mvMod = v.modified.nodes; v.modified = null;}
-        else if (r.$mvMod) r.$mvMod = null;
+        if (v.modified && v.modified.nodes.length) {rmv.mod = v.modified.nodes; v.modified = null;}
+        else if (rmv.mod) rmv.mod = null;
 
         if (!r.childNodes.length)
         {
@@ -2311,12 +2329,13 @@ var
                     if ('collection' === v.childNodes[index].nodeType)
                         v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
                 }
-                for (nodes=Obj(),index=0,count=r.childNodes.length; index<count; index++)
+                for (nodes={},index=0,count=r.childNodes.length; index<count; index++)
                 {
                     rnode = r.childNodes[index];
+                    rnode[MV] = rnode[MV] || MV0();
                     // store the keyed nodes in a map
                     // to be retrieved easily below
-                    if (rnode.$mvId) nodes['#'+rnode.$mvId] = rnode;
+                    if (rnode[MV].id) nodes['#'+rnode[MV].id] = rnode;
                 }
                 vc = v.childNodes.length;
                 count = r.childNodes.length - vc;
@@ -2390,7 +2409,7 @@ var
         }
     },
     add_nodes = function(el, nodes, index, move, isStatic) {
-        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el.$mvMod;
+        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
         if (0 < l)
         {
             if (null == index)
@@ -2454,7 +2473,7 @@ var
         return el;
     },
     remove_nodes = function(el, count, index, isStatic) {
-        var f, i, l, range, _mvModifiedNodes = el.$mvMod;
+        var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
         if (null == index) index = el.childNodes.length-1;
         if (0 < count && 0 <= index && index < el.childNodes.length)
         {
@@ -2747,28 +2766,12 @@ var
             walk_map(map.att1, function(list, k) {morphTextAtt1(list, k, model);}, '');
             walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
         }
-    },
-    normalisePath = function normalisePath(path) {
-        if (path && path.length)
-        {
-            path = trim(path);
-            if ('#' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.slice(-1)) path = path.slice(0, -1);
-            path = trim(path);
-        }
-        return path;
-    },
-    nextTick = 'undefined' !== typeof Promise
-        ? Promise.resolve().then.bind(Promise.resolve())
-        : function(cb) {setTimeout(cb, 0);}
+    }
 ;
 
 if (HASDOC && window.Node)
 {
-    // add these auxiliary props to DOM Node/Element prototype so browser optimization is not affected
-    window.Node[proto].$mvNamedKey = null;
-    window.Node[proto].$mvComp = null;
-    window.Node[proto].$mvId = null;
-    window.Node[proto].$mvMod = null;
+    // add ModelView custom prop to DOM Node prototype
+    // so browser optimization is not affected
+    window.Node[proto][MV] = null;
 }

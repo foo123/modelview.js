@@ -2184,20 +2184,19 @@ Model[proto].bracketKey = bracketed;
 
 /**[DOC_MARKDOWN]
 // dynamic value data structure, which keeps note of when value is dirty (has changed)
-var value = new Model.Value(val [, key, isDirty]);
+var value = new Model.Value(val [, String key=undefined]);
 var val = value.val(); // get value
-value.set(newVal); // set new value and update dirty flag
+value.set(newVal); // set new value and update dirty flag as needed
 var isDirty = value.dirty(); // get dirty flag
 value.reset(); // reset dirty flag
-var key = value.key(); // get key of value (if associated with some Model key, else undefined/null)
+var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
 [/DOC_MARKDOWN]**/
-function Value(_val, _key, _dirty)
+function Value(_val, _key)
 {
-    var self = this;
-    if (arguments.length < 3) _dirty = true;
-    if (is_instance(_val, Value)) {_dirty = _val.dirty(); _key = _val.key(); _val = _val.val();}
-    if (!is_instance(self, Value)) return new Value(_val, _key, _dirty);
+    var self = this, _dirty = true;
+    if (is_instance(_val, Value)) {_key = _val.key(); _val = _val.val();}
+    if (!is_instance(self, Value)) return new Value(_val, _key);
 
     self.key = function() {
         return _key;
@@ -2485,11 +2484,11 @@ collection.concat(array);
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
 // **NOTE** that map function should return that many html nodes for each item passed as denoted by `itemsReturned` parameter (default 1), so that fast morphing can work as expected
-collection.mapTo(func[, Number itemsReturned = 1]);
+collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = this.mapper ? (function(f0){return function(x, i){return f(f0(x, i), i);};})(this.mapper) : f;
+        this.mapper = f;
         this.mappedItem = +(itemsReturned || 1);
         return this;
     }

@@ -497,12 +497,12 @@ model.atom( String dottedKey | Boolean false );
 
 
 // dynamic value data structure, which keeps note of when value is dirty (has changed)
-var value = new Model.Value(val [, key, isDirty]);
+var value = new Model.Value(val [, String key=undefined]);
 var val = value.val(); // get value
-value.set(newVal); // set new value and update dirty flag
+value.set(newVal); // set new value and update dirty flag as needed
 var isDirty = value.dirty(); // get dirty flag
 value.reset(); // reset dirty flag
-var key = value.key(); // get key of value (if associated with some Model key, else undefined/null)
+var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
 
 
@@ -596,7 +596,7 @@ collection.concat(array);
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
 // **NOTE** that map function should return that many html nodes for each item passed as denoted by `itemsReturned` parameter (default 1), so that fast morphing can work as expected
-collection.mapTo(func[, Number itemsReturned = 1]);
+collection.mapTo(func [, Number itemsReturned = 1]);
 
 
 

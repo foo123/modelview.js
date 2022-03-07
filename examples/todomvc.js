@@ -17,19 +17,6 @@ function debounce(f, wait, immediate)
     };
 }
 
-function disableScroll()
-{
-    // Get the current page scroll position
-    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0,
-        scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
-    // if any scroll is attempted, set this to the previous value
-    window.onscroll = function() {window.scrollTo(scrollLeft, scrollTop);};
-}
-function enableScroll()
-{
-    window.onscroll = function() {};
-}
-
 function autoStoreModel()
 {
     // if supports localStorage
@@ -82,17 +69,17 @@ function timeSince(time)
     interval;
   seconds = Math.abs(seconds);
   interval = Math.floor(seconds / 31536000);
-  if (interval > 0) return String(interval) + " " + (1===interval?'year':'years') + then;
+  if (interval > 0) return [String(interval), (1===interval?'year':'years'), then];
   interval = Math.floor(seconds / 2592000);
-  if (interval > 0) return String(interval) + " " + (1===interval?'month':'months') + then;
+  if (interval > 0) return [String(interval), (1===interval?'month':'months'), then];
   interval = Math.floor(seconds / 86400);
-  if (interval > 0) return String(interval) + " " + (1===interval?'day':'days') + then;
+  if (interval > 0) return [String(interval), (1===interval?'day':'days'), then];
   interval = Math.floor(seconds / 3600);
-  if (interval > 0) return String(interval) + " " + (1===interval?'hour':'hours') + then;
+  if (interval > 0) return [String(interval), (1===interval?'hour':'hours'), then];
   interval = Math.floor(seconds / 60);
-  if (interval > 0) return String(interval) + " " + (1===interval?'minute':'minutes') + then;
+  if (interval > 0) return [String(interval), (1===interval?'minute':'minutes'), then];
   interval = Math.floor(seconds);
-  return interval < 30 ? now : String(interval) + " seconds" + then;
+  return interval < 30 ? [now] : [String(interval), 'seconds', then];
 }
 
 function route(displayMode)
@@ -173,7 +160,9 @@ View = new ModelView.View('todoview')
 })
 .context({
     timeSince: function(time) {
-        return null!=time ? timeSince(time) : '';
+        if (null == time) return '';
+        var t = timeSince(time);
+        return Value(t.join(' ')).dirty(-1 !== [undefined, 'seconds','minute','minutes','hour'].indexOf(t[1]));
     }
 })
 .actions({
