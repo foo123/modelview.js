@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-07 20:29:32
+*   @built on 2022-03-08 10:08:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.0.6
-*   @built on 2022-03-07 20:29:32
+*   @built on 2022-03-08 10:08:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -2123,7 +2123,7 @@ var
     },
     morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count) {
         var index, indexv, vnode, rnode, T, collection,
-            diff, di, dc, d, items, nodes,
+            diff, di, dc, d, items, keyed,
             i, j, k, l, m, n, w, x, z, len, frag;
         if ('collection' === v.childNodes[startv].nodeType)
         {
@@ -2204,14 +2204,19 @@ var
             return count;
         }
 
-        for (nodes={},index=start; index<=end; index++)
+        keyed = {};
+        if (v.childNodes[startv].id || v.childNodes[stdMath.min(v.childNodes.length-1, startv+end-start)].id)
         {
-            if (index >= r.childNodes.length) break;
-            rnode = r.childNodes[index];
-            rnode[MV] = rnode[MV] || MV0();
-            // store the keyed nodes in a map
-            // to be retrieved easily below
-            if (rnode[MV].id) nodes['#'+rnode[MV].id] = rnode;
+            // there are keyed nodes, associate them in a map for reuse
+            for (index=start; index<=end; index++)
+            {
+                if (index >= r.childNodes.length) break;
+                rnode = r.childNodes[index];
+                rnode[MV] = rnode[MV] || MV0();
+                // store the keyed nodes in a map
+                // to be retrieved and reused easily
+                if (rnode[MV].id) keyed['#'+rnode[MV].id] = rnode;
+            }
         }
         for (indexv=startv,index=start; index<=end; index++,indexv++)
         {
@@ -2237,9 +2242,9 @@ var
             {
                 morphSingle(view, r, rnode, vnode);
             }
-            else if (vnode.id && (frag=nodes['#'+vnode.id]) && eqNodes(frag, vnode))
+            else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
             {
-                r.replaceChild(frag, rnode);
+                r.insertBefore(frag, rnode);
                 morphSingle(view, r, frag, vnode);
             }
             else if (0 === count)
@@ -2298,7 +2303,7 @@ var
         // morph r (real) DOM to match v (virtual) DOM
         var vc = v.childNodes.length, vpc = v.potentialChildNodes,
             count = 0, offset = 0, matched, match,
-            mi, m, mc, di, dc, i, j, index, nodes,
+            mi, m, mc, di, dc, i, j, index, keyed,
             vnode, rnode, T, frag, unconditionally,
             rmv = r[MV] || MV0(),
             modifiedNodesPrev = rmv.mod,
@@ -2377,15 +2382,24 @@ var
                     if ('collection' === v.childNodes[index].nodeType)
                         v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
                 }
-                for (nodes={},index=0,count=r.childNodes.length; index<count; index++)
-                {
-                    rnode = r.childNodes[index];
-                    rnode[MV] = rnode[MV] || MV0();
-                    // store the keyed nodes in a map
-                    // to be retrieved easily below
-                    if (rnode[MV].id) nodes['#'+rnode[MV].id] = rnode;
-                }
                 vc = v.childNodes.length;
+                keyed = {};
+                for (index=0; index<vc; index++)
+                {
+                    if (v.childNodes[index].id)
+                    {
+                        // there are keyed nodes, associate them in a map for reuse
+                        for (index=0,count=r.childNodes.length; index<count; index++)
+                        {
+                            rnode = r.childNodes[index];
+                            rnode[MV] = rnode[MV] || MV0();
+                            // store the keyed nodes in a map
+                            // to be retrieved and reused easily
+                            if (rnode[MV].id) keyed['#'+rnode[MV].id] = rnode;
+                        }
+                        break;
+                    }
+                }
                 count = r.childNodes.length - vc;
                 for (index=0; index<vc; index++)
                 {
@@ -2403,9 +2417,9 @@ var
                     {
                         morphSingle(view, r, rnode, vnode, unconditionally);
                     }
-                    else if (vnode.id && (frag=nodes['#'+vnode.id]) && eqNodes(frag, vnode))
+                    else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
                     {
-                        r.replaceChild(frag, rnode);
+                        r.insertBefore(frag, rnode);
                         morphSingle(view, r, frag, vnode, unconditionally);
                     }
                     else if (0 === count)
