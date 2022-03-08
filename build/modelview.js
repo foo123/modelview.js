@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.0.6
-*   @built on 2022-03-08 10:08:22
+*   @version: 4.1.0
+*   @built on 2022-03-08 20:28:15
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -10,8 +10,8 @@
 **//**
 *
 *   ModelView.js
-*   @version: 4.0.6
-*   @built on 2022-03-08 10:08:22
+*   @version: 4.1.0
+*   @built on 2022-03-08 20:28:15
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -36,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.0.6**
+**Version 4.1.0**
 
 ### Contents
 
@@ -1468,6 +1468,11 @@ var
         }
         return new_diff;
     },
+    fixJSXType = function(node, otherType) {
+        if (node && ('jsx' === node.nodeType))
+            node.cnodeType = node.nodeType = otherType || '';
+        return node;
+    },
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
         id = id || null; type = type || null;
@@ -1553,7 +1558,9 @@ var
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         var i = index;
-                        childNodes = n.reduce(process, childNodes);
+                        childNodes = n.map(function(nn){
+                            return fixJSXType(nn, '');
+                        }).reduce(process, childNodes);
                         new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                         node.changed = true;
                         return childNodes;
@@ -1581,7 +1588,7 @@ var
                     new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                     //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                     /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
-                    AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
+                    AP.push.apply(childNodes, n.childNodes.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         //nn.changed = nn.changed || n.changed;
@@ -6132,7 +6139,9 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = f;
+        this.mapper = function(item) {
+            return fixJSXType(f(item), '');
+        };
         this.mappedItem = +(itemsReturned || 1);
         return this;
     }
@@ -6171,7 +6180,7 @@ var contains_non_strict = function(collection, value) {
         }
         return path;
     },
-    
+
     numeric_re = /^\d+$/,
     empty_brackets_re = /\[\s*\]$/,
 
@@ -6921,7 +6930,7 @@ view.components( Object components );
                 {
                     // already references given component instance, given in order of rendering
                     component = view.$cache['#'].shift();
-                    if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
+                    if (!component || name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
                 }
                 if (!component)
                 {
@@ -8158,7 +8167,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.0.6"
+    VERSION: "4.1.0"
     
     ,UUID: uuid
     

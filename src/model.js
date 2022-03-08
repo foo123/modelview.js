@@ -2488,7 +2488,9 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = f;
+        this.mapper = function(item) {
+            return fixJSXType(f(item), '');
+        };
         this.mappedItem = +(itemsReturned || 1);
         return this;
     }

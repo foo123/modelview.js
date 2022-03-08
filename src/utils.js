@@ -1420,6 +1420,11 @@ var
         }
         return new_diff;
     },
+    fixJSXType = function(node, otherType) {
+        if (node && ('jsx' === node.nodeType))
+            node.cnodeType = node.nodeType = otherType || '';
+        return node;
+    },
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
         id = id || null; type = type || null;
@@ -1505,7 +1510,9 @@ var
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         var i = index;
-                        childNodes = n.reduce(process, childNodes);
+                        childNodes = n.map(function(nn){
+                            return fixJSXType(nn, '');
+                        }).reduce(process, childNodes);
                         new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                         node.changed = true;
                         return childNodes;
@@ -1533,7 +1540,7 @@ var
                     new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                     //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                     /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
-                    AP.push.apply(childNodes, n.childNodes.map(function(nn, i){
+                    AP.push.apply(childNodes, n.childNodes.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
                         //nn.changed = nn.changed || n.changed;

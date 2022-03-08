@@ -20,7 +20,7 @@ var contains_non_strict = function(collection, value) {
         }
         return path;
     },
-    
+
     numeric_re = /^\d+$/,
     empty_brackets_re = /\[\s*\]$/,
 
@@ -770,7 +770,7 @@ view.components( Object components );
                 {
                     // already references given component instance, given in order of rendering
                     component = view.$cache['#'].shift();
-                    if (name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
+                    if (!component || name !== component.name || (null != id && component.id !== name+'_id_'+Str(id))) component = null;
                 }
                 if (!component)
                 {
