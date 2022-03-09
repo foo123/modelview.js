@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-09 20:05:03
+*   @built on 2022-03-09 20:22:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-09 20:05:03
+*   @built on 2022-03-09 20:22:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -111,6 +111,7 @@ VNode[proto] = {
     ,diff: null
     ,changed: false
     ,achanged: false
+    ,adirty: null
     ,unit: false
 };
 function VCode(code)
@@ -1480,9 +1481,6 @@ var
         {
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
-            l = modified.modified;
-            c = modified.values(node.attributes, Value);
-            ch = 0 < modified.dirty(node.attributes, Value);
             /*ch = false; c = 0; l = 0;
             each(modified.atts, function(range){
                 for (var a,i=range.from; i<=range.to; i++)
@@ -1500,7 +1498,11 @@ var
                     }
                 }
             });*/
-            node.achanged = c === l ? ch : (0 < l);
+            //l = modified.modified;
+            //c = modified.values(node.attributes, Value);
+            //ch = 0 < c ? modified.dirty(node.attributes, Value) : false;
+            node.achanged = true/*c === l ? modified.dirty(node.attributes, Value) : (0 < l)*/;
+            node.adirty = [modified.modified, modified.values, modified.dirty];
         }
         if ('t' === nodeType || 'c' === nodeType)
         {
@@ -1692,7 +1694,7 @@ var
             else
             {
                 var modified = {atts: []},
-                    dirty = '0', nval = '0', nmod = 0;
+                    dirty = 'false', nval = '0', nmod = 0;
                 out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                     if (is_instance(a.value, VCode))
                     {
@@ -1702,7 +1704,7 @@ var
                         else
                             modified.atts[modified.atts.length-1].to = i;
                         nval += '+(atts['+i+'].value instanceof Value?1:0)';
-                        dirty += '+(atts['+i+'].value instanceof Value?(atts['+i+'].value.dirty()?1:0):0)';
+                        dirty += '||(atts['+i+'].value instanceof Value?atts['+i+'].value.dirty():false)';
                         return '{name:"'+a.name+'",value:('+a.value.code+')}';
                     }
                     return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
@@ -1996,10 +1998,14 @@ var
         }
     },
     morphAtts = function morphAtts(view, r, v, unconditionally) {
-        var T, TT, vAtts, rAtts, mAtts, j, i, a, n, av;
+        var T, TT, vAtts, rAtts, mAtts, j, i, a, n, av, l, c, changed;
 
         if (v.modified && v.modified.atts.length)
         {
+            l = v.adirty[0];
+            c = v.adirty[1](v.attributes, Value);
+            changed = c === l ? v.adirty[2](v.attributes, Value) : 0 < l;
+            if (!changed) return r;
             T = v.nodeType;
             TT = lower(v[TYPE] || '');
             // update modified attributes
