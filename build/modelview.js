@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-08 20:28:15
+*   @built on 2022-03-09 20:05:03
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-08 20:28:15
+*   @built on 2022-03-09 20:05:03
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -845,7 +845,7 @@ var
                 {
                     injsx = false;
                     jsx = trim(jsx);
-                    out += '('+(jsx.length ? to_code(parse(view, jsx, opts, 'jsx', true)) : '')+')';
+                    out += '('+(jsx.length ? to_code(parse(view, jsx, opts, '', true)) : '')+')';
                     jsx = '';
                 }
                 else
@@ -1468,11 +1468,6 @@ var
         }
         return new_diff;
     },
-    fixJSXType = function(node, otherType) {
-        if (node && ('jsx' === node.nodeType))
-            node.cnodeType = node.nodeType = otherType || '';
-        return node;
-    },
     htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
         var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
         id = id || null; type = type || null;
@@ -1485,7 +1480,10 @@ var
         {
             if (!node.modified) node.modified = {atts:[], nodes:[]};
             node.modified.atts = modified.atts;
-            ch = false; c = 0; l = 0;
+            l = modified.modified;
+            c = modified.values(node.attributes, Value);
+            ch = 0 < modified.dirty(node.attributes, Value);
+            /*ch = false; c = 0; l = 0;
             each(modified.atts, function(range){
                 for (var a,i=range.from; i<=range.to; i++)
                 {
@@ -1498,10 +1496,10 @@ var
                         if (a.value.dirty() && !a.value.key())
                             view.$reset.push(a.value);
                         ch = ch || a.value.dirty();
-                        a.value = a.value.val();
+                        //a.value = a.value.val();
                     }
                 }
-            });
+            });*/
             node.achanged = c === l ? ch : (0 < l);
         }
         if ('t' === nodeType || 'c' === nodeType)
@@ -1558,9 +1556,7 @@ var
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         var i = index;
-                        childNodes = n.map(function(nn){
-                            return fixJSXType(nn, '');
-                        }).reduce(process, childNodes);
+                        childNodes = n.reduce(process, childNodes);
                         new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                         node.changed = true;
                         return childNodes;
@@ -1623,7 +1619,7 @@ var
                     var i = index, a = n.childNodes.map(function(nn){
                         nn.parentNode = node;
                         nn.index = index++;
-                        nn.unit = nn.unit || n.unit;
+                        nn.unit = 'dyn' === n.nodeType ? true : (nn.unit || n.unit);
                         nn.achanged = true;
                         nn.changed = true;
                         return nn;
@@ -1695,18 +1691,22 @@ var
             }
             else
             {
-                var modified = {atts: []};
+                var modified = {atts: []},
+                    dirty = '0', nval = '0', nmod = 0;
                 out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                     if (is_instance(a.value, VCode))
                     {
+                        nmod++;
                         if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
                             modified.atts.push({from:i, to:i});
                         else
                             modified.atts[modified.atts.length-1].to = i;
+                        nval += '+(atts['+i+'].value instanceof Value?1:0)';
+                        dirty += '+(atts['+i+'].value instanceof Value?(atts['+i+'].value.dirty()?1:0):0)';
                         return '{name:"'+a.name+'",value:('+a.value.code+')}';
                     }
                     return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
-                }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, '+toJSON(modified)+')';
+                }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modified.atts)+',modified:'+nmod+',values:function(atts, Value){return ('+nval+');},dirty:function(atts, Value){return ('+dirty+');}})';
             }
         }
         else if (vnode.childNodes.length)
@@ -1735,7 +1735,14 @@ var
             {
                 selfclosed = /*HAS.call(autoclosedTags, T)*/autoclosedTags[T];
                 out = T.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
-                    if (false !== att.value) atts.push(true === att.value ? att.name : att.name+'="'+att.value+'"');
+                    var val = att.value;
+                    if (is_instance(val, Value))
+                    {
+                        if (val.dirty() && !val.key())
+                            view.$reset.push(val);
+                        val = val.val();
+                    }
+                    if (false !== val) atts.push(true === val ? att.name : att.name+'="'+val+'"');
                     return atts;
                 }, []).join(' ') : '')+(selfclosed ? '/>' : '>');
                 if (!selfclosed) out += to_string_all(view, vnode.childNodes)+'</'+T.slice(1);
@@ -1779,6 +1786,12 @@ var
             {
                 a = vnode.attributes[i];
                 n = a.name; v = a.value;
+                if (is_instance(v, Value))
+                {
+                    if (v.dirty() && !v.key())
+                        view.$reset.push(v);
+                    v = v.val();
+                }
                 if (false === v) continue;
                 if ('id' === n)
                 {
@@ -1982,8 +1995,8 @@ var
                 return svgElements[tagName] ? tagName : lower(tagName);
         }
     },
-    morphAtts = function morphAtts(r, v, unconditionally) {
-        var T, TT, vAtts, rAtts, mAtts, j, i, a, n;
+    morphAtts = function morphAtts(view, r, v, unconditionally) {
+        var T, TT, vAtts, rAtts, mAtts, j, i, a, n, av;
 
         if (v.modified && v.modified.atts.length)
         {
@@ -1994,9 +2007,15 @@ var
             {
                 for (i=mAtts[j].from; i<=mAtts[j].to; i++)
                 {
-                    a = vAtts[i]; n = a.name
-                    if (false === a.value) del_att(r, n, T, TT);
-                    else set_att(r, n, a.value, T, TT);
+                    a = vAtts[i]; n = a.name; av = a.value;
+                    if (is_instance(av, Value))
+                    {
+                        if (!av.dirty()) continue;
+                        else if (!av.key()) view.$reset.push(av);
+                        av = av.val();
+                    }
+                    if (false === av) del_att(r, n, T, TT);
+                    else set_att(r, n, av, T, TT);
                 }
             }
         }
@@ -2015,9 +2034,14 @@ var
             // update new attributes
             for (i=vAtts.length-1; i>=0; i--)
             {
-                a = vAtts[i]; n = a.name
-                if (false === a.value) del_att(r, n, T, TT);
-                else set_att(r, n, a.value, T, TT, true);
+                a = vAtts[i]; n = a.name; av = a.value;
+                if (is_instance(av, Value))
+                {
+                    if (av.dirty() && !av.key()) view.$reset.push(av);
+                    av = av.val();
+                }
+                if (false === av) del_att(r, n, T, TT);
+                else set_att(r, n, av, T, TT, true);
             }
         }
         return r;
@@ -2034,6 +2058,10 @@ var
             {
                 // delete all children
                 r.textContent = ''; // faster than using range below ??
+            }
+            else if (1 === count)
+            {
+                r.removeChild(r.childNodes[index]);
             }
             else
             {
@@ -2089,7 +2117,7 @@ var
         {
             // morph attributes/properties
             if (achanged || unconditionally)
-                morphAtts(rnode, vnode, unconditionally);
+                morphAtts(view, rnode, vnode, unconditionally);
             if (changed || unconditionally)
             {
                 val = to_string_all(view, vnode.childNodes);
@@ -2104,7 +2132,7 @@ var
         {
             // morph attributes/properties
             if (achanged || unconditionally)
-                morphAtts(rnode, vnode, unconditionally);
+                morphAtts(view, rnode, vnode, unconditionally);
             if (changed || unconditionally)
                 rnode[TEXTC] = to_string_all(view, vnode.childNodes);
         }
@@ -2121,7 +2149,7 @@ var
             {
                 // morph attributes/properties
                 if (achanged || unconditionally)
-                    morphAtts(rnode, vnode, unconditionally);
+                    morphAtts(view, rnode, vnode, unconditionally);
                 // morph children
                 if (changed || unconditionally)
                     morph(view, rnode, vnode);
@@ -2164,7 +2192,7 @@ var
                         break;
                     case 'add':
                         len = (d.to-d.from+1)*m;
-                        items = collection.mapped(collection.items(d.from, d.to+1));
+                        items = collection.mapped(d.from, d.to);
                         insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from*m]);
                         if (0 > count) count += len;
                         break;
@@ -2192,7 +2220,7 @@ var
                         }
                         //z.length = j;
                         view.$cache['#'] = z;
-                        items = collection.mapped(collection.items(d.from, d.to+1));
+                        items = collection.mapped(d.from, d.to);
                         frag = htmlNode(view, '', null, null, [], items);
                         view.$cache['#'] = z = null;
                         for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; i++)
@@ -2219,10 +2247,11 @@ var
             {
                 if (index >= r.childNodes.length) break;
                 rnode = r.childNodes[index];
-                rnode[MV] = rnode[MV] || MV0();
+                //rnode[MV] = rnode[MV] || MV0();
                 // store the keyed nodes in a map
                 // to be retrieved and reused easily
-                if (rnode[MV].id) keyed['#'+rnode[MV].id] = rnode;
+                if (rnode[MV] && rnode[MV].id)
+                    keyed['#'+rnode[MV].id] = rnode;
             }
         }
         for (indexv=startv,index=start; index<=end; index++,indexv++)
@@ -2399,10 +2428,11 @@ var
                         for (index=0,count=r.childNodes.length; index<count; index++)
                         {
                             rnode = r.childNodes[index];
-                            rnode[MV] = rnode[MV] || MV0();
+                            //rnode[MV] = rnode[MV] || MV0();
                             // store the keyed nodes in a map
                             // to be retrieved and reused easily
-                            if (rnode[MV].id) keyed['#'+rnode[MV].id] = rnode;
+                            if (rnode[MV] && rnode[MV].id)
+                                keyed['#'+rnode[MV].id] = rnode;
                         }
                         break;
                     }
@@ -4624,6 +4654,18 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
     }
 
 /**[DOC_MARKDOWN]
+// get data proxy for a branch of model data specified by given key
+// model.Proxy is used to get/set values of the object (and nested objects)
+// at given branch of the model data as autonomous entity
+// proxy takes care to notify central model of any changes made
+model.getProxy( String dottedKey );
+
+[/DOC_MARKDOWN]**/
+    ,getProxy: function(dottedKey) {
+        return new Proxy(this, dottedKey);
+    }
+
+/**[DOC_MARKDOWN]
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -5833,6 +5875,54 @@ Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
 
+function Proxy(model, key)
+{
+    key = null == key ? '' : key;
+    var self = this, getKey, prefix = !key || !key.length ? '' : (key + '.');
+    if (!is_instance(self, Proxy)) return new Proxy(model, key);
+
+    getKey = function(dottedKey) {
+        return dottedKey && dottedKey.length ? prefix + dottedKey : key;
+    };
+
+    self.get = function(dottedKey, RAW) {
+        return model.get(getKey(dottedKey), RAW);
+    };
+    self.getVal = function(dottedKey, RAW) {
+        return model.getVal(getKey(dottedKey), RAW);
+    };
+    self.set = function(dottedKey, val, pub, callData) {
+        model.set(getKey(dottedKey), val, pub, callData);
+        return self;
+    };
+    self.add = self.append = function(dottedKey, val, prepend, pub, callData) {
+        model.add(getKey(dottedKey), val, prepend, pub, callData);
+        return self;
+    };
+    self.ins = self.insert = function(dottedKey, val, index, pub, callData) {
+        model.ins(getKey(dottedKey), val, index, pub, callData);
+        return self;
+    };
+    self.del = self.remove = self['delete'] = function(dottedKey, pub, reArrangeIndexes, callData) {
+        model.del(getKey(dottedKey), pub, reArrangeIndexes, callData);
+        return self;
+    };
+}
+Model.Proxy = Proxy;
+Proxy[proto] = {
+    constructor: Proxy
+    ,get: null
+    ,getVal: null
+    ,set: null
+    ,add: null
+    ,append: null
+    ,ins: null
+    ,insert: null
+    ,del: null
+    ,remove: null
+    ,'delete': null
+};
+
 /**[DOC_MARKDOWN]
 // dynamic value data structure, which keeps note of when value is dirty (has changed)
 var value = new Model.Value(val [, String key=undefined]);
@@ -6139,20 +6229,29 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = function(item) {
-            return fixJSXType(f(item), '');
-        };
+        this.mapper = f;
         this.mappedItem = +(itemsReturned || 1);
         return this;
     }
 /**[DOC_MARKDOWN]
 // perform actual mapping (see above), return mapped collection items array
-collection.mapped([Array items=collection.items()]);
+collection.mapped([start [, end]]);
 
 [/DOC_MARKDOWN]**/
-    ,mapped: function(items) {
-        items = items || this._items;
-        return this.mapper ? items.map(this.mapper) : items;
+    ,mapped: function(start, end) {
+        var items = this._items, f = this.mapper, i, j, l, ret;
+        start = null == start ? 0 : start;
+        end = null == end ? items.length-1 : end;
+        if (f)
+        {
+            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; i++,j++)
+                ret[i] = f(items[j], j, items);
+        }
+        else
+        {
+            ret = items.slice(start, end+1);
+        }
+        return ret;
     }
 };
 /**[DOC_MARKDOWN]
@@ -7127,6 +7226,13 @@ view.html( String htmlString );
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
+    ,jsx: function jsx(nodes) {
+        if (is_instance(nodes, VNode))
+            nodes.cnodeType = nodes.nodeType = 'jsx';
+        else if (nodes.length && nodes.map)
+            nodes = nodes.map(jsx);
+        return nodes;
+    }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
 view.unit( nodes );
@@ -7184,6 +7290,35 @@ view.autobind( [Boolean enabled] );
             return view;
         }
         return view.option('view.autobind');
+    }
+    
+/**[DOC_MARKDOWN]
+// precompile content and component html templates
+// should be called after all view options (eg livebind) have been set
+view.precompile();
+
+[/DOC_MARKDOWN]**/
+    ,precompile: function() {
+        var view = this, n, c, livebind = view.option('view.livebind');
+        if (!view.$out && view.$tpl)
+        {
+            view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
+        }
+        if (true === livebind)
+        {
+            for (n in view.$components)
+            {
+                if (HAS.call(view.$components, n))
+                {
+                    c = view.$components[n];
+                    if (c.tpl && !c.out)
+                    {
+                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                    }
+                }
+            }
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]

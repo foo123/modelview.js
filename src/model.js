@@ -973,6 +973,18 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
     }
 
 /**[DOC_MARKDOWN]
+// get data proxy for a branch of model data specified by given key
+// model.Proxy is used to get/set values of the object (and nested objects)
+// at given branch of the model data as autonomous entity
+// proxy takes care to notify central model of any changes made
+model.getProxy( String dottedKey );
+
+[/DOC_MARKDOWN]**/
+    ,getProxy: function(dottedKey) {
+        return new Proxy(this, dottedKey);
+    }
+
+/**[DOC_MARKDOWN]
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -2182,6 +2194,54 @@ Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
 
+function Proxy(model, key)
+{
+    key = null == key ? '' : key;
+    var self = this, getKey, prefix = !key || !key.length ? '' : (key + '.');
+    if (!is_instance(self, Proxy)) return new Proxy(model, key);
+
+    getKey = function(dottedKey) {
+        return dottedKey && dottedKey.length ? prefix + dottedKey : key;
+    };
+
+    self.get = function(dottedKey, RAW) {
+        return model.get(getKey(dottedKey), RAW);
+    };
+    self.getVal = function(dottedKey, RAW) {
+        return model.getVal(getKey(dottedKey), RAW);
+    };
+    self.set = function(dottedKey, val, pub, callData) {
+        model.set(getKey(dottedKey), val, pub, callData);
+        return self;
+    };
+    self.add = self.append = function(dottedKey, val, prepend, pub, callData) {
+        model.add(getKey(dottedKey), val, prepend, pub, callData);
+        return self;
+    };
+    self.ins = self.insert = function(dottedKey, val, index, pub, callData) {
+        model.ins(getKey(dottedKey), val, index, pub, callData);
+        return self;
+    };
+    self.del = self.remove = self['delete'] = function(dottedKey, pub, reArrangeIndexes, callData) {
+        model.del(getKey(dottedKey), pub, reArrangeIndexes, callData);
+        return self;
+    };
+}
+Model.Proxy = Proxy;
+Proxy[proto] = {
+    constructor: Proxy
+    ,get: null
+    ,getVal: null
+    ,set: null
+    ,add: null
+    ,append: null
+    ,ins: null
+    ,insert: null
+    ,del: null
+    ,remove: null
+    ,'delete': null
+};
+
 /**[DOC_MARKDOWN]
 // dynamic value data structure, which keeps note of when value is dirty (has changed)
 var value = new Model.Value(val [, String key=undefined]);
@@ -2488,20 +2548,29 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = function(item) {
-            return fixJSXType(f(item), '');
-        };
+        this.mapper = f;
         this.mappedItem = +(itemsReturned || 1);
         return this;
     }
 /**[DOC_MARKDOWN]
 // perform actual mapping (see above), return mapped collection items array
-collection.mapped([Array items=collection.items()]);
+collection.mapped([start [, end]]);
 
 [/DOC_MARKDOWN]**/
-    ,mapped: function(items) {
-        items = items || this._items;
-        return this.mapper ? items.map(this.mapper) : items;
+    ,mapped: function(start, end) {
+        var items = this._items, f = this.mapper, i, j, l, ret;
+        start = null == start ? 0 : start;
+        end = null == end ? items.length-1 : end;
+        if (f)
+        {
+            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; i++,j++)
+                ret[i] = f(items[j], j, items);
+        }
+        else
+        {
+            ret = items.slice(start, end+1);
+        }
+        return ret;
     }
 };
 /**[DOC_MARKDOWN]

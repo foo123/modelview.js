@@ -967,6 +967,13 @@ view.html( String htmlString );
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
+    ,jsx: function jsx(nodes) {
+        if (is_instance(nodes, VNode))
+            nodes.cnodeType = nodes.nodeType = 'jsx';
+        else if (nodes.length && nodes.map)
+            nodes = nodes.map(jsx);
+        return nodes;
+    }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
 view.unit( nodes );
@@ -1024,6 +1031,35 @@ view.autobind( [Boolean enabled] );
             return view;
         }
         return view.option('view.autobind');
+    }
+    
+/**[DOC_MARKDOWN]
+// precompile content and component html templates
+// should be called after all view options (eg livebind) have been set
+view.precompile();
+
+[/DOC_MARKDOWN]**/
+    ,precompile: function() {
+        var view = this, n, c, livebind = view.option('view.livebind');
+        if (!view.$out && view.$tpl)
+        {
+            view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
+        }
+        if (true === livebind)
+        {
+            for (n in view.$components)
+            {
+                if (HAS.call(view.$components, n))
+                {
+                    c = view.$components[n];
+                    if (c.tpl && !c.out)
+                    {
+                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                    }
+                }
+            }
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]

@@ -436,6 +436,15 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 
 
 
+// get data proxy for a branch of model data specified by given key
+// model.Proxy is used to get/set values of the object (and nested objects)
+// at given branch of the model data as autonomous entity
+// proxy takes care to notify central model of any changes made
+model.getProxy( String dottedKey );
+
+
+
+
 // model get all matching keys including wildcards (bypass custom model getters if RAW is true)
 model.getAll( Array dottedKeys [, Boolean RAW=false ] );
 
@@ -602,7 +611,7 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 
 // perform actual mapping (see above), return mapped collection items array
-collection.mapped([Array items=collection.items()]);
+collection.mapped([start [, end]]);
 
 
 
@@ -731,6 +740,13 @@ view.livebind( [type=true|false|'text'] );
 // get / set autobind,
 // autobind automatically binds (2-way) input elements to model keys via name attribute, DEFAULT TRUE
 view.autobind( [Boolean enabled] );
+
+
+
+
+// precompile content and component html templates
+// should be called after all view options (eg livebind) have been set
+view.precompile();
 
 
 
