@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-10 20:07:16
+*   @built on 2022-03-10 20:35:43
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-10 20:07:16
+*   @built on 2022-03-10 20:35:43
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -342,7 +342,10 @@ function is_array_index(n)
     }
     return false
 }
-function filter(a, f) {return [].filter.call(a, f);}
+function filter(a, f)
+{
+    return [].filter.call(a, f);
+}
 function each(a, f)
 {
     [].forEach.call(a, f);
@@ -385,7 +388,10 @@ function Merge(/* var args here.. */)
     }
     return o1;
 }
-function notEmpty(s) {return 0 < s.length;}
+function notEmpty(s)
+{
+    return 0 < s.length;
+}
 function getNS(evt)
 {
     var ns = evt.split('.'), e = ns[0];
@@ -1725,12 +1731,20 @@ function to_node(view, vnode, with_meta)
         if (true === with_meta)
         {
             rnode[MV] = rmv = MV0();
+            rmv.id = vnode.id;
             c = rmv.comp = vnode.component;
-            if (c && c.dom && c.dom[MV]) c.dom[MV].comp = null;
-            if (c) c.dom = rnode;
-            if (vnode.id) rmv.id = vnode.id;
-            if (vnode.modified && vnode.modified.nodes.length)
-                rmv.mod = vnode.modified.nodes;
+            if (c)
+            {
+                if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
+                c.dom = rnode;
+            }
+            if (vnode.modified)
+            {
+                if (vnode.modified.atts.length)
+                    rmv.att = vnode.modified.atts;
+                if (vnode.modified.nodes.length)
+                    rmv.mod = vnode.modified.nodes;
+            }
         }
         if (vnode.childNodes.length)
         {
@@ -1966,8 +1980,31 @@ function morphAttsAll(view, r, v)
 }
 function morphAtts(view, r, v)
 {
-    if (v.modified && v.modified.atts.length && v.modified.updateAtts)
-        v.modified.updateAtts(view, r, v, set_att, del_att, Value);
+    var count, mi, mc, m, mp, match, matched,
+        modifiedAttsPrev = (r[MV] && r[MV].att) || [],
+        modifiedAtts = (v.modified && v.modified.atts) || [];
+
+    matched = (modifiedAtts.length === modifiedAttsPrev.length);
+    if (matched)
+    {
+        for (count=0,mi=0,mc=modifiedAtts.length; mi<mc; mi++)
+        {
+            m = modifiedAtts[mi];
+            mp = modifiedAttsPrev[mi];
+            match = (m.from === mp.from) && (m.to === mp.to);
+            count += match;
+        }
+        matched = (mc === count);
+    }
+    if (matched)
+    {
+        if (modifiedAtts.length && v.modified.updateAtts)
+            v.modified.updateAtts(view, r, v, set_att, del_att, Value);
+    }
+    else
+    {
+        morphAttsAll(view, r, v);
+    }
     return r;
 }
 function morphSingleAll(view, r, rnode, vnode)
@@ -1987,11 +2024,8 @@ function morphSingleAll(view, r, rnode, vnode)
     {
         morphAttsAll(view, rnode, vnode);
         val = to_string_all(view, vnode.childNodes);
-        /*if (rnode[VAL] !== val)
-        {*/
-            rnode[VAL] = val;
-            rnode[TEXTC] = val;
-        /*}*/
+        rnode[VAL] = val;
+        rnode[TEXTC] = val;
     }
     else if ('<style>' === T || '<script>' === T)
     {
@@ -2251,6 +2285,10 @@ function morphAll(view, r, v, alreadyInited)
         rmv.comp = vComp;
         if ((rComp !== vComp) && rComp) rComp.dom = null;
         if (vComp) vComp.dom = r;
+        if (v.modified && v.modified.atts.length)
+            rmv.att = v.modified.atts;
+        else if (rmv.att)
+            rmv.att = null;
         if (v.modified && v.modified.nodes.length)
             rmv.mod = v.modified.nodes;
         else if (rmv.mod)
@@ -2366,6 +2404,10 @@ function morph(view, r, v)
     rmv.comp = vComp;
     if ((rComp !== vComp) && rComp) rComp.dom = null;
     if (vComp) vComp.dom = r;
+    if (v.modified && v.modified.atts.length)
+        rmv.att = v.modified.atts;
+    else if (rmv.att)
+        rmv.att = null;
     if (v.modified && v.modified.nodes.length)
         rmv.mod = v.modified.nodes;
     else if (rmv.mod)
