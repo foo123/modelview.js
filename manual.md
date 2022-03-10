@@ -37,10 +37,10 @@ ModelView.Type.Cast.EACH( eachTypeCaster );
 
 // cast fields of an object with a FIELDS TypeCaster
 ModelView.Type.Cast.FIELDS({
-    'field1': ModelView.Type.Cast.STR,
-    'field2': ModelView.Type.Cast.BOOL,
-    'field3': ModelView.Type.TypeCaster(function(v) { return v; }) // a custom type caster
-    // etc..
+'field1': ModelView.Type.Cast.STR,
+'field2': ModelView.Type.Cast.BOOL,
+'field3': ModelView.Type.TypeCaster(function(v) { return v; }) // a custom type caster
+// etc..
 });
 
 
@@ -138,10 +138,10 @@ ModelView.Validation.Validate.EACH( eachValidator );
 
 // validate fields of an object with a FIELDS Validator
 ModelView.Validation.Validate.FIELDS({
-    'field1': ModelView.Validation.Validate.GREATER_THAN( 0 ),
-    'field2': ModelView.Validation.Validate.BETWEEN( v1, v2 ),
-    'field3': ModelView.Validation.Validator(function(v) { return true; }) // a custom validator
-    // etc..
+'field1': ModelView.Validation.Validate.GREATER_THAN( 0 ),
+'field2': ModelView.Validation.Validate.BETWEEN( v1, v2 ),
+'field3': ModelView.Validation.Validator(function(v) { return true; }) // a custom validator
+// etc..
 });
 
 

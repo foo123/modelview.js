@@ -1,310 +1,7 @@
 
 // View utils
-var contains_non_strict = function(collection, value) {
-        if (collection)
-        {
-            for (var i=0,l=collection.length; i<l; i++)
-                if (value == Str(collection[i])) return true;
-        }
-        return false;
-    },
-
-    normalisePath = function normalisePath(path) {
-        if (path && path.length)
-        {
-            path = trim(path);
-            if ('#' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.slice(-1)) path = path.slice(0, -1);
-            path = trim(path);
-        }
-        return path;
-    },
-
-    numeric_re = /^\d+$/,
+var numeric_re = /^\d+$/,
     empty_brackets_re = /\[\s*\]$/,
-
-    fields2model = function(view, elements) {
-        var model = view.$model,
-            model_prefix = model.id + '.',
-            checkboxes_done = { }
-        ;
-
-        iterate(function(i) {
-            var el, name, key, k, j, o, alternative,
-            val, input_type, is_dynamic_array, checkboxes;
-            el = elements[i]; name = el[ATTR]("name");
-            if (!name) return;
-
-            input_type = (el[TYPE]||'').toLowerCase( );
-
-            key = dotted(name);
-            if (!startsWith(key, model_prefix)) return;
-            key = key.slice(model_prefix.length);
-
-            k = key.split('.'); o = model.$data;
-            while (k.length)
-            {
-                j = k.shift( );
-                if (k.length)
-                {
-                    if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                    o = o[ j ];
-                }
-                else
-                {
-                    if ('radio' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            val = '';
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', view.$dom);
-                            if (checkboxes.length > 1)
-                            {
-                                each(checkboxes, function(c){
-                                   if (el[CHECKED]) val = el[VAL];
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                val = el[VAL];
-                            }
-                            checkboxes_done[name] = 1;
-                            model.set(key, val);
-                        }
-                    }
-                    else if ('checkbox' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            is_dynamic_array = empty_brackets_re.test(name);
-                            checkboxes = $sel('input[type="checkbox"][name="'+name+'"]', view.$dom);
-
-                            if (is_dynamic_array)
-                            {
-                                // multiple checkboxes [name="model[key][]"] dynamic array
-                                // only checked items are in the list
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                });
-                            }
-                            else if (checkboxes.length > 1)
-                            {
-                                // multiple checkboxes [name="model[key]"] static array
-                                // all items are in the list either with values or defaults
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push( c[VAL] );
-                                    else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                // single checkbox, checked
-                                val = el[VAL];
-                            }
-                            else
-                            {
-                                // single checkbox, un-checked
-                                // use alternative value in [data-else] attribute, if needed, else empty
-                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
-                            }
-                            checkboxes_done[name] = 1;
-                            model.set(key, val);
-                        }
-                    }
-                    else
-                    {
-                        val = get_val(el);
-                        model.set(key, val);
-                    }
-                }
-            }
-        }, 0, elements.length-1);
-    },
-
-    serialize_fields = function(node, name_prefix) {
-        var data = { },
-            model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
-            elements = $sel('input,textarea,select', node), checkboxes_done = { }
-        ;
-
-        iterate(function(i) {
-            var el, name, key, k, j, o,
-            val, input_type, is_dynamic_array, checkboxes;
-            el = elements[i]; name = el[ATTR]("name");
-            if (!name) return;
-
-            input_type = (el[TYPE]||'').toLowerCase( );
-
-            key = dotted( name );
-            if (model_prefix)
-            {
-                if (!startsWith(key, model_prefix)) return;
-                key = key.slice(model_prefix.length);
-            }
-
-            k = key.split('.'); o = data;
-            while (k.length)
-            {
-                j = k.shift( );
-                if (k.length)
-                {
-                    if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                    o = o[ j ];
-                }
-                else
-                {
-                    if (!HAS.call(o, j)) o[ j ] = '';
-
-                    if ('radio' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            val = '';
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
-                            if (checkboxes.length > 1)
-                            {
-                                each(checkboxes, function(c){
-                                   if (el[CHECKED]) val = el[VAL];
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                val = el[VAL];
-                            }
-                            checkboxes_done[name] = 1;
-                            o[ j ] = val;
-                        }
-                    }
-                    else if ('checkbox' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            is_dynamic_array = empty_brackets_re.test( name );
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
-
-                            if (is_dynamic_array)
-                            {
-                                // multiple checkboxes [name="model[key][]"] dynamic array
-                                // only checked items are in the list
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                });
-                            }
-                            else if (checkboxes.length > 1)
-                            {
-                                // multiple checkboxes [name="model[key]"] static array
-                                // all items are in the list either with values or defaults
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                    else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                // single checkbox, checked
-                                val = el[VAL];
-                            }
-                            else
-                            {
-                                // single checkbox, un-checked
-                                // use alternative value in [data-else] attribute, if needed, else empty
-                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
-                            }
-                            checkboxes_done[name] = 1;
-                            o[ j ] = val;
-                        }
-                    }
-                    else
-                    {
-                        val = get_val(el);
-                        o[ j ] = val;
-                    }
-                }
-            }
-        }, 0, elements.length-1);
-        return data;
-    },
-
-    do_bind_action = function(view, evt, elements, fromModel) {
-        var model = view.$model, event = evt.type;
-
-        if ('sync' === event) event = 'change';
-        iterate(function(i) {
-            var el, cel, c, comp, do_action, data;
-            el = elements[i]; if (!el) return;
-            do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
-            if (!do_action || !do_action.length) return;
-            each(do_action.split(','), function(do_action){
-                do_action = trim(do_action);
-                if (!do_action.length) return;
-                data = {};
-                if (':' === do_action.charAt(0))
-                {
-                    // local component action
-                    do_action = do_action.slice(1);
-                    if (!do_action.length) return;
-                    cel = el;
-                    while (cel)
-                    {
-                        c = cel[MV] ? cel[MV].comp : null;
-                        if (c)
-                        {
-                            comp = view.$components['#'+c.name];
-                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
-                            {
-                                data.component = c;
-                                comp.opts.actions[do_action].call(c, evt, el, data);
-                                return;
-                            }
-                        }
-                        cel = cel.parentNode;
-                        if (cel === view.$renderdom) return;
-                    }
-                }
-                else
-                {
-                    // main view action
-                    if ('text' === do_action)
-                    {
-                        do_action = 'html';
-                        data.text = true;
-                    }
-                    do_action = 'do_' + do_action;
-                    if ('function' !== typeof view[do_action]) return;
-                    data.view = view;
-                    view[do_action](evt, el, data);
-                }
-            });
-        }, 0, elements.length-1);
-    },
-
-    do_auto_bind_action = function(view, evt, elements, fromModel) {
-        var model = view.$model, cached = { };
-
-        iterate(function(i) {
-            var el, name, key, ns_key, value;
-            el = elements[i];  if (!el) return;
-            name = el[NAME]; key = 0;
-            el[MV] = el[MV] || MV0();
-            if (!el[MV].key && !!name) el[MV].key = model.key(name, 1);
-            key = el[MV].key; if (!key) return;
-
-            // use already cached key/value
-            ns_key = '_'+key;
-            if (HAS.call(cached, ns_key))  value = cached[ ns_key ][ 0 ];
-            else if (model.has(key)) cached[ ns_key ] = [ value=model.get( key ) ];
-            else return;  // nothing to do here
-
-            // call default action (ie: live update)
-            view.do_bind(evt, el, {name:name, key:key, value:value});
-        }, 0, elements.length-1);
-    },
-
     //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
     shift_nums = {
      "~" : "`"
@@ -368,81 +65,406 @@ var contains_non_strict = function(collection, value) {
     ,122 : 'f11'
     ,123 : 'f12'
     },
-
-    getCtxScoped = function(view, viewvar) {
-        var k, code = '';
-        viewvar = viewvar || 'this';
-        for (k in view.$ctx)
-        {
-            if (HAS.call(view.$ctx,k))
-                code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
-        }
-        return code;
-    },
-
-    clearInvalid = function(view) {
-        // reset any Values/Collections present
-        if (view.$model) view.$model.resetDirty();
-        if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
-        view.$reset = null;
-        if (view.$cache) each(Keys(view.$cache), function(id){
-            var comp = view.$cache[id], COMP;
-            if (is_instance(comp, MVComponentInstance))
-            {
-                COMP = view.$components['#'+comp.name];
-                if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
-                {
-                    if (1 === comp.status)
-                    {
-                        comp.status = 2;
-                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
-                            COMP.opts.detached.call(comp, comp);
-                    }
-                    comp.dispose();
-                    delete view.$cache[id];
-                }
-                else
-                {
-                    if (comp.model) comp.model.resetDirty();
-                    if (0 === comp.status)
-                    {
-                        comp.status = 1;
-                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
-                            COMP.opts.attached.call(comp, comp);
-                    }
-                }
-            }
-        });
-    },
-
-    clearAll = function(view) {
-        if (view.$cache) each(Keys(view.$cache), function(id){
-            var comp = view.$cache[id];
-            if (is_instance(comp, MVComponentInstance))
-            {
-                comp.dispose();
-                delete view.$cache[id];
-            }
-        });
-    },
-
-    viewHandler = function(view, method) {
-        return function(evt) {return method.call(view, evt, {el:evt.target});};
-    },
-
-    closestEvtEl = function(el, evt, view) {
-        var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
-        while (el)
-        {
-            if (view.$dom === el) break;
-            if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
-            el = el.parentNode;
-        }
-    },
-
     eventOptionsSupported = null
 ;
 
+function contains_non_strict(collection, value)
+{
+    if (collection)
+    {
+        for (var i=0,l=collection.length; i<l; i++)
+            if (value == Str(collection[i])) return true;
+    }
+    return false;
+}
+function normalisePath(path)
+{
+    if (path && path.length)
+    {
+        path = trim(path);
+        if ('#' === path.charAt(0)) path = path.slice(1);
+        if ('/' === path.charAt(0)) path = path.slice(1);
+        if ('/' === path.slice(-1)) path = path.slice(0, -1);
+        path = trim(path);
+    }
+    return path;
+}
+function fields2model(view, elements)
+{
+    var model = view.$model,
+        model_prefix = model.id + '.',
+        checkboxes_done = { }
+    ;
+
+    iterate(function(i) {
+        var el, name, key, k, j, o, alternative,
+        val, input_type, is_dynamic_array, checkboxes;
+        el = elements[i]; name = el[ATTR]("name");
+        if (!name) return;
+
+        input_type = (el[TYPE]||'').toLowerCase( );
+
+        key = dotted(name);
+        if (!startsWith(key, model_prefix)) return;
+        key = key.slice(model_prefix.length);
+
+        k = key.split('.'); o = model.$data;
+        while (k.length)
+        {
+            j = k.shift( );
+            if (k.length)
+            {
+                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                o = o[ j ];
+            }
+            else
+            {
+                if ('radio' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        val = '';
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', view.$dom);
+                        if (checkboxes.length > 1)
+                        {
+                            each(checkboxes, function(c){
+                               if (el[CHECKED]) val = el[VAL];
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            val = el[VAL];
+                        }
+                        checkboxes_done[name] = 1;
+                        model.set(key, val);
+                    }
+                }
+                else if ('checkbox' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        is_dynamic_array = empty_brackets_re.test(name);
+                        checkboxes = $sel('input[type="checkbox"][name="'+name+'"]', view.$dom);
+
+                        if (is_dynamic_array)
+                        {
+                            // multiple checkboxes [name="model[key][]"] dynamic array
+                            // only checked items are in the list
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                            });
+                        }
+                        else if (checkboxes.length > 1)
+                        {
+                            // multiple checkboxes [name="model[key]"] static array
+                            // all items are in the list either with values or defaults
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push( c[VAL] );
+                                else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            // single checkbox, checked
+                            val = el[VAL];
+                        }
+                        else
+                        {
+                            // single checkbox, un-checked
+                            // use alternative value in [data-else] attribute, if needed, else empty
+                            val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                        }
+                        checkboxes_done[name] = 1;
+                        model.set(key, val);
+                    }
+                }
+                else
+                {
+                    val = get_val(el);
+                    model.set(key, val);
+                }
+            }
+        }
+    }, 0, elements.length-1);
+}
+function serialize_fields(node, name_prefix)
+{
+    var data = {},
+        model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
+        elements = $sel('input,textarea,select', node), checkboxes_done = { }
+    ;
+
+    iterate(function(i) {
+        var el, name, key, k, j, o,
+        val, input_type, is_dynamic_array, checkboxes;
+        el = elements[i]; name = el[ATTR]("name");
+        if (!name) return;
+
+        input_type = (el[TYPE]||'').toLowerCase( );
+
+        key = dotted( name );
+        if (model_prefix)
+        {
+            if (!startsWith(key, model_prefix)) return;
+            key = key.slice(model_prefix.length);
+        }
+
+        k = key.split('.'); o = data;
+        while (k.length)
+        {
+            j = k.shift( );
+            if (k.length)
+            {
+                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                o = o[ j ];
+            }
+            else
+            {
+                if (!HAS.call(o, j)) o[ j ] = '';
+
+                if ('radio' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        val = '';
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
+                        if (checkboxes.length > 1)
+                        {
+                            each(checkboxes, function(c){
+                               if (el[CHECKED]) val = el[VAL];
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            val = el[VAL];
+                        }
+                        checkboxes_done[name] = 1;
+                        o[ j ] = val;
+                    }
+                }
+                else if ('checkbox' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        is_dynamic_array = empty_brackets_re.test( name );
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
+
+                        if (is_dynamic_array)
+                        {
+                            // multiple checkboxes [name="model[key][]"] dynamic array
+                            // only checked items are in the list
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                            });
+                        }
+                        else if (checkboxes.length > 1)
+                        {
+                            // multiple checkboxes [name="model[key]"] static array
+                            // all items are in the list either with values or defaults
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                                else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            // single checkbox, checked
+                            val = el[VAL];
+                        }
+                        else
+                        {
+                            // single checkbox, un-checked
+                            // use alternative value in [data-else] attribute, if needed, else empty
+                            val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                        }
+                        checkboxes_done[name] = 1;
+                        o[ j ] = val;
+                    }
+                }
+                else
+                {
+                    val = get_val(el);
+                    o[ j ] = val;
+                }
+            }
+        }
+    }, 0, elements.length-1);
+    return data;
+}
+function do_bind_action(view, evt, elements, fromModel)
+{
+    var model = view.$model, event = evt.type;
+
+    if ('sync' === event) event = 'change';
+    iterate(function(i) {
+        var el, cel, c, comp, do_action, data;
+        el = elements[i]; if (!el) return;
+        do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
+        if (!do_action || !do_action.length) return;
+        each(do_action.split(','), function(do_action){
+            do_action = trim(do_action);
+            if (!do_action.length) return;
+            data = {};
+            if (':' === do_action.charAt(0))
+            {
+                // local component action
+                do_action = do_action.slice(1);
+                if (!do_action.length) return;
+                cel = el;
+                while (cel)
+                {
+                    c = cel[MV] ? cel[MV].comp : null;
+                    if (c)
+                    {
+                        comp = view.$components['#'+c.name];
+                        if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                        {
+                            data.component = c;
+                            comp.opts.actions[do_action].call(c, evt, el, data);
+                            return;
+                        }
+                    }
+                    cel = cel.parentNode;
+                    if (cel === view.$renderdom) return;
+                }
+            }
+            else
+            {
+                // main view action
+                if ('text' === do_action)
+                {
+                    do_action = 'html';
+                    data.text = true;
+                }
+                do_action = 'do_' + do_action;
+                if ('function' !== typeof view[do_action]) return;
+                data.view = view;
+                view[do_action](evt, el, data);
+            }
+        });
+    }, 0, elements.length-1);
+}
+function do_auto_bind_action(view, evt, elements, fromModel)
+{
+    var model = view.$model, cached = {};
+
+    iterate(function(i) {
+        var el, name, key, ns_key, value;
+        el = elements[i];  if (!el) return;
+        name = el[NAME]; key = 0;
+        el[MV] = el[MV] || MV0();
+        if (!el[MV].key && !!name) el[MV].key = model.key(name, 1);
+        key = el[MV].key; if (!key) return;
+
+        // use already cached key/value
+        ns_key = '_'+key;
+        if (HAS.call(cached, ns_key))  value = cached[ ns_key ][ 0 ];
+        else if (model.has(key)) cached[ ns_key ] = [ value=model.get( key ) ];
+        else return;  // nothing to do here
+
+        // call default action (ie: live update)
+        view.do_bind(evt, el, {name:name, key:key, value:value});
+    }, 0, elements.length-1);
+}
+function getCtxScoped(view, viewvar)
+{
+    var k, code = '';
+    viewvar = viewvar || 'this';
+    for (k in view.$ctx)
+    {
+        if (HAS.call(view.$ctx,k))
+            code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
+    }
+    return code;
+}
+function clearInvalid(view)
+{
+    // reset any Values/Collections present
+    if (view.$model) view.$model.resetDirty();
+    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
+    view.$reset = null;
+    if (view.$cache) each(Keys(view.$cache), function(id){
+        var comp = view.$cache[id], COMP;
+        if (is_instance(comp, MVComponentInstance))
+        {
+            COMP = view.$components['#'+comp.name];
+            if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
+            {
+                if (1 === comp.status)
+                {
+                    comp.status = 2;
+                    if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
+                        COMP.opts.detached.call(comp, comp);
+                }
+                comp.dispose();
+                delete view.$cache[id];
+            }
+            else
+            {
+                if (comp.model) comp.model.resetDirty();
+                if (0 === comp.status)
+                {
+                    comp.status = 1;
+                    if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
+                        COMP.opts.attached.call(comp, comp);
+                }
+            }
+        }
+    });
+}
+function clearAll(view)
+{
+    if (view.$cache) each(Keys(view.$cache), function(id){
+        var comp = view.$cache[id];
+        if (is_instance(comp, MVComponentInstance))
+        {
+            comp.dispose();
+            delete view.$cache[id];
+        }
+    });
+}
+function viewHandler(view, method)
+{
+    return function(evt) {return method.call(view, evt, {el:evt.target});};
+}
+function closestEvtEl(el, evt, view)
+{
+    var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
+    while (el)
+    {
+        if (view.$dom === el) break;
+        if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
+        el = el.parentNode;
+    }
+}
+function as_unit(node)
+{
+    if (is_instance(node, VNode))
+    {
+        node.unit = true;
+        return node;
+    }
+    return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
+}
+function debounce(callback, instance)
+{
+    if (HASDOC && window.requestAnimationFrame)
+    {
+        // If there's a pending render, cancel it
+        if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
+        // Setup the new render to run at the next animation frame
+        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+        else window.requestAnimationFrame(callback);
+    }
+    else
+    {
+        callback();
+    }
+}
 function hasEventOptions()
 {
     var passiveSupported = false, options = {};
@@ -967,12 +989,13 @@ view.html( String htmlString );
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
-    ,jsx: function jsx(nodes) {
-        if (is_instance(nodes, VNode))
-            nodes.cnodeType = nodes.nodeType = 'jsx';
-        else if (nodes.length && nodes.map)
-            nodes = nodes.map(jsx);
-        return nodes;
+    ,jsx: function jsx(node) {
+        if (is_instance(node, VNode))
+        {
+            node.cnodeType = node.nodeType = 'jsx';
+            return node;
+        }
+        return is_type(node, T_ARRAY) ? node.map(jsx) : node;
     }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
@@ -1032,7 +1055,7 @@ view.autobind( [Boolean enabled] );
         }
         return view.option('view.autobind');
     }
-    
+
 /**[DOC_MARKDOWN]
 // precompile content and component html templates
 // should be called after all view options (eg livebind) have been set

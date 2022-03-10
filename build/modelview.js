@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-09 20:22:22
+*   @built on 2022-03-10 20:07:16
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-09 20:22:22
+*   @built on 2022-03-10 20:07:16
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -52,11 +52,12 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
+var MV = '$MV', NAMESPACE = "modelview", WILDCARD = "*",
+    MV0 = function(){return {att:null,mod:null,id:null,comp:null,key:null};},
+    undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
     Func = Function, FP = Func[proto], Str = String, SP = Str[proto],
-    MV = '$MV', MV0 = function(){return {mod:null,id:null,comp:null,key:null};},
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice
     //FPCall = FP.call, hasProp = bindF(FPCall, OP.hasOwnProperty),
     toString = OP.toString, HAS = OP.hasOwnProperty, slice = AP.slice,
@@ -64,90 +65,9 @@ var undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     is_instance = function(o, T){return o instanceof T;},
     nextTick = 'undefined' !== typeof Promise
         ? Promise.resolve().then.bind(Promise.resolve())
-        : function(cb) {setTimeout(cb, 0);}
-;
-
-function Node(val, next)
-{
-    var self = this;
-    self.v = val || null;
-    self.n = next || {};
-}
-Node[proto] = {
-    constructor: Node
-    ,v: null
-    ,n: null
-};
-function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
-{
-    var self = this;
-    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
-    self.nodeType = nodeType || '';
-    self.cnodeType = nodeType || '';
-    self.nodeValue = nodeValue || '';
-    self.nodeValue2 = nodeValue2 || '';
-    self.parentNode = parentNode || null;
-    self.index = index || 0;
-    self.attributes = [];
-    self.childNodes = [];
-}
-VNode[proto] = {
-    constructor: VNode
-    ,nodeType: ''
-    ,cnodeType: ''
-    ,nodeValue: ''
-    ,nodeValue2: ''
-    ,parentNode: null
-    ,index: 0
-    ,component: null
-    ,id: null
-    ,type: null
-    ,attributes: null
-    ,atts: null
-    ,childNodes: null
-    ,componentNodes: 0
-    ,potentialChildNodes: 0
-    ,modified: null
-    ,diff: null
-    ,changed: false
-    ,achanged: false
-    ,adirty: null
-    ,unit: false
-};
-function VCode(code)
-{
-    var self = this;
-    if (!is_instance(self, VCode)) return new VCode(code);
-    self.code = code;
-}
-VCode[proto] = {
-    constructor: VCode
-    ,code: ''
-};
-
-var
-    tostr = function(s) {return Str(s);},
-    lower = function(s) {return s.toLowerCase();},
-    upper = function(s) {return s.toUpperCase();},
-
-    err = function(msg, data) {
-        var e = new Error(msg);
-        if (null != data) e.data = data;
-        return e;
-    },
-
+        : function(cb) {setTimeout(cb, 0);},
     INF = Infinity, rnd = stdMath.random,
-
     ESCAPED_RE = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g,
-    esc_re = function(s) {
-        return s.replace(ESCAPED_RE, "\\$&");
-    },
-
-    del = function(o, k, soft) {
-        o[k] = undef; if (!soft) delete o[k];
-        return o;
-    },
-
     // types
     T_UNKNOWN = 4, T_UNDEF = 8, T_NULL = 16,
     T_NUM = 32, T_BIGINT = 33, T_INF = 34, T_NAN = 35, T_BOOL = 64,
@@ -168,268 +88,25 @@ var
     "[object Blob]"     : T_BLOB,
     "[object Object]"   : T_OBJ
     },
-    get_type = function(v) {
-        var T = 0;
-        if      (null === v)                T = T_NULL;
-        else if (true === v || false === v || is_instance(v, Boolean)) T = T_BOOL;
-        else if (undef === v)               T = T_UNDEF;
-        else
-        {
-        T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
-        if      ((T_NUM === T)   || is_instance(v, Num))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
-        else if ((T_STR === T)   || is_instance(v, Str) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
-        else if (T_UNKNOWN !== T)                          {/*T = T;*/}
-        else if ((T_ARRAY === T) || is_instance(v, Arr))    T = T_ARRAY;
-        else if ((T_REGEX === T) || is_instance(v, Regex))   T = T_REGEX;
-        else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
-        else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
-        else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
-        else if ((T_FUNC === T)  || is_instance(v, Function) || ('function' === typeof(v))) T = T_FUNC;
-        else                                             T = T_UNKNOWN;
-        }
-        return T;
-    },
-    is_type = function(v, type) {return !!(type & get_type(v));},
-
-    // http://stackoverflow.com/questions/6449611/how-to-check-whether-a-value-is-a-number-in-javascript-or-jquery
-    is_numeric = function(n) {return !isNaN(parseFloat(n, 10)) && isFinite(n);},
-
-    is_array_index = function(n) {
-        if (is_numeric(n)) // is numeric
-        {
-            n = +n;  // make number if not already
-            if ((0 === n % 1) && n >= 0) // and is positive integer
-                return true;
-        }
-        return false
-    },
-
-    filter = function(a, f) {
-        return [].filter.call(a, f);
-    },
-    each = function(a, f) {
-        [].forEach.call(a, f);
-        return a;
-    },
-    iterate = function(F, i0, i1, F0) {
-        for (var i=i0; i<=i1; i++) F(i, F0, i0, i1);
-        return F0;
-    },
-
-    Merge = function(/* var args here.. */) {
-        var args = arguments, argslen,
-            o1, o2, v, p, i, T ;
-        o1 = args[0] || {};
-        argslen = args.length;
-        for (i=1; i<argslen; i++)
-        {
-            o2 = args[ i ];
-            if (T_OBJ === get_type( o2 ))
-            {
-                for (p in o2)
-                {
-                    v = o2[ p ];
-                    T = get_type( v );
-
-                    if (T_NUM & T)
-                        // shallow copy for numbers, better ??
-                        o1[ p ] = 0 + v;
-
-                    else if (T_ARRAY_OR_STR & T)
-                        // shallow copy for arrays or strings, better ??
-                        o1[ p ] = v.slice( 0 );
-
-                    else
-                        // just reference copy
-                        o1[ p ] = v;
-                }
-            }
-        }
-        return o1;
-    },
-
-    notEmpty = function(s) {return 0 < s.length;}, SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
-
-    // adapted from jQuery
-    getNS = function(evt) {
-        var ns = evt.split('.'), e = ns[0];
-        ns = filter(ns.slice(1), notEmpty);
-        return [e, ns.sort()];
-    },
-    getNSMatcher = function(givenNamespaces) {
-        return givenNamespaces.length
-            ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
-            : false;
-    },
-
-    WILDCARD = "*", NAMESPACE = "modelview",
-
+    SPACES = /\s+/g, NL = /\r\n|\r|\n/g,
     ATTR = 'getAttribute', SET_ATTR = 'setAttribute', HAS_ATTR = 'hasAttribute', DEL_ATTR = 'removeAttribute',
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value',
     OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
-
     // use native methods and abbreviation aliases if available
     fromJSON = JSON.parse, toJSON = JSON.stringify,
-
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
     trim_re = /^\s+|\s+$/g,
     trim = SP.trim
             ? function(s) {return Str(s).trim();}
             : function(s) {return Str(s).replace(trim_re, '');},
-
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
     startsWith = SP.startsWith
             ? function(str, pre, pos) {return Str(str).startsWith(pre, pos||0);}
             : function(str, pre, pos) {return pre === Str(str).slice(pos||0, pre.length);},
-
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now
     NOW = Date.now ? Date.now : function() {return new Date().getTime();},
-
-    // UUID counter for ModelViews
-    _uuid = 0,
-
-    // get a Universal Unique Identifier (UUID)
-    uuid =  function(namespace) {
-        return [namespace||'UUID', ++_uuid, NOW()].join('_');
-    },
-
-    // Array multi - sorter utility
-    // returns a sorter that can (sub-)sort by multiple (nested) fields
-    // each ascending or descending independantly
-    sorter = function() {
-        var arr = this, i, args = arguments, l = args.length,
-            a, b, avar, bvar, variables, step, lt, gt,
-            field, filter_args, sorter_args, desc, dir, sorter;
-        // + or nothing before a (nested) field indicates ascending sorting (default),
-        // example "+a.b.c", "a.b.c"
-        // - before a (nested) field indicates descending sorting,
-        // example "-b.c.d"
-        if (l)
-        {
-            step = 1;
-            sorter = [];
-            variables = [];
-            sorter_args = [];
-            filter_args = [];
-            for (i=l-1; i>=0; i--)
-            {
-                field = args[i];
-                // if is array, it contains a filter function as well
-                filter_args.unshift('f'+i);
-                if ( field.push )
-                {
-                    sorter_args.unshift(field[1]);
-                    field = field[0];
-                }
-                else
-                {
-                    sorter_args.unshift(null);
-                }
-                dir = field.charAt(0);
-                if ('-' === dir)
-                {
-                    desc = true;
-                    field = field.slice(1);
-                }
-                else if ('+' === dir)
-                {
-                    desc = false;
-                    field = field.slice(1);
-                }
-                else
-                {
-                    // default ASC
-                    desc = false;
-                }
-                field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
-                a = "a"+field; b = "b"+field;
-                if (sorter_args[0])
-                {
-                    a = filter_args[0] + '(' + a + ')';
-                    b = filter_args[0] + '(' + b + ')';
-                }
-                avar = 'a_'+i; bvar = 'b_'+i;
-                variables.unshift(''+avar+'='+a+','+bvar+'='+b+'');
-                lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
-                sorter.unshift("("+avar+" < "+bvar+" ? "+lt+" : ("+avar+" > "+bvar+" ? "+gt+" : 0))");
-                step <<= 1;
-            }
-            // use optional custom filters as well
-            return (newFunc(
-                    filter_args.join(','),
-                    ['return function(a,b) {',
-                     '  var '+variables.join(',')+';',
-                     '  return '+sorter.join('+')+';',
-                     '};'].join("\n")
-                    ))
-                    .apply(null, sorter_args);
-        }
-        else
-        {
-            a = "a"; b = "b"; lt = '-1'; gt = '1';
-            sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
-            return newFunc("a,b", 'return '+sorter+';');
-        }
-    },
-
-    // http://youmightnotneedjquery.com/
-    $id = function(id) {
-        if (HASDOC)
-        {
-            var found = document.getElementById(id);
-            return found ? [found] : [];
-        }
-        return [];
-    },
-    $tag = function(tagname, el) {
-        return HASDOC ? slice.call((el || document).getElementsByTagName(tagname), 0) : [];
-    },
-    $class = function(classname, el) {
-        return HASDOC ? slice.call((el || document).getElementsByClassName(classname), 0) : [];
-    },
-    $closest = function(selector, el) {
-        el = el || document;
-        if (HASDOC && el.closest)
-        {
-            var found = el.closest(selector);
-            return found ? [found] : [];
-        }
-        return [];
-    },
-    $sel = function(selector, el, single) {
-        el = el || document;
-        if (HASDOC && el.querySelector)
-        {
-            if (true === single)
-            {
-                var found = el.querySelector(selector);
-                return found ? [found] : [];
-            }
-            return slice.call(el.querySelectorAll(selector), 0);
-        }
-        return [];
-    },
-
-    get_dom_ref = function(el, ref) {
-        // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
-        if (startsWith(ref, "$this::"))
-        {
-            return $sel(ref.slice(7), el, true);
-        }
-        // shortcut to get domRefs closest up the tree relative to current element $el, represented as "$closest::" in ref selector
-        else if (startsWith(ref, "$closest::"))
-        {
-            return $closest(ref.slice(10), el);
-        }
-        else
-        {
-            return $sel(ref, null, true);
-        }
-    },
-
-    // http://youmightnotneedjquery.com/
     MATCHES = (function(P) {
         if (!P || P.matches) return 'matches';
         else if (P.matchesSelector) return 'matchesSelector';
@@ -438,233 +115,17 @@ var
         else if (P.msMatchesSelector) return 'msMatchesSelector';
         else if (P.oMatchesSelector) return 'oMatchesSelector';
     }(HASDOC && window.Element ? window.Element[proto] : null)),
-
-    // http://stackoverflow.com/a/2364000/3591273
     get_style = HASDOC && window.getComputedStyle
         ? function(el) {return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
-    $style = function(el, prop, val) {
-        if (null == val)
-        {
-            return el[STYLE].getPropertyValue(prop);
-        }
-        else
-        {
-            if ('' === val)
-                el[STYLE].removeProperty(prop);
-            else
-                el[STYLE].setProperty(prop, Str(val));
-            return el;
-        }
-    },
-    show = function(el) {
-        if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
-        el[STYLE].display = 'none' !== $style(el, '--mvDisplay') ? $style(el, '--mvDisplay') : 'block';
-        $style(el, '--mvDisplay', '');
-    },
-
-    hide = function(el) {
-        if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
-        el[STYLE].display = 'none';
-    },
-
-    opt_val = function(o) {
-        // attributes.value is undefined in Blackberry 4.7 but
-        // uses .value. See #6932
-        var val = o.attributes[VAL];
-        return !val || val.specified ? o[VAL] : o.text;
-    },
-
-    // adapted from jQuery
-    select_get = function(el) {
-        var val, opt, options = el[OPTIONS], sel_index = el[SELECTED_INDEX],
-            one = "select-one" === el[TYPE] || sel_index < 0,
-            values = one ? null : [],
-            max = one ? sel_index + 1 : options.length,
-            i = sel_index < 0 ? max : (one ? sel_index : 0)
-        ;
-
-        // Loop through all the selected options
-        for (; i<max; i++)
-        {
-            opt = options[ i ];
-
-            // oldIE doesn't update selected after form reset (#2551)
-            if (
-                (opt[SELECTED] || i === sel_index) &&
-                // Don't return options that are disabled or in a disabled optgroup
-                (!opt[DISABLED]) &&
-                (!opt[PARENT][DISABLED] || "OPTGROUP" !== opt[PARENT][TAG])
-            )
-            {
-                // Get the specific value for the option
-                val = opt_val(opt);
-                // We don't need an array for one selects
-                if (one) return val;
-                // Multi-Selects return an array
-                values.push(val);
-            }
-        }
-        return values;
-    },
-
-    select_set = function(el, v) {
-        var values = [].concat(v).map(tostr),
-            options = el[OPTIONS], selected,
-            opt, i, sel_index = -1, ret = false
-        ;
-
-        for (i=0; i<options.length; i++ )
-        {
-            opt = options[i];
-            selected = opt[SELECTED];
-            opt[SELECTED] = -1 < values.indexOf(opt_val(opt));
-            if (selected !== opt[SELECTED]) ret = true;
-        }
-        if (!values.length) el[SELECTED_INDEX] = -1;
-        return ret;
-    },
-
-    get_val = function(el) {
-        if (!el) return;
-        var value_alt = null;
-        if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
-        switch(upper(el[TAG]||''))
-        {
-            case 'INPUT': return 'file' === lower(el.type||'') ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
-            case 'TEXTAREA':return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL];
-            case 'SELECT': return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : select_get(el);
-            default: return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : ((TEXTC in el) ? el[TEXTC] : el[TEXT]);
-        }
-    },
-
-    set_val = function(el, v) {
-        if (!el) return;
-        var value_alt = null, sv = Str(v), ret = false;
-        if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
-        switch(upper(el[TAG]||''))
-        {
-            case 'INPUT':
-                if ('file' === lower(el.type||''))
-                {
-                }
-                else
-                {
-                    ret = el[VAL] !== sv;
-                    if (ret) el[VAL] = sv;
-                    if (!!value_alt) el[value_alt] = null;
-                }
-                break;
-            case 'TEXTAREA':
-                ret = el[VAL] !== sv;
-                if (ret) el[VAL] = sv;
-                if (!!value_alt) el[value_alt] = null;
-                break;
-            case 'SELECT':
-                ret = select_set(el, v);
-                if (!!value_alt) el[value_alt] = null;
-                break;
-            default:
-                if (TEXTC in el)
-                {
-                    ret = el[TEXTC] !== sv;
-                    if (ret) el[TEXTC] = sv;
-                }
-                else
-                {
-                    ret = el[TEXT] !== sv;
-                    if (ret) el[TEXT] = sv;
-                }
-                if (!!value_alt) el[value_alt] = null;
-                break;
-        }
-        return ret;
-    },
-
-    is_child_of = function(el, node, finalNode) {
-        var p = el;
-        if (p && node)
-        {
-            if (node === p) return true;
-            else if (node.contains) return node.contains(p);
-            //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
-            while (p)
-            {
-                if (p === node) return true;
-                if (p === finalNode) break;
-                p = p.parentNode;
-            }
-        }
-        return false;
-    },
-
-    Fragment = function() {
-        return document.createDocumentFragment();
-    },
-    Range = function() {
-        var range = null;
-        try {
-            range = document.createRange();
-        } catch(e) {
-            range = null;
-        }
-        return range;
-    },
-    Text = function(val) {
-        return document.createTextNode(val);
-    },
-
-    debounce = function(callback, instance) {
-        if (HASDOC && window.requestAnimationFrame)
-        {
-            // If there's a pending render, cancel it
-            if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
-            // Setup the new render to run at the next animation frame
-            if (instance) instance._dbnc = window.requestAnimationFrame(callback);
-            else window.requestAnimationFrame(callback);
-        }
-        else
-        {
-            callback();
-        }
-    },
-
-    tpl2code = function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType, viewInstance) {
-        var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
-        if ('text' === type)
-        {
-            tpl = trim(tpl);
-            args = 'MODEL';
-            code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{'+String(key)+'}';};";
-            while (tpl && tpl.length)
-            {
-                p1 = tpl.indexOf('{');
-                if (-1 === p1)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                p2 = tpl.indexOf('}', p1+1);
-                if (-1 === p2)
-                {
-                    code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                    break;
-                }
-                code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+1, p2))+'\'));';
-                tpl = tpl.slice(p2+1);
-            }
-            code += "\nreturn _$$_;";
-        }
-        else
-        {
-            args = (args || '') + '_$$_';
-            if (scoped && scoped.length) code += "\n" + Str(scoped);
-            code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
-        }
-        return newFunc(args, code);
-    },
-
+    // UUID counter for ModelViews
+    _uuid = 0,
+    placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
+    SPACE = /\s/,
+    NUM = /^\d+$/,
+    HEXNUM = /^[0-9a-fA-F]+$/,
+    TAGCHAR = /[a-zA-Z0-9\-_:]/,
+    ATTCHAR = TAGCHAR,
     htmlEntities = {
     "amp": "\u0026",
     "lt": "\u003C",
@@ -762,264 +223,703 @@ var
     '<unknown>':1,
     '<use>':1,
     '<view>':1
-    },
-    initState = function(opts, nodeType) {
-        return {
-            dom: new VNode(nodeType || '', '', '', null, 0),
-            opts: opts || {},
-            incomment: false,
-            intag: false,
-            inatt: false,
-            closetag: false,
-            tag: '',
-            att: '',
-            q: '',
-            val: '',
-            txt: '',
-            txt2: ''
-        };
-    },
-    finState = function(state) {
-        if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
-        {
-            state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-        }
-        state.txt = '';
-        state.txt2 = '';
-        return state;
-    },
-    getRoot = function(state) {
-        if (!state.dom) throw err('No root node!');
-        else if (state.dom.parentNode) throw err('Unclosed tag '+state.dom.parentNode.nodeType);
-        //while (state.dom && state.dom.parentNode) state.dom = state.dom.parentNode;
-        return state.dom;
-    },
-    parse = function(view, str, opts, rootNode, withJsCode) {
-        return getRoot(finState(html2ast(view, trim(str), initState(opts, rootNode || ''), true === withJsCode)));
-    },
+    }
+;
 
-    SPACE = /\s/,
-    NUM = /^\d+$/,
-    HEXNUM = /^[0-9a-fA-F]+$/,
-    TAGCHAR = /[a-zA-Z0-9\-_:]/,
-    ATTCHAR = TAGCHAR,
+if (HASDOC && window.Node)
+{
+    // add ModelView custom prop to DOM Node prototype
+    // so browser optimization is not affected
+    window.Node[proto][MV] = null;
+}
 
-    jsx2code = function jsx2code(view, tpl, opts) {
-        var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k, injsx = false, instr = false, esc = false, q = '', c = '';
-        while (i<l)
+function Node(val, next)
+{
+    var self = this;
+    self.v = val || null;
+    self.n = next || {};
+}
+Node[proto] = {
+    constructor: Node
+    ,v: null
+    ,n: null
+};
+function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
+{
+    var self = this;
+    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+    self.nodeType = nodeType || '';
+    self.cnodeType = nodeType || '';
+    self.nodeValue = nodeValue || '';
+    self.nodeValue2 = nodeValue2 || '';
+    self.parentNode = parentNode || null;
+    self.index = index || 0;
+    self.attributes = [];
+    self.childNodes = [];
+}
+VNode[proto] = {
+    constructor: VNode
+    ,nodeType: ''
+    ,cnodeType: ''
+    ,nodeValue: ''
+    ,nodeValue2: ''
+    ,parentNode: null
+    ,index: 0
+    ,component: null
+    ,id: null
+    ,type: null
+    ,attributes: null
+    ,atts: null
+    ,childNodes: null
+    ,componentNodes: 0
+    ,potentialChildNodes: 0
+    ,modified: null
+    ,diff: null
+    ,changed: false
+    ,achanged: false
+    ,unit: false
+};
+function VCode(code)
+{
+    var self = this;
+    if (!is_instance(self, VCode)) return new VCode(code);
+    self.code = code;
+}
+VCode[proto] = {
+    constructor: VCode
+    ,code: ''
+};
+
+function tostr(s) {return Str(s);}
+function lower(s) {return s.toLowerCase();}
+function upper(s) {return s.toUpperCase();}
+function err(msg, data)
+{
+    var e = new Error(msg);
+    if (null != data) e.data = data;
+    return e;
+}
+function esc_re(s)
+{
+    return s.replace(ESCAPED_RE, "\\$&");
+}
+function del(o, k, soft)
+{
+    o[k] = undef; if (!soft) delete o[k];
+    return o;
+}
+function get_type(v)
+{
+    var T = 0;
+    if      (null === v)                T = T_NULL;
+    else if (true === v || false === v || is_instance(v, Boolean)) T = T_BOOL;
+    else if (undef === v)               T = T_UNDEF;
+    else
+    {
+    T = TYPE_STRING[toString.call(v)] || T_UNKNOWN;
+    if      ((T_NUM === T)   || is_instance(v, Num))   T = isNaN(v) ? T_NAN : (isFinite(v) ? T_NUM : T_INF);
+    else if ((T_STR === T)   || is_instance(v, Str) || ('string' === typeof(v)))   T = 1 === v.length ? T_CHAR : T_STR;
+    else if (T_UNKNOWN !== T)                          {/*T = T;*/}
+    else if ((T_ARRAY === T) || is_instance(v, Arr))    T = T_ARRAY;
+    else if ((T_REGEX === T) || is_instance(v, Regex))   T = T_REGEX;
+    else if ((T_DATE === T)  || is_instance(v, Date))     T = T_DATE;
+    else if ((T_FILE === T)  || ('undefined' !== typeof(File) && is_instance(v, File)))     T = T_FILE;
+    else if ((T_BLOB === T)  || ('undefined' !== typeof(Blob) && is_instance(v, Blob)))     T = T_BLOB;
+    else if ((T_FUNC === T)  || is_instance(v, Function) || ('function' === typeof(v))) T = T_FUNC;
+    else                                             T = T_UNKNOWN;
+    }
+    return T;
+}
+function is_type(v, type) {return !!(type & get_type(v));}
+function is_numeric(n) {return !isNaN(parseFloat(n, 10)) && isFinite(n);}
+function is_array_index(n)
+{
+    if (is_numeric(n)) // is numeric
+    {
+        n = +n;  // make number if not already
+        if ((0 === n % 1) && n >= 0) // and is positive integer
+            return true;
+    }
+    return false
+}
+function filter(a, f) {return [].filter.call(a, f);}
+function each(a, f)
+{
+    [].forEach.call(a, f);
+    return a;
+}
+function iterate(F, i0, i1, F0)
+{
+    for (var i=i0; i<=i1; i++) F(i, F0, i0, i1);
+    return F0;
+}
+function Merge(/* var args here.. */)
+{
+    var args = arguments, argslen,
+        o1, o2, v, p, i, T ;
+    o1 = args[0] || {};
+    argslen = args.length;
+    for (i=1; i<argslen; i++)
+    {
+        o2 = args[ i ];
+        if (T_OBJ === get_type( o2 ))
         {
-            c = tpl.charAt(i++);
-            if (instr && ('\\' === c))
+            for (p in o2)
             {
-                esc = !esc;
+                v = o2[ p ];
+                T = get_type( v );
+
+                if (T_NUM & T)
+                    // shallow copy for numbers, better ??
+                    o1[ p ] = 0 + v;
+
+                else if (T_ARRAY_OR_STR & T)
+                    // shallow copy for arrays or strings, better ??
+                    o1[ p ] = v.slice( 0 );
+
+                else
+                    // just reference copy
+                    o1[ p ] = v;
+            }
+        }
+    }
+    return o1;
+}
+function notEmpty(s) {return 0 < s.length;}
+function getNS(evt)
+{
+    var ns = evt.split('.'), e = ns[0];
+    ns = filter(ns.slice(1), notEmpty);
+    return [e, ns.sort()];
+}
+function getNSMatcher(givenNamespaces)
+{
+    return givenNamespaces.length
+        ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
+        : false;
+}
+// get a Universal Unique Identifier (UUID)
+function uuid(namespace)
+{
+    return [namespace||'UUID', ++_uuid, NOW()].join('_');
+}
+function $id(id)
+{
+    if (HASDOC)
+    {
+        var found = document.getElementById(id);
+        return found ? [found] : [];
+    }
+    return [];
+}
+function $tag(tagname, el)
+{
+    return HASDOC ? slice.call((el || document).getElementsByTagName(tagname), 0) : [];
+}
+function $class(classname, el)
+{
+    return HASDOC ? slice.call((el || document).getElementsByClassName(classname), 0) : [];
+}
+function $closest(selector, el)
+{
+    el = el || document;
+    if (HASDOC && el.closest)
+    {
+        var found = el.closest(selector);
+        return found ? [found] : [];
+    }
+    return [];
+}
+function $sel(selector, el, single)
+{
+    el = el || document;
+    if (HASDOC && el.querySelector)
+    {
+        if (true === single)
+        {
+            var found = el.querySelector(selector);
+            return found ? [found] : [];
+        }
+        return slice.call(el.querySelectorAll(selector), 0);
+    }
+    return [];
+}
+function get_dom_ref(el, ref)
+{
+    // shortcut to get domRefs relative to current element $el, represented as "$this::" in ref selector
+    if (startsWith(ref, "$this::"))
+    {
+        return $sel(ref.slice(7), el, true);
+    }
+    // shortcut to get domRefs closest up the tree relative to current element $el, represented as "$closest::" in ref selector
+    else if (startsWith(ref, "$closest::"))
+    {
+        return $closest(ref.slice(10), el);
+    }
+    else
+    {
+        return $sel(ref, null, true);
+    }
+}
+function $style(el, prop, val)
+{
+    if (null == val)
+    {
+        return el[STYLE].getPropertyValue(prop);
+    }
+    else
+    {
+        if ('' === val)
+            el[STYLE].removeProperty(prop);
+        else
+            el[STYLE].setProperty(prop, Str(val));
+        return el;
+    }
+}
+function show(el)
+{
+    if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
+    el[STYLE].display = 'none' !== $style(el, '--mvDisplay') ? $style(el, '--mvDisplay') : 'block';
+    $style(el, '--mvDisplay', '');
+}
+function hide(el)
+{
+    if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
+    el[STYLE].display = 'none';
+}
+function opt_val(o)
+{
+    // attributes.value is undefined in Blackberry 4.7 but
+    // uses .value. See #6932
+    var val = o.attributes[VAL];
+    return !val || val.specified ? o[VAL] : o.text;
+}
+function select_get(el)
+{
+    var val, opt, options = el[OPTIONS], sel_index = el[SELECTED_INDEX],
+        one = "select-one" === el[TYPE] || sel_index < 0,
+        values = one ? null : [],
+        max = one ? sel_index + 1 : options.length,
+        i = sel_index < 0 ? max : (one ? sel_index : 0)
+    ;
+
+    // Loop through all the selected options
+    for (; i<max; i++)
+    {
+        opt = options[ i ];
+
+        // oldIE doesn't update selected after form reset (#2551)
+        if (
+            (opt[SELECTED] || i === sel_index) &&
+            // Don't return options that are disabled or in a disabled optgroup
+            (!opt[DISABLED]) &&
+            (!opt[PARENT][DISABLED] || "OPTGROUP" !== opt[PARENT][TAG])
+        )
+        {
+            // Get the specific value for the option
+            val = opt_val(opt);
+            // We don't need an array for one selects
+            if (one) return val;
+            // Multi-Selects return an array
+            values.push(val);
+        }
+    }
+    return values;
+}
+function select_set(el, v)
+{
+    var values = [].concat(v).map(tostr),
+        options = el[OPTIONS], selected,
+        opt, i, sel_index = -1, ret = false
+    ;
+
+    for (i=0; i<options.length; i++ )
+    {
+        opt = options[i];
+        selected = opt[SELECTED];
+        opt[SELECTED] = -1 < values.indexOf(opt_val(opt));
+        if (selected !== opt[SELECTED]) ret = true;
+    }
+    if (!values.length) el[SELECTED_INDEX] = -1;
+    return ret;
+}
+function get_val(el)
+{
+    if (!el) return;
+    var value_alt = null;
+    if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
+    switch(upper(el[TAG]||''))
+    {
+        case 'INPUT': return 'file' === lower(el.type||'') ? ((!!value_alt) && (null!=el[value_alt]) && el[value_alt].length ?el[value_alt] : (el.files.length ? el.files : null)) : ((!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL]);
+        case 'TEXTAREA':return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : el[VAL];
+        case 'SELECT': return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : select_get(el);
+        default: return (!!value_alt) && (null!=el[value_alt]) ? el[value_alt] : ((TEXTC in el) ? el[TEXTC] : el[TEXT]);
+    }
+}
+function set_val(el, v)
+{
+    if (!el) return;
+    var value_alt = null, sv = Str(v), ret = false;
+    if (el[HAS_ATTR]('data-alt-value')) value_alt = el[ATTR]('data-alt-value');
+    switch(upper(el[TAG]||''))
+    {
+        case 'INPUT':
+            if ('file' === lower(el.type||''))
+            {
+            }
+            else
+            {
+                ret = el[VAL] !== sv;
+                if (ret) el[VAL] = sv;
+                if (!!value_alt) el[value_alt] = null;
+            }
+            break;
+        case 'TEXTAREA':
+            ret = el[VAL] !== sv;
+            if (ret) el[VAL] = sv;
+            if (!!value_alt) el[value_alt] = null;
+            break;
+        case 'SELECT':
+            ret = select_set(el, v);
+            if (!!value_alt) el[value_alt] = null;
+            break;
+        default:
+            if (TEXTC in el)
+            {
+                ret = el[TEXTC] !== sv;
+                if (ret) el[TEXTC] = sv;
+            }
+            else
+            {
+                ret = el[TEXT] !== sv;
+                if (ret) el[TEXT] = sv;
+            }
+            if (!!value_alt) el[value_alt] = null;
+            break;
+    }
+    return ret;
+}
+function is_child_of(el, node, finalNode)
+{
+    if (el && node)
+    {
+        if (node === el) return node !== finalNode;
+        else if (node.contains) return node.contains(el);
+        //else if (node.compareDocumentPosition) return !!(node.compareDocumentPosition(p) & 16);
+        while (el)
+        {
+            if (el === node) return node !== finalNode;
+            if (el === finalNode) break;
+            el = el.parentNode;
+        }
+    }
+    return false;
+}
+function Fragment()
+{
+    return document.createDocumentFragment();
+}
+function Range()
+{
+    var range = null;
+    try {
+        range = document.createRange();
+    } catch(e) {
+        range = null;
+    }
+    return range;
+}
+function Text(val)
+{
+    return document.createTextNode(val);
+}
+function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType, viewInstance)
+{
+    var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
+    if ('text' === type)
+    {
+        tpl = trim(tpl);
+        args = 'MODEL';
+        code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{'+String(key)+'}';};";
+        while (tpl && tpl.length)
+        {
+            p1 = tpl.indexOf('{');
+            if (-1 === p1)
+            {
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
+            p2 = tpl.indexOf('}', p1+1);
+            if (-1 === p2)
+            {
+                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+                break;
+            }
+            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+1, p2))+'\'));';
+            tpl = tpl.slice(p2+1);
+        }
+        code += "\nreturn _$$_;";
+    }
+    else
+    {
+        args = (args || '') + '_$$_';
+        if (scoped && scoped.length) code += "\n" + Str(scoped);
+        code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
+    }
+    return newFunc(args, code);
+}
+function initState(opts, nodeType)
+{
+    return {
+        dom: new VNode(nodeType || '', '', '', null, 0),
+        opts: opts || {},
+        incomment: false,
+        intag: false,
+        inatt: false,
+        closetag: false,
+        tag: '',
+        att: '',
+        q: '',
+        val: '',
+        txt: '',
+        txt2: ''
+    };
+}
+function finState(state)
+{
+    if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+    {
+        state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+    }
+    state.txt = '';
+    state.txt2 = '';
+    return state;
+}
+function getRoot(state)
+{
+    if (!state.dom) throw err('No root node!');
+    else if (state.dom.parentNode) throw err('Unclosed tag '+state.dom.parentNode.nodeType);
+    //while (state.dom && state.dom.parentNode) state.dom = state.dom.parentNode;
+    return state.dom;
+}
+function parse(view, str, opts, rootNode, withJsCode)
+{
+    return getRoot(finState(html2ast(view, trim(str), initState(opts, rootNode || ''), true === withJsCode)));
+}
+function jsx2code(view, tpl, opts)
+{
+    var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k, injsx = false, instr = false, esc = false, q = '', c = '';
+    while (i<l)
+    {
+        c = tpl.charAt(i++);
+        if (instr && ('\\' === c))
+        {
+            esc = !esc;
+            if (injsx) jsx += c;
+            else out += c;
+            continue;
+        }
+        else if ('"' === c || '\'' === c || '`' === c)
+        {
+            if (!instr)
+            {
+                instr = true;
+                esc = false;
+                q = c;
                 if (injsx) jsx += c;
                 else out += c;
-                continue;
             }
-            else if ('"' === c || '\'' === c || '`' === c)
+            else if (!esc && (q === c))
             {
-                if (!instr)
-                {
-                    instr = true;
-                    esc = false;
-                    q = c;
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-                else if (!esc && (q === c))
-                {
-                    instr = false;
-                    q = '';
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-                else
-                {
-                    if (injsx) jsx += c;
-                    else out += c;
-                }
-            }
-            else if (!instr && injsx && (')' === c))
-            {
-                j--;
-                if (0 === j)
-                {
-                    injsx = false;
-                    jsx = trim(jsx);
-                    out += '('+(jsx.length ? to_code(parse(view, jsx, opts, '', true)) : '')+')';
-                    jsx = '';
-                }
-                else
-                {
-                    jsx += c;
-                }
-            }
-            else if (!instr && ('(' === c))
-            {
-                if (injsx)
-                {
-                    j++;
-                    jsx += c;
-                }
-                else if ('<' === tpl.charAt(i))
-                {
-                    injsx = true;
-                    jsx = '';
-                    j = 1;
-                }
-                else
-                {
-                    out += c;
-                }
-            }
-            else if (!instr && ('/' === c) && ('*' === tpl.charAt(i)))
-            {
-                k = tpl.indexOf('*/', i+1);
-                if (-1 === k)
-                {
-                    throw err('Invalid comment at "'+tpl+'"');
-                }
-                else
-                {
-                    i = k+2;
-                }
+                instr = false;
+                q = '';
+                if (injsx) jsx += c;
+                else out += c;
             }
             else
             {
                 if (injsx) jsx += c;
                 else out += c;
             }
-            if (instr) esc = false;
         }
-        if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
-        return trim(out);
-    },
-    html2ast = function html2ast(view, html, state, jscode) {
-        var c = '', l = html.length, i = 0, j, t, instr, esc, att, component;
-        while (i<l)
+        else if (!instr && injsx && (')' === c))
         {
-            if (state.inatt)
+            j--;
+            if (0 === j)
             {
-                while (i<l && state.q !== (c=html.charAt(i)))
-                {
-                    state.val += c;
-                    i++;
-                }
-                if (state.q === c)
-                {
-                    att = state.dom.attributes[state.dom.attributes.length-1];
-                    if (true === att.value)
-                    {
-                        att.value = state.val;
-                        //state.dom.atts[att.name] = state.val;
-                    }
-                    else if (is_instance(att.value, VCode))
-                    {
-                        if (state.val.length) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
-                        //state.dom.atts[att.name] = att.value;
-                    }
-                    else
-                    {
-                        att.value += state.val;
-                        //state.dom.atts[att.name] += state.val;
-                    }
-                    if (state.opts.id === att.name) state.dom.id = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
-                    if ('type' === att.name) state.dom.type = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
-                    state.inatt = false;
-                    state.q = '';
-                    state.val = '';
-                    i++;
-                }
-                continue;
+                injsx = false;
+                jsx = trim(jsx);
+                out += '('+(jsx.length ? to_code(parse(view, jsx, opts, '', true)) : '')+')';
+                jsx = '';
             }
-            if (state.intag)
+            else
             {
-                while (i<l && ('>' !== (c=html.charAt(i))))
+                jsx += c;
+            }
+        }
+        else if (!instr && ('(' === c))
+        {
+            if (injsx)
+            {
+                j++;
+                jsx += c;
+            }
+            else if ('<' === tpl.charAt(i))
+            {
+                injsx = true;
+                jsx = '';
+                j = 1;
+            }
+            else
+            {
+                out += c;
+            }
+        }
+        else if (!instr && ('/' === c) && ('*' === tpl.charAt(i)))
+        {
+            k = tpl.indexOf('*/', i+1);
+            if (-1 === k)
+            {
+                throw err('Invalid comment at "'+tpl+'"');
+            }
+            else
+            {
+                i = k+2;
+            }
+        }
+        else
+        {
+            if (injsx) jsx += c;
+            else out += c;
+        }
+        if (instr) esc = false;
+    }
+    if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
+    return trim(out);
+}
+function html2ast(view, html, state, jscode)
+{
+    var c = '', l = html.length, i = 0, j, t, instr, esc, att, component;
+    while (i<l)
+    {
+        if (state.inatt)
+        {
+            while (i<l && state.q !== (c=html.charAt(i)))
+            {
+                state.val += c;
+                i++;
+            }
+            if (state.q === c)
+            {
+                att = state.dom.attributes[state.dom.attributes.length-1];
+                if (true === att.value)
                 {
-                    if (SPACE.test(c))
+                    att.value = state.val;
+                    //state.dom.atts[att.name] = state.val;
+                }
+                else if (is_instance(att.value, VCode))
+                {
+                    if (state.val.length) att.value.code = '('+att.value.code+')+'+toJSON(state.val);
+                    //state.dom.atts[att.name] = att.value;
+                }
+                else
+                {
+                    att.value += state.val;
+                    //state.dom.atts[att.name] += state.val;
+                }
+                if (state.opts.id === att.name) state.dom.id = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
+                if ('type' === att.name) state.dom.type = is_instance(att.value, VCode) ? '('+att.value.code+')' : toJSON(att.value);
+                state.inatt = false;
+                state.q = '';
+                state.val = '';
+                i++;
+            }
+            continue;
+        }
+        if (state.intag)
+        {
+            while (i<l && ('>' !== (c=html.charAt(i))))
+            {
+                if (SPACE.test(c))
+                {
+                    if (state.att.length)
                     {
-                        if (state.att.length)
-                        {
-                            state.dom.attributes.push({name: state.att, value: true});
-                            //state.dom.atts[state.att] = true;
-                            state.att = '';
-                        }
+                        state.dom.attributes.push({name: state.att, value: true});
+                        //state.dom.atts[state.att] = true;
+                        state.att = '';
                     }
-                    else if (ATTCHAR.test(c))
+                }
+                else if (ATTCHAR.test(c))
+                {
+                    state.att += c;
+                }
+                else if ('=' === c)
+                {
+                    if (state.att.length)
                     {
-                        state.att += c;
+                        state.dom.attributes.push({name: state.att, value: true});
+                        //state.dom.atts[state.att] = true;
+                        state.att = '';
                     }
-                    else if ('=' === c)
+                    if (state.dom.attributes.length && (true === state.dom.attributes[state.dom.attributes.length-1].value))
                     {
-                        if (state.att.length)
+                        i++;
+                        while (i<l && SPACE.test(c=html.charAt(i))) i++;
+                        if ((true === jscode) && ('{' === c))
                         {
-                            state.dom.attributes.push({name: state.att, value: true});
-                            //state.dom.atts[state.att] = true;
-                            state.att = '';
-                        }
-                        if (state.dom.attributes.length && (true === state.dom.attributes[state.dom.attributes.length-1].value))
-                        {
-                            i++;
-                            while (i<l && SPACE.test(c=html.charAt(i))) i++;
-                            if ((true === jscode) && ('{' === c))
+                            i++; state.inatt = true; j = 1; instr = false; esc = false; state.q = ''; state.val = '';
+                            while (i<l)
                             {
-                                i++; state.inatt = true; j = 1; instr = false; esc = false; state.q = ''; state.val = '';
-                                while (i<l)
+                                c = html.charAt(i++);
+                                if (instr && ('\\' === c))
                                 {
-                                    c = html.charAt(i++);
-                                    if (instr && ('\\' === c))
+                                    esc = !esc;
+                                    state.val += c;
+                                    continue;
+                                }
+                                else if ('"' === c || '\'' === c || '`' === c)
+                                {
+                                    if (instr && !esc && (state.q === c))
                                     {
-                                        esc = !esc;
-                                        state.val += c;
-                                        continue;
+                                        instr = false;
+                                        state.q = '';
                                     }
-                                    else if ('"' === c || '\'' === c || '`' === c)
+                                    else if (!instr)
                                     {
-                                        if (instr && !esc && (state.q === c))
-                                        {
-                                            instr = false;
-                                            state.q = '';
-                                        }
-                                        else if (!instr)
-                                        {
-                                            instr = true;
-                                            esc = false;
-                                            state.q = c;
-                                        }
-                                        state.val += c;
+                                        instr = true;
+                                        esc = false;
+                                        state.q = c;
                                     }
-                                    else if ('{' === c)
+                                    state.val += c;
+                                }
+                                else if ('{' === c)
+                                {
+                                    if (!instr) j++;
+                                    state.val += c;
+                                }
+                                else if ('}' === c)
+                                {
+                                    if (!instr)
                                     {
-                                        if (!instr) j++;
-                                        state.val += c;
-                                    }
-                                    else if ('}' === c)
-                                    {
-                                        if (!instr)
+                                        j--;
+                                        if (0 === j)
                                         {
-                                            j--;
-                                            if (0 === j)
+                                            att = state.dom.attributes[state.dom.attributes.length-1];
+                                            state.val = trim(state.val);
+                                            if (state.val.length)
                                             {
-                                                att = state.dom.attributes[state.dom.attributes.length-1];
-                                                state.val = trim(state.val);
-                                                if (state.val.length)
-                                                {
-                                                    att.value = new VCode(state.val);
-                                                    if (state.opts.id === att.name) state.dom.id = '('+att.value.code+')';
-                                                    if ('type' === att.name) state.dom.type = '('+att.value.code+')';
-                                                }
-                                                else
-                                                {
-                                                    state.dom.attributes.pop();
-                                                }
-                                                state.inatt = false;
-                                                state.val = '';
-                                                break;
+                                                att.value = new VCode(state.val);
+                                                if (state.opts.id === att.name) state.dom.id = '('+att.value.code+')';
+                                                if ('type' === att.name) state.dom.type = '('+att.value.code+')';
                                             }
                                             else
                                             {
-                                                state.val += c;
+                                                state.dom.attributes.pop();
                                             }
+                                            state.inatt = false;
+                                            state.val = '';
+                                            break;
                                         }
                                         else
                                         {
@@ -1030,55 +930,202 @@ var
                                     {
                                         state.val += c;
                                     }
-                                    if (instr) esc = false;
                                 }
-                                break;
+                                else
+                                {
+                                    state.val += c;
+                                }
+                                if (instr) esc = false;
                             }
-                            else if ('"' === c || '\'' === c)
-                            {
-                                i++; state.inatt = true; state.q = c; state.val = '';
-                                break;
-                            }
-                            else
-                            {
-                                throw err('Invalid attribute value "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
-                            }
+                            break;
+                        }
+                        else if ('"' === c || '\'' === c)
+                        {
+                            i++; state.inatt = true; state.q = c; state.val = '';
+                            break;
                         }
                         else
                         {
-                            throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
+                            throw err('Invalid attribute value "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                         }
-                    }
-                    else if ('/' === c && '>' === html.charAt(i+1))
-                    {
                     }
                     else
                     {
                         throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                     }
-                    i++;
                 }
-                if (state.inatt) continue;
-                if ('>' === c)
+                else if ('/' === c && '>' === html.charAt(i+1))
                 {
-                    state.intag = false;
-                    state.inatt = false;
-                    if (state.att.length)
+                }
+                else
+                {
+                    throw err('Invalid "'+c+'" in tag '+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
+                }
+                i++;
+            }
+            if (state.inatt) continue;
+            if ('>' === c)
+            {
+                state.intag = false;
+                state.inatt = false;
+                if (state.att.length)
+                {
+                    state.dom.attributes.push({name: state.att, value: true});
+                    //state.dom.atts[state.att] = true;
+                    state.att = '';
+                }
+                if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.cnodeType)))
+                {
+                    // closed
+                    if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
                     {
-                        state.dom.attributes.push({name: state.att, value: true});
-                        //state.dom.atts[state.att] = true;
-                        state.att = '';
+                        // capital 1st letter signifies custom component
+                        component = state.dom;
+                        state.dom = component.parentNode;
+                        component.parentNode = null;
+                        state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
+                        component = null;
                     }
-                    if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.cnodeType)))
+                    else
                     {
-                        // closed
+                        state.dom = state.dom.parentNode;
+                    }
+                }
+                i++;
+            }
+            continue;
+        }
+        while (i<l && SPACE.test(c=html.charAt(i)))
+        {
+            state.txt += c;
+            state.txt2 += c;
+            i++;
+        }
+        if (i >= l) break;
+        if (state.incomment && '-->' === html.slice(i, i+3))
+        {
+            // close comment
+            state.incomment = false;
+            i += 3;
+            state.dom.childNodes.push(VNode('c', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+            state.txt = '';
+            state.txt2 = '';
+            continue;
+        }
+        c = html.charAt(i++);
+        if ('<' === c)
+        {
+            if (state.incomment)
+            {
+                state.txt += c;
+                state.txt2 += c;
+                continue;
+            }
+            if ('<script>' === state.dom.cnodeType)
+            {
+                if ('/script>' === lower(html.slice(i, i+8)))
+                {
+                    state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.txt = '';
+                    state.txt2 = '';
+                }
+                else
+                {
+                    state.txt += c;
+                    state.txt2 += c;
+                    continue;
+                }
+            }
+            if ('<style>' === state.dom.cnodeType)
+            {
+                if ('/style>' === lower(html.slice(i, i+7)))
+                {
+                    state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.txt = '';
+                    state.txt2 = '';
+                }
+                else
+                {
+                    state.txt += c;
+                    state.txt2 += c;
+                    continue;
+                }
+            }
+            if ('<textarea>' === state.dom.cnodeType)
+            {
+                if ('/textarea>' === lower(html.slice(i, i+10)))
+                {
+                    state.dom.nodeValue = state.txt;
+                    state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    state.txt = '';
+                    state.txt2 = '';
+                }
+                else
+                {
+                    state.txt += c;
+                    state.txt2 += c;
+                    continue;
+                }
+            }
+            if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+            {
+                state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+            }
+            state.txt = '';
+            state.txt2 = '';
+            if ('!--' === html.slice(i, i+3))
+            {
+                // open comment
+                state.incomment = true;
+                i += 3;
+                continue;
+            }
+
+            // open tag
+            state.intag = true;
+            state.inatt = false;
+            state.tag = '';
+            state.att = '';
+            if ('/' === html.charAt(i))
+            {
+                i++;
+                state.closetag = true;
+            }
+            else
+            {
+                state.closetag = false;
+            }
+            while (i<l && TAGCHAR.test(c=html.charAt(i)))
+            {
+                state.tag += c;
+                i++;
+            }
+            if (!state.tag.length)
+            {
+                throw err('No tag name around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
+            }
+            state.tag = '<'+state.tag+'>';
+            if (state.closetag)
+            {
+                while (i<l && '>' !== html.charAt(i)) i++;
+                if ('>' === html.charAt(i)) i++;
+
+                if (!HAS.call(autoclosedTags, lower(state.tag)))
+                {
+                    if (state.dom.cnodeType !== lower(state.tag))
+                    {
+                        throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
+                    }
+                    else
+                    {
+                        state.intag = false;
                         if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
                         {
                             // capital 1st letter signifies custom component
                             component = state.dom;
                             state.dom = component.parentNode;
                             component.parentNode = null;
-                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+',[])');
+                            state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
                             component = null;
                         }
                         else
@@ -1086,219 +1133,72 @@ var
                             state.dom = state.dom.parentNode;
                         }
                     }
-                    i++;
-                }
-                continue;
-            }
-            while (i<l && SPACE.test(c=html.charAt(i)))
-            {
-                state.txt += c;
-                state.txt2 += c;
-                i++;
-            }
-            if (i >= l) break;
-            if (state.incomment && '-->' === html.slice(i, i+3))
-            {
-                // close comment
-                state.incomment = false;
-                i += 3;
-                state.dom.childNodes.push(VNode('c', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                state.txt = '';
-                state.txt2 = '';
-                continue;
-            }
-            c = html.charAt(i++);
-            if ('<' === c)
-            {
-                if (state.incomment)
-                {
-                    state.txt += c;
-                    state.txt2 += c;
-                    continue;
-                }
-                if ('<script>' === state.dom.cnodeType)
-                {
-                    if ('/script>' === lower(html.slice(i, i+8)))
-                    {
-                        state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                        state.txt = '';
-                        state.txt2 = '';
-                    }
-                    else
-                    {
-                        state.txt += c;
-                        state.txt2 += c;
-                        continue;
-                    }
-                }
-                if ('<style>' === state.dom.cnodeType)
-                {
-                    if ('/style>' === lower(html.slice(i, i+7)))
-                    {
-                        state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                        state.txt = '';
-                        state.txt2 = '';
-                    }
-                    else
-                    {
-                        state.txt += c;
-                        state.txt2 += c;
-                        continue;
-                    }
-                }
-                if ('<textarea>' === state.dom.cnodeType)
-                {
-                    if ('/textarea>' === lower(html.slice(i, i+10)))
-                    {
-                        state.dom.nodeValue = state.txt;
-                        state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                        state.txt = '';
-                        state.txt2 = '';
-                    }
-                    else
-                    {
-                        state.txt += c;
-                        state.txt2 += c;
-                        continue;
-                    }
-                }
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
-                {
-                    state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
-                }
-                state.txt = '';
-                state.txt2 = '';
-                if ('!--' === html.slice(i, i+3))
-                {
-                    // open comment
-                    state.incomment = true;
-                    i += 3;
-                    continue;
-                }
-
-                // open tag
-                state.intag = true;
-                state.inatt = false;
-                state.tag = '';
-                state.att = '';
-                if ('/' === html.charAt(i))
-                {
-                    i++;
-                    state.closetag = true;
                 }
                 else
                 {
-                    state.closetag = false;
+                    throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
                 }
-                while (i<l && TAGCHAR.test(c=html.charAt(i)))
-                {
-                    state.tag += c;
-                    i++;
-                }
-                if (!state.tag.length)
-                {
-                    throw err('No tag name around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
-                }
-                state.tag = '<'+state.tag+'>';
-                if (state.closetag)
-                {
-                    while (i<l && '>' !== html.charAt(i)) i++;
-                    if ('>' === html.charAt(i)) i++;
-
-                    if (!HAS.call(autoclosedTags, lower(state.tag)))
-                    {
-                        if (state.dom.cnodeType !== lower(state.tag))
-                        {
-                            throw err('Close tag doesn\'t match open tag '+state.tag+','+state.dom.nodeType+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
-                        }
-                        else
-                        {
-                            state.intag = false;
-                            if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
-                            {
-                                // capital 1st letter signifies custom component
-                                component = state.dom;
-                                state.dom = component.parentNode;
-                                component.parentNode = null;
-                                state.dom.childNodes[state.dom.childNodes.length-1] = new VCode('view.component("'+component.nodeType.slice(1,-1)+'",'+(is_instance(attr(component, 'id'), VCode) ? attr(component, 'id').code : toJSON(attr(component, 'id')))+','+(is_instance(attr(component, 'props'), VCode) ? attr(component, 'props').code : toJSON(attr(component, 'props')))+','+(component.childNodes.length ? to_code(component)+'.childNodes' : '[]')+')');
-                                component = null;
-                            }
-                            else
-                            {
-                                state.dom = state.dom.parentNode;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        throw err('Closing self-closing tag '+state.tag+' around .. '+html.slice(stdMath.max(0, i-50),i+50)+' ..');
-                    }
-                }
-                else //if (!HAS.call(autoclosedTags, lower(state.tag)))
-                {
-                    state.dom.childNodes.push(VNode(state.tag, '', '', state.dom, state.dom.childNodes.length));
-                    state.dom = state.dom.childNodes[state.dom.childNodes.length-1];
-                    state.dom.cnodeType = lower(state.dom.nodeType);
-                }
-                continue;
             }
-            if ((true === jscode) && !state.incomment && ('{' === c))
+            else //if (!HAS.call(autoclosedTags, lower(state.tag)))
             {
-                if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+                state.dom.childNodes.push(VNode(state.tag, '', '', state.dom, state.dom.childNodes.length));
+                state.dom = state.dom.childNodes[state.dom.childNodes.length-1];
+                state.dom.cnodeType = lower(state.dom.nodeType);
+            }
+            continue;
+        }
+        if ((true === jscode) && !state.incomment && ('{' === c))
+        {
+            if ((!state.opts.trim && state.txt.length) || (state.opts.trim && trim(state.txt).length))
+            {
+                state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+            }
+            state.txt = '';
+            state.txt2 = '';
+            j = 1; instr = false; esc = false; state.q = '';
+            while (i<l)
+            {
+                c = html.charAt(i++);
+                if (instr && ('\\' === c))
                 {
-                    state.dom.childNodes.push(VNode('t', state.txt, state.txt2, state.dom, state.dom.childNodes.length));
+                    esc = !esc;
+                    state.txt += c;
+                    continue;
                 }
-                state.txt = '';
-                state.txt2 = '';
-                j = 1; instr = false; esc = false; state.q = '';
-                while (i<l)
+                else if ('"' === c || '\'' === c || '`' === c)
                 {
-                    c = html.charAt(i++);
-                    if (instr && ('\\' === c))
+                    if (instr && !esc && (state.q === c))
                     {
-                        esc = !esc;
-                        state.txt += c;
-                        continue;
+                        instr = false;
+                        state.q = '';
                     }
-                    else if ('"' === c || '\'' === c || '`' === c)
+                    else if (!instr)
                     {
-                        if (instr && !esc && (state.q === c))
-                        {
-                            instr = false;
-                            state.q = '';
-                        }
-                        else if (!instr)
-                        {
-                            instr = true;
-                            esc = false;
-                            state.q = c;
-                        }
-                        state.txt += c;
+                        instr = true;
+                        esc = false;
+                        state.q = c;
                     }
-                    else if ('{' === c)
+                    state.txt += c;
+                }
+                else if ('{' === c)
+                {
+                    if (!instr) j++;
+                    state.txt += c;
+                }
+                else if ('}' === c)
+                {
+                    if (!instr)
                     {
-                        if (!instr) j++;
-                        state.txt += c;
-                    }
-                    else if ('}' === c)
-                    {
-                        if (!instr)
+                        j--;
+                        if (0 === j)
                         {
-                            j--;
-                            if (0 === j)
+                            state.txt = jsx2code(view, state.txt, state.opts);
+                            if (state.txt.length)
                             {
-                                state.txt = jsx2code(view, state.txt, state.opts);
-                                if (state.txt.length)
-                                {
-                                    state.dom.childNodes.push(new VCode(state.txt));
-                                }
-                                state.txt = '';
-                                break;
+                                state.dom.childNodes.push(new VCode(state.txt));
                             }
-                            else
-                            {
-                                state.txt += c;
-                            }
+                            state.txt = '';
+                            break;
                         }
                         else
                         {
@@ -1309,40 +1209,39 @@ var
                     {
                         state.txt += c;
                     }
-                    if (instr) esc = false;
                 }
-                continue;
-            }
-            if (('&' === c) /*&& ('<script>' !== state.dom.cnodeType) && ('<style>' !== state.dom.cnodeType)*/)
-            {
-                // support numeric html entities and some basic named html entities, out of the box
-                j = html.indexOf(';', i);
-                if (-1 !== j)
+                else
                 {
-                    t = html.slice(i, j);
-                    if (('#' === t.charAt(0)) && ('x' === t.charAt(1)) && HEXNUM.test(t.slice(2)))
-                    {
-                        state.txt += c + t + ';';
-                        state.txt2 += Str.fromCharCode(parseInt(t.slice(2), 16));
-                        i = j+1;
-                    }
-                    else if (('#' === t.charAt(0)) && NUM.test(t.slice(1)))
-                    {
-                        state.txt += c + t + ';';
-                        state.txt2 += Str.fromCharCode(parseInt(t.slice(1), 10));
-                        i = j+1;
-                    }
-                    else if (HAS.call(htmlEntities, t))
-                    {
-                        state.txt += c + t + ';';
-                        state.txt2 += htmlEntities[t];
-                        i = j+1;
-                    }
-                    else
-                    {
-                        state.txt += c;
-                        state.txt2 += c;
-                    }
+                    state.txt += c;
+                }
+                if (instr) esc = false;
+            }
+            continue;
+        }
+        if (('&' === c) /*&& ('<script>' !== state.dom.cnodeType) && ('<style>' !== state.dom.cnodeType)*/)
+        {
+            // support numeric html entities and some basic named html entities, out of the box
+            j = html.indexOf(';', i);
+            if (-1 !== j)
+            {
+                t = html.slice(i, j);
+                if (('#' === t.charAt(0)) && ('x' === t.charAt(1)) && HEXNUM.test(t.slice(2)))
+                {
+                    state.txt += c + t + ';';
+                    state.txt2 += Str.fromCharCode(parseInt(t.slice(2), 16));
+                    i = j+1;
+                }
+                else if (('#' === t.charAt(0)) && NUM.test(t.slice(1)))
+                {
+                    state.txt += c + t + ';';
+                    state.txt2 += Str.fromCharCode(parseInt(t.slice(1), 10));
+                    i = j+1;
+                }
+                else if (HAS.call(htmlEntities, t))
+                {
+                    state.txt += c + t + ';';
+                    state.txt2 += htmlEntities[t];
+                    i = j+1;
                 }
                 else
                 {
@@ -1356,187 +1255,205 @@ var
                 state.txt2 += c;
             }
         }
-        return state;
-    },
-    insMod = function(nodes, start, end, new_mod) {
-        var to, last = nodes.length ? nodes[nodes.length-1] : null;
-        if (end.map)
+        else
         {
-            if (!last || last.to < start+end[0].from-1)
-            {
-                AP.push.apply(nodes, end.map(function(m){return {from:start+m.from, to:start+m.to};}));
-            }
-            else
-            {
-                last.to = start+end[0].to;
-                AP.push.apply(nodes, end.slice(1).map(function(m){return {from:start+m.from, to:start+m.to};}));
-            }
+            state.txt += c;
+            state.txt2 += c;
         }
-        else if (last && last.from === start && last.to === end)
+    }
+    return state;
+}
+function insMod(nodes, start, end, new_mod)
+{
+    var to, last = nodes.length ? nodes[nodes.length-1] : null;
+    if (end.map)
+    {
+        if (!last || last.to < start+end[0].from-1)
         {
-            if (new_mod) new_mod = false;
+            AP.push.apply(nodes, end.map(function(m){return {from:start+m.from, to:start+m.to};}));
         }
-        else if (new_mod)
+        else
         {
-            new_mod = false;
-            if (last)
+            last.to = start+end[0].to;
+            AP.push.apply(nodes, end.slice(1).map(function(m){return {from:start+m.from, to:start+m.to};}));
+        }
+    }
+    else if (last && last.from === start && last.to === end)
+    {
+        if (new_mod) new_mod = false;
+    }
+    else if (new_mod)
+    {
+        new_mod = false;
+        if (last)
+        {
+            to = last.to;
+            if (to >= end)
             {
-                to = last.to;
-                if (to >= end)
-                {
-                    if (last.from < start)
-                    {
-                        last.to = start-1;
-                        nodes.push({from:start, to:end});
-                        if (to > end) nodes.push({from:end+1, to:to});
-                    }
-                    else if (last.from > start)
-                    {
-                        nodes[nodes.length-1] = {from:start, to:end};
-                        last.from = stdMath.max(last.from, end+1);
-                        nodes.push(last);
-                    }
-                    else
-                    {
-                        last.to = end;
-                        if (to > end) nodes.push({from:end+1, to:to});
-                    }
-                }
-                else if (to >= start)
+                if (last.from < start)
                 {
                     last.to = start-1;
                     nodes.push({from:start, to:end});
+                    if (to > end) nodes.push({from:end+1, to:to});
+                }
+                else if (last.from > start)
+                {
+                    nodes[nodes.length-1] = {from:start, to:end};
+                    last.from = stdMath.max(last.from, end+1);
+                    nodes.push(last);
                 }
                 else
                 {
-                    nodes.push({from:start, to:end});
+                    last.to = end;
+                    if (to > end) nodes.push({from:end+1, to:to});
                 }
+            }
+            else if (to >= start)
+            {
+                last.to = start-1;
+                nodes.push({from:start, to:end});
             }
             else
             {
                 nodes.push({from:start, to:end});
             }
         }
-        else if (!last || last.to < start-1)
+        else
         {
             nodes.push({from:start, to:end});
         }
-        /*else if (last.from >= end)
+    }
+    else if (!last || last.to < start-1)
+    {
+        nodes.push({from:start, to:end});
+    }
+    /*else if (last.from >= end)
+    {
+        // cannot happen as mods are added sequentially
+    }*/
+    else
+    {
+        last.to = stdMath.max(last.to, end);
+    }
+    return new_mod;
+}
+function insDiff(node, start, end, new_diff)
+{
+    if (end.map)
+    {
+        if (!node.diff)
         {
-            // cannot happen as mods are added sequentially
-        }*/
-        else
-        {
-            last.to = stdMath.max(last.to, end);
+            if (new_diff) new_diff = false;
+            node.diff = end.map(function(m){return [start+m[0], start+m[1]];});
         }
-        return new_mod;
-    },
-    insDiff = function(node, start, end, new_diff) {
-        if (end.map)
+        else if (new_diff || node.diff[node.diff.length-1][1] < start+end[0][0]-1)
         {
-            if (!node.diff)
-            {
-                if (new_diff) new_diff = false;
-                node.diff = end.map(function(m){return [start+m[0], start+m[1]];});
-            }
-            else if (new_diff || node.diff[node.diff.length-1][1] < start+end[0][0]-1)
-            {
-                if (new_diff) new_diff = false;
-                AP.push.apply(node.diff, end.map(function(m){return [start+m[0], start+m[1]];}));
-            }
-            else
-            {
-                node.diff[node.diff.length-1][1] = start+end[0][1];
-                AP.push.apply(node.diff, end.slice(1).map(function(m){return [start+m[0], start+m[1]];}));
-            }
-        }
-        else if (new_diff)
-        {
-            new_diff = false;
-            if (!node.diff)
-                node.diff = [[start, end]];
-            else
-                node.diff.push([start, end]);
+            if (new_diff) new_diff = false;
+            AP.push.apply(node.diff, end.map(function(m){return [start+m[0], start+m[1]];}));
         }
         else
         {
-            if (!node.diff)
-                node.diff = [[start, end]];
-            else if (node.diff[node.diff.length-1][1] < start-1)
-                node.diff.push([start, end]);
-            else
-                node.diff[node.diff.length-1][1] = end;
+            node.diff[node.diff.length-1][1] = start+end[0][1];
+            AP.push.apply(node.diff, end.slice(1).map(function(m){return [start+m[0], start+m[1]];}));
         }
-        return new_diff;
-    },
-    htmlNode = function htmlNode(view, nodeType, id, type, atts, children, value2, modified) {
-        var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
-        id = id || null; type = type || null;
-        if (is_instance(id, Value)) id = id.val();
-        if (is_instance(type, Value)) type = type.val();
-        node.id = null == id ? null : Str(id);
-        node.type = null == type ? null : Str(type);
-        node.attributes = atts || [];
-        if (modified && modified.atts && modified.atts.length)
-        {
-            if (!node.modified) node.modified = {atts:[], nodes:[]};
-            node.modified.atts = modified.atts;
-            /*ch = false; c = 0; l = 0;
-            each(modified.atts, function(range){
-                for (var a,i=range.from; i<=range.to; i++)
+    }
+    else if (new_diff)
+    {
+        new_diff = false;
+        if (!node.diff)
+            node.diff = [[start, end]];
+        else
+            node.diff.push([start, end]);
+    }
+    else
+    {
+        if (!node.diff)
+            node.diff = [[start, end]];
+        else if (node.diff[node.diff.length-1][1] < start-1)
+            node.diff.push([start, end]);
+        else
+            node.diff[node.diff.length-1][1] = end;
+    }
+    return new_diff;
+}
+function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
+{
+    var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
+    id = id || null; type = type || null;
+    if (is_instance(id, Value)) id = id.val();
+    if (is_instance(type, Value)) type = type.val();
+    node.id = null == id ? null : Str(id);
+    node.type = null == type ? null : Str(type);
+    node.attributes = atts || [];
+    if (modified && modified.atts && modified.atts.length)
+    {
+        if (!node.modified) node.modified = {atts:[], nodes:[]};
+        node.modified.atts = modified.atts;
+        node.modified.updateAtts = modified.updateAtts || null;
+        node.achanged = true;
+    }
+    if ('t' === nodeType || 'c' === nodeType)
+    {
+        node.nodeValue = children;
+        node.nodeValue2 = value2 || '';
+    }
+    else
+    {
+        children = children || [];
+        node.childNodes = children.reduce(function process(childNodes, n) {
+            if (is_instance(n, Collection))
+            {
+                var nn = new VNode('collection', n, null, node, index), len = n.items().length*n.mappedItem;
+                nn.potentialChildNodes = len;
+                nn.changed = 0 < n.diff.length;
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                insMod(node.modified.nodes, index, index+len-1, true);
+                new_mod = true;
+                /*if (nn.changed)
                 {
-                    l++; a = atts[i];
-                    if (is_instance(a.value, Value))
-                    {
-                        c++;
-                        // reset Value after current render session
-                        // if dirty and not not from model.getVal() (ie has no key)
-                        if (a.value.dirty() && !a.value.key())
-                            view.$reset.push(a.value);
-                        ch = ch || a.value.dirty();
-                        //a.value = a.value.val();
-                    }
-                }
-            });*/
-            //l = modified.modified;
-            //c = modified.values(node.attributes, Value);
-            //ch = 0 < c ? modified.dirty(node.attributes, Value) : false;
-            node.achanged = true/*c === l ? modified.dirty(node.attributes, Value) : (0 < l)*/;
-            node.adirty = [modified.modified, modified.values, modified.dirty];
-        }
-        if ('t' === nodeType || 'c' === nodeType)
-        {
-            node.nodeValue = children;
-            node.nodeValue2 = value2 || '';
-        }
-        else
-        {
-            children = children || [];
-            node.childNodes = children.reduce(function process(childNodes, n) {
-                if (is_instance(n, Collection))
+                    insDiff(node, index, index, true);
+                    new_diff = true;
+                }*/
+                childNodes.push(nn);
+                node.potentialChildNodes += len;
+                index += len;
+                // reset Collection after current render session
+                view.$reset.push(n);
+                node.changed = node.changed || nn.changed;
+                return childNodes;
+            }
+            else if (is_instance(n, Value))
+            {
+                var val = n, v = Str(val.val());
+                if ('' === v)
                 {
-                    var nn = new VNode('collection', n, null, node, index), len = n.items().length*n.mappedItem;
-                    nn.potentialChildNodes = len;
-                    nn.changed = 0 < n.diff.length;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
-                    insMod(node.modified.nodes, index, index+len-1, true);
-                    new_mod = true;
-                    /*if (nn.changed)
-                    {
-                        insDiff(node, index, index, true);
-                        new_diff = true;
-                    }*/
-                    childNodes.push(nn);
-                    node.potentialChildNodes += len;
-                    index += len;
-                    // reset Collection after current render session
-                    view.$reset.push(n);
-                    node.changed = node.changed || nn.changed;
+                    new_mod = insMod(node.modified.nodes, index, index-1, new_mod);
                     return childNodes;
                 }
-                else if (is_instance(n, Value))
+                n = VNode('t', v, v, null, 0);
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                // reset Value after current render session
+                // if dirty and not not from model.getVal() (ie has no key)
+                if (val.dirty() && !val.key())
+                    view.$reset.push(val);
+                n.changed = val.dirty();
+            }
+            else if (!is_instance(n, VNode))
+            {
+                if (get_type(n) & T_ARRAY)
                 {
-                    var val = n, v = Str(val.val());
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    var i = index;
+                    childNodes = n.reduce(process, childNodes);
+                    new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
+                    node.changed = true;
+                    return childNodes;
+                }
+                else
+                {
+                    var v = Str(n);
                     if ('' === v)
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1544,714 +1461,817 @@ var
                         return childNodes;
                     }
                     n = VNode('t', v, v, null, 0);
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    new_mod = insMod(node.modified.nodes, index, index, new_mod);
-                    // reset Value after current render session
-                    // if dirty and not not from model.getVal() (ie has no key)
-                    if (val.dirty() && !val.key())
-                        view.$reset.push(val);
-                    n.changed = val.dirty();
-                }
-                else if (!is_instance(n, VNode))
-                {
-                    if (get_type(n) & T_ARRAY)
-                    {
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        var i = index;
-                        childNodes = n.reduce(process, childNodes);
-                        new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
-                        node.changed = true;
-                        return childNodes;
-                    }
-                    else
-                    {
-                        var v = Str(n);
-                        if ('' === v)
-                        {
-                            if (!node.modified) node.modified = {atts: [], nodes: []};
-                            new_mod = insMod(node.modified.nodes, index, index-1, new_mod);
-                            return childNodes;
-                        }
-                        n = VNode('t', v, v, null, 0);
-                        n.changed = true;
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        new_mod = insMod(node.modified.nodes, index, index, new_mod);
-                    }
-                }
-                else if ('<mv-component>' === n.nodeType)
-                {
-                    node.potentialChildNodes += n.potentialChildNodes;
-                    node.componentNodes += n.childNodes.length;
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
-                    //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
-                    /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
-                    AP.push.apply(childNodes, n.childNodes.map(function(nn){
-                        nn.parentNode = node;
-                        nn.index = index++;
-                        //nn.changed = nn.changed || n.changed;
-                        nn.component = nn.component || n.component;
-                        nn.unit = nn.unit || n.unit;
-                        return nn;
-                    }));
-                    node.changed = node.changed || n.changed;
-                    return childNodes;
-                }
-                else if ('collection' === n.nodeType)
-                {
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    insMod(node.modified.nodes, index, index+n.potentialChildNodes-1, true);
-                    new_mod = true;
-                    /*if (n.changed)
-                    {
-                        insDiff(node, index, index, true);
-                        new_diff = true;
-                    }*/
-                    node.potentialChildNodes += n.potentialChildNodes;
-                    n.index = index;
-                    n.parentNode = node;
-                    index += n.potentialChildNodes;
-                    childNodes.push(n);
-                    node.changed = node.changed || n.changed;
-                    return childNodes;
-                }
-                else if (('dyn' === n.nodeType) || ('jsx' === n.nodeType))
-                {
-                    node.potentialChildNodes += n.potentialChildNodes;
-                    var i = index, a = n.childNodes.map(function(nn){
-                        nn.parentNode = node;
-                        nn.index = index++;
-                        nn.unit = 'dyn' === n.nodeType ? true : (nn.unit || n.unit);
-                        nn.achanged = true;
-                        nn.changed = true;
-                        return nn;
-                    });
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    new_mod = insMod(node.modified.nodes, i, i+a.length-1, new_mod);
-                    //new_diff = insDiff(node, i, i+a.length-1, new_diff);
-                    AP.push.apply(childNodes, a);
-                    node.changed = true;
-                    return childNodes;
-                }
-                else if (!n.nodeType || !n.nodeType.length)
-                {
-                    node.potentialChildNodes += n.potentialChildNodes;
-                    if (n.modified && n.modified.nodes.length)
-                    {
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        insMod(node.modified.nodes, index, n.modified.nodes);
-                    }
-                    AP.push.apply(childNodes, n.childNodes.map(function(nn){
-                        //if (nn.changed || nn.achanged) new_diff = insDiff(node, index, index, new_diff);
-                        nn.parentNode = node;
-                        nn.index = index++;
-                        nn.unit = nn.unit || n.unit;
-                        node.changed = node.changed || nn.changed || nn.achanged;
-                        return nn;
-                    }));
-                    return childNodes;
-                }
-                if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
-                {
+                    n.changed = true;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 }
-                //if (n.changed || n.achanged) new_diff = insDiff(node, index, index, new_diff);
-                node.potentialChildNodes++;
-                n.parentNode = node;
-                n.index = index++;
-                childNodes.push(n);
-                node.changed = node.changed || n.changed || n.achanged;
+            }
+            else if ('<mv-component>' === n.nodeType)
+            {
+                node.potentialChildNodes += n.potentialChildNodes;
+                node.componentNodes += n.childNodes.length;
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
+                //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
+                /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
+                AP.push.apply(childNodes, n.childNodes.map(function(nn){
+                    nn.parentNode = node;
+                    nn.index = index++;
+                    //nn.changed = nn.changed || n.changed;
+                    nn.component = nn.component || n.component;
+                    nn.unit = nn.unit || n.unit;
+                    return nn;
+                }));
+                node.changed = node.changed || n.changed;
                 return childNodes;
-            }, []);
-        }
-        return node;
-    },
-    as_unit = function as_unit(node) {
-        if (is_instance(node, VNode))
-        {
-            node.unit = true;
-            return node;
-        }
-        return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
-    },
-    to_code = function to_code(vnode) {
-        var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType;
-        if (is_instance(vnode, VCode))
-        {
-            out = vnode.code;
-        }
-        else if (T && T.length)
-        {
-            if ('t' === T)
-            {
-                out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
             }
-            else if ('c' === T)
+            else if ('collection' === n.nodeType)
             {
-                out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+')';
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                insMod(node.modified.nodes, index, index+n.potentialChildNodes-1, true);
+                new_mod = true;
+                /*if (n.changed)
+                {
+                    insDiff(node, index, index, true);
+                    new_diff = true;
+                }*/
+                node.potentialChildNodes += n.potentialChildNodes;
+                n.index = index;
+                n.parentNode = node;
+                index += n.potentialChildNodes;
+                childNodes.push(n);
+                node.changed = node.changed || n.changed;
+                return childNodes;
             }
-            else
+            else if (('dyn' === n.nodeType) || ('jsx' === n.nodeType))
             {
-                var modified = {atts: []},
-                    dirty = 'false', nval = '0', nmod = 0;
-                out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
-                    if (is_instance(a.value, VCode))
-                    {
-                        nmod++;
-                        if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
-                            modified.atts.push({from:i, to:i});
-                        else
-                            modified.atts[modified.atts.length-1].to = i;
-                        nval += '+(atts['+i+'].value instanceof Value?1:0)';
-                        dirty += '||(atts['+i+'].value instanceof Value?atts['+i+'].value.dirty():false)';
-                        return '{name:"'+a.name+'",value:('+a.value.code+')}';
-                    }
-                    return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
-                }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modified.atts)+',modified:'+nmod+',values:function(atts, Value){return ('+nval+');},dirty:function(atts, Value){return ('+dirty+');}})';
+                node.potentialChildNodes += n.potentialChildNodes;
+                var i = index, a = n.childNodes.map(function(nn){
+                    nn.parentNode = node;
+                    nn.index = index++;
+                    nn.unit = 'dyn' === n.nodeType ? true : (nn.unit || n.unit);
+                    nn.achanged = true;
+                    nn.changed = true;
+                    return nn;
+                });
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, i, i+a.length-1, new_mod);
+                //new_diff = insDiff(node, i, i+a.length-1, new_diff);
+                AP.push.apply(childNodes, a);
+                node.changed = true;
+                return childNodes;
             }
-        }
-        else if (vnode.childNodes.length)
-        {
-            out = '_$$_(view, "", null, null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
-        }
-        return out;
-    },
-    to_string = function to_string(view, vnode) {
-        var out = '', selfclosed = true, T = vnode.nodeType;
-        if (T && T.length)
-        {
-            if ('t' === T)
+            else if (!n.nodeType || !n.nodeType.length)
             {
-                out = vnode.nodeValue;
+                node.potentialChildNodes += n.potentialChildNodes;
+                if (n.modified && n.modified.nodes.length)
+                {
+                    if (!node.modified) node.modified = {atts: [], nodes: []};
+                    insMod(node.modified.nodes, index, n.modified.nodes);
+                }
+                AP.push.apply(childNodes, n.childNodes.map(function(nn){
+                    //if (nn.changed || nn.achanged) new_diff = insDiff(node, index, index, new_diff);
+                    nn.parentNode = node;
+                    nn.index = index++;
+                    nn.unit = nn.unit || n.unit;
+                    node.changed = node.changed || nn.changed || nn.achanged;
+                    return nn;
+                }));
+                return childNodes;
             }
-            else if ('c' === T)
+            if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
             {
-                out = '<!--'+vnode.nodeValue+'-->';
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, index, index, new_mod);
             }
-            else if ('collection' === T)
-            {
-                out = to_string(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()));
-            }
-            else
-            {
-                selfclosed = /*HAS.call(autoclosedTags, T)*/autoclosedTags[T];
-                out = T.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
-                    var val = att.value;
-                    if (is_instance(val, Value))
-                    {
-                        if (val.dirty() && !val.key())
-                            view.$reset.push(val);
-                        val = val.val();
-                    }
-                    if (false !== val) atts.push(true === val ? att.name : att.name+'="'+val+'"');
-                    return atts;
-                }, []).join(' ') : '')+(selfclosed ? '/>' : '>');
-                if (!selfclosed) out += to_string_all(view, vnode.childNodes)+'</'+T.slice(1);
-            }
-        }
-        else if (vnode.childNodes.length)
-        {
-            out = to_string_all(view, vnode.childNodes);
-        }
-        return out;
-    },
-    to_string_all = function(view, nodes) {
-        return nodes.map(function(n){return to_string(view, n);}).join('');
-    },
-    to_node = function to_node(view, vnode, with_meta) {
-        var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
+            //if (n.changed || n.achanged) new_diff = insDiff(node, index, index, new_diff);
+            node.potentialChildNodes++;
+            n.parentNode = node;
+            n.index = index++;
+            childNodes.push(n);
+            node.changed = node.changed || n.changed || n.achanged;
+            return childNodes;
+        }, []);
+    }
+    return node;
+}
+function to_code(vnode)
+{
+    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType;
+    if (is_instance(vnode, VCode))
+    {
+        out = vnode.code;
+    }
+    else if (T && T.length)
+    {
         if ('t' === T)
         {
-            rnode = Text(vnode.nodeValue2);
+            out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
         }
         else if ('c' === T)
         {
-            rnode = document.createComment(vnode.nodeValue);
+            out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+')';
+        }
+        else
+        {
+            var modified = {atts: []}, updateAtts = '';
+            out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
+                if (is_instance(a.value, VCode))
+                {
+                    if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
+                        modified.atts.push({from:i, to:i});
+                    else
+                        modified.atts[modified.atts.length-1].to = i;
+                    updateAtts += 'a=v.attributes['+Str(i)+'];n=a.name;av=a.value;if(av instanceof Value){if(av.dirty()){if(!av.key()){view.$reset.push(av);}av=av.val();if(false===av){del_att(r,n,T,TT);}else{set_att(r,n,av,T,TT);}}}else{if(false===av){del_att(r,n,T,TT);}else{set_att(r,n,av,T,TT);}}';
+                    return '{name:"'+a.name+'",value:('+a.value.code+')}';
+                }
+                return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
+            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modified.atts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,set_att,del_att,Value){ var a,n,av,T=v.nodeType,TT=(v.type||"").toLowerCase();'+updateAtts+'}': 'null')+'})';
+        }
+    }
+    else if (vnode.childNodes.length)
+    {
+        out = '_$$_(view, "", null, null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
+    }
+    return out;
+}
+function to_string(view, vnode)
+{
+    var out = '', selfclosed = true, T = vnode.nodeType;
+    if (T && T.length)
+    {
+        if ('t' === T)
+        {
+            out = vnode.nodeValue;
+        }
+        else if ('c' === T)
+        {
+            out = '<!--'+vnode.nodeValue+'-->';
         }
         else if ('collection' === T)
         {
-            rnode = to_node(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()), with_meta);
-        }
-        else if (!T || !T.length)
-        {
-            rnode = Fragment();
-            for (i=0,l=vnode.childNodes.length; i<l; i++)
-                rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
+            out = to_string(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()));
         }
         else
         {
-            isSVG = /*HAS.call(svgElements, T)*/svgElements[T];
-            TT = lower(vnode[TYPE] || '');
-            rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', T.slice(1,-1)) : document.createElement(T.slice(1,-1));
-            for (i=0,l=vnode.attributes.length; i<l; i++)
-            {
-                a = vnode.attributes[i];
-                n = a.name; v = a.value;
-                if (is_instance(v, Value))
+            selfclosed = /*HAS.call(autoclosedTags, T)*/autoclosedTags[T];
+            out = T.slice(0, -1)+(vnode.attributes.length ? ' '+vnode.attributes.reduce(function(atts, att) {
+                var val = att.value;
+                if (is_instance(val, Value))
                 {
-                    if (v.dirty() && !v.key())
-                        view.$reset.push(v);
-                    v = v.val();
+                    if (val.dirty() && !val.key())
+                        view.$reset.push(val);
+                    val = val.val();
                 }
-                if (false === v) continue;
-                if ('id' === n)
-                {
-                    rnode[n] = Str(v);
-                }
-                else if ('style' === n)
-                {
-                    rnode[n].cssText = Str(v);
-                }
-                else if ('class' === n)
-                {
-                    if (isSVG) rnode[SET_ATTR](n, Str(v));
-                    else rnode[CLASS] = Str(v);
-                }
-                else if ('selected' === n && '<option>' === T)
-                {
-                    rnode[n] = true;
-                }
-                else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-                {
-                    rnode[n] = true;
-                }
-                else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-                {
-                    rnode[n] = true;
-                }
-                else if ('value' === n && '<input>' === T)
-                {
-                    rnode[n] = Str(v);
-                }
-                else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
-                    'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
-                    'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
-                    'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
-                {
-                    rnode[n] = true;
-                }
-                /*else if (n in rnode)
-                {
-                    t = get_type(rnode[n]);
-                    rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
-                }*/
-                else
-                {
-                    rnode[SET_ATTR](n, Str(true === v ? n : v));
-                }
-            }
-            if (true === with_meta)
-            {
-                rnode[MV] = rmv = MV0();
-                if (vnode.component)
-                {
-                    c = rmv.comp = vnode.component; vnode.component = null;
-                    if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
-                    c.dom = rnode;
-                }
-                if (vnode.id) rmv.id = vnode.id;
-                if (vnode.modified && vnode.modified.nodes.length) {rmv.mod = vnode.modified.nodes; vnode.modified = null;}
-            }
-            if (vnode.childNodes.length)
-            {
-                if ('<textarea>' === T)
-                {
-                    v = to_string_all(view, vnode.childNodes);
-                    rnode[VAL] = v;
-                    rnode[TEXTC] = v;
-                    //rnode.innerHTML = v;
-                }
-                else if ('<script>' === T || '<style>' === T)
-                {
-                    rnode[TEXTC] = to_string_all(view, vnode.childNodes);
-                }
-                else
-                {
-                    for (i=0,l=vnode.childNodes.length; i<l; i++)
-                    {
-                        rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
-                    }
-                }
-            }
-        }
-        return rnode;
-    },
-    attr = function(vnode, name) {
-        if (!vnode.atts)
-        {
-            vnode.atts = vnode.attributes.reduce(function(atts, a){
-                atts['@'+a.name] = a.value;
+                if (false !== val) atts.push(true === val ? att.name : att.name+'="'+val+'"');
                 return atts;
-            }, {});
+            }, []).join(' ') : '')+(selfclosed ? '/>' : '>');
+            if (!selfclosed) out += to_string_all(view, vnode.childNodes)+'</'+T.slice(1);
         }
-        return vnode.atts['@'+name];
-    },
-    del_att = function(r, n, T, TT) {
-        if ('id' === n)
+    }
+    else if (vnode.childNodes.length)
+    {
+        out = to_string_all(view, vnode.childNodes);
+    }
+    return out;
+}
+function to_string_all(view, nodes)
+{
+    return nodes.map(function(n){return to_string(view, n);}).join('');
+}
+function to_node(view, vnode, with_meta)
+{
+    var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
+    if ('t' === T)
+    {
+        rnode = Text(vnode.nodeValue2);
+    }
+    else if ('c' === T)
+    {
+        rnode = document.createComment(vnode.nodeValue);
+    }
+    else if ('collection' === T)
+    {
+        rnode = to_node(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()), with_meta);
+    }
+    else if (!T || !T.length)
+    {
+        rnode = Fragment();
+        for (i=0,l=vnode.childNodes.length; i<l; i++)
+            rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
+    }
+    else
+    {
+        isSVG = /*HAS.call(svgElements, T)*/svgElements[T];
+        TT = lower(vnode[TYPE] || '');
+        rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', T.slice(1,-1)) : document.createElement(T.slice(1,-1));
+        for (i=0,l=vnode.attributes.length; i<l; i++)
         {
-            //r[n] = '';
-            r[DEL_ATTR](n);
-        }
-        else if ('class' === n)
-        {
-            if (svgElements[T]) r[SET_ATTR](n, '');
-            else r[CLASS] = '';
-        }
-        else if ('style' === n)
-        {
-            r[n].cssText = '';
-        }
-        else if ('selected' === n && '<option>' === T)
-        {
-            r[n] = false;
-        }
-        else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-        {
-            r[n] = false;
-        }
-        else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-        {
-            r[n] = false;
-        }
-        else if ('value' === n && '<input>' === T)
-        {
-            r[n] = '';
-        }
-        else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
-            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
-            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
-            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
-        {
-            r[n] = false;
-        }
-        /*else if ((n in r) && (T_BOOL === get_type(r[n])))
-        {
-            r[n] = false;
-        }*/
-        else
-        {
-            r[DEL_ATTR](n);
-        }
-        return r;
-    },
-    set_att = function(r, n, s, T, TT, unconditionally) {
-        var t;
-        //unconditionally = !unconditionally;
-        if ('id' === n)
-        {
-            r[n] = Str(s);
-        }
-        else if ('class' === n)
-        {
-            s = Str(s);
-            if (svgElements[T]) r[SET_ATTR](n, s);
-            else r[CLASS] = s;
-        }
-        else if ('style' === n)
-        {
-            r[n].cssText = Str(s);
-        }
-        else if ('selected' === n && '<option>' === T)
-        {
-            r[n] = true;
-        }
-        else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-        {
-            r[n] = true;
-        }
-        else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-        {
-            r[n] = true;
-        }
-        else if ('value' === n && '<input>' === T)
-        {
-            if (r[n] !== s) r[n] = s;
-        }
-        else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
-            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
-            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
-            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
-        {
-            r[n] = true;
-        }
-        /*else if (n in r)
-        {
-            t = get_type(r[n]);
-            s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
-            if (unconditionally || (r[n] !== s)) r[n] = s;
-        }*/
-        else
-        {
-            r[SET_ATTR](n, Str(true === s ? n : s));
-        }
-        return r;
-    },
-    nodeType = function(node) {
-        switch (node.nodeType)
-        {
-            case 3: return 't';
-            case 8: return 'c';
-            default:
-                var tagName = '<'+(node[TAG] || '')+'>';
-                return svgElements[tagName] ? tagName : lower(tagName);
-        }
-    },
-    morphAtts = function morphAtts(view, r, v, unconditionally) {
-        var T, TT, vAtts, rAtts, mAtts, j, i, a, n, av, l, c, changed;
-
-        if (v.modified && v.modified.atts.length)
-        {
-            l = v.adirty[0];
-            c = v.adirty[1](v.attributes, Value);
-            changed = c === l ? v.adirty[2](v.attributes, Value) : 0 < l;
-            if (!changed) return r;
-            T = v.nodeType;
-            TT = lower(v[TYPE] || '');
-            // update modified attributes
-            for (vAtts=v.attributes,mAtts=v.modified.atts,j=mAtts.length-1; j>=0; j--)
+            a = vnode.attributes[i];
+            n = a.name; v = a.value;
+            if (is_instance(v, Value))
             {
-                for (i=mAtts[j].from; i<=mAtts[j].to; i++)
-                {
-                    a = vAtts[i]; n = a.name; av = a.value;
-                    if (is_instance(av, Value))
-                    {
-                        if (!av.dirty()) continue;
-                        else if (!av.key()) view.$reset.push(av);
-                        av = av.val();
-                    }
-                    if (false === av) del_att(r, n, T, TT);
-                    else set_att(r, n, av, T, TT);
-                }
+                if (v.dirty() && !v.key())
+                    view.$reset.push(v);
+                v = v.val();
             }
-        }
-        else if (true === unconditionally)
-        {
-            T = v.nodeType;
-            TT = lower(v[TYPE] || '');
-            vAtts = v.attributes;
-            rAtts = r.attributes;
-            // remove non-existent attributes
-            for (i=rAtts.length-1; i>=0; i--)
+            if (false === v) continue;
+            if ('id' === n)
             {
-                a = rAtts[i]; n = a.name;
-                if (null == attr(v, n)) del_att(r, n, T, TT);
+                rnode[n] = Str(v);
             }
-            // update new attributes
-            for (i=vAtts.length-1; i>=0; i--)
+            else if ('style' === n)
             {
-                a = vAtts[i]; n = a.name; av = a.value;
-                if (is_instance(av, Value))
-                {
-                    if (av.dirty() && !av.key()) view.$reset.push(av);
-                    av = av.val();
-                }
-                if (false === av) del_att(r, n, T, TT);
-                else set_att(r, n, av, T, TT, true);
+                rnode[n].cssText = Str(v);
             }
-        }
-        return r;
-    },
-    eqNodes = function(r, v, T) {
-        T = T || nodeType(r);
-        var rmv = r[MV] || MV0();
-        return (T === v.nodeType) && ((null == v.component && null == rmv.comp) || (null != v.component && null != rmv.comp && (v.component.name === rmv.comp.name))) && (v.id === rmv.id) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
-    },
-    delNodes = function(view, r, index, count) {
-        if (0 <= index && index < r.childNodes.length)
-        {
-            if (0 >= index && r.childNodes.length <= index+count)
+            else if ('class' === n)
             {
-                // delete all children
-                r.textContent = ''; // faster than using range below ??
+                if (isSVG) rnode[SET_ATTR](n, Str(v));
+                else rnode[CLASS] = Str(v);
             }
-            else if (1 === count)
+            else if ('selected' === n && '<option>' === T)
             {
-                r.removeChild(r.childNodes[index]);
+                rnode[n] = true;
             }
+            else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
+            {
+                rnode[n] = true;
+            }
+            else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
+            {
+                rnode[n] = true;
+            }
+            else if ('value' === n && '<input>' === T)
+            {
+                rnode[n] = Str(v);
+            }
+            else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+                'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+                'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+                'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+            {
+                rnode[n] = true;
+            }
+            /*else if (n in rnode)
+            {
+                t = get_type(rnode[n]);
+                rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
+            }*/
             else
             {
-                var range = Range();
-                if (range)
-                {
-                    range.setStart(r, index);
-                    range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
-                    range.deleteContents();
-                    //range.detach();
-                }
-                else
-                {
-                    // old-fashioned way
-                    for (; (0 < count) && (index < r.childNodes.length); count--)
-                        r.removeChild(r.childNodes[index]);
-                }
+                rnode[SET_ATTR](n, Str(true === v ? n : v));
             }
         }
-    },
-    insNodes = function(view, r, v, index, count, lastNode) {
-        var frag = null, vc = v.childNodes.length;
-        if (1 < count)
+        if (true === with_meta)
         {
-            // using fragment really faster??
-            for (frag = Fragment(); 0 < count && index < vc /*&& frag.childNodes.length < count*/; count--,index++)
-                frag.appendChild(to_node(view, v.childNodes[index], true));
+            rnode[MV] = rmv = MV0();
+            c = rmv.comp = vnode.component;
+            if (c && c.dom && c.dom[MV]) c.dom[MV].comp = null;
+            if (c) c.dom = rnode;
+            if (vnode.id) rmv.id = vnode.id;
+            if (vnode.modified && vnode.modified.nodes.length)
+                rmv.mod = vnode.modified.nodes;
         }
-        else if (0 < count && index < vc)
+        if (vnode.childNodes.length)
         {
-            frag = to_node(view, v.childNodes[index++], true);
-        }
-        if (frag)
-        {
-            if (lastNode) r.insertBefore(frag, lastNode);
-            else r.appendChild(frag);
-        }
-        return index;
-    },
-    morphSingle = function morphSingle(view, r, rnode, vnode, unconditionally) {
-        var T = vnode.nodeType, changed = vnode.changed, achanged = vnode.achanged, val;
-        if ('t' === T)
-        {
-            if (changed || (unconditionally && (rnode.nodeValue !== vnode.nodeValue2)))
-                rnode.nodeValue = vnode.nodeValue2;
-        }
-        else if ('c' === T)
-        {
-            if (changed || (unconditionally && (rnode.nodeValue !== vnode.nodeValue)))
-                rnode.nodeValue = vnode.nodeValue;
-        }
-        else if ('<textarea>' === T)
-        {
-            // morph attributes/properties
-            if (achanged || unconditionally)
-                morphAtts(view, rnode, vnode, unconditionally);
-            if (changed || unconditionally)
+            if ('<textarea>' === T)
             {
-                val = to_string_all(view, vnode.childNodes);
-                /*if (rnode[VAL] !== val)
-                {*/
-                    rnode[VAL] = val;
-                    rnode[TEXTC] = val;
-                /*}*/
+                v = to_string_all(view, vnode.childNodes);
+                rnode[VAL] = v;
+                rnode[TEXTC] = v;
+                //rnode.innerHTML = v;
             }
-        }
-        else if ('<style>' === T || '<script>' === T)
-        {
-            // morph attributes/properties
-            if (achanged || unconditionally)
-                morphAtts(view, rnode, vnode, unconditionally);
-            if (changed || unconditionally)
+            else if ('<script>' === T || '<style>' === T)
+            {
                 rnode[TEXTC] = to_string_all(view, vnode.childNodes);
-        }
-        else
-        {
-            if (vnode.unit)
-            {
-                if (changed || unconditionally)
-                {
-                    r.replaceChild(to_node(view, vnode, true), rnode);
-                }
             }
             else
             {
-                // morph attributes/properties
-                if (achanged || unconditionally)
-                    morphAtts(view, rnode, vnode, unconditionally);
-                // morph children
-                if (changed || unconditionally)
-                    morph(view, rnode, vnode);
-            }
-        }
-    },
-    morphSelectedNodes = function morphSelectedNodes(view, r, v, start, end, end2, startv, count) {
-        var index, indexv, vnode, rnode, T, collection,
-            diff, di, dc, d, items, keyed,
-            i, j, k, l, m, n, w, x, z, len, frag;
-        if ('collection' === v.childNodes[startv].nodeType)
-        {
-            collection = v.childNodes[startv].nodeValue;
-            diff = collection.diff;
-            for (di=0,dc=diff.length; di<dc; di++)
-            {
-                d = diff[di];
-                m = collection.mappedItem;
-                switch (d.action)
+                for (i=0,l=vnode.childNodes.length; i<l; i++)
                 {
-                    case 'set':
-                        len = collection.items().length*m;
-                        items = collection.mapped();
-                        frag = htmlNode(view, '', null, null, [], items);
-                        morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
-                        count = 0;
-                        return count; // break from diff loop completely, this should be only diff
-                        break;
-                    case 'reorder':
-                        len = collection.items().length;
-                        k = len*m;
-                        frag = Fragment();
-                        j = r.childNodes[start+k];
-                        n = slice.call(r.childNodes, start, start+k);
-                        count = 0;
-                        for (i=0; i<len; i++) for (l=0; l<m; l++) frag.appendChild(n[d.from[i]*m+l]);
-                        if (j) r.insertBefore(frag, j);
-                        else r.appendChild(frag);
-                        return count; // break from diff loop completely, this should be only diff
-                        break;
-                    case 'add':
-                        len = (d.to-d.from+1)*m;
-                        items = collection.mapped(d.from, d.to);
-                        insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from*m]);
-                        if (0 > count) count += len;
-                        break;
-                    case 'del':
-                        len = (d.to-d.from+1)*m;
-                        delNodes(view, r, start+d.from*m, len);
-                        if (0 < count) count -= len;
-                        break;
-                    case 'swap':
-                        i = slice.call(r.childNodes, start+d.from*m, start+d.from*m+m);
-                        j = slice.call(r.childNodes, start+d.to*m, start+d.to*m+m);
-                        k = j[j.length-1].nextSibling;
-                        for (l=0; l<m; l++) r.replaceChild(j[l], i[l]);
-                        if (k) for (l=0; l<m; l++) r.insertBefore(i[l], k);
-                        else for (l=0; l<m; l++) r.appendChild(i[l]);
-                        break;
-                    case 'change':
-                        len = (d.to-d.from+1)*m;
-                        z = new Array(len);
-                        for (w=start+d.from*m,j=0,i=0; i<len; i++)
-                        {
-                            rnode = r.childNodes[w+i];
-                            x = rnode[MV] ? rnode[MV].comp : null;
-                            if (x) z[j++] = x;
-                        }
-                        //z.length = j;
-                        view.$cache['#'] = z;
-                        items = collection.mapped(d.from, d.to);
-                        frag = htmlNode(view, '', null, null, [], items);
-                        view.$cache['#'] = z = null;
-                        for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; i++)
-                        {
-                            vnode = n[i]; rnode = r.childNodes[w+i];
-                            if (eqNodes(rnode, vnode))
-                                morphSingle(view, r, rnode, vnode);
-                            else
-                                r.replaceChild(to_node(view, vnode, true), rnode);
-                        }
-                        //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
-                        break;
+                    rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
                 }
             }
-            // collection is supposed to cover whole current modification range
-            return count;
+        }
+    }
+    return rnode;
+}
+function nodeType(node)
+{
+    switch (node.nodeType)
+    {
+        case 3: return 't';
+        case 8: return 'c';
+        default:
+            var tagName = '<'+(node[TAG] || '')+'>';
+            return svgElements[tagName] ? tagName : lower(tagName);
+    }
+}
+function eqNodes(r, v, T)
+{
+    T = T || nodeType(r);
+    var rmv = r[MV] || MV0();
+    return (T === v.nodeType) && ((null == v.component && null == rmv.comp) || (null != v.component && null != rmv.comp && (v.component.name === rmv.comp.name))) && (v.id === rmv.id) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
+}
+function attr(vnode, name)
+{
+    if (!vnode.atts)
+    {
+        vnode.atts = vnode.attributes.reduce(function(atts, a){
+            atts['@'+a.name] = a.value;
+            return atts;
+        }, {});
+    }
+    return vnode.atts['@'+name];
+}
+function del_att(r, n, T, TT)
+{
+    if ('id' === n)
+    {
+        //r[n] = '';
+        r[DEL_ATTR](n);
+    }
+    else if ('class' === n)
+    {
+        if (svgElements[T]) r[SET_ATTR](n, '');
+        else r[CLASS] = '';
+    }
+    else if ('style' === n)
+    {
+        r[n].cssText = '';
+    }
+    else if ('selected' === n && '<option>' === T)
+    {
+        r[n] = false;
+    }
+    else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
+    {
+        r[n] = false;
+    }
+    else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
+    {
+        r[n] = false;
+    }
+    else if ('value' === n && '<input>' === T)
+    {
+        r[n] = '';
+    }
+    else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+        'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+        'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+        'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+    {
+        r[n] = false;
+    }
+    /*else if ((n in r) && (T_BOOL === get_type(r[n])))
+    {
+        r[n] = false;
+    }*/
+    else
+    {
+        r[DEL_ATTR](n);
+    }
+    return r;
+}
+function set_att(r, n, s, T, TT)
+{
+    var t;
+    if ('id' === n)
+    {
+        r[n] = Str(s);
+    }
+    else if ('class' === n)
+    {
+        s = Str(s);
+        if (svgElements[T]) r[SET_ATTR](n, s);
+        else r[CLASS] = s;
+    }
+    else if ('style' === n)
+    {
+        r[n].cssText = Str(s);
+    }
+    else if ('selected' === n && '<option>' === T)
+    {
+        r[n] = true;
+    }
+    else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
+    {
+        r[n] = true;
+    }
+    else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
+    {
+        r[n] = true;
+    }
+    else if ('value' === n && '<input>' === T)
+    {
+        if (r[n] !== s) r[n] = s;
+    }
+    else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+        'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+        'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+        'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+    {
+        r[n] = true;
+    }
+    /*else if (n in r)
+    {
+        t = get_type(r[n]);
+        s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
+        if (unconditionally || (r[n] !== s)) r[n] = s;
+    }*/
+    else
+    {
+        r[SET_ATTR](n, Str(true === s ? n : s));
+    }
+    return r;
+}
+function delNodes(view, r, index, count)
+{
+    if (0 <= index && index < r.childNodes.length)
+    {
+        if (0 >= index && r.childNodes.length <= index+count)
+        {
+            // delete all children
+            r.textContent = ''; // faster than using range below ??
+        }
+        else if (1 === count)
+        {
+            r.removeChild(r.childNodes[index]);
+        }
+        else
+        {
+            var range = Range();
+            if (range)
+            {
+                range.setStart(r, index);
+                range.setEnd(r, stdMath.min(r.childNodes.length, index+count));
+                range.deleteContents();
+                //range.detach();
+            }
+            else
+            {
+                // old-fashioned way
+                for (; (0 < count) && (index < r.childNodes.length); count--)
+                    r.removeChild(r.childNodes[index]);
+            }
+        }
+    }
+}
+function insNodes(view, r, v, index, count, lastNode)
+{
+    var frag = null, vc = v.childNodes.length;
+    if (1 < count)
+    {
+        // using fragment really faster??
+        for (frag = Fragment(); 0 < count && index < vc /*&& frag.childNodes.length < count*/; count--,index++)
+            frag.appendChild(to_node(view, v.childNodes[index], true));
+    }
+    else if (0 < count && index < vc)
+    {
+        frag = to_node(view, v.childNodes[index++], true);
+    }
+    if (frag)
+    {
+        if (lastNode) r.insertBefore(frag, lastNode);
+        else r.appendChild(frag);
+    }
+    return index;
+}
+function morphAttsAll(view, r, v)
+{
+    var T, TT, vAtts, rAtts, i, a, n, av;
+    T = v.nodeType;
+    TT = lower(v[TYPE] || '');
+    vAtts = v.attributes;
+    rAtts = r.attributes;
+    // remove non-existent attributes
+    for (i=rAtts.length-1; i>=0; i--)
+    {
+        a = rAtts[i]; n = a.name;
+        if (null == attr(v, n)) del_att(r, n, T, TT);
+    }
+    // update new attributes
+    for (i=vAtts.length-1; i>=0; i--)
+    {
+        a = vAtts[i]; n = a.name; av = a.value;
+        if (is_instance(av, Value))
+        {
+            if (av.dirty() && !av.key()) view.$reset.push(av);
+            av = av.val();
+        }
+        if (false === av) del_att(r, n, T, TT);
+        else set_att(r, n, av, T, TT, true);
+    }
+    return r;
+}
+function morphAtts(view, r, v)
+{
+    if (v.modified && v.modified.atts.length && v.modified.updateAtts)
+        v.modified.updateAtts(view, r, v, set_att, del_att, Value);
+    return r;
+}
+function morphSingleAll(view, r, rnode, vnode)
+{
+    var T = vnode.nodeType, val;
+    if ('t' === T)
+    {
+        if (rnode.nodeValue !== vnode.nodeValue2)
+            rnode.nodeValue = vnode.nodeValue2;
+    }
+    else if ('c' === T)
+    {
+        if (rnode.nodeValue !== vnode.nodeValue)
+            rnode.nodeValue = vnode.nodeValue;
+    }
+    else if ('<textarea>' === T)
+    {
+        morphAttsAll(view, rnode, vnode);
+        val = to_string_all(view, vnode.childNodes);
+        /*if (rnode[VAL] !== val)
+        {*/
+            rnode[VAL] = val;
+            rnode[TEXTC] = val;
+        /*}*/
+    }
+    else if ('<style>' === T || '<script>' === T)
+    {
+        morphAttsAll(view, rnode, vnode);
+        rnode[TEXTC] = to_string_all(view, vnode.childNodes);
+    }
+    else
+    {
+        morphAttsAll(view, rnode, vnode);
+        morphAll(view, rnode, vnode);
+    }
+}
+function morphSingle(view, r, rnode, vnode)
+{
+    var T = vnode.nodeType, changed = vnode.changed, val;
+    if ('t' === T)
+    {
+        if (changed)
+            rnode.nodeValue = vnode.nodeValue2;
+    }
+    else if ('c' === T)
+    {
+        if (changed)
+            rnode.nodeValue = vnode.nodeValue;
+    }
+    else if ('<textarea>' === T)
+    {
+        morphAtts(view, rnode, vnode);
+        if (changed)
+        {
+            val = to_string_all(view, vnode.childNodes);
+            /*if (rnode[VAL] !== val)
+            {*/
+                rnode[VAL] = val;
+                rnode[TEXTC] = val;
+            /*}*/
+        }
+    }
+    else if ('<style>' === T || '<script>' === T)
+    {
+        morphAtts(view, rnode, vnode);
+        if (changed)
+            rnode[TEXTC] = to_string_all(view, vnode.childNodes);
+    }
+    else
+    {
+        if (vnode.unit)
+        {
+            if (changed)
+                r.replaceChild(to_node(view, vnode, true), rnode);
+        }
+        else
+        {
+            morphAtts(view, rnode, vnode);
+            if (changed)
+                morph(view, rnode, vnode);
+        }
+    }
+}
+function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
+{
+    var index, indexv, vnode, rnode, T, collection,
+        diff, di, dc, d, items, keyed,
+        i, j, k, l, m, n, w, x, z, len, frag;
+    if ('collection' === v.childNodes[startv].nodeType)
+    {
+        collection = v.childNodes[startv].nodeValue;
+        diff = collection.diff;
+        for (di=0,dc=diff.length; di<dc; di++)
+        {
+            d = diff[di];
+            m = collection.mappedItem;
+            switch (d.action)
+            {
+                case 'set':
+                    len = collection.items().length*m;
+                    items = collection.mapped();
+                    frag = htmlNode(view, '', null, null, [], items);
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
+                    count = 0;
+                    return count; // break from diff loop completely, this should be only diff
+                    break;
+                case 'reorder':
+                    len = collection.items().length;
+                    k = len*m;
+                    frag = Fragment();
+                    j = r.childNodes[start+k];
+                    n = slice.call(r.childNodes, start, start+k);
+                    count = 0;
+                    for (i=0; i<len; i++) for (l=0; l<m; l++) frag.appendChild(n[d.from[i]*m+l]);
+                    if (j) r.insertBefore(frag, j);
+                    else r.appendChild(frag);
+                    return count; // break from diff loop completely, this should be only diff
+                    break;
+                case 'add':
+                    len = (d.to-d.from+1)*m;
+                    items = collection.mapped(d.from, d.to);
+                    insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from*m]);
+                    if (0 > count) count += len;
+                    break;
+                case 'del':
+                    len = (d.to-d.from+1)*m;
+                    delNodes(view, r, start+d.from*m, len);
+                    if (0 < count) count -= len;
+                    break;
+                case 'swap':
+                    i = slice.call(r.childNodes, start+d.from*m, start+d.from*m+m);
+                    j = slice.call(r.childNodes, start+d.to*m, start+d.to*m+m);
+                    k = j[j.length-1].nextSibling;
+                    for (l=0; l<m; l++) r.replaceChild(j[l], i[l]);
+                    if (k) for (l=0; l<m; l++) r.insertBefore(i[l], k);
+                    else for (l=0; l<m; l++) r.appendChild(i[l]);
+                    break;
+                case 'change':
+                    len = (d.to-d.from+1)*m;
+                    z = new Array(len);
+                    for (w=start+d.from*m,j=0,i=0; i<len; i++)
+                    {
+                        rnode = r.childNodes[w+i];
+                        x = rnode[MV] ? rnode[MV].comp : null;
+                        if (x) z[j++] = x;
+                    }
+                    //z.length = j;
+                    view.$cache['#'] = z;
+                    items = collection.mapped(d.from, d.to);
+                    frag = htmlNode(view, '', null, null, [], items);
+                    view.$cache['#'] = z = null;
+                    for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; i++)
+                    {
+                        vnode = n[i]; rnode = r.childNodes[w+i];
+                        if (eqNodes(rnode, vnode))
+                            morphSingle(view, r, rnode, vnode);
+                        else
+                            r.replaceChild(to_node(view, vnode, true), rnode);
+                    }
+                    //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
+                    break;
+            }
+        }
+        // collection is supposed to cover whole current modification range
+        return count;
+    }
+
+    keyed = {};
+    if (
+        // sample first, middle, last to see if keyed nodes
+        v.childNodes[startv].id ||
+        v.childNodes[(startv+stdMath.min(v.childNodes.length-1, startv+end-start))>>1].id ||
+        v.childNodes[stdMath.min(v.childNodes.length-1, startv+end-start)].id
+    )
+    {
+        // there are keyed nodes, associate them in a map for reuse
+        for (index=start; index<=end; index++)
+        {
+            if (index >= r.childNodes.length) break;
+            rnode = r.childNodes[index];
+            //rnode[MV] = rnode[MV] || MV0();
+            // store the keyed nodes in a map
+            // to be retrieved and reused easily
+            if (rnode[MV] && rnode[MV].id)
+                keyed['#'+rnode[MV].id] = rnode;
+        }
+    }
+    for (indexv=startv,index=start; index<=end; index++,indexv++)
+    {
+        if (indexv >= v.childNodes.length) break;
+        vnode = v.childNodes[indexv];
+        if (index >= r.childNodes.length)
+        {
+            l = r.childNodes.length;
+            insNodes(view, r, v, indexv, end-l+1, null);
+            if (0 > count) count += end-l+1;
+            break;
+        }
+        if ((0 > count) && (index >= end2+count+1))
+        {
+            insNodes(view, r, v, indexv, -count, r.childNodes[end2+count+1]);
+            count = 0;
+            break;
         }
 
-        keyed = {};
-        if (v.childNodes[startv].id || v.childNodes[stdMath.min(v.childNodes.length-1, startv+end-start)].id)
+        rnode = r.childNodes[index];
+        T = nodeType(rnode);
+
+        if (eqNodes(rnode, vnode, T))
+        {
+            morphSingle(view, r, rnode, vnode);
+        }
+        else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
+        {
+            r.insertBefore(frag, rnode);
+            morphSingle(view, r, frag, vnode);
+        }
+        else if (0 === count)
+        {
+            r.replaceChild(frag=to_node(view, vnode, true), rnode);
+        }
+        else if (0 > count)
+        {
+            r.insertBefore(frag=to_node(view, vnode, true), rnode);
+            count++;
+        }
+        else
+        {
+            for (i=index,j=0; 0 < count && j < count; )
+            {
+                j++;
+                if (index+j >= r.childNodes.length) break;
+                rnode = r.childNodes[index+j];
+                if (eqNodes(rnode, vnode)) break;
+            }
+            if (0 < j)
+            {
+                delNodes(view, r, i, j);
+                count -= j;
+            }
+            if (index >= r.childNodes.length)
+            {
+                insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
+                count = 0;
+                break;
+            }
+            else
+            {
+                rnode = r.childNodes[index];
+                T = nodeType(rnode);
+                if (eqNodes(rnode, vnode, T))
+                    morphSingle(view, r, rnode, vnode);
+                else
+                    r.replaceChild(frag=to_node(view, vnode, true), rnode);
+            }
+        }
+    }
+    // finally remove any remaining nodes that need to be removed and haven't been already
+    if (0 < count)
+    {
+        delNodes(view, r, end+1, count);
+        count = 0;
+    }
+    return count;
+}
+function morphAll(view, r, v, alreadyInited)
+{
+    // morph unconditionally r (real) DOM to match v (virtual) DOM
+    var vc = v.childNodes.length,
+        count, i, j, index, keyed,
+        vnode, rnode, T, frag,
+        rmv, rComp, vComp;
+
+    if (!alreadyInited)
+    {
+        rmv = r[MV] || MV0(),
+        rComp = rmv.comp;
+        vComp = v.component;
+        r[MV] = rmv;
+        rmv.id = v.id;
+        rmv.comp = vComp;
+        if ((rComp !== vComp) && rComp) rComp.dom = null;
+        if (vComp) vComp.dom = r;
+        if (v.modified && v.modified.nodes.length)
+            rmv.mod = v.modified.nodes;
+        else if (rmv.mod)
+            rmv.mod = null;
+    }
+
+    // need to flatten first any existent collections
+    for (index=vc-1; index>=0; index--)
+    {
+        if ('collection' === v.childNodes[index].nodeType)
+            v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
+    }
+    vc = v.childNodes.length;
+    keyed = {};
+    for (index=0; index<vc; index++)
+    {
+        if (v.childNodes[index].id)
         {
             // there are keyed nodes, associate them in a map for reuse
-            for (index=start; index<=end; index++)
+            for (index=0,count=r.childNodes.length; index<count; index++)
             {
-                if (index >= r.childNodes.length) break;
                 rnode = r.childNodes[index];
                 //rnode[MV] = rnode[MV] || MV0();
                 // store the keyed nodes in a map
@@ -2259,571 +2279,448 @@ var
                 if (rnode[MV] && rnode[MV].id)
                     keyed['#'+rnode[MV].id] = rnode;
             }
+            break;
         }
-        for (indexv=startv,index=start; index<=end; index++,indexv++)
+    }
+    count = r.childNodes.length - vc;
+    for (index=0; index<vc; index++)
+    {
+        if (index >= r.childNodes.length)
         {
-            vnode = v.childNodes[indexv];
-            if (index >= r.childNodes.length)
-            {
-                l = r.childNodes.length;
-                insNodes(view, r, v, indexv, end-l+1, null);
-                if (0 > count) count += end-l+1;
-                break;
-            }
-            if ((0 > count) && (index >= end2+count+1))
-            {
-                insNodes(view, r, v, indexv, -count, r.childNodes[end2+count+1]);
-                count = 0;
-                break;
-            }
-
-            rnode = r.childNodes[index];
-            T = nodeType(rnode);
-
-            if (eqNodes(rnode, vnode, T))
-            {
-                morphSingle(view, r, rnode, vnode);
-            }
-            else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
-            {
-                r.insertBefore(frag, rnode);
-                morphSingle(view, r, frag, vnode);
-            }
-            else if (0 === count)
-            {
-                r.replaceChild(frag=to_node(view, vnode, true), rnode);
-            }
-            else if (0 > count)
-            {
-                r.insertBefore(frag=to_node(view, vnode, true), rnode);
-                count++;
-            }
-            else
-            {
-                for (i=index,j=0; 0 < count && j < count; )
-                {
-                    j++;
-                    if (index+j >= r.childNodes.length) break;
-                    rnode = r.childNodes[index+j];
-                    if (eqNodes(rnode, vnode)) break;
-                }
-                if (0 < j)
-                {
-                    delNodes(view, r, i, j);
-                    count -= j;
-                }
-                if (index >= r.childNodes.length)
-                {
-                    insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
-                    count = 0;
-                    break;
-                }
-                else
-                {
-                    rnode = r.childNodes[index];
-                    T = nodeType(rnode);
-                    if (eqNodes(rnode, vnode, T))
-                    {
-                        morphSingle(view, r, rnode, vnode);
-                    }
-                    else
-                    {
-                        r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    }
-                }
-            }
+            insNodes(view, r, v, index, vc-r.childNodes.length, null);
+            if (0 > count) count = 0;
+            break;
         }
-        // finally remove any remaining nodes that need to be removed and haven't been already
-        if (0 < count)
+        vnode = v.childNodes[index];
+        rnode = r.childNodes[index];
+        T = nodeType(rnode);
+
+        if (eqNodes(rnode, vnode, T))
         {
-            delNodes(view, r, end+1, count);
-            count = 0;
+            morphSingleAll(view, r, rnode, vnode);
         }
-        return count;
-    },
-    morph = function morph(view, r, v, isRoot) {
-        // morph r (real) DOM to match v (virtual) DOM
-        var vc = v.childNodes.length, vpc = v.potentialChildNodes,
-            count = 0, offset = 0, matched, match,
-            mi, m, mc, di, dc, i, j, index, keyed,
-            vnode, rnode, T, frag, unconditionally,
-            rmv = r[MV] || MV0(),
-            modifiedNodesPrev = rmv.mod,
-            modifiedNodes = v.modified && v.modified.nodes,
-            rComp = rmv.comp, vComp = v.component;
-
-        r[MV] = rmv;
-        rmv.id = v.id;
-        rmv.comp = vComp; v.component = null;
-        if ((rComp !== vComp) && rComp) rComp.dom = null;
-        if (vComp) vComp.dom = r;
-        // keeping ref both at node and vnode may hinder GC and increase mem consumption
-        if (v.modified && v.modified.nodes.length) {rmv.mod = v.modified.nodes; v.modified = null;}
-        else if (rmv.mod) rmv.mod = null;
-
-        if (!r.childNodes.length)
+        else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
         {
-            if (0 < vc) insNodes(view, r, v, 0, vc, null);
+            r.insertBefore(frag, rnode);
+            morphSingleAll(view, r, frag, vnode);
+        }
+        else if (0 === count)
+        {
+            r.replaceChild(frag=to_node(view, vnode, true), rnode);
+        }
+        else if (0 > count)
+        {
+            r.insertBefore(frag=to_node(view, vnode, true), rnode);
+            count++;
         }
         else
         {
-            modifiedNodesPrev = modifiedNodesPrev || [];
-            modifiedNodes = modifiedNodes || [];
-            offset = 0;
-            matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length);
-            if (matched)
+            for (i=index,j=0; 0 < count && j < count; )
             {
-                for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
-                {
-                    m = modifiedNodes[mi];
-                    match = (m.from === offset + modifiedNodesPrev[mi].from);
-                    offset += (m.to - m.from + 1) - (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
-                    count += match;
-                }
-                matched = (modifiedNodes.length === count) && (offset+r.childNodes.length === vpc);
+                j++;
+                if (index+j >= r.childNodes.length) break;
+                rnode = r.childNodes[index+j];
+                if (eqNodes(rnode, vnode)) break;
             }
-            if (matched)
+            if (0 < j)
             {
-                for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+                delNodes(view, r, i, j);
+                count -= j;
+            }
+            if (index >= r.childNodes.length)
+            {
+                insNodes(view, r, v, index, vc-r.childNodes.length, null);
+                count = 0;
+                break;
+            }
+            else
+            {
+                rnode = r.childNodes[index];
+                T = nodeType(rnode);
+                if (eqNodes(rnode, vnode, T))
                 {
-                    m = modifiedNodes[mi];
-                    if (m.to < m.from)
+                    morphSingleAll(view, r, rnode, vnode);
+                }
+                else
+                {
+                    r.replaceChild(frag=to_node(view, vnode, true), rnode);
+                }
+            }
+        }
+    }
+    if (r.childNodes.length > vc) delNodes(view, r, vc, r.childNodes.length-vc);
+}
+function morph(view, r, v)
+{
+    // morph r (real) DOM to match v (virtual) DOM
+    var vc = v.childNodes.length, vpc = v.potentialChildNodes,
+        count = 0, offset = 0, matched, match,
+        mi, m, mc, di, dc, i, j, index, keyed,
+        vnode, rnode, T, frag, rmv = r[MV] || MV0(),
+        modifiedNodesPrev = rmv.mod,
+        modifiedNodes = v.modified && v.modified.nodes,
+        rComp = rmv.comp, vComp = v.component;
+
+    r[MV] = rmv;
+    rmv.id = v.id;
+    rmv.comp = vComp;
+    if ((rComp !== vComp) && rComp) rComp.dom = null;
+    if (vComp) vComp.dom = r;
+    if (v.modified && v.modified.nodes.length)
+        rmv.mod = v.modified.nodes;
+    else if (rmv.mod)
+        rmv.mod = null;
+
+    if (!r.childNodes.length)
+    {
+        if (0 < vc) insNodes(view, r, v, 0, vc, null);
+    }
+    else
+    {
+        modifiedNodesPrev = modifiedNodesPrev || [];
+        modifiedNodes = modifiedNodes || [];
+        offset = 0;
+        matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length);
+        if (matched)
+        {
+            for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+            {
+                m = modifiedNodes[mi];
+                match = (m.from === offset + modifiedNodesPrev[mi].from);
+                offset += (m.to - m.from + 1) - (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+                count += match;
+            }
+            matched = (modifiedNodes.length === count) && (offset+r.childNodes.length === vpc);
+        }
+        if (matched)
+        {
+            for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+            {
+                m = modifiedNodes[mi];
+                if (m.to < m.from)
+                {
+                    count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
+                    if (0 < count) delNodes(view, r, m.from, count);
+                }
+                else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
+                {
+                    count = (m.to - m.from + 1);
+                    if (0 < count) insNodes(view, r, v, m.from-offset, 'collection' === v.childNodes[m.from-offset].nodeType ? 1 : count, r.childNodes[m.from]);
+                }
+                else
+                {
+                    count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
+                    if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
                     {
-                        count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
-                        if (0 < count) delNodes(view, r, m.from, count);
-                    }
-                    else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
-                    {
-                        count = (m.to - m.from + 1);
-                        if (0 < count) insNodes(view, r, v, m.from-offset, 'collection' === v.childNodes[m.from-offset].nodeType ? 1 : count, r.childNodes[m.from]);
+                        for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); di++)
+                        {
+                            count = morphSelectedNodes(view, r, v, v.diff[di][0], v.diff[di][1], m.to, v.diff[di][0]-offset, count);
+                        }
                     }
                     else
                     {
-                        count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                        if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
-                        {
-                            for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); di++)
-                            {
-                                count = morphSelectedNodes(view, r, v, v.diff[di][0], v.diff[di][1], m.to, v.diff[di][0]-offset, count);
-                            }
-                        }
-                        else
-                        {
-                            morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count);
-                        }
+                        morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count);
                     }
-                    offset += (vc !== vpc && 'collection' === v.childNodes[m.from-offset].nodeType ? m.to-m.from : 0);
+                }
+                offset += (vc !== vpc && 'collection' === v.childNodes[m.from-offset].nodeType ? m.to-m.from : 0);
+            }
+        }
+        else
+        {
+            morphAll(view, r, v, true);
+        }
+    }
+}
+function add_nodes(el, nodes, index, move, isStatic)
+{
+    var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (0 < l)
+    {
+        if (null == index)
+        {
+            index = el.childNodes.length;
+            move = false;
+        }
+        if (0 <= index && index <= el.childNodes.length)
+        {
+            if (!move && _mvModifiedNodes)
+            {
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; i++)
+                {
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
+                    {
+                        _mvModifiedNodes[i].from += l;
+                        _mvModifiedNodes[i].to += l;
+                    }
+                    else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
+                    {
+                        f = true;
+                        if (!isStatic || (index < _mvModifiedNodes[i].to))
+                        _mvModifiedNodes[i].to += l;
+                    }
+                }
+                if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
+                {
+                    _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
+                }
+            }
+            if (index === el.childNodes.length)
+            {
+                if (1 < l)
+                {
+                    frag = Fragment();
+                    for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                    el.appendChild(frag);
+                }
+                else
+                {
+                    el.appendChild(nodes[0]);
                 }
             }
             else
             {
-                unconditionally = true;
-                // need to flatten first any existent collections
-                for (index=vc-1; index>=0; index--)
+                if (1 < l)
                 {
-                    if ('collection' === v.childNodes[index].nodeType)
-                        v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
+                    frag = Fragment();
+                    n = el.childNodes[index];
+                    for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                    el.insertBefore(frag, n);
                 }
-                vc = v.childNodes.length;
-                keyed = {};
-                for (index=0; index<vc; index++)
+                else
                 {
-                    if (v.childNodes[index].id)
-                    {
-                        // there are keyed nodes, associate them in a map for reuse
-                        for (index=0,count=r.childNodes.length; index<count; index++)
-                        {
-                            rnode = r.childNodes[index];
-                            //rnode[MV] = rnode[MV] || MV0();
-                            // store the keyed nodes in a map
-                            // to be retrieved and reused easily
-                            if (rnode[MV] && rnode[MV].id)
-                                keyed['#'+rnode[MV].id] = rnode;
-                        }
-                        break;
-                    }
+                    el.insertBefore(nodes[0], el.childNodes[index]);
                 }
-                count = r.childNodes.length - vc;
-                for (index=0; index<vc; index++)
-                {
-                    if (index >= r.childNodes.length)
-                    {
-                        insNodes(view, r, v, index, vc-r.childNodes.length, null);
-                        if (0 > count) count = 0;
-                        break;
-                    }
-                    vnode = v.childNodes[index];
-                    rnode = r.childNodes[index];
-                    T = nodeType(rnode);
-
-                    if (eqNodes(rnode, vnode, T))
-                    {
-                        morphSingle(view, r, rnode, vnode, unconditionally);
-                    }
-                    else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
-                    {
-                        r.insertBefore(frag, rnode);
-                        morphSingle(view, r, frag, vnode, unconditionally);
-                    }
-                    else if (0 === count)
-                    {
-                        r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    }
-                    else if (0 > count)
-                    {
-                        r.insertBefore(frag=to_node(view, vnode, true), rnode);
-                        count++;
-                    }
-                    else
-                    {
-                        for (i=index,j=0; 0 < count && j < count; )
-                        {
-                            j++;
-                            if (index+j >= r.childNodes.length) break;
-                            rnode = r.childNodes[index+j];
-                            if (eqNodes(rnode, vnode)) break;
-                        }
-                        if (0 < j)
-                        {
-                            delNodes(view, r, i, j);
-                            count -= j;
-                        }
-                        if (index >= r.childNodes.length)
-                        {
-                            insNodes(view, r, v, index, vc-r.childNodes.length, null);
-                            count = 0;
-                            break;
-                        }
-                        else
-                        {
-                            rnode = r.childNodes[index];
-                            T = nodeType(rnode);
-                            if (eqNodes(rnode, vnode, T))
-                            {
-                                morphSingle(view, r, rnode, vnode, unconditionally);
-                            }
-                            else
-                            {
-                                r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                            }
-                        }
-                    }
-                }
-                if (r.childNodes.length > vc) delNodes(view, r, vc, r.childNodes.length-vc);
             }
         }
-    },
-    add_nodes = function(el, nodes, index, move, isStatic) {
-        var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    }
+    return el;
+}
+function remove_nodes(el, count, index, isStatic)
+{
+    var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (null == index) index = el.childNodes.length-1;
+    if (0 < count && 0 <= index && index < el.childNodes.length)
+    {
+        l = stdMath.min(count, el.childNodes.length-index);
         if (0 < l)
         {
-            if (null == index)
+            if (_mvModifiedNodes)
             {
-                index = el.childNodes.length;
-                move = false;
-            }
-            if (0 <= index && index <= el.childNodes.length)
-            {
-                if (!move && _mvModifiedNodes)
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; i++)
                 {
-                    f = false;
-                    for (i=0; i<_mvModifiedNodes.length; i++)
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
                     {
-                        if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
-                        {
-                            _mvModifiedNodes[i].from += l;
-                            _mvModifiedNodes[i].to += l;
-                        }
-                        else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
-                        {
-                            f = true;
-                            if (!isStatic || (index < _mvModifiedNodes[i].to))
-                            _mvModifiedNodes[i].to += l;
-                        }
+                        _mvModifiedNodes[i].from -= l;
+                        _mvModifiedNodes[i].to -= l;
                     }
-                    if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
+                    else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
                     {
-                        _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
-                    }
-                }
-                if (index === el.childNodes.length)
-                {
-                    if (1 < l)
-                    {
-                        frag = Fragment();
-                        for (i=0; i<l; i++) frag.appendChild(nodes[i]);
-                        el.appendChild(frag);
-                    }
-                    else
-                    {
-                        el.appendChild(nodes[0]);
-                    }
-                }
-                else
-                {
-                    if (1 < l)
-                    {
-                        frag = Fragment();
-                        n = el.childNodes[index];
-                        for (i=0; i<l; i++) frag.appendChild(nodes[i]);
-                        el.insertBefore(frag, n);
-                    }
-                    else
-                    {
-                        el.insertBefore(nodes[0], el.childNodes[index]);
+                        f = true;
+                        _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
                     }
                 }
             }
-        }
-        return el;
-    },
-    remove_nodes = function(el, count, index, isStatic) {
-        var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
-        if (null == index) index = el.childNodes.length-1;
-        if (0 < count && 0 <= index && index < el.childNodes.length)
-        {
-            l = stdMath.min(count, el.childNodes.length-index);
-            if (0 < l)
+            range = 1 < l ? Range() : null;
+            if (range)
             {
-                if (_mvModifiedNodes)
-                {
-                    f = false;
-                    for (i=0; i<_mvModifiedNodes.length; i++)
-                    {
-                        if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
-                        {
-                            _mvModifiedNodes[i].from -= l;
-                            _mvModifiedNodes[i].to -= l;
-                        }
-                        else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
-                        {
-                            f = true;
-                            _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
-                        }
-                    }
-                }
-                range = 1 < l ? Range() : null;
-                if (range)
-                {
-                    range.setStart(el, index);
-                    range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
-                    range.deleteContents();
-                }
-                else
-                {
-                    for (; 0 < l; l--) el.removeChild(el.childNodes[index]);
-                }
-            }
-        }
-    },
-
-    insert_map = function(map, ks, v) {
-        var m = map;
-        each(ks, function(k, i){
-            if (!HAS.call(m, 'c')) m.c = {};
-            if (!HAS.call(m.c, k)) m.c[k] = {};
-            m = m.c[k];
-            if (ks.length-1 === i)
-            {
-                if (!HAS.call(m, 'v')) m.v = [v];
-                else m.v.push(v);
-            }
-        });
-    },
-    del_map = function del_map(m, d) {
-        if (!m) return;
-        if (m.v)
-        {
-            d(m.v);
-        }
-        if (m.c)
-        {
-            each(Keys(m.c), function(k){
-                if (m.c[k].c)
-                {
-                    del_map(m.c[k], d);
-                    if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
-                    {
-                        del(m.c, k);
-                    }
-                }
-                else if (m.c[k].v)
-                {
-                    d(m.c[k].v);
-                    if (!m.c[k].v.length)
-                    {
-                        del(m.c, k);
-                    }
-                }
-            });
-        }
-    },
-    walk_map = function walk_map(m, f, key) {
-        if (!m) return;
-        key = key || '';
-        if (m.v)
-        {
-            f(m.v, key);
-        }
-        if (m.c)
-        {
-            each(Keys(m.c), function(k){
-                var kk = key + (key.length ? '.' : '') + k;
-                if (m.c[k].c) walk_map(m.c[k], f, kk);
-                else if (m.c[k].v) f(m.c[k].v, kk);
-            });
-        }
-    },
-    placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
-    get_placeholders = function get_placeholders(node, map) {
-        var m, k, t, s, n;
-        if (node)
-        {
-            if (3 === node.nodeType)
-            {
-                n = node;
-                s = n.nodeValue;
-                while (s.length && (m = s.match(placeholder_re)))
-                {
-                    k = trim(m[1]);
-                    if (k.length)
-                    {
-                        t = n.splitText(m.index);
-                        n = t.splitText(m[0].length);
-                        s = n.nodeValue;
-                        insert_map(map.txt, k.split('.'), t);
-                    }
-                    else
-                    {
-                        s = s.slice(m.index+m[0].length);
-                    }
-                }
+                range.setStart(el, index);
+                range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
+                range.deleteContents();
             }
             else
             {
-                if (node.attributes && node.attributes.length)
+                for (; 0 < l; l--) el.removeChild(el.childNodes[index]);
+            }
+        }
+    }
+}
+function insert_map(map, ks, v)
+{
+    var m = map;
+    each(ks, function(k, i){
+        if (!HAS.call(m, 'c')) m.c = {};
+        if (!HAS.call(m.c, k)) m.c[k] = {};
+        m = m.c[k];
+        if (ks.length-1 === i)
+        {
+            if (!HAS.call(m, 'v')) m.v = [v];
+            else m.v.push(v);
+        }
+    });
+}
+function del_map(m, d)
+{
+    if (!m) return;
+    if (m.v)
+    {
+        d(m.v);
+    }
+    if (m.c)
+    {
+        each(Keys(m.c), function(k){
+            if (m.c[k].c)
+            {
+                del_map(m.c[k], d);
+                if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
                 {
-                    each(node.attributes, function(a) {
-                        var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
+                    del(m.c, k);
+                }
+            }
+            else if (m.c[k].v)
+            {
+                d(m.c[k].v);
+                if (!m.c[k].v.length)
+                {
+                    del(m.c, k);
+                }
+            }
+        });
+    }
+}
+function walk_map(m, f, key)
+{
+    if (!m) return;
+    key = key || '';
+    if (m.v)
+    {
+        f(m.v, key);
+    }
+    if (m.c)
+    {
+        each(Keys(m.c), function(k){
+            var kk = key + (key.length ? '.' : '') + k;
+            if (m.c[k].c) walk_map(m.c[k], f, kk);
+            else if (m.c[k].v) f(m.c[k].v, kk);
+        });
+    }
+}
+function get_placeholders(node, map)
+{
+    var m, k, t, s, n;
+    if (node)
+    {
+        if (3 === node.nodeType)
+        {
+            n = node;
+            s = n.nodeValue;
+            while (s.length && (m = s.match(placeholder_re)))
+            {
+                k = trim(m[1]);
+                if (k.length)
+                {
+                    t = n.splitText(m.index);
+                    n = t.splitText(m[0].length);
+                    s = n.nodeValue;
+                    insert_map(map.txt, k.split('.'), t);
+                }
+                else
+                {
+                    s = s.slice(m.index+m[0].length);
+                }
+            }
+        }
+        else
+        {
+            if (node.attributes && node.attributes.length)
+            {
+                each(node.attributes, function(a) {
+                    var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
+                    while (s.length && (m = s.match(placeholder_re)))
+                    {
+                        k = trim(m[1]);
+                        if (k.length)
+                        {
+                            if (-1 === keys.indexOf(k)) keys.push(k);
+                            txt.pop();
+                            a1 = a.value.slice(index, index+m.index);
+                            a2 = a.value.slice(index+m.index+m[0].length);
+                            if (a1.length) txt.push(a1);
+                            txt.push({mvKey:k});
+                            if (a2.length) txt.push(a2);
+                        }
+                        s = s.slice(m.index+m[0].length);
+                        index += m.index + m[0].length;
+                    }
+                    if (1 === keys.length && 1 === txt.length)
+                    {
+                        insert_map(map.att1, keys[0].split('.'), {node:node, att:a.name});
+                    }
+                    else
+                    {
+                        each(keys, function(k) {
+                            var t = {node:node, att:a.name, txt:txt.slice()};
+                            insert_map(map.att, k.split('.'), t);
+                        });
+                    }
+                });
+            }
+            if (node.childNodes.length)
+            {
+                each(node.childNodes, function(n) {
+                    var m, k, t, s;
+                    if (3 === n.nodeType)
+                    {
+                        s = n.nodeValue;
                         while (s.length && (m = s.match(placeholder_re)))
                         {
                             k = trim(m[1]);
                             if (k.length)
                             {
-                                if (-1 === keys.indexOf(k)) keys.push(k);
-                                txt.pop();
-                                a1 = a.value.slice(index, index+m.index);
-                                a2 = a.value.slice(index+m.index+m[0].length);
-                                if (a1.length) txt.push(a1);
-                                txt.push({mvKey:k});
-                                if (a2.length) txt.push(a2);
+                                t = n.splitText(m.index);
+                                n = t.splitText(m[0].length);
+                                s = n.nodeValue;
+                                insert_map(map.txt, k.split('.'), t);
                             }
-                            s = s.slice(m.index+m[0].length);
-                            index += m.index + m[0].length;
-                        }
-                        if (1 === keys.length && 1 === txt.length)
-                        {
-                            insert_map(map.att1, keys[0].split('.'), {node:node, att:a.name});
-                        }
-                        else
-                        {
-                            each(keys, function(k) {
-                                var t = {node:node, att:a.name, txt:txt.slice()};
-                                insert_map(map.att, k.split('.'), t);
-                            });
-                        }
-                    });
-                }
-                if (node.childNodes.length)
-                {
-                    each(node.childNodes, function(n) {
-                        var m, k, t, s;
-                        if (3 === n.nodeType)
-                        {
-                            s = n.nodeValue;
-                            while (s.length && (m = s.match(placeholder_re)))
+                            else
                             {
-                                k = trim(m[1]);
-                                if (k.length)
-                                {
-                                    t = n.splitText(m.index);
-                                    n = t.splitText(m[0].length);
-                                    s = n.nodeValue;
-                                    insert_map(map.txt, k.split('.'), t);
-                                }
-                                else
-                                {
-                                    s = s.slice(m.index+m[0].length);
-                                }
+                                s = s.slice(m.index+m[0].length);
                             }
                         }
-                        else
-                        {
-                            get_placeholders(n, map);
-                        }
-                    });
-                }
+                    }
+                    else
+                    {
+                        get_placeholders(n, map);
+                    }
+                });
             }
         }
-        return node;
-    },
-    morphTextVal = function(list, key, model) {
-        var val = Str(model.get(key));
-        each(list, function(t) {
-            //if (t.nodeValue !== val)
-                t.nodeValue = val;
-        });
-    },
-    morphTextAtt1 = function(list, key, model) {
-        var v = model.get(key);
-        each(list, function(a) {
-            var n = a.att, r = a.node;
-            if (true === v || false === v)
+    }
+    return node;
+}
+function morphTextVal(list, key, model)
+{
+    var val = Str(model.get(key));
+    each(list, function(t) {
+        //if (t.nodeValue !== val)
+            t.nodeValue = val;
+    });
+}
+function morphTextAtt1(list, key, model)
+{
+    var v = model.get(key);
+    each(list, function(a) {
+        var n = a.att, r = a.node;
+        if (true === v || false === v)
+        {
+            // allow to enable/disable attributes via single boolean values
+            if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+                'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+                'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+                'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
             {
-                // allow to enable/disable attributes via single boolean values
-                if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
-                    'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
-                    'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
-                    'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
-                {
-                    r[n] = v;
-                }
-                else
-                {
-                    if (v) r[SET_ATTR](n, n);
-                    else r[DEL_ATTR](n);
-                }
+                r[n] = v;
             }
             else
             {
-                v = Str(v);
-                if ('id' === n)
-                {
-                    r[n] = v;
-                }
-                else if ('class' === n)
-                {
-                    r[CLASS] = v;
-                }
-                else if ('style' === n)
-                {
-                    r[n].cssText = v;
-                }
-                else if ('value' === n)
-                {
-                    if (r[n] !== v) r[n] = v;
-                }
-                else//if (r[ATTR](n) !== v)
-                {
-                    r[SET_ATTR](n, v);
-                }
+                if (v) r[SET_ATTR](n, n);
+                else r[DEL_ATTR](n);
             }
-        });
-    },
-    morphTextAtt = function(list, model) {
-        each(list, function(a) {
-            var r = a.node, n = a.att,
-                v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+        }
+        else
+        {
+            v = Str(v);
             if ('id' === n)
             {
                 r[n] = v;
@@ -2844,59 +2741,81 @@ var
             {
                 r[SET_ATTR](n, v);
             }
-        });
-    },
-    morphText = function morphText(map, model, keys) {
-        if (!map || (!map.txt && !map.att1 && !map.att)) return;
-        if (keys)
-        {
-            each(keys, function(ks) {
-                var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
-                each(kk, function(k, i) {
-                    mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
-                    ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
-                    ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
-                    if (kk.length-1 === i)
-                    {
-                        walk_map(mt, function(list, k) {morphTextVal(list, k, model);}, ks);
-                        walk_map(ma1, function(list, k) {morphTextAtt1(list, k, model);}, ks);
-                        walk_map(ma, function(list) {morphTextAtt(list, model);}, ks);
-                    }
-                });
-            });
         }
-        else
-        {
-            walk_map(map.txt, function(list, k) {morphTextVal(list, k, model);}, '');
-            walk_map(map.att1, function(list, k) {morphTextAtt1(list, k, model);}, '');
-            walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
-        }
-    }
-;
-
-if (HASDOC && window.Node)
-{
-    // add ModelView custom prop to DOM Node prototype
-    // so browser optimization is not affected
-    window.Node[proto][MV] = null;
+    });
 }
+function morphTextAtt(list, model)
+{
+    each(list, function(a) {
+        var r = a.node, n = a.att,
+            v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+        if ('id' === n)
+        {
+            r[n] = v;
+        }
+        else if ('class' === n)
+        {
+            r[CLASS] = v;
+        }
+        else if ('style' === n)
+        {
+            r[n].cssText = v;
+        }
+        else if ('value' === n)
+        {
+            if (r[n] !== v) r[n] = v;
+        }
+        else//if (r[ATTR](n) !== v)
+        {
+            r[SET_ATTR](n, v);
+        }
+    });
+}
+function morphText(map, model, keys)
+{
+    if (!map || (!map.txt && !map.att1 && !map.att)) return;
+    if (keys)
+    {
+        each(keys, function(ks) {
+            var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
+            each(kk, function(k, i) {
+                mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
+                ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
+                ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
+                if (kk.length-1 === i)
+                {
+                    walk_map(mt, function(list, k) {morphTextVal(list, k, model);}, ks);
+                    walk_map(ma1, function(list, k) {morphTextAtt1(list, k, model);}, ks);
+                    walk_map(ma, function(list) {morphTextAtt(list, model);}, ks);
+                }
+            });
+        });
+    }
+    else
+    {
+        walk_map(map.txt, function(list, k) {morphTextVal(list, k, model);}, '');
+        walk_map(map.att1, function(list, k) {morphTextAtt1(list, k, model);}, '');
+        walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
+    }
+}
+
 
 //
 // PublishSubscribe (Interface)
-var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3,
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
 
-    PBEvent = function(evt, target, ns) {
-        var self = this;
-        if (!(self instanceof PBEvent)) return new PBEvent(evt, target, ns);
-        // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
-        self.type = evt;
-        self.target = target;
-        self.currentTarget = target;
-        self.timeStamp = NOW( );
-        self.eventPhase = AT_TARGET;
-        self.namespace = ns || null;
-    }
-;
+function PBEvent(evt, target, ns)
+{
+    var self = this;
+    if (!is_instance(self, PBEvent)) return new PBEvent(evt, target, ns);
+    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+    self.type = evt;
+    self.target = target;
+    self.currentTarget = target;
+    self.timeStamp = NOW();
+    self.eventPhase = AT_TARGET;
+    self.namespace = ns || null;
+}
 PBEvent[proto] = {
     constructor: PBEvent
 
@@ -3080,83 +2999,77 @@ PublishSubscribe.publish = PublishSubscribe.trigger;
 
 //
 // Data Types / Validators for Models (Static)
-var
-    ModelField = function ModelField(modelField) {
-        if (!is_instance(this, ModelField)) return new ModelField( modelField );
-        this.f = modelField || null;
-    },
 
-    CollectionEach = function CollectionEach(f) {
-        if (!is_instance(this, CollectionEach)) return new CollectionEach(f);
-        this.f = f || null;
-        this.fEach = 1;
-    },
+var floor = Math.floor, round = Math.round, abs = Math.abs,
+    tpl_$0_re = /\$0/g
+;
 
-    floor = Math.floor, round = Math.round, abs = Math.abs,
-
-    pad = function(s, len, ch) {
-        var sp = String(s), n = len-sp.length;
-        return n > 0 ? new Array(n+1).join(ch||' ')+sp : sp;
-    },
-
-    tpl_$0_re = /\$0/g,
-
-    // Validator Compositor
-    VC = function VC(V) {
-
-        V.NOT = function() {
-            return VC(function(v, k) {
-                return !V.call(this, v, k);
-            });
-        };
-
-        V.AND = function(V2) {
-            return VC(function(v, k) {
-                var self = this;
-                return V.call(self, v, k) && V2.call(self, v, k);
-            });
-        };
-
-        V.OR = function(V2) {
-            return VC(function(v, k) {
-                var self = this;
-                return V.call(self, v, k) || V2.call(self, v, k);
-            });
-        };
-
-        V.XOR = function(V2) {
-            return VC(function(v, k) {
-                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
-                return (r1 && !r2) || (r2 && !r1);
-            });
-        };
-
-        V.EQ = function(V2, strict) {
-            return VC(false !== strict
-            ? function(v, k) {
-                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
-                return r1 === r2;
-            }
-            : function(v, k) {
-                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
-                return r1 == r2;
-            });
-        };
-
-        V.NEQ = function(V2, strict) {
-            return VC(false !== strict
-            ? function(v, k) {
-                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
-                return r1 !== r2;
-            }
-            : function(v, k) {
-                var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
-                return r1 != r2;
-            });
-        };
-
-        return V;
-    },
+function ModelField(modelField)
+{
+    if (!is_instance(this, ModelField)) return new ModelField(modelField);
+    this.f = modelField || null;
+}
+function CollectionEach(f)
+{
+    if (!is_instance(this, CollectionEach)) return new CollectionEach(f);
+    this.f = f || null;
+    this.fEach = 1;
+}
+function pad(s, len, ch)
+{
+    var sp = String(s), n = len-sp.length;
+    return n > 0 ? new Array(n+1).join(ch||' ')+sp : sp;
+}
+// Validator Compositor
+function VC(V)
+{
+    V.NOT = function() {
+        return VC(function(v, k) {
+            return !V.call(this, v, k);
+        });
+    };
+    V.AND = function(V2) {
+        return VC(function(v, k) {
+            var self = this;
+            return V.call(self, v, k) && V2.call(self, v, k);
+        });
+    };
+    V.OR = function(V2) {
+        return VC(function(v, k) {
+            var self = this;
+            return V.call(self, v, k) || V2.call(self, v, k);
+        });
+    };
+    V.XOR = function(V2) {
+        return VC(function(v, k) {
+            var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+            return (r1 && !r2) || (r2 && !r1);
+        });
+    };
+    V.EQ = function(V2, strict) {
+        return VC(false !== strict
+        ? function(v, k) {
+            var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+            return r1 === r2;
+        }
+        : function(v, k) {
+            var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+            return r1 == r2;
+        });
+    };
+    V.NEQ = function(V2, strict) {
+        return VC(false !== strict
+        ? function(v, k) {
+            var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+            return r1 !== r2;
+        }
+        : function(v, k) {
+            var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
+            return r1 != r2;
+        });
+    };
+    return V;
+}
 
 /**[DOC_MARKDOWN]
 #### Types
@@ -3166,189 +3079,189 @@ var
 // modelview.js type casters
 
 [/DOC_MARKDOWN]**/
-    Type = {
+var Type = {
 
-        tpl_$0: tpl_$0_re,
+    tpl_$0: tpl_$0_re,
 
-        TypeCaster: function(typecaster){return typecaster;}
+    TypeCaster: function(typecaster){return typecaster;}
 
-        // default type casters
-        ,Cast: {
+    // default type casters
+    ,Cast: {
 /**[DOC_MARKDOWN]
 // functionaly compose typeCasters, i.e final TypeCaster = TypeCaster1(TypeCaster2(...(value)))
 ModelView.Type.Cast.COMPOSITE( TypeCaster1, TypeCaster2 [, ...] );
 
 [/DOC_MARKDOWN]**/
-            // composite type caster
-            COMPOSITE: function() {
-                var args = arguments;
-                if (is_type(args[ 0 ], T_ARRAY)) args = args[ 0 ];
-                return function(v, k) {
-                   var l = args.length;
-                   while ( l-- ) v = args[l].call(this, v, k);
-                   return v;
-                };
-            },
+        // composite type caster
+        COMPOSITE: function() {
+            var args = arguments;
+            if (is_type(args[ 0 ], T_ARRAY)) args = args[ 0 ];
+            return function(v, k) {
+               var l = args.length;
+               while ( l-- ) v = args[l].call(this, v, k);
+               return v;
+            };
+        },
 
 /**[DOC_MARKDOWN]
 // cast to "eachTypeCaster" for each element in a collection (see examples)
 ModelView.Type.Cast.EACH( eachTypeCaster );
 
 [/DOC_MARKDOWN]**/
-            // collection for each item type caster
-            EACH: CollectionEach,
+        // collection for each item type caster
+        EACH: CollectionEach,
 
 /**[DOC_MARKDOWN]
 // cast fields of an object with a FIELDS TypeCaster
 ModelView.Type.Cast.FIELDS({
-    'field1': ModelView.Type.Cast.STR,
-    'field2': ModelView.Type.Cast.BOOL,
-    'field3': ModelView.Type.TypeCaster(function(v) { return v; }) // a custom type caster
-    // etc..
+'field1': ModelView.Type.Cast.STR,
+'field2': ModelView.Type.Cast.BOOL,
+'field3': ModelView.Type.TypeCaster(function(v) { return v; }) // a custom type caster
+// etc..
 });
 
 [/DOC_MARKDOWN]**/
-            // type caster for each specific field of an object
-            FIELDS: function(typesPerField) {
-                //var notbinded = true;
-                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                typesPerField = Merge({}, typesPerField || {});
-                return function(v) {
-                    var self = this, field, type, val;
-                    for (field in typesPerField)
+        // type caster for each specific field of an object
+        FIELDS: function(typesPerField) {
+            //var notbinded = true;
+            // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+            typesPerField = Merge({}, typesPerField || {});
+            return function(v) {
+                var self = this, field, type, val;
+                for (field in typesPerField)
+                {
+                    if (HAS.call(typesPerField,field))
                     {
-                        if (HAS.call(typesPerField,field))
+                        type = typesPerField[ field ]; val = v[ field ];
+                        if (type.fEach && is_type(val, T_ARRAY))
                         {
-                            type = typesPerField[ field ]; val = v[ field ];
-                            if (type.fEach && is_type(val, T_ARRAY))
-                            {
-                               v[ field ] = iterate(function( i, val ) {
-                                   val[ i ] = type.f.call( self, val[ i ] );
-                               }, 0, val.length-1, val);
-                            }
-                            else
-                            {
-                                v[ field ] = type.call( self, val );
-                            }
+                           v[ field ] = iterate(function( i, val ) {
+                               val[ i ] = type.f.call( self, val[ i ] );
+                           }, 0, val.length-1, val);
+                        }
+                        else
+                        {
+                            v[ field ] = type.call( self, val );
                         }
                     }
-                    return v;
-                };
-            },
+                }
+                return v;
+            };
+        },
 
 /**[DOC_MARKDOWN]
 // cast to defaultValue if value not set or empty string
 ModelView.Type.Cast.DEFAULT( defaultValue );
 
 [/DOC_MARKDOWN]**/
-            DEFAULT: function(defaultValue) {
-                return function(v) {
-                    var T = get_type(v);
-                    if ((T_UNDEF & T) || ((T_STR & T) && !trim(v).length)) v = defaultValue;
-                    return v;
-                };
-            },
+        DEFAULT: function(defaultValue) {
+            return function(v) {
+                var T = get_type(v);
+                if ((T_UNDEF & T) || ((T_STR & T) && !trim(v).length)) v = defaultValue;
+                return v;
+            };
+        },
 /**[DOC_MARKDOWN]
 // cast to boolean
 ModelView.Type.Cast.BOOL;
 
 [/DOC_MARKDOWN]**/
-            BOOL: function(v) {
-                // handle string representation of booleans as well
-                if (is_type(v, T_STR) && v.length)
-                {
-                    var vs = v.toLowerCase( );
-                    return "true" === vs || "yes" === vs || "on" === vs || "1" === vs;
-                }
-                return !!v;
-            },
+        BOOL: function(v) {
+            // handle string representation of booleans as well
+            if (is_type(v, T_STR) && v.length)
+            {
+                var vs = v.toLowerCase( );
+                return "true" === vs || "yes" === vs || "on" === vs || "1" === vs;
+            }
+            return !!v;
+        },
 /**[DOC_MARKDOWN]
 // cast to integer
 ModelView.Type.Cast.INT;
 
 [/DOC_MARKDOWN]**/
-            INT: function(v) {
-                // convert NaN to 0 if needed
-                return parseInt(v, 10) || 0;
-            },
+        INT: function(v) {
+            // convert NaN to 0 if needed
+            return parseInt(v, 10) || 0;
+        },
 /**[DOC_MARKDOWN]
 // cast to float
 ModelView.Type.Cast.FLOAT;
 
 [/DOC_MARKDOWN]**/
-            FLOAT: function(v) {
-                // convert NaN to 0 if needed
-                return parseFloat(v, 10) || 0;
-            },
+        FLOAT: function(v) {
+            // convert NaN to 0 if needed
+            return parseFloat(v, 10) || 0;
+        },
 /**[DOC_MARKDOWN]
 // min if value is less than
 ModelView.Type.Cast.MIN( min );
 
 [/DOC_MARKDOWN]**/
-            MIN: function(m) {
-                return function(v) {return v < m ? m : v;};
-            },
+        MIN: function(m) {
+            return function(v) {return v < m ? m : v;};
+        },
 /**[DOC_MARKDOWN]
 // max if value is greater than
 ModelView.Type.Cast.MAX( max );
 
 [/DOC_MARKDOWN]**/
-            MAX: function(M) {
-                return function(v) {return v > M ? M : v;};
-            },
+        MAX: function(M) {
+            return function(v) {return v > M ? M : v;};
+        },
 /**[DOC_MARKDOWN]
 // clamp between min-max (included)
 ModelView.Type.Cast.CLAMP( min, max );
 
 [/DOC_MARKDOWN]**/
-            CLAMP: function(m, M) {
-                // swap
-                if (m > M) { var tmp = M; M = m; m = tmp; }
-                return function(v) {return v < m ? m : (v > M ? M : v);};
-            },
+        CLAMP: function(m, M) {
+            // swap
+            if (m > M) { var tmp = M; M = m; m = tmp; }
+            return function(v) {return v < m ? m : (v > M ? M : v);};
+        },
 /**[DOC_MARKDOWN]
 // cast to trimmed string of spaces
 ModelView.Type.Cast.TRIM;
 
 [/DOC_MARKDOWN]**/
-            TRIM: function(v) {
-                return trim(Str(v));
-            },
+        TRIM: function(v) {
+            return trim(Str(v));
+        },
 /**[DOC_MARKDOWN]
 // cast to string
 ModelView.Type.Cast.STR;
 
 [/DOC_MARKDOWN]**/
-            STR: function(v) {
-                return Str(v);
-            }
+        STR: function(v) {
+            return Str(v);
         }
+    }
 
 /**[DOC_MARKDOWN]
 // add a custom typecaster
 ModelView.Type.add( name, typeCaster );
 
 [/DOC_MARKDOWN]**/
-        ,add: function(type, handler) {
-            if (is_type(type, T_STR) && is_type(handler, T_FUNC))
-                Type.Cast[type] = handler;
-            return Type;
-        }
+    ,add: function(type, handler) {
+        if (is_type(type, T_STR) && is_type(handler, T_FUNC))
+            Type.Cast[type] = handler;
+        return Type;
+    }
 
 /**[DOC_MARKDOWN]
 // delete custom typecaster
 ModelView.Type.del( name );
 
 [/DOC_MARKDOWN]**/
-        ,del: function(type) {
-            if (is_type(type, T_STR) && HAS.call(Type.Cast, type)) delete Type.Cast[type];
-            return Type;
-        }
+    ,del: function(type) {
+        if (is_type(type, T_STR) && HAS.call(Type.Cast, type)) delete Type.Cast[type];
+        return Type;
+    }
 
-        ,toString: function( ) {
-            return '[ModelView.Type]';
-        }
-    },
+    ,toString: function( ) {
+        return '[ModelView.Type]';
+    }
+};
 /**[DOC_MARKDOWN]
 
 ```
@@ -3366,246 +3279,245 @@ ModelView.Type.del( name );
 // (extra validators are available in `modelview.validation.js`)
 
 [/DOC_MARKDOWN]**/
-    Validation = {
+var Validation = {
 
-        Validator: VC
+    Validator: VC
 
-        // default validators
-        ,Validate: {
+    // default validators
+    ,Validate: {
 /**[DOC_MARKDOWN]
 // validate each element in a collection using "eachValidator"
 ModelView.Validation.Validate.EACH( eachValidator );
 
 [/DOC_MARKDOWN]**/
-            // collection for each item validator
-            EACH: CollectionEach,
+        // collection for each item validator
+        EACH: CollectionEach,
 
 /**[DOC_MARKDOWN]
 // validate fields of an object with a FIELDS Validator
 ModelView.Validation.Validate.FIELDS({
-    'field1': ModelView.Validation.Validate.GREATER_THAN( 0 ),
-    'field2': ModelView.Validation.Validate.BETWEEN( v1, v2 ),
-    'field3': ModelView.Validation.Validator(function(v) { return true; }) // a custom validator
-    // etc..
+'field1': ModelView.Validation.Validate.GREATER_THAN( 0 ),
+'field2': ModelView.Validation.Validate.BETWEEN( v1, v2 ),
+'field3': ModelView.Validation.Validator(function(v) { return true; }) // a custom validator
+// etc..
 });
 
 [/DOC_MARKDOWN]**/
-            // validator for each specific field of an object
-            FIELDS: function(validatorsPerField) {
-                //var notbinded = true;
-                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                validatorsPerField = Merge({}, validatorsPerField || {});
-                return VC(function(v) {
-                    var self = this, field, validator, val, l, i;
-                    for (field in validatorsPerField)
+        // validator for each specific field of an object
+        FIELDS: function(validatorsPerField) {
+            //var notbinded = true;
+            // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+            validatorsPerField = Merge({}, validatorsPerField || {});
+            return VC(function(v) {
+                var self = this, field, validator, val, l, i;
+                for (field in validatorsPerField)
+                {
+                    if (HAS.call(validatorsPerField,field))
                     {
-                        if (HAS.call(validatorsPerField,field))
+                        validator = validatorsPerField[ field ]; val = v[ field ];
+                        if (validator.fEach && is_type(val, T_ARRAY))
                         {
-                            validator = validatorsPerField[ field ]; val = v[ field ];
-                            if (validator.fEach && is_type(val, T_ARRAY))
-                            {
-                               l = val.length;
-                               for (i=0; i<l; i++) if (!validator.f.call(self, val[ i ])) return false;
-                            }
-                            else
-                            {
-                                if (!validator.call(self, val)) return false;
-                            }
+                           l = val.length;
+                           for (i=0; i<l; i++) if (!validator.f.call(self, val[ i ])) return false;
+                        }
+                        else
+                        {
+                            if (!validator.call(self, val)) return false;
                         }
                     }
-                    return true;
-                });
-            },
+                }
+                return true;
+            });
+        },
 
 /**[DOC_MARKDOWN]
 // validate (string) is numeric
 ModelView.Validation.Validate.NUMERIC;
 
 [/DOC_MARKDOWN]**/
-            NUMERIC: VC(function(v) {
-                return is_numeric(v);
-            }),
+        NUMERIC: VC(function(v) {
+            return is_numeric(v);
+        }),
 /**[DOC_MARKDOWN]
 // validate (string) empty (can be used as optional)
 ModelView.Validation.Validate.EMPTY;
 
 [/DOC_MARKDOWN]**/
-            EMPTY: VC(function(v){
-                return !v || !trim(Str(v)).length;
-            }),
+        EMPTY: VC(function(v){
+            return !v || !trim(Str(v)).length;
+        }),
 /**[DOC_MARKDOWN]
 // validate (string) not empty
 ModelView.Validation.Validate.NOT_EMPTY;
 
 [/DOC_MARKDOWN]**/
-            NOT_EMPTY: VC(function(v) {
-                return !!(v && (0 < trim(Str(v)).length));
-            }),
+        NOT_EMPTY: VC(function(v) {
+            return !!(v && (0 < trim(Str(v)).length));
+        }),
 /**[DOC_MARKDOWN]
 // validate (string) maximum length
 ModelView.Validation.Validate.MAXLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
-            MAXLEN: function(len) {
-                return VC(newFunc("v", "return v.length <= "+(len||0)+";"));
-            },
+        MAXLEN: function(len) {
+            return VC(newFunc("v", "return v.length <= "+(len||0)+";"));
+        },
 /**[DOC_MARKDOWN]
 // validate (string) minimum length
 ModelView.Validation.Validate.MINLEN( len=0 );
 
 [/DOC_MARKDOWN]**/
-            MINLEN: function(len) {
-                return VC(newFunc("v", "return v.length >= "+(len||0)+";"));
-            },
+        MINLEN: function(len) {
+            return VC(newFunc("v", "return v.length >= "+(len||0)+";"));
+        },
 /**[DOC_MARKDOWN]
 // validate value matches regex pattern
 ModelView.Validation.Validate.MATCH( regex );
 
 [/DOC_MARKDOWN]**/
-            MATCH: function(regex_pattern) {
-                return VC(function(v) {return regex_pattern.test( v );});
-            },
+        MATCH: function(regex_pattern) {
+            return VC(function(v) {return regex_pattern.test( v );});
+        },
 /**[DOC_MARKDOWN]
 // validate value not matches regex pattern
 ModelView.Validation.Validate.NOT_MATCH( regex );
 
 [/DOC_MARKDOWN]**/
-            NOT_MATCH: function(regex_pattern) {
-                return VC(function(v) {return !regex_pattern.test( v );});
-            },
+        NOT_MATCH: function(regex_pattern) {
+            return VC(function(v) {return !regex_pattern.test( v );});
+        },
 /**[DOC_MARKDOWN]
 // validate equal to value (or model field)
 ModelView.Validation.Validate.EQUAL( value | Model.Field("a.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            EQUAL: function(val, strict) {
-                if (is_instance(val, ModelField))
-                    return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "===" : "==")+" v;"));
-                return false !== strict
-                    ? VC(function(v) {return val === v;})
-                    : VC(function(v) {return val == v;})
-                ;
-            },
+        EQUAL: function(val, strict) {
+            if (is_instance(val, ModelField))
+                return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "===" : "==")+" v;"));
+            return false !== strict
+                ? VC(function(v) {return val === v;})
+                : VC(function(v) {return val == v;})
+            ;
+        },
 /**[DOC_MARKDOWN]
 // validate not equal to value (or model field)
 ModelView.Validation.Validate.NOT_EQUAL( value | Model.Field("a.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            NOT_EQUAL: function(val, strict) {
-                if (is_instance(val, ModelField))
-                    return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "!==" : "!=")+" v;"));
-                return false !== strict
-                    ? VC(function(v) {return val !== v;})
-                    : VC(function(v) {return val != v;})
-                ;
-            },
+        NOT_EQUAL: function(val, strict) {
+            if (is_instance(val, ModelField))
+                return VC(newFunc("v", "return this.$data."+val.f+" "+(false !== strict ? "!==" : "!=")+" v;"));
+            return false !== strict
+                ? VC(function(v) {return val !== v;})
+                : VC(function(v) {return val != v;})
+            ;
+        },
 /**[DOC_MARKDOWN]
 // validate greater than (or equal if "strict" is false) to value (or model field)
 ModelView.Validation.Validate.GREATER_THAN( value | Model.Field("a.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            GREATER_THAN: function(m, strict) {
-                if (is_instance(m, ModelField)) m = "this.$data."+m.f;
-                else if (is_type(m, T_STR)) m = '"' + m + '"';
-                return VC(newFunc("v", "return "+m+" "+(false !== strict ? "<" : "<=")+" v;"));
-            },
+        GREATER_THAN: function(m, strict) {
+            if (is_instance(m, ModelField)) m = "this.$data."+m.f;
+            else if (is_type(m, T_STR)) m = '"' + m + '"';
+            return VC(newFunc("v", "return "+m+" "+(false !== strict ? "<" : "<=")+" v;"));
+        },
 /**[DOC_MARKDOWN]
 // validate less than (or equal if "strict" is false) to value (or model field)
 ModelView.Validation.Validate.LESS_THAN( value | Model.Field("a.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            LESS_THAN: function(M, strict) {
-                if (is_instance(M, ModelField)) M = "this.$data."+M.f;
-                else if (is_type(M, T_STR)) M = '"' + M + '"';
-                return VC(newFunc("v", "return "+M+" "+(false !== strict ? ">" : ">=")+" v;"));
-            },
+        LESS_THAN: function(M, strict) {
+            if (is_instance(M, ModelField)) M = "this.$data."+M.f;
+            else if (is_type(M, T_STR)) M = '"' + M + '"';
+            return VC(newFunc("v", "return "+M+" "+(false !== strict ? ">" : ">=")+" v;"));
+        },
 /**[DOC_MARKDOWN]
 // validate between (or equal if "strict" is false) the interval [value1, value2]
 ModelView.Validation.Validate.BETWEEN( value1 | Model.Field("a.model.field"), value2 | Model.Field("another.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            BETWEEN: function(m, M, strict) {
-                if (is_type(m, T_ARRAY)) {strict = M; M = m[1]; m=m[0];}
+        BETWEEN: function(m, M, strict) {
+            if (is_type(m, T_ARRAY)) {strict = M; M = m[1]; m=m[0];}
 
-                var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
-                // swap
-                if (!is_m_field && !is_M_field && m > M) {tmp = M; M = m; m = tmp;}
-                m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
-                M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
-                return false !== strict
-                    ? VC(newFunc("v", "return ( "+m+" < v ) && ( "+M+" > v );"))
-                    : VC(newFunc("v", "return ( "+m+" <= v ) && ( "+M+" >= v );"))
-                ;
-            },
+            var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
+            // swap
+            if (!is_m_field && !is_M_field && m > M) {tmp = M; M = m; m = tmp;}
+            m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
+            M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
+            return false !== strict
+                ? VC(newFunc("v", "return ( "+m+" < v ) && ( "+M+" > v );"))
+                : VC(newFunc("v", "return ( "+m+" <= v ) && ( "+M+" >= v );"))
+            ;
+        },
 /**[DOC_MARKDOWN]
 // validate not between (or equal if "strict" is false) the interval [value1, value2]
 ModelView.Validation.Validate.NOT_BETWEEN( value1 | Model.Field("a.model.field"), value2 | Model.Field("another.model.field") [, strict=true] );
 
 [/DOC_MARKDOWN]**/
-            NOT_BETWEEN: function(m, M, strict) {
-                if (is_type(m, T_ARRAY)) {strict = M; M = m[1]; m=m[0];}
+        NOT_BETWEEN: function(m, M, strict) {
+            if (is_type(m, T_ARRAY)) {strict = M; M = m[1]; m=m[0];}
 
-                var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
-                // swap
-                if (!is_m_field && !is_M_field && m > M) { tmp = M; M = m; m = tmp; }
-                m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
-                M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
-                return false !== strict
-                    ? VC(newFunc("v", "return ( "+m+" > v ) || ( "+M+" < v );"))
-                    : VC(newFunc("v", "return ( "+m+" >= v ) || ( "+M+" <= v );"))
-                ;
-            },
+            var tmp, is_m_field = is_instance(m, ModelField), is_M_field = is_instance(M, ModelField);
+            // swap
+            if (!is_m_field && !is_M_field && m > M) { tmp = M; M = m; m = tmp; }
+            m = is_m_field ? ("this.$data."+m.f) : (is_type(m, T_STR) ? ('"'+m+'"') : m);
+            M = is_M_field ? ("this.$data."+M.f) : (is_type(M, T_STR) ? ('"'+M+'"') : M);
+            return false !== strict
+                ? VC(newFunc("v", "return ( "+m+" > v ) || ( "+M+" < v );"))
+                : VC(newFunc("v", "return ( "+m+" >= v ) || ( "+M+" <= v );"))
+            ;
+        },
 /**[DOC_MARKDOWN]
 // validate value is one of value1, value2, ...
 ModelView.Validation.Validate.IN( value1, value2 [, ...] );
 
 [/DOC_MARKDOWN]**/
-            IN: function(/* vals,.. */) {
-                var vals = slice.call(arguments);
-                if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
-                return VC(function(v) {
-                    return -1 < vals.indexOf(v);
-                });
-            },
+        IN: function(/* vals,.. */) {
+            var vals = slice.call(arguments);
+            if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
+            return VC(function(v) {
+                return -1 < vals.indexOf(v);
+            });
+        },
 /**[DOC_MARKDOWN]
 // validate value is not one of value1, value2, ...
 ModelView.Validation.Validate.NOT_IN( value1, value2 [, ...] );
 
 [/DOC_MARKDOWN]**/
-            NOT_IN: function(/* vals,.. */) {
-                var vals = slice.call(arguments);
-                if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
-                return VC(function(v) {
-                    return 0 > vals.indexOf(v);
-                });
-            }
+        NOT_IN: function(/* vals,.. */) {
+            var vals = slice.call(arguments);
+            if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
+            return VC(function(v) {
+                return 0 > vals.indexOf(v);
+            });
         }
+    }
 /**[DOC_MARKDOWN]
 // add a custom validator
 ModelView.Validation.add( name, validator );
 
 [/DOC_MARKDOWN]**/
-        ,add: function(type, handler) {
-            if (is_type(type, T_STR) && is_type(handler, T_FUNC))
-                Validation.Validate[ type ] = is_type(handler.XOR, T_FUNC) ? handler : VC(handler);
-            return Validation;
-        }
+    ,add: function(type, handler) {
+        if (is_type(type, T_STR) && is_type(handler, T_FUNC))
+            Validation.Validate[ type ] = is_type(handler.XOR, T_FUNC) ? handler : VC(handler);
+        return Validation;
+    }
 
 /**[DOC_MARKDOWN]
 // delete custom validator
 ModelView.Validation.del( name );
 
 [/DOC_MARKDOWN]**/
-        ,del: function(type) {
-            if (is_type(type, T_STR) && HAS.call(Validation.Validate, type)) delete Validation.Validate[ type ];
-            return Validation;
-        }
-
-        ,toString: function() {
-            return '[ModelView.Validation]';
-        }
+    ,del: function(type) {
+        if (is_type(type, T_STR) && HAS.call(Validation.Validate, type)) delete Validation.Validate[ type ];
+        return Validation;
     }
-;
+
+    ,toString: function() {
+        return '[ModelView.Validation]';
+    }
+};
 /**[DOC_MARKDOWN]
 ```
 
@@ -3687,560 +3599,642 @@ $dom.modelview({
 [/DOC_MARKDOWN]**/
 
 // Model utils
-var
-    get_next = function(a, k) {
-        if (!a) return null;
-        var b = iterate(function(i, b){
-            var ai = a[ i ];
+// http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+var index_to_prop_re = /\[([^\]]*)\]/g,
+    trailing_dots_re = /^\.+|\.+$/g;
+
+function get_next(a, k)
+{
+    if (!a) return null;
+    var b = iterate(function(i, b){
+        var ai = a[ i ];
+        if (ai)
+        {
+            if (HAS.call(ai, k)) b.push( ai[ k ].n );
+            if (HAS.call(ai, WILDCARD)) b.push( ai[ WILDCARD ].n );
+        }
+    }, 0, a.length-1, []);
+    return b.length ? b : null;
+}
+function get_value(a, k)
+{
+    if (!a) return null;
+    var i, ai, l = a.length;
+    if (undef !== k)
+    {
+        for (i=0; i<l; i++)
+        {
+            ai = a[ i ];
             if (ai)
             {
-                if (HAS.call(ai, k)) b.push( ai[ k ].n );
-                if (HAS.call(ai, WILDCARD)) b.push( ai[ WILDCARD ].n );
+                if (HAS.call(ai, k) && ai[ k ].v) return ai[ k ].v;
+                if (HAS.call(ai, WILDCARD) && ai[ WILDCARD ].v) return ai[ WILDCARD ].v;
             }
-        }, 0, a.length-1, []);
-        return b.length ? b : null;
-    },
-
-    get_value = function(a, k) {
-        if (!a) return null;
-        var i, ai, l = a.length;
-        if (undef !== k)
+        }
+    }
+    else
+    {
+        for (i=0; i<l; i++)
         {
-            for (i=0; i<l; i++)
+            ai = a[ i ];
+            if (ai && ai.v) return ai.v;
+        }
+    }
+    return null;
+}
+function walk_and_add(v, p, obj, isCollectionEach)
+{
+    var o = obj, k, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (!HAS.call(o,k)) o[ k ] = new Node( );
+        o = o[ k ];
+        if (i < l)
+        {
+            o = o.n;
+        }
+        else
+        {
+            if (isCollectionEach)
             {
-                ai = a[ i ];
-                if (ai)
-                {
-                    if (HAS.call(ai, k) && ai[ k ].v) return ai[ k ].v;
-                    if (HAS.call(ai, WILDCARD) && ai[ WILDCARD ].v) return ai[ WILDCARD ].v;
-                }
+                if (!HAS.call(o.n,WILDCARD) ) o.n[ WILDCARD ] = new Node( );
+                o.n[ WILDCARD ].v = v;
+            }
+            else
+            {
+                o.v = v;
+            }
+        }
+    }
+    return obj;
+}
+function walk_and_check(p, obj, aux, C)
+{
+    var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection)) o = o.items();
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            {
+                o = o[ k ];
+                // nested sub-composite class
+                if (o instanceof C) return [C, o, p.slice(i)];
+                a && (a = get_next( a, k ));
+            }
+            else if (!a || !(a = get_next( a, k )))
+            {
+                return false;
             }
         }
         else
         {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if (ai && ai.v) return ai.v;
-            }
+            if (a && get_value( a, k )) return true;
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return true;
+            else if (T_OBJ === to && 'length' == k) return true;
+            return false;
         }
-        return null;
-    },
-
-    walk_and_add = function(v, p, obj, isCollectionEach) {
-        var o = obj, k, i = 0, l = p.length;
-        while (i < l)
+    }
+    return false;
+}
+function walk_and_get2(p, obj, aux, C)
+{
+    var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection)) o = o.items();
+        to = get_type( o );
+        if (i < l)
         {
-            k = p[i++];
-            if (!HAS.call(o,k)) o[ k ] = new Node( );
-            o = o[ k ];
-            if (i < l)
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
             {
-                o = o.n;
-            }
-            else
-            {
-                if (isCollectionEach)
-                {
-                    if (!HAS.call(o.n,WILDCARD) ) o.n[ WILDCARD ] = new Node( );
-                    o.n[ WILDCARD ].v = v;
-                }
-                else
-                {
-                    o.v = v;
-                }
-            }
-        }
-        return obj;
-    },
-
-    walk_and_check = function(p, obj, aux, C) {
-        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection)) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
-                    a && (a = get_next( a, k ));
-                }
-                else if (!a || !(a = get_next( a, k )))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (a && get_value( a, k )) return true;
-                else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return true;
-                else if (T_OBJ === to && 'length' == k) return true;
-                return false;
-            }
-        }
-        return false;
-    },
-
-    walk_and_get2 = function(p, obj, aux, C) {
-        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection)) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i)];
-                    a && (a = get_next( a, k ));
-                }
-                else if (!a || !(a = get_next( a, k )))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (a && (a = get_value( a, k ))) return [false, a];
-                else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o[k]];
-                else if (T_OBJ === to && 'length' == k) return [true, Keys(o).length];
-                return false;
-            }
-        }
-        return false;
-    },
-
-    walk_and_get_value2 = function(p, obj, aux, C) {
-        var o = obj, a = aux, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection) && i < l) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i)];
-                    else if (!a || !(a = get_next( a, k ))) return false;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
+                o = o[ k ];
                 // nested sub-composite class
-                if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
-                else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+                if (is_instance(o, C)) return [C, o, p.slice(i)];
+                a && (a = get_next( a, k ));
+            }
+            else if (!a || !(a = get_next( a, k )))
+            {
                 return false;
             }
         }
-        return false;
-    },
-
-    walk_and_get3 = function(p, obj, aux1, aux2, aux3, C, all3, collections) {
-        var o = obj, a1 = null, a2 = null, a3 = null,
-            k, to, i = 0, l = p.length
-        ;
-        all3 = false !== all3;
-        if (all3) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-
-        while (i < l)
+        else
         {
-            k = p[i++];
-            if (is_instance(o, Collection) && i < l)
+            if (a && (a = get_value( a, k ))) return [false, a];
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o[k]];
+            else if (T_OBJ === to && 'length' == k) return [true, Keys(o).length];
+            return false;
+        }
+    }
+    return false;
+}
+function walk_and_get_value2(p, obj, aux, C)
+{
+    var o = obj, a = aux, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection) && i < l) o = o.items();
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
             {
-                if (collections) collections.push([o, +k]);
-                o = o.items();
+                o = o[ k ];
+                // nested sub-composite class
+                if (is_instance(o, C)) return [C, o, p.slice(i)];
+                else if (!a || !(a = get_next( a, k ))) return false;
             }
-            to = get_type( o );
-            if (i < l)
+            else
             {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
-                    if (all3)
-                    {
-                        a1 = get_next( a1, k );
-                        a2 = get_next( a2, k );
-                        a3 = get_next( a3, k );
-                    }
-                }
-                // fixed, it bypassed setters which had multiple virtual levels
-                else if (all3 && a3 && (a3 = get_next( a3, k )))
+                return false;
+            }
+        }
+        else
+        {
+            // nested sub-composite class
+            if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
+            else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+            return false;
+        }
+    }
+    return false;
+}
+function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
+{
+    var o = obj, a1 = null, a2 = null, a3 = null,
+        k, to, i = 0, l = p.length
+    ;
+    all3 = false !== all3;
+    if (all3) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
+
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection) && i < l)
+        {
+            if (collections) collections.push([o, +k]);
+            o = o.items();
+        }
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            {
+                o = o[ k ];
+                // nested sub-composite class
+                if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
+                if (all3)
                 {
                     a1 = get_next( a1, k );
                     a2 = get_next( a2, k );
-                }
-                else
-                {
-                    return [false, o, k, p, null, null, null];
+                    a3 = get_next( a3, k );
                 }
             }
-            else if (is_instance(o, Collection))
+            // fixed, it bypassed setters which had multiple virtual levels
+            else if (all3 && a3 && (a3 = get_next( a3, k )))
             {
+                a1 = get_next( a1, k );
+                a2 = get_next( a2, k );
+            }
+            else
+            {
+                return [false, o, k, p, null, null, null];
+            }
+        }
+        else if (is_instance(o, Collection))
+        {
+            return [true, o, k, p.slice(i), a1, a2, a3];
+        }
+        else if (to & T_ARRAY_OR_OBJ)
+        {
+
+            // nested sub-composite class
+            if (is_instance(o[ k ], C))
+                return [C, o[k], p.slice(i), 0, null, null, null];
+            else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
                 return [true, o, k, p.slice(i), a1, a2, a3];
-            }
-            else if (to & T_ARRAY_OR_OBJ)
-            {
-
-                // nested sub-composite class
-                if (is_instance(o[ k ], C))
-                    return [C, o[k], p.slice(i), 0, null, null, null];
-                else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
-                    return [true, o, k, p.slice(i), a1, a2, a3];
-                return [false, o, k, p.slice(i), a1, a2, a3];
-            }
+            return [false, o, k, p.slice(i), a1, a2, a3];
         }
-        return [false, o, k, p.slice(i), null, null, null];
-    },
-
-    // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
-    index_to_prop_re = /\[([^\]]*)\]/g, trailing_dots_re = /^\.+|\.+$/g,
-    dotted = function(key) {
-        //        convert indexes to properties     strip leading/trailing dots
-        return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
-    },
-    bracketed = function(dottedKey) {
-        return '['+dottedKey.split('.').join('][')+']';
-    },
-
-    removePrefix = function(prefix) {
-        // strict mode (after prefix, a key follows)
-        var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
-        return function(key, to_dotted) {
-            var k = key.replace(regex, '$1');
-            return to_dotted ? dotted(k) : k;
-        };
-    },
-
-    keyLevelUp = function(dottedKey, level) {
-        return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },
-
-    addModelTypeValidator = function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesValidators) {
-        var k, t, isCollectionEach = false;
-        if (isCollectionEach=is_instance(typeOrValidator, CollectionEach))
-        {
-            // each wrapper
-            typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
-            // bind the typeOrValidator handler to 'this model'
-            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
-        }
-        else
-        {
-            t = get_type( typeOrValidator );
-            if (T_FUNC & t)
-            {
-                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                //typeOrValidator = bindF( typeOrValidator, model );
-                // bind the typeOrValidator handler to 'this model'
-                walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
-            }
-            else if (T_ARRAY_OR_OBJ & t)
-            {
-                // nested keys given, recurse
-                for (k in typeOrValidator)
-                {
-                    if (HAS.call(typeOrValidator,k))
-                        addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators);
-                }
-            }
-        }
-    },
-
-    addModelGetterSetter = function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSetters) {
-        var k, t;
-        t = get_type( getterOrSetter );
+    }
+    return [false, o, k, p.slice(i), null, null, null];
+}
+function dotted(key)
+{
+    //        convert indexes to properties     strip leading/trailing dots
+    return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
+}
+function bracketed(dottedKey)
+{
+    return '['+dottedKey.split('.').join('][')+']';
+}
+function removePrefix(prefix)
+{
+    // strict mode (after prefix, a key follows)
+    var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+    return function(key, to_dotted) {
+        var k = key.replace(regex, '$1');
+        return to_dotted ? dotted(k) : k;
+    };
+}
+function keyLevelUp(dottedKey, level)
+{
+    return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
+}
+function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesValidators)
+{
+    var k, t, isCollectionEach = false;
+    if (isCollectionEach=is_instance(typeOrValidator, CollectionEach))
+    {
+        // each wrapper
+        typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
+        // bind the typeOrValidator handler to 'this model'
+        walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
+    }
+    else
+    {
+        t = get_type( typeOrValidator );
         if (T_FUNC & t)
         {
             // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-            // bind the getterOrSetter handler to 'this model'
-            walk_and_add(getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+            //typeOrValidator = bindF( typeOrValidator, model );
+            // bind the typeOrValidator handler to 'this model'
+            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
         }
         else if (T_ARRAY_OR_OBJ & t)
         {
             // nested keys given, recurse
-            for (k in getterOrSetter)
+            for (k in typeOrValidator)
             {
-                if (HAS.call(getterOrSetter,k))
-                    addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters);
+                if (HAS.call(typeOrValidator,k))
+                    addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators);
             }
         }
-    },
-
-    modelDefaults = function modelDefaults(model, data, defaults) {
-        var k, v;
-        for (k in defaults)
+    }
+}
+function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSetters)
+{
+    var k, t;
+    t = get_type(getterOrSetter);
+    if (T_FUNC & t)
+    {
+        // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+        // bind the getterOrSetter handler to 'this model'
+        walk_and_add(getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+    }
+    else if (T_ARRAY_OR_OBJ & t)
+    {
+        // nested keys given, recurse
+        for (k in getterOrSetter)
         {
-            if (HAS.call(defaults,k))
+            if (HAS.call(getterOrSetter,k))
+                addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters);
+        }
+    }
+}
+function modelDefaults(model, data, defaults)
+{
+    var k, v;
+    for (k in defaults)
+    {
+        if (HAS.call(defaults,k))
+        {
+            v = defaults[ k ];
+            if (!HAS.call(data, k ))
             {
-                v = defaults[ k ];
-                if (!HAS.call(data, k ))
+                data[ k ] = v;
+            }
+            else if (is_type(data[k], T_ARRAY_OR_OBJ) && is_type(v, T_ARRAY_OR_OBJ))
+            {
+                data[ k ] = modelDefaults(model, data[k], v);
+            }
+        }
+    }
+    return data;
+}
+// handle collection and sub-composite models as data, via walking the data
+function serializeModel(model_instance, model_class, data, dataType)
+{
+    var key, type;
+    if (arguments.length < 3) data = model_instance.$data;
+
+    while (is_instance(data, model_class)) { data = data.data( ); }
+
+    if (is_instance(data, Value)) data = data.val();
+    if (is_instance(data, Collection)) data = data.items();
+    type = dataType || get_type( data );
+    data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
+
+    if (T_ARRAY_OR_OBJ & type)
+    {
+        for (key in data)
+        {
+            if (HAS.call(data,key))
+            {
+                if (is_instance(data[ key ], Value))
+                    data[ key ] = data[ key ].val( );
+                if (is_instance(data[ key ], Collection))
+                    data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
+                else if (is_instance(data[ key ], model_class))
+                    data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
+                else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
+                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+            }
+        }
+    }
+
+    return data;
+}
+// handle collections and sub-composite models via walking the data and any attached typecasters
+function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey)
+{
+    var o, key, val, typecaster, r, res, nestedKey, splitKey;
+    prefixKey = !!prefixKey ? (prefixKey+'.') : '';
+    data = data || model.$data;
+    if (is_instance(data, Collection)) data = data.items();
+    typecasters = typecasters || [model.$types];
+
+    if (typecasters && typecasters.length)
+    {
+        if (!!dottedKey)
+        {
+            if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
+            {
+                o = r[ 1 ]; key = r[ 2 ];
+
+                if (modelClass === r[ 0 ])
                 {
-                    data[ k ] = v;
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                    // nested sub-model
+                    typecastModel(o, modelClass, key.length ? key.join('.') : null);
                 }
-                else if (is_type(data[k], T_ARRAY_OR_OBJ) && is_type(v, T_ARRAY_OR_OBJ))
+                else
                 {
-                    data[ k ] = modelDefaults(model, data[k], v);
+                    if (is_instance(o, Collection)) o = o.items();
+                    nestedKey = splitKey.slice(0, -1).join('.');
+                    val = o[ key ]; typecaster = get_value( r[3], key );
+                    if (typecaster)
+                    {
+                        if (is_instance(val, Value))
+                            o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
+                        else
+                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                    }
+                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
+                    {
+                        nestedKey += !!nestedKey ? ('.' + key) : key;
+                        nestedKey = prefixKey+nestedKey;
+                        for (key in val)
+                        {
+                            if (HAS.call(val,key))
+                            {
+                                typecastModel(model, modelClass, key, val, typecasters, nestedKey);
+                            }
+                        }
+                    }
                 }
             }
         }
-        return data;
-    },
-
-    // handle collection and sub-composite models as data, via walking the data
-    serializeModel = function serializeModel(model_instance, model_class, data, dataType) {
-        var key, type;
-        if (arguments.length < 3) data = model_instance.$data;
-
-        while (is_instance(data, model_class)) { data = data.data( ); }
-
-        if (is_instance(data, Value)) data = data.val();
-        if (is_instance(data, Collection)) data = data.items();
-        type = dataType || get_type( data );
-        data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
-
-        if (T_ARRAY_OR_OBJ & type)
+        else if (T_ARRAY_OR_OBJ & get_type(data))
         {
             for (key in data)
             {
                 if (HAS.call(data,key))
                 {
-                    if (is_instance(data[ key ], Value))
-                        data[ key ] = data[ key ].val( );
-                    if (is_instance(data[ key ], Collection))
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
-                    else if (is_instance(data[ key ], model_class))
-                        data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
-                    else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                    typecastModel(model, modelClass, key, data, typecasters);
                 }
             }
         }
-
-        return data;
-    },
-
-    // handle collections and sub-composite models via walking the data and any attached typecasters
-    typecastModel = function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey) {
-        var o, key, val, typecaster, r, res, nestedKey, splitKey;
-        prefixKey = !!prefixKey ? (prefixKey+'.') : '';
-        data = data || model.$data;
-        if (is_instance(data, Collection)) data = data.items();
-        typecasters = typecasters || [model.$types];
-
-        if (typecasters && typecasters.length)
-        {
-            if (!!dottedKey)
-            {
-                if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
-                {
-                    o = r[ 1 ]; key = r[ 2 ];
-
-                    if (modelClass === r[ 0 ])
-                    {
-                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
-                        // nested sub-model
-                        typecastModel(o, modelClass, key.length ? key.join('.') : null);
-                    }
-                    else
-                    {
-                        if (is_instance(o, Collection)) o = o.items();
-                        nestedKey = splitKey.slice(0, -1).join('.');
-                        val = o[ key ]; typecaster = get_value( r[3], key );
-                        if (typecaster)
-                        {
-                            if (is_instance(val, Value))
-                                o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
-                            else
-                                o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
-                        }
-                        if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
-                        {
-                            nestedKey += !!nestedKey ? ('.' + key) : key;
-                            nestedKey = prefixKey+nestedKey;
-                            for (key in val)
-                            {
-                                if (HAS.call(val,key))
-                                {
-                                    typecastModel(model, modelClass, key, val, typecasters, nestedKey);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (T_ARRAY_OR_OBJ & get_type(data))
-            {
-                for (key in data)
-                {
-                    if (HAS.call(data,key))
-                    {
-                        typecastModel(model, modelClass, key, data, typecasters);
-                    }
-                }
-            }
-        }
-    },
-
-    // handle sub-composite models via walking the data and any attached validators
-    validateModel = function validateModel(model, modelClass, breakOnError, dottedKey, data, validators) {
-        var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
-            result = {isValid: true, errors: [ ]}
-        ;
-        //breakOnError = !!breakOnError;
-        data = data || model.$data;
-        if (is_instance(data, Collection)) data = data.items();
-        validators = validators || [model.$validators];
-
-        if (validators && validators.length)
-        {
-            if (!!dottedKey)
-            {
-                fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
-
-                if ((r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )))
-                {
-                    o = r[ 1 ]; key = r[ 2 ];
-
-                    if (modelClass === r[ 0 ])
-                    {
-                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
-
-                        // nested sub-model
-                        res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
-                        if (!res.isValid)
-                        {
-                            result.errors = result.errors.concat(res.errors.map(fixKey));
-                            result.isValid = false;
-                        }
-                        if (!result.isValid && breakOnError) return result;
-                    }
-                    else
-                    {
-                        if (is_instance(o, Collection)) o = o.items();
-                        nestedKey = splitKey.slice(0, -1).join('.');
-
-                        val = o[ key ]; validator = get_value( r[3], key );
-                        if (is_instance(val, Value)) val = val.val();
-                        if (validator && !validator.call(model, val, dottedKey))
-                        {
-                            result.errors.push(dottedKey/*fixKey( key )*/);
-                            result.isValid = false;
-                            if (breakOnError) return result;
-                        }
-                        if ((T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length)
-                        {
-                            nestedKey += !!nestedKey ? ('.' + key) : key;
-
-                            for (key in val)
-                            {
-                                if (HAS.call(val,key))
-                                {
-                                    res = validateModel(model, modelClass, breakOnError, key, val, validators);
-                                    if (!res.isValid)
-                                    {
-                                        result.errors = result.errors.concat(res.errors.map(fixKey));
-                                        result.isValid = false;
-                                    }
-                                    if (breakOnError && !result.isValid) return result;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (T_ARRAY_OR_OBJ & get_type(data))
-            {
-                for (key in data)
-                {
-                    if (HAS.call(data,key))
-                    {
-                        res = validateModel(model, modelClass, breakOnError, key, data, validators);
-                        if (!res.isValid)
-                        {
-                            result.errors = result.errors.concat(res.errors);
-                            result.isValid = false;
-                        }
-                        if (breakOnError && !result.isValid) return result;
-                    }
-                }
-            }
-        }
-        return result;
-    },
-
-    syncHandler = function(evt, data) {
-        var model = evt.target, $syncTo = model.$syncTo,
-            key = data.key, val, keyDot, allKeys, allKeyslen,
-            otherkey, othermodel, callback, k, skey,
-            syncedKeys, i, l, prev_atomic, prev_atom, __syncing
-        ;
-        if ( key )
-        {
-            // make this current key an atom, so as to avoid any circular-loop of updates on same keys
-            keyDot = key + '.';
-            allKeys = Keys($syncTo); allKeyslen = allKeys.length;
-            prev_atomic = model.atomic; prev_atom = model.$atom;
-            model.atomic = true; model.$atom = key;
-            //val = HAS.call(data,'value') ? data.value : model.get( key );
-            for (k=0; k<allKeyslen; k++)
-            {
-                skey = allKeys[ k ];
-                if (skey === key || startsWith(skey, keyDot))
-                {
-                    syncedKeys = $syncTo[skey]; val = model.get( skey );
-                    for (i=0,l=syncedKeys.length; i<l; i++)
-                    {
-                        othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
-                        // fixed, too much recursion, when keys notified other keys, which then were re-synced
-                        model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
-                        __syncing = model.__syncing[othermodel.$id];
-                        if (0 > __syncing.indexOf(otherkey))
-                        {
-                            __syncing.push(otherkey);
-                            if ((callback=syncedKeys[i][2])) callback.call(othermodel, otherkey, val, skey, model);
-                            else othermodel.set(otherkey, val, 1);
-                            __syncing.pop();
-                        }
-                        //model.__syncing[othermodel.$id].__syncing = null;
-                    }
-                }
-            }
-            model.$atom = prev_atom; model.atomic = prev_atomic;
-        }
-    },
-
-    getDirty = function getDirty(u) {
-        var upds = [];
-        if (u.k) each(Keys(u.k), function(k){
-            var rest = getDirty(u.k[k]);
-            if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
-            else upds.push(k);
-        });
-        return upds;
-    },
-
-    setDirty = function setDirty(model, key, many) {
-        if (many) each(key, function(k){model.setDirty(k.split('.'));});
-        else model.setDirty(key);
     }
-;
+}
+// handle sub-composite models via walking the data and any attached validators
+function validateModel(model, modelClass, breakOnError, dottedKey, data, validators)
+{
+    var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
+        result = {isValid: true, errors: [ ]}
+    ;
+    //breakOnError = !!breakOnError;
+    data = data || model.$data;
+    if (is_instance(data, Collection)) data = data.items();
+    validators = validators || [model.$validators];
+
+    if (validators && validators.length)
+    {
+        if (!!dottedKey)
+        {
+            fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
+
+            if ((r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )))
+            {
+                o = r[ 1 ]; key = r[ 2 ];
+
+                if (modelClass === r[ 0 ])
+                {
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+
+                    // nested sub-model
+                    res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
+                    if (!res.isValid)
+                    {
+                        result.errors = result.errors.concat(res.errors.map(fixKey));
+                        result.isValid = false;
+                    }
+                    if (!result.isValid && breakOnError) return result;
+                }
+                else
+                {
+                    if (is_instance(o, Collection)) o = o.items();
+                    nestedKey = splitKey.slice(0, -1).join('.');
+
+                    val = o[ key ]; validator = get_value( r[3], key );
+                    if (is_instance(val, Value)) val = val.val();
+                    if (validator && !validator.call(model, val, dottedKey))
+                    {
+                        result.errors.push(dottedKey/*fixKey( key )*/);
+                        result.isValid = false;
+                        if (breakOnError) return result;
+                    }
+                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length)
+                    {
+                        nestedKey += !!nestedKey ? ('.' + key) : key;
+
+                        for (key in val)
+                        {
+                            if (HAS.call(val,key))
+                            {
+                                res = validateModel(model, modelClass, breakOnError, key, val, validators);
+                                if (!res.isValid)
+                                {
+                                    result.errors = result.errors.concat(res.errors.map(fixKey));
+                                    result.isValid = false;
+                                }
+                                if (breakOnError && !result.isValid) return result;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (T_ARRAY_OR_OBJ & get_type(data))
+        {
+            for (key in data)
+            {
+                if (HAS.call(data,key))
+                {
+                    res = validateModel(model, modelClass, breakOnError, key, data, validators);
+                    if (!res.isValid)
+                    {
+                        result.errors = result.errors.concat(res.errors);
+                        result.isValid = false;
+                    }
+                    if (breakOnError && !result.isValid) return result;
+                }
+            }
+        }
+    }
+    return result;
+}
+function syncHandler(evt, data)
+{
+    var model = evt.target, $syncTo = model.$syncTo,
+        key = data.key, val, keyDot, allKeys, allKeyslen,
+        otherkey, othermodel, callback, k, skey,
+        syncedKeys, i, l, prev_atomic, prev_atom, __syncing
+    ;
+    if (key)
+    {
+        // make this current key an atom, so as to avoid any circular-loop of updates on same keys
+        keyDot = key + '.';
+        allKeys = Keys($syncTo); allKeyslen = allKeys.length;
+        prev_atomic = model.atomic; prev_atom = model.$atom;
+        model.atomic = true; model.$atom = key;
+        //val = HAS.call(data,'value') ? data.value : model.get( key );
+        for (k=0; k<allKeyslen; k++)
+        {
+            skey = allKeys[ k ];
+            if (skey === key || startsWith(skey, keyDot))
+            {
+                syncedKeys = $syncTo[skey]; val = model.get( skey );
+                for (i=0,l=syncedKeys.length; i<l; i++)
+                {
+                    othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
+                    // fixed, too much recursion, when keys notified other keys, which then were re-synced
+                    model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
+                    __syncing = model.__syncing[othermodel.$id];
+                    if (0 > __syncing.indexOf(otherkey))
+                    {
+                        __syncing.push(otherkey);
+                        if ((callback=syncedKeys[i][2])) callback.call(othermodel, otherkey, val, skey, model);
+                        else othermodel.set(otherkey, val, 1);
+                        __syncing.pop();
+                    }
+                    //model.__syncing[othermodel.$id].__syncing = null;
+                }
+            }
+        }
+        model.$atom = prev_atom; model.atomic = prev_atomic;
+    }
+}
+function getDirty(u)
+{
+    var upds = [];
+    if (u.k) each(Keys(u.k), function(k){
+        var rest = getDirty(u.k[k]);
+        if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+        else upds.push(k);
+    });
+    return upds;
+}
+function setDirty(model, key, many)
+{
+    if (many) each(key, function(k){model.setDirty(k.split('.'));});
+    else model.setDirty(key);
+}
+
+// Array multi - sorter utility
+// returns a sorter that can (sub-)sort by multiple (nested) fields
+// each ascending or descending independantly
+function sorter()
+{
+    var arr = this, i, args = arguments, l = args.length,
+        a, b, avar, bvar, variables, step, lt, gt,
+        field, filter_args, sorter_args, desc, dir, sorter;
+    // + or nothing before a (nested) field indicates ascending sorting (default),
+    // example "+a.b.c", "a.b.c"
+    // - before a (nested) field indicates descending sorting,
+    // example "-b.c.d"
+    if (l)
+    {
+        step = 1;
+        sorter = [];
+        variables = [];
+        sorter_args = [];
+        filter_args = [];
+        for (i=l-1; i>=0; i--)
+        {
+            field = args[i];
+            // if is array, it contains a filter function as well
+            filter_args.unshift('f'+i);
+            if ( field.push )
+            {
+                sorter_args.unshift(field[1]);
+                field = field[0];
+            }
+            else
+            {
+                sorter_args.unshift(null);
+            }
+            dir = field.charAt(0);
+            if ('-' === dir)
+            {
+                desc = true;
+                field = field.slice(1);
+            }
+            else if ('+' === dir)
+            {
+                desc = false;
+                field = field.slice(1);
+            }
+            else
+            {
+                // default ASC
+                desc = false;
+            }
+            field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
+            a = "a"+field; b = "b"+field;
+            if (sorter_args[0])
+            {
+                a = filter_args[0] + '(' + a + ')';
+                b = filter_args[0] + '(' + b + ')';
+            }
+            avar = 'a_'+i; bvar = 'b_'+i;
+            variables.unshift(''+avar+'='+a+','+bvar+'='+b+'');
+            lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
+            sorter.unshift("("+avar+" < "+bvar+" ? "+lt+" : ("+avar+" > "+bvar+" ? "+gt+" : 0))");
+            step <<= 1;
+        }
+        // use optional custom filters as well
+        return (newFunc(
+                filter_args.join(','),
+                ['return function(a,b) {',
+                 '  var '+variables.join(',')+';',
+                 '  return '+sorter.join('+')+';',
+                 '};'].join("\n")
+                ))
+                .apply(null, sorter_args);
+    }
+    else
+    {
+        a = "a"; b = "b"; lt = '-1'; gt = '1';
+        sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
+        return newFunc("a,b", 'return '+sorter+';');
+    }
+}
 
 /**[DOC_MARKDOWN]
 #### Model
@@ -5883,19 +5877,22 @@ Model[proto].bracketKey = bracketed;
 
 function Proxy(model, key)
 {
-    key = null == key ? '' : key;
-    var self = this, getKey, prefix = !key || !key.length ? '' : (key + '.');
+    var self = this, getKey, prefix;
     if (!is_instance(self, Proxy)) return new Proxy(model, key);
 
+    key = null == key ? '' : key;
+    prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
         return dottedKey && dottedKey.length ? prefix + dottedKey : key;
     };
-
     self.get = function(dottedKey, RAW) {
         return model.get(getKey(dottedKey), RAW);
     };
     self.getVal = function(dottedKey, RAW) {
         return model.getVal(getKey(dottedKey), RAW);
+    };
+    self.getProxy = function(dottedKey) {
+        return model.getProxy(getKey(dottedKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -5919,6 +5916,7 @@ Proxy[proto] = {
     constructor: Proxy
     ,get: null
     ,getVal: null
+    ,getProxy: null
     ,set: null
     ,add: null
     ,append: null
@@ -6265,311 +6263,8 @@ collection.mapped([start [, end]]);
 [/DOC_MARKDOWN]**/
 
 // View utils
-var contains_non_strict = function(collection, value) {
-        if (collection)
-        {
-            for (var i=0,l=collection.length; i<l; i++)
-                if (value == Str(collection[i])) return true;
-        }
-        return false;
-    },
-
-    normalisePath = function normalisePath(path) {
-        if (path && path.length)
-        {
-            path = trim(path);
-            if ('#' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.charAt(0)) path = path.slice(1);
-            if ('/' === path.slice(-1)) path = path.slice(0, -1);
-            path = trim(path);
-        }
-        return path;
-    },
-
-    numeric_re = /^\d+$/,
+var numeric_re = /^\d+$/,
     empty_brackets_re = /\[\s*\]$/,
-
-    fields2model = function(view, elements) {
-        var model = view.$model,
-            model_prefix = model.id + '.',
-            checkboxes_done = { }
-        ;
-
-        iterate(function(i) {
-            var el, name, key, k, j, o, alternative,
-            val, input_type, is_dynamic_array, checkboxes;
-            el = elements[i]; name = el[ATTR]("name");
-            if (!name) return;
-
-            input_type = (el[TYPE]||'').toLowerCase( );
-
-            key = dotted(name);
-            if (!startsWith(key, model_prefix)) return;
-            key = key.slice(model_prefix.length);
-
-            k = key.split('.'); o = model.$data;
-            while (k.length)
-            {
-                j = k.shift( );
-                if (k.length)
-                {
-                    if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                    o = o[ j ];
-                }
-                else
-                {
-                    if ('radio' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            val = '';
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', view.$dom);
-                            if (checkboxes.length > 1)
-                            {
-                                each(checkboxes, function(c){
-                                   if (el[CHECKED]) val = el[VAL];
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                val = el[VAL];
-                            }
-                            checkboxes_done[name] = 1;
-                            model.set(key, val);
-                        }
-                    }
-                    else if ('checkbox' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            is_dynamic_array = empty_brackets_re.test(name);
-                            checkboxes = $sel('input[type="checkbox"][name="'+name+'"]', view.$dom);
-
-                            if (is_dynamic_array)
-                            {
-                                // multiple checkboxes [name="model[key][]"] dynamic array
-                                // only checked items are in the list
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                });
-                            }
-                            else if (checkboxes.length > 1)
-                            {
-                                // multiple checkboxes [name="model[key]"] static array
-                                // all items are in the list either with values or defaults
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push( c[VAL] );
-                                    else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                // single checkbox, checked
-                                val = el[VAL];
-                            }
-                            else
-                            {
-                                // single checkbox, un-checked
-                                // use alternative value in [data-else] attribute, if needed, else empty
-                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
-                            }
-                            checkboxes_done[name] = 1;
-                            model.set(key, val);
-                        }
-                    }
-                    else
-                    {
-                        val = get_val(el);
-                        model.set(key, val);
-                    }
-                }
-            }
-        }, 0, elements.length-1);
-    },
-
-    serialize_fields = function(node, name_prefix) {
-        var data = { },
-            model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
-            elements = $sel('input,textarea,select', node), checkboxes_done = { }
-        ;
-
-        iterate(function(i) {
-            var el, name, key, k, j, o,
-            val, input_type, is_dynamic_array, checkboxes;
-            el = elements[i]; name = el[ATTR]("name");
-            if (!name) return;
-
-            input_type = (el[TYPE]||'').toLowerCase( );
-
-            key = dotted( name );
-            if (model_prefix)
-            {
-                if (!startsWith(key, model_prefix)) return;
-                key = key.slice(model_prefix.length);
-            }
-
-            k = key.split('.'); o = data;
-            while (k.length)
-            {
-                j = k.shift( );
-                if (k.length)
-                {
-                    if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                    o = o[ j ];
-                }
-                else
-                {
-                    if (!HAS.call(o, j)) o[ j ] = '';
-
-                    if ('radio' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            val = '';
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
-                            if (checkboxes.length > 1)
-                            {
-                                each(checkboxes, function(c){
-                                   if (el[CHECKED]) val = el[VAL];
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                val = el[VAL];
-                            }
-                            checkboxes_done[name] = 1;
-                            o[ j ] = val;
-                        }
-                    }
-                    else if ('checkbox' === input_type)
-                    {
-                        if (!checkboxes_done[name])
-                        {
-                            is_dynamic_array = empty_brackets_re.test( name );
-                            checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
-
-                            if (is_dynamic_array)
-                            {
-                                // multiple checkboxes [name="model[key][]"] dynamic array
-                                // only checked items are in the list
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                });
-                            }
-                            else if (checkboxes.length > 1)
-                            {
-                                // multiple checkboxes [name="model[key]"] static array
-                                // all items are in the list either with values or defaults
-                                val = [ ];
-                                each(checkboxes, function(c) {
-                                    if (c[CHECKED]) val.push(c[VAL]);
-                                    else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
-                                });
-                            }
-                            else if (el[CHECKED])
-                            {
-                                // single checkbox, checked
-                                val = el[VAL];
-                            }
-                            else
-                            {
-                                // single checkbox, un-checked
-                                // use alternative value in [data-else] attribute, if needed, else empty
-                                val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
-                            }
-                            checkboxes_done[name] = 1;
-                            o[ j ] = val;
-                        }
-                    }
-                    else
-                    {
-                        val = get_val(el);
-                        o[ j ] = val;
-                    }
-                }
-            }
-        }, 0, elements.length-1);
-        return data;
-    },
-
-    do_bind_action = function(view, evt, elements, fromModel) {
-        var model = view.$model, event = evt.type;
-
-        if ('sync' === event) event = 'change';
-        iterate(function(i) {
-            var el, cel, c, comp, do_action, data;
-            el = elements[i]; if (!el) return;
-            do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
-            if (!do_action || !do_action.length) return;
-            each(do_action.split(','), function(do_action){
-                do_action = trim(do_action);
-                if (!do_action.length) return;
-                data = {};
-                if (':' === do_action.charAt(0))
-                {
-                    // local component action
-                    do_action = do_action.slice(1);
-                    if (!do_action.length) return;
-                    cel = el;
-                    while (cel)
-                    {
-                        c = cel[MV] ? cel[MV].comp : null;
-                        if (c)
-                        {
-                            comp = view.$components['#'+c.name];
-                            if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
-                            {
-                                data.component = c;
-                                comp.opts.actions[do_action].call(c, evt, el, data);
-                                return;
-                            }
-                        }
-                        cel = cel.parentNode;
-                        if (cel === view.$renderdom) return;
-                    }
-                }
-                else
-                {
-                    // main view action
-                    if ('text' === do_action)
-                    {
-                        do_action = 'html';
-                        data.text = true;
-                    }
-                    do_action = 'do_' + do_action;
-                    if ('function' !== typeof view[do_action]) return;
-                    data.view = view;
-                    view[do_action](evt, el, data);
-                }
-            });
-        }, 0, elements.length-1);
-    },
-
-    do_auto_bind_action = function(view, evt, elements, fromModel) {
-        var model = view.$model, cached = { };
-
-        iterate(function(i) {
-            var el, name, key, ns_key, value;
-            el = elements[i];  if (!el) return;
-            name = el[NAME]; key = 0;
-            el[MV] = el[MV] || MV0();
-            if (!el[MV].key && !!name) el[MV].key = model.key(name, 1);
-            key = el[MV].key; if (!key) return;
-
-            // use already cached key/value
-            ns_key = '_'+key;
-            if (HAS.call(cached, ns_key))  value = cached[ ns_key ][ 0 ];
-            else if (model.has(key)) cached[ ns_key ] = [ value=model.get( key ) ];
-            else return;  // nothing to do here
-
-            // call default action (ie: live update)
-            view.do_bind(evt, el, {name:name, key:key, value:value});
-        }, 0, elements.length-1);
-    },
-
     //Work around for stupid Shift key bug created by using lowercase - as a result the shift+num combination was broken
     shift_nums = {
      "~" : "`"
@@ -6633,81 +6328,406 @@ var contains_non_strict = function(collection, value) {
     ,122 : 'f11'
     ,123 : 'f12'
     },
-
-    getCtxScoped = function(view, viewvar) {
-        var k, code = '';
-        viewvar = viewvar || 'this';
-        for (k in view.$ctx)
-        {
-            if (HAS.call(view.$ctx,k))
-                code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
-        }
-        return code;
-    },
-
-    clearInvalid = function(view) {
-        // reset any Values/Collections present
-        if (view.$model) view.$model.resetDirty();
-        if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
-        view.$reset = null;
-        if (view.$cache) each(Keys(view.$cache), function(id){
-            var comp = view.$cache[id], COMP;
-            if (is_instance(comp, MVComponentInstance))
-            {
-                COMP = view.$components['#'+comp.name];
-                if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
-                {
-                    if (1 === comp.status)
-                    {
-                        comp.status = 2;
-                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
-                            COMP.opts.detached.call(comp, comp);
-                    }
-                    comp.dispose();
-                    delete view.$cache[id];
-                }
-                else
-                {
-                    if (comp.model) comp.model.resetDirty();
-                    if (0 === comp.status)
-                    {
-                        comp.status = 1;
-                        if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
-                            COMP.opts.attached.call(comp, comp);
-                    }
-                }
-            }
-        });
-    },
-
-    clearAll = function(view) {
-        if (view.$cache) each(Keys(view.$cache), function(id){
-            var comp = view.$cache[id];
-            if (is_instance(comp, MVComponentInstance))
-            {
-                comp.dispose();
-                delete view.$cache[id];
-            }
-        });
-    },
-
-    viewHandler = function(view, method) {
-        return function(evt) {return method.call(view, evt, {el:evt.target});};
-    },
-
-    closestEvtEl = function(el, evt, view) {
-        var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
-        while (el)
-        {
-            if (view.$dom === el) break;
-            if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
-            el = el.parentNode;
-        }
-    },
-
     eventOptionsSupported = null
 ;
 
+function contains_non_strict(collection, value)
+{
+    if (collection)
+    {
+        for (var i=0,l=collection.length; i<l; i++)
+            if (value == Str(collection[i])) return true;
+    }
+    return false;
+}
+function normalisePath(path)
+{
+    if (path && path.length)
+    {
+        path = trim(path);
+        if ('#' === path.charAt(0)) path = path.slice(1);
+        if ('/' === path.charAt(0)) path = path.slice(1);
+        if ('/' === path.slice(-1)) path = path.slice(0, -1);
+        path = trim(path);
+    }
+    return path;
+}
+function fields2model(view, elements)
+{
+    var model = view.$model,
+        model_prefix = model.id + '.',
+        checkboxes_done = { }
+    ;
+
+    iterate(function(i) {
+        var el, name, key, k, j, o, alternative,
+        val, input_type, is_dynamic_array, checkboxes;
+        el = elements[i]; name = el[ATTR]("name");
+        if (!name) return;
+
+        input_type = (el[TYPE]||'').toLowerCase( );
+
+        key = dotted(name);
+        if (!startsWith(key, model_prefix)) return;
+        key = key.slice(model_prefix.length);
+
+        k = key.split('.'); o = model.$data;
+        while (k.length)
+        {
+            j = k.shift( );
+            if (k.length)
+            {
+                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                o = o[ j ];
+            }
+            else
+            {
+                if ('radio' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        val = '';
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', view.$dom);
+                        if (checkboxes.length > 1)
+                        {
+                            each(checkboxes, function(c){
+                               if (el[CHECKED]) val = el[VAL];
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            val = el[VAL];
+                        }
+                        checkboxes_done[name] = 1;
+                        model.set(key, val);
+                    }
+                }
+                else if ('checkbox' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        is_dynamic_array = empty_brackets_re.test(name);
+                        checkboxes = $sel('input[type="checkbox"][name="'+name+'"]', view.$dom);
+
+                        if (is_dynamic_array)
+                        {
+                            // multiple checkboxes [name="model[key][]"] dynamic array
+                            // only checked items are in the list
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                            });
+                        }
+                        else if (checkboxes.length > 1)
+                        {
+                            // multiple checkboxes [name="model[key]"] static array
+                            // all items are in the list either with values or defaults
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push( c[VAL] );
+                                else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            // single checkbox, checked
+                            val = el[VAL];
+                        }
+                        else
+                        {
+                            // single checkbox, un-checked
+                            // use alternative value in [data-else] attribute, if needed, else empty
+                            val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                        }
+                        checkboxes_done[name] = 1;
+                        model.set(key, val);
+                    }
+                }
+                else
+                {
+                    val = get_val(el);
+                    model.set(key, val);
+                }
+            }
+        }
+    }, 0, elements.length-1);
+}
+function serialize_fields(node, name_prefix)
+{
+    var data = {},
+        model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
+        elements = $sel('input,textarea,select', node), checkboxes_done = { }
+    ;
+
+    iterate(function(i) {
+        var el, name, key, k, j, o,
+        val, input_type, is_dynamic_array, checkboxes;
+        el = elements[i]; name = el[ATTR]("name");
+        if (!name) return;
+
+        input_type = (el[TYPE]||'').toLowerCase( );
+
+        key = dotted( name );
+        if (model_prefix)
+        {
+            if (!startsWith(key, model_prefix)) return;
+            key = key.slice(model_prefix.length);
+        }
+
+        k = key.split('.'); o = data;
+        while (k.length)
+        {
+            j = k.shift( );
+            if (k.length)
+            {
+                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
+                o = o[ j ];
+            }
+            else
+            {
+                if (!HAS.call(o, j)) o[ j ] = '';
+
+                if ('radio' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        val = '';
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
+                        if (checkboxes.length > 1)
+                        {
+                            each(checkboxes, function(c){
+                               if (el[CHECKED]) val = el[VAL];
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            val = el[VAL];
+                        }
+                        checkboxes_done[name] = 1;
+                        o[ j ] = val;
+                    }
+                }
+                else if ('checkbox' === input_type)
+                {
+                    if (!checkboxes_done[name])
+                    {
+                        is_dynamic_array = empty_brackets_re.test( name );
+                        checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
+
+                        if (is_dynamic_array)
+                        {
+                            // multiple checkboxes [name="model[key][]"] dynamic array
+                            // only checked items are in the list
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                            });
+                        }
+                        else if (checkboxes.length > 1)
+                        {
+                            // multiple checkboxes [name="model[key]"] static array
+                            // all items are in the list either with values or defaults
+                            val = [ ];
+                            each(checkboxes, function(c) {
+                                if (c[CHECKED]) val.push(c[VAL]);
+                                else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
+                            });
+                        }
+                        else if (el[CHECKED])
+                        {
+                            // single checkbox, checked
+                            val = el[VAL];
+                        }
+                        else
+                        {
+                            // single checkbox, un-checked
+                            // use alternative value in [data-else] attribute, if needed, else empty
+                            val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
+                        }
+                        checkboxes_done[name] = 1;
+                        o[ j ] = val;
+                    }
+                }
+                else
+                {
+                    val = get_val(el);
+                    o[ j ] = val;
+                }
+            }
+        }
+    }, 0, elements.length-1);
+    return data;
+}
+function do_bind_action(view, evt, elements, fromModel)
+{
+    var model = view.$model, event = evt.type;
+
+    if ('sync' === event) event = 'change';
+    iterate(function(i) {
+        var el, cel, c, comp, do_action, data;
+        el = elements[i]; if (!el) return;
+        do_action = el[ATTR](view.attr('mv-on-'+(fromModel ? 'model-' : '')+event));
+        if (!do_action || !do_action.length) return;
+        each(do_action.split(','), function(do_action){
+            do_action = trim(do_action);
+            if (!do_action.length) return;
+            data = {};
+            if (':' === do_action.charAt(0))
+            {
+                // local component action
+                do_action = do_action.slice(1);
+                if (!do_action.length) return;
+                cel = el;
+                while (cel)
+                {
+                    c = cel[MV] ? cel[MV].comp : null;
+                    if (c)
+                    {
+                        comp = view.$components['#'+c.name];
+                        if (is_instance(comp, View.Component) && comp.opts && comp.opts.actions && ('function' === typeof comp.opts.actions[do_action]))
+                        {
+                            data.component = c;
+                            comp.opts.actions[do_action].call(c, evt, el, data);
+                            return;
+                        }
+                    }
+                    cel = cel.parentNode;
+                    if (cel === view.$renderdom) return;
+                }
+            }
+            else
+            {
+                // main view action
+                if ('text' === do_action)
+                {
+                    do_action = 'html';
+                    data.text = true;
+                }
+                do_action = 'do_' + do_action;
+                if ('function' !== typeof view[do_action]) return;
+                data.view = view;
+                view[do_action](evt, el, data);
+            }
+        });
+    }, 0, elements.length-1);
+}
+function do_auto_bind_action(view, evt, elements, fromModel)
+{
+    var model = view.$model, cached = {};
+
+    iterate(function(i) {
+        var el, name, key, ns_key, value;
+        el = elements[i];  if (!el) return;
+        name = el[NAME]; key = 0;
+        el[MV] = el[MV] || MV0();
+        if (!el[MV].key && !!name) el[MV].key = model.key(name, 1);
+        key = el[MV].key; if (!key) return;
+
+        // use already cached key/value
+        ns_key = '_'+key;
+        if (HAS.call(cached, ns_key))  value = cached[ ns_key ][ 0 ];
+        else if (model.has(key)) cached[ ns_key ] = [ value=model.get( key ) ];
+        else return;  // nothing to do here
+
+        // call default action (ie: live update)
+        view.do_bind(evt, el, {name:name, key:key, value:value});
+    }, 0, elements.length-1);
+}
+function getCtxScoped(view, viewvar)
+{
+    var k, code = '';
+    viewvar = viewvar || 'this';
+    for (k in view.$ctx)
+    {
+        if (HAS.call(view.$ctx,k))
+            code += 'var '+k+'='+viewvar+'.$ctx["'+k+'"];'
+    }
+    return code;
+}
+function clearInvalid(view)
+{
+    // reset any Values/Collections present
+    if (view.$model) view.$model.resetDirty();
+    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
+    view.$reset = null;
+    if (view.$cache) each(Keys(view.$cache), function(id){
+        var comp = view.$cache[id], COMP;
+        if (is_instance(comp, MVComponentInstance))
+        {
+            COMP = view.$components['#'+comp.name];
+            if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
+            {
+                if (1 === comp.status)
+                {
+                    comp.status = 2;
+                    if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
+                        COMP.opts.detached.call(comp, comp);
+                }
+                comp.dispose();
+                delete view.$cache[id];
+            }
+            else
+            {
+                if (comp.model) comp.model.resetDirty();
+                if (0 === comp.status)
+                {
+                    comp.status = 1;
+                    if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
+                        COMP.opts.attached.call(comp, comp);
+                }
+            }
+        }
+    });
+}
+function clearAll(view)
+{
+    if (view.$cache) each(Keys(view.$cache), function(id){
+        var comp = view.$cache[id];
+        if (is_instance(comp, MVComponentInstance))
+        {
+            comp.dispose();
+            delete view.$cache[id];
+        }
+    });
+}
+function viewHandler(view, method)
+{
+    return function(evt) {return method.call(view, evt, {el:evt.target});};
+}
+function closestEvtEl(el, evt, view)
+{
+    var mvEvt = view.attr('mv-evt'), mvOnEvt = view.attr('mv-on-'+evt.type);
+    while (el)
+    {
+        if (view.$dom === el) break;
+        if (el[HAS_ATTR](mvEvt) && el[ATTR](mvOnEvt)) return el;
+        el = el.parentNode;
+    }
+}
+function as_unit(node)
+{
+    if (is_instance(node, VNode))
+    {
+        node.unit = true;
+        return node;
+    }
+    return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
+}
+function debounce(callback, instance)
+{
+    if (HASDOC && window.requestAnimationFrame)
+    {
+        // If there's a pending render, cancel it
+        if (instance && instance._dbnc) window.cancelAnimationFrame(instance._dbnc);
+        // Setup the new render to run at the next animation frame
+        if (instance) instance._dbnc = window.requestAnimationFrame(callback);
+        else window.requestAnimationFrame(callback);
+    }
+    else
+    {
+        callback();
+    }
+}
 function hasEventOptions()
 {
     var passiveSupported = false, options = {};
@@ -7232,12 +7252,13 @@ view.html( String htmlString );
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
-    ,jsx: function jsx(nodes) {
-        if (is_instance(nodes, VNode))
-            nodes.cnodeType = nodes.nodeType = 'jsx';
-        else if (nodes.length && nodes.map)
-            nodes = nodes.map(jsx);
-        return nodes;
+    ,jsx: function jsx(node) {
+        if (is_instance(node, VNode))
+        {
+            node.cnodeType = node.nodeType = 'jsx';
+            return node;
+        }
+        return is_type(node, T_ARRAY) ? node.map(jsx) : node;
     }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
@@ -7297,7 +7318,7 @@ view.autobind( [Boolean enabled] );
         }
         return view.option('view.autobind');
     }
-    
+
 /**[DOC_MARKDOWN]
 // precompile content and component html templates
 // should be called after all view options (eg livebind) have been set

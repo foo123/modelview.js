@@ -1,559 +1,641 @@
 
 // Model utils
-var
-    get_next = function(a, k) {
-        if (!a) return null;
-        var b = iterate(function(i, b){
-            var ai = a[ i ];
+// http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
+var index_to_prop_re = /\[([^\]]*)\]/g,
+    trailing_dots_re = /^\.+|\.+$/g;
+
+function get_next(a, k)
+{
+    if (!a) return null;
+    var b = iterate(function(i, b){
+        var ai = a[ i ];
+        if (ai)
+        {
+            if (HAS.call(ai, k)) b.push( ai[ k ].n );
+            if (HAS.call(ai, WILDCARD)) b.push( ai[ WILDCARD ].n );
+        }
+    }, 0, a.length-1, []);
+    return b.length ? b : null;
+}
+function get_value(a, k)
+{
+    if (!a) return null;
+    var i, ai, l = a.length;
+    if (undef !== k)
+    {
+        for (i=0; i<l; i++)
+        {
+            ai = a[ i ];
             if (ai)
             {
-                if (HAS.call(ai, k)) b.push( ai[ k ].n );
-                if (HAS.call(ai, WILDCARD)) b.push( ai[ WILDCARD ].n );
+                if (HAS.call(ai, k) && ai[ k ].v) return ai[ k ].v;
+                if (HAS.call(ai, WILDCARD) && ai[ WILDCARD ].v) return ai[ WILDCARD ].v;
             }
-        }, 0, a.length-1, []);
-        return b.length ? b : null;
-    },
-
-    get_value = function(a, k) {
-        if (!a) return null;
-        var i, ai, l = a.length;
-        if (undef !== k)
+        }
+    }
+    else
+    {
+        for (i=0; i<l; i++)
         {
-            for (i=0; i<l; i++)
+            ai = a[ i ];
+            if (ai && ai.v) return ai.v;
+        }
+    }
+    return null;
+}
+function walk_and_add(v, p, obj, isCollectionEach)
+{
+    var o = obj, k, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (!HAS.call(o,k)) o[ k ] = new Node( );
+        o = o[ k ];
+        if (i < l)
+        {
+            o = o.n;
+        }
+        else
+        {
+            if (isCollectionEach)
             {
-                ai = a[ i ];
-                if (ai)
-                {
-                    if (HAS.call(ai, k) && ai[ k ].v) return ai[ k ].v;
-                    if (HAS.call(ai, WILDCARD) && ai[ WILDCARD ].v) return ai[ WILDCARD ].v;
-                }
+                if (!HAS.call(o.n,WILDCARD) ) o.n[ WILDCARD ] = new Node( );
+                o.n[ WILDCARD ].v = v;
+            }
+            else
+            {
+                o.v = v;
+            }
+        }
+    }
+    return obj;
+}
+function walk_and_check(p, obj, aux, C)
+{
+    var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection)) o = o.items();
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            {
+                o = o[ k ];
+                // nested sub-composite class
+                if (o instanceof C) return [C, o, p.slice(i)];
+                a && (a = get_next( a, k ));
+            }
+            else if (!a || !(a = get_next( a, k )))
+            {
+                return false;
             }
         }
         else
         {
-            for (i=0; i<l; i++)
-            {
-                ai = a[ i ];
-                if (ai && ai.v) return ai.v;
-            }
+            if (a && get_value( a, k )) return true;
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return true;
+            else if (T_OBJ === to && 'length' == k) return true;
+            return false;
         }
-        return null;
-    },
-
-    walk_and_add = function(v, p, obj, isCollectionEach) {
-        var o = obj, k, i = 0, l = p.length;
-        while (i < l)
+    }
+    return false;
+}
+function walk_and_get2(p, obj, aux, C)
+{
+    var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection)) o = o.items();
+        to = get_type( o );
+        if (i < l)
         {
-            k = p[i++];
-            if (!HAS.call(o,k)) o[ k ] = new Node( );
-            o = o[ k ];
-            if (i < l)
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
             {
-                o = o.n;
-            }
-            else
-            {
-                if (isCollectionEach)
-                {
-                    if (!HAS.call(o.n,WILDCARD) ) o.n[ WILDCARD ] = new Node( );
-                    o.n[ WILDCARD ].v = v;
-                }
-                else
-                {
-                    o.v = v;
-                }
-            }
-        }
-        return obj;
-    },
-
-    walk_and_check = function(p, obj, aux, C) {
-        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection)) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (o instanceof C) return [C, o, p.slice(i)];
-                    a && (a = get_next( a, k ));
-                }
-                else if (!a || !(a = get_next( a, k )))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (a && get_value( a, k )) return true;
-                else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return true;
-                else if (T_OBJ === to && 'length' == k) return true;
-                return false;
-            }
-        }
-        return false;
-    },
-
-    walk_and_get2 = function(p, obj, aux, C) {
-        var o = obj, a = aux ? [aux] : null, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection)) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i)];
-                    a && (a = get_next( a, k ));
-                }
-                else if (!a || !(a = get_next( a, k )))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (a && (a = get_value( a, k ))) return [false, a];
-                else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o[k]];
-                else if (T_OBJ === to && 'length' == k) return [true, Keys(o).length];
-                return false;
-            }
-        }
-        return false;
-    },
-
-    walk_and_get_value2 = function(p, obj, aux, C) {
-        var o = obj, a = aux, k, to, i = 0, l = p.length;
-        while (i < l)
-        {
-            k = p[i++];
-            if (is_instance(o, Collection) && i < l) o = o.items();
-            to = get_type( o );
-            if (i < l)
-            {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i)];
-                    else if (!a || !(a = get_next( a, k ))) return false;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
+                o = o[ k ];
                 // nested sub-composite class
-                if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
-                else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+                if (is_instance(o, C)) return [C, o, p.slice(i)];
+                a && (a = get_next( a, k ));
+            }
+            else if (!a || !(a = get_next( a, k )))
+            {
                 return false;
             }
         }
-        return false;
-    },
-
-    walk_and_get3 = function(p, obj, aux1, aux2, aux3, C, all3, collections) {
-        var o = obj, a1 = null, a2 = null, a3 = null,
-            k, to, i = 0, l = p.length
-        ;
-        all3 = false !== all3;
-        if (all3) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
-
-        while (i < l)
+        else
         {
-            k = p[i++];
-            if (is_instance(o, Collection) && i < l)
+            if (a && (a = get_value( a, k ))) return [false, a];
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o[k]];
+            else if (T_OBJ === to && 'length' == k) return [true, Keys(o).length];
+            return false;
+        }
+    }
+    return false;
+}
+function walk_and_get_value2(p, obj, aux, C)
+{
+    var o = obj, a = aux, k, to, i = 0, l = p.length;
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection) && i < l) o = o.items();
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
             {
-                if (collections) collections.push([o, +k]);
-                o = o.items();
+                o = o[ k ];
+                // nested sub-composite class
+                if (is_instance(o, C)) return [C, o, p.slice(i)];
+                else if (!a || !(a = get_next( a, k ))) return false;
             }
-            to = get_type( o );
-            if (i < l)
+            else
             {
-                if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
-                {
-                    o = o[ k ];
-                    // nested sub-composite class
-                    if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
-                    if (all3)
-                    {
-                        a1 = get_next( a1, k );
-                        a2 = get_next( a2, k );
-                        a3 = get_next( a3, k );
-                    }
-                }
-                // fixed, it bypassed setters which had multiple virtual levels
-                else if (all3 && a3 && (a3 = get_next( a3, k )))
+                return false;
+            }
+        }
+        else
+        {
+            // nested sub-composite class
+            if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
+            else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+            return false;
+        }
+    }
+    return false;
+}
+function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
+{
+    var o = obj, a1 = null, a2 = null, a3 = null,
+        k, to, i = 0, l = p.length
+    ;
+    all3 = false !== all3;
+    if (all3) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
+
+    while (i < l)
+    {
+        k = p[i++];
+        if (is_instance(o, Collection) && i < l)
+        {
+            if (collections) collections.push([o, +k]);
+            o = o.items();
+        }
+        to = get_type( o );
+        if (i < l)
+        {
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            {
+                o = o[ k ];
+                // nested sub-composite class
+                if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
+                if (all3)
                 {
                     a1 = get_next( a1, k );
                     a2 = get_next( a2, k );
-                }
-                else
-                {
-                    return [false, o, k, p, null, null, null];
+                    a3 = get_next( a3, k );
                 }
             }
-            else if (is_instance(o, Collection))
+            // fixed, it bypassed setters which had multiple virtual levels
+            else if (all3 && a3 && (a3 = get_next( a3, k )))
             {
+                a1 = get_next( a1, k );
+                a2 = get_next( a2, k );
+            }
+            else
+            {
+                return [false, o, k, p, null, null, null];
+            }
+        }
+        else if (is_instance(o, Collection))
+        {
+            return [true, o, k, p.slice(i), a1, a2, a3];
+        }
+        else if (to & T_ARRAY_OR_OBJ)
+        {
+
+            // nested sub-composite class
+            if (is_instance(o[ k ], C))
+                return [C, o[k], p.slice(i), 0, null, null, null];
+            else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
                 return [true, o, k, p.slice(i), a1, a2, a3];
-            }
-            else if (to & T_ARRAY_OR_OBJ)
-            {
-
-                // nested sub-composite class
-                if (is_instance(o[ k ], C))
-                    return [C, o[k], p.slice(i), 0, null, null, null];
-                else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
-                    return [true, o, k, p.slice(i), a1, a2, a3];
-                return [false, o, k, p.slice(i), a1, a2, a3];
-            }
+            return [false, o, k, p.slice(i), a1, a2, a3];
         }
-        return [false, o, k, p.slice(i), null, null, null];
-    },
-
-    // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
-    index_to_prop_re = /\[([^\]]*)\]/g, trailing_dots_re = /^\.+|\.+$/g,
-    dotted = function(key) {
-        //        convert indexes to properties     strip leading/trailing dots
-        return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
-    },
-    bracketed = function(dottedKey) {
-        return '['+dottedKey.split('.').join('][')+']';
-    },
-
-    removePrefix = function(prefix) {
-        // strict mode (after prefix, a key follows)
-        var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
-        return function(key, to_dotted) {
-            var k = key.replace(regex, '$1');
-            return to_dotted ? dotted(k) : k;
-        };
-    },
-
-    keyLevelUp = function(dottedKey, level) {
-        return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
-    },
-
-    addModelTypeValidator = function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesValidators) {
-        var k, t, isCollectionEach = false;
-        if (isCollectionEach=is_instance(typeOrValidator, CollectionEach))
-        {
-            // each wrapper
-            typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
-            // bind the typeOrValidator handler to 'this model'
-            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
-        }
-        else
-        {
-            t = get_type( typeOrValidator );
-            if (T_FUNC & t)
-            {
-                // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-                //typeOrValidator = bindF( typeOrValidator, model );
-                // bind the typeOrValidator handler to 'this model'
-                walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
-            }
-            else if (T_ARRAY_OR_OBJ & t)
-            {
-                // nested keys given, recurse
-                for (k in typeOrValidator)
-                {
-                    if (HAS.call(typeOrValidator,k))
-                        addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators);
-                }
-            }
-        }
-    },
-
-    addModelGetterSetter = function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSetters) {
-        var k, t;
-        t = get_type( getterOrSetter );
+    }
+    return [false, o, k, p.slice(i), null, null, null];
+}
+function dotted(key)
+{
+    //        convert indexes to properties     strip leading/trailing dots
+    return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
+}
+function bracketed(dottedKey)
+{
+    return '['+dottedKey.split('.').join('][')+']';
+}
+function removePrefix(prefix)
+{
+    // strict mode (after prefix, a key follows)
+    var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+    return function(key, to_dotted) {
+        var k = key.replace(regex, '$1');
+        return to_dotted ? dotted(k) : k;
+    };
+}
+function keyLevelUp(dottedKey, level)
+{
+    return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
+}
+function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesValidators)
+{
+    var k, t, isCollectionEach = false;
+    if (isCollectionEach=is_instance(typeOrValidator, CollectionEach))
+    {
+        // each wrapper
+        typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
+        // bind the typeOrValidator handler to 'this model'
+        walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
+    }
+    else
+    {
+        t = get_type( typeOrValidator );
         if (T_FUNC & t)
         {
             // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
-            // bind the getterOrSetter handler to 'this model'
-            walk_and_add(getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+            //typeOrValidator = bindF( typeOrValidator, model );
+            // bind the typeOrValidator handler to 'this model'
+            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
         }
         else if (T_ARRAY_OR_OBJ & t)
         {
             // nested keys given, recurse
-            for (k in getterOrSetter)
+            for (k in typeOrValidator)
             {
-                if (HAS.call(getterOrSetter,k))
-                    addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters);
+                if (HAS.call(typeOrValidator,k))
+                    addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators);
             }
         }
-    },
-
-    modelDefaults = function modelDefaults(model, data, defaults) {
-        var k, v;
-        for (k in defaults)
+    }
+}
+function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSetters)
+{
+    var k, t;
+    t = get_type(getterOrSetter);
+    if (T_FUNC & t)
+    {
+        // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
+        // bind the getterOrSetter handler to 'this model'
+        walk_and_add(getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+    }
+    else if (T_ARRAY_OR_OBJ & t)
+    {
+        // nested keys given, recurse
+        for (k in getterOrSetter)
         {
-            if (HAS.call(defaults,k))
+            if (HAS.call(getterOrSetter,k))
+                addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters);
+        }
+    }
+}
+function modelDefaults(model, data, defaults)
+{
+    var k, v;
+    for (k in defaults)
+    {
+        if (HAS.call(defaults,k))
+        {
+            v = defaults[ k ];
+            if (!HAS.call(data, k ))
             {
-                v = defaults[ k ];
-                if (!HAS.call(data, k ))
+                data[ k ] = v;
+            }
+            else if (is_type(data[k], T_ARRAY_OR_OBJ) && is_type(v, T_ARRAY_OR_OBJ))
+            {
+                data[ k ] = modelDefaults(model, data[k], v);
+            }
+        }
+    }
+    return data;
+}
+// handle collection and sub-composite models as data, via walking the data
+function serializeModel(model_instance, model_class, data, dataType)
+{
+    var key, type;
+    if (arguments.length < 3) data = model_instance.$data;
+
+    while (is_instance(data, model_class)) { data = data.data( ); }
+
+    if (is_instance(data, Value)) data = data.val();
+    if (is_instance(data, Collection)) data = data.items();
+    type = dataType || get_type( data );
+    data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
+
+    if (T_ARRAY_OR_OBJ & type)
+    {
+        for (key in data)
+        {
+            if (HAS.call(data,key))
+            {
+                if (is_instance(data[ key ], Value))
+                    data[ key ] = data[ key ].val( );
+                if (is_instance(data[ key ], Collection))
+                    data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
+                else if (is_instance(data[ key ], model_class))
+                    data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
+                else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
+                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+            }
+        }
+    }
+
+    return data;
+}
+// handle collections and sub-composite models via walking the data and any attached typecasters
+function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey)
+{
+    var o, key, val, typecaster, r, res, nestedKey, splitKey;
+    prefixKey = !!prefixKey ? (prefixKey+'.') : '';
+    data = data || model.$data;
+    if (is_instance(data, Collection)) data = data.items();
+    typecasters = typecasters || [model.$types];
+
+    if (typecasters && typecasters.length)
+    {
+        if (!!dottedKey)
+        {
+            if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
+            {
+                o = r[ 1 ]; key = r[ 2 ];
+
+                if (modelClass === r[ 0 ])
                 {
-                    data[ k ] = v;
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                    // nested sub-model
+                    typecastModel(o, modelClass, key.length ? key.join('.') : null);
                 }
-                else if (is_type(data[k], T_ARRAY_OR_OBJ) && is_type(v, T_ARRAY_OR_OBJ))
+                else
                 {
-                    data[ k ] = modelDefaults(model, data[k], v);
+                    if (is_instance(o, Collection)) o = o.items();
+                    nestedKey = splitKey.slice(0, -1).join('.');
+                    val = o[ key ]; typecaster = get_value( r[3], key );
+                    if (typecaster)
+                    {
+                        if (is_instance(val, Value))
+                            o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
+                        else
+                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                    }
+                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
+                    {
+                        nestedKey += !!nestedKey ? ('.' + key) : key;
+                        nestedKey = prefixKey+nestedKey;
+                        for (key in val)
+                        {
+                            if (HAS.call(val,key))
+                            {
+                                typecastModel(model, modelClass, key, val, typecasters, nestedKey);
+                            }
+                        }
+                    }
                 }
             }
         }
-        return data;
-    },
-
-    // handle collection and sub-composite models as data, via walking the data
-    serializeModel = function serializeModel(model_instance, model_class, data, dataType) {
-        var key, type;
-        if (arguments.length < 3) data = model_instance.$data;
-
-        while (is_instance(data, model_class)) { data = data.data( ); }
-
-        if (is_instance(data, Value)) data = data.val();
-        if (is_instance(data, Collection)) data = data.items();
-        type = dataType || get_type( data );
-        data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
-
-        if (T_ARRAY_OR_OBJ & type)
+        else if (T_ARRAY_OR_OBJ & get_type(data))
         {
             for (key in data)
             {
                 if (HAS.call(data,key))
                 {
-                    if (is_instance(data[ key ], Value))
-                        data[ key ] = data[ key ].val( );
-                    if (is_instance(data[ key ], Collection))
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
-                    else if (is_instance(data[ key ], model_class))
-                        data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
-                    else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
-                        data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                    typecastModel(model, modelClass, key, data, typecasters);
                 }
             }
         }
-
-        return data;
-    },
-
-    // handle collections and sub-composite models via walking the data and any attached typecasters
-    typecastModel = function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey) {
-        var o, key, val, typecaster, r, res, nestedKey, splitKey;
-        prefixKey = !!prefixKey ? (prefixKey+'.') : '';
-        data = data || model.$data;
-        if (is_instance(data, Collection)) data = data.items();
-        typecasters = typecasters || [model.$types];
-
-        if (typecasters && typecasters.length)
-        {
-            if (!!dottedKey)
-            {
-                if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
-                {
-                    o = r[ 1 ]; key = r[ 2 ];
-
-                    if (modelClass === r[ 0 ])
-                    {
-                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
-                        // nested sub-model
-                        typecastModel(o, modelClass, key.length ? key.join('.') : null);
-                    }
-                    else
-                    {
-                        if (is_instance(o, Collection)) o = o.items();
-                        nestedKey = splitKey.slice(0, -1).join('.');
-                        val = o[ key ]; typecaster = get_value( r[3], key );
-                        if (typecaster)
-                        {
-                            if (is_instance(val, Value))
-                                o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
-                            else
-                                o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
-                        }
-                        if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
-                        {
-                            nestedKey += !!nestedKey ? ('.' + key) : key;
-                            nestedKey = prefixKey+nestedKey;
-                            for (key in val)
-                            {
-                                if (HAS.call(val,key))
-                                {
-                                    typecastModel(model, modelClass, key, val, typecasters, nestedKey);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (T_ARRAY_OR_OBJ & get_type(data))
-            {
-                for (key in data)
-                {
-                    if (HAS.call(data,key))
-                    {
-                        typecastModel(model, modelClass, key, data, typecasters);
-                    }
-                }
-            }
-        }
-    },
-
-    // handle sub-composite models via walking the data and any attached validators
-    validateModel = function validateModel(model, modelClass, breakOnError, dottedKey, data, validators) {
-        var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
-            result = {isValid: true, errors: [ ]}
-        ;
-        //breakOnError = !!breakOnError;
-        data = data || model.$data;
-        if (is_instance(data, Collection)) data = data.items();
-        validators = validators || [model.$validators];
-
-        if (validators && validators.length)
-        {
-            if (!!dottedKey)
-            {
-                fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
-
-                if ((r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )))
-                {
-                    o = r[ 1 ]; key = r[ 2 ];
-
-                    if (modelClass === r[ 0 ])
-                    {
-                        nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
-
-                        // nested sub-model
-                        res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
-                        if (!res.isValid)
-                        {
-                            result.errors = result.errors.concat(res.errors.map(fixKey));
-                            result.isValid = false;
-                        }
-                        if (!result.isValid && breakOnError) return result;
-                    }
-                    else
-                    {
-                        if (is_instance(o, Collection)) o = o.items();
-                        nestedKey = splitKey.slice(0, -1).join('.');
-
-                        val = o[ key ]; validator = get_value( r[3], key );
-                        if (is_instance(val, Value)) val = val.val();
-                        if (validator && !validator.call(model, val, dottedKey))
-                        {
-                            result.errors.push(dottedKey/*fixKey( key )*/);
-                            result.isValid = false;
-                            if (breakOnError) return result;
-                        }
-                        if ((T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length)
-                        {
-                            nestedKey += !!nestedKey ? ('.' + key) : key;
-
-                            for (key in val)
-                            {
-                                if (HAS.call(val,key))
-                                {
-                                    res = validateModel(model, modelClass, breakOnError, key, val, validators);
-                                    if (!res.isValid)
-                                    {
-                                        result.errors = result.errors.concat(res.errors.map(fixKey));
-                                        result.isValid = false;
-                                    }
-                                    if (breakOnError && !result.isValid) return result;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (T_ARRAY_OR_OBJ & get_type(data))
-            {
-                for (key in data)
-                {
-                    if (HAS.call(data,key))
-                    {
-                        res = validateModel(model, modelClass, breakOnError, key, data, validators);
-                        if (!res.isValid)
-                        {
-                            result.errors = result.errors.concat(res.errors);
-                            result.isValid = false;
-                        }
-                        if (breakOnError && !result.isValid) return result;
-                    }
-                }
-            }
-        }
-        return result;
-    },
-
-    syncHandler = function(evt, data) {
-        var model = evt.target, $syncTo = model.$syncTo,
-            key = data.key, val, keyDot, allKeys, allKeyslen,
-            otherkey, othermodel, callback, k, skey,
-            syncedKeys, i, l, prev_atomic, prev_atom, __syncing
-        ;
-        if ( key )
-        {
-            // make this current key an atom, so as to avoid any circular-loop of updates on same keys
-            keyDot = key + '.';
-            allKeys = Keys($syncTo); allKeyslen = allKeys.length;
-            prev_atomic = model.atomic; prev_atom = model.$atom;
-            model.atomic = true; model.$atom = key;
-            //val = HAS.call(data,'value') ? data.value : model.get( key );
-            for (k=0; k<allKeyslen; k++)
-            {
-                skey = allKeys[ k ];
-                if (skey === key || startsWith(skey, keyDot))
-                {
-                    syncedKeys = $syncTo[skey]; val = model.get( skey );
-                    for (i=0,l=syncedKeys.length; i<l; i++)
-                    {
-                        othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
-                        // fixed, too much recursion, when keys notified other keys, which then were re-synced
-                        model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
-                        __syncing = model.__syncing[othermodel.$id];
-                        if (0 > __syncing.indexOf(otherkey))
-                        {
-                            __syncing.push(otherkey);
-                            if ((callback=syncedKeys[i][2])) callback.call(othermodel, otherkey, val, skey, model);
-                            else othermodel.set(otherkey, val, 1);
-                            __syncing.pop();
-                        }
-                        //model.__syncing[othermodel.$id].__syncing = null;
-                    }
-                }
-            }
-            model.$atom = prev_atom; model.atomic = prev_atomic;
-        }
-    },
-
-    getDirty = function getDirty(u) {
-        var upds = [];
-        if (u.k) each(Keys(u.k), function(k){
-            var rest = getDirty(u.k[k]);
-            if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
-            else upds.push(k);
-        });
-        return upds;
-    },
-
-    setDirty = function setDirty(model, key, many) {
-        if (many) each(key, function(k){model.setDirty(k.split('.'));});
-        else model.setDirty(key);
     }
-;
+}
+// handle sub-composite models via walking the data and any attached validators
+function validateModel(model, modelClass, breakOnError, dottedKey, data, validators)
+{
+    var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
+        result = {isValid: true, errors: [ ]}
+    ;
+    //breakOnError = !!breakOnError;
+    data = data || model.$data;
+    if (is_instance(data, Collection)) data = data.items();
+    validators = validators || [model.$validators];
+
+    if (validators && validators.length)
+    {
+        if (!!dottedKey)
+        {
+            fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
+
+            if ((r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )))
+            {
+                o = r[ 1 ]; key = r[ 2 ];
+
+                if (modelClass === r[ 0 ])
+                {
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+
+                    // nested sub-model
+                    res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
+                    if (!res.isValid)
+                    {
+                        result.errors = result.errors.concat(res.errors.map(fixKey));
+                        result.isValid = false;
+                    }
+                    if (!result.isValid && breakOnError) return result;
+                }
+                else
+                {
+                    if (is_instance(o, Collection)) o = o.items();
+                    nestedKey = splitKey.slice(0, -1).join('.');
+
+                    val = o[ key ]; validator = get_value( r[3], key );
+                    if (is_instance(val, Value)) val = val.val();
+                    if (validator && !validator.call(model, val, dottedKey))
+                    {
+                        result.errors.push(dottedKey/*fixKey( key )*/);
+                        result.isValid = false;
+                        if (breakOnError) return result;
+                    }
+                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length)
+                    {
+                        nestedKey += !!nestedKey ? ('.' + key) : key;
+
+                        for (key in val)
+                        {
+                            if (HAS.call(val,key))
+                            {
+                                res = validateModel(model, modelClass, breakOnError, key, val, validators);
+                                if (!res.isValid)
+                                {
+                                    result.errors = result.errors.concat(res.errors.map(fixKey));
+                                    result.isValid = false;
+                                }
+                                if (breakOnError && !result.isValid) return result;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (T_ARRAY_OR_OBJ & get_type(data))
+        {
+            for (key in data)
+            {
+                if (HAS.call(data,key))
+                {
+                    res = validateModel(model, modelClass, breakOnError, key, data, validators);
+                    if (!res.isValid)
+                    {
+                        result.errors = result.errors.concat(res.errors);
+                        result.isValid = false;
+                    }
+                    if (breakOnError && !result.isValid) return result;
+                }
+            }
+        }
+    }
+    return result;
+}
+function syncHandler(evt, data)
+{
+    var model = evt.target, $syncTo = model.$syncTo,
+        key = data.key, val, keyDot, allKeys, allKeyslen,
+        otherkey, othermodel, callback, k, skey,
+        syncedKeys, i, l, prev_atomic, prev_atom, __syncing
+    ;
+    if (key)
+    {
+        // make this current key an atom, so as to avoid any circular-loop of updates on same keys
+        keyDot = key + '.';
+        allKeys = Keys($syncTo); allKeyslen = allKeys.length;
+        prev_atomic = model.atomic; prev_atom = model.$atom;
+        model.atomic = true; model.$atom = key;
+        //val = HAS.call(data,'value') ? data.value : model.get( key );
+        for (k=0; k<allKeyslen; k++)
+        {
+            skey = allKeys[ k ];
+            if (skey === key || startsWith(skey, keyDot))
+            {
+                syncedKeys = $syncTo[skey]; val = model.get( skey );
+                for (i=0,l=syncedKeys.length; i<l; i++)
+                {
+                    othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
+                    // fixed, too much recursion, when keys notified other keys, which then were re-synced
+                    model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
+                    __syncing = model.__syncing[othermodel.$id];
+                    if (0 > __syncing.indexOf(otherkey))
+                    {
+                        __syncing.push(otherkey);
+                        if ((callback=syncedKeys[i][2])) callback.call(othermodel, otherkey, val, skey, model);
+                        else othermodel.set(otherkey, val, 1);
+                        __syncing.pop();
+                    }
+                    //model.__syncing[othermodel.$id].__syncing = null;
+                }
+            }
+        }
+        model.$atom = prev_atom; model.atomic = prev_atomic;
+    }
+}
+function getDirty(u)
+{
+    var upds = [];
+    if (u.k) each(Keys(u.k), function(k){
+        var rest = getDirty(u.k[k]);
+        if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+        else upds.push(k);
+    });
+    return upds;
+}
+function setDirty(model, key, many)
+{
+    if (many) each(key, function(k){model.setDirty(k.split('.'));});
+    else model.setDirty(key);
+}
+
+// Array multi - sorter utility
+// returns a sorter that can (sub-)sort by multiple (nested) fields
+// each ascending or descending independantly
+function sorter()
+{
+    var arr = this, i, args = arguments, l = args.length,
+        a, b, avar, bvar, variables, step, lt, gt,
+        field, filter_args, sorter_args, desc, dir, sorter;
+    // + or nothing before a (nested) field indicates ascending sorting (default),
+    // example "+a.b.c", "a.b.c"
+    // - before a (nested) field indicates descending sorting,
+    // example "-b.c.d"
+    if (l)
+    {
+        step = 1;
+        sorter = [];
+        variables = [];
+        sorter_args = [];
+        filter_args = [];
+        for (i=l-1; i>=0; i--)
+        {
+            field = args[i];
+            // if is array, it contains a filter function as well
+            filter_args.unshift('f'+i);
+            if ( field.push )
+            {
+                sorter_args.unshift(field[1]);
+                field = field[0];
+            }
+            else
+            {
+                sorter_args.unshift(null);
+            }
+            dir = field.charAt(0);
+            if ('-' === dir)
+            {
+                desc = true;
+                field = field.slice(1);
+            }
+            else if ('+' === dir)
+            {
+                desc = false;
+                field = field.slice(1);
+            }
+            else
+            {
+                // default ASC
+                desc = false;
+            }
+            field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
+            a = "a"+field; b = "b"+field;
+            if (sorter_args[0])
+            {
+                a = filter_args[0] + '(' + a + ')';
+                b = filter_args[0] + '(' + b + ')';
+            }
+            avar = 'a_'+i; bvar = 'b_'+i;
+            variables.unshift(''+avar+'='+a+','+bvar+'='+b+'');
+            lt = desc ?(''+step):('-'+step); gt = desc ?('-'+step):(''+step);
+            sorter.unshift("("+avar+" < "+bvar+" ? "+lt+" : ("+avar+" > "+bvar+" ? "+gt+" : 0))");
+            step <<= 1;
+        }
+        // use optional custom filters as well
+        return (newFunc(
+                filter_args.join(','),
+                ['return function(a,b) {',
+                 '  var '+variables.join(',')+';',
+                 '  return '+sorter.join('+')+';',
+                 '};'].join("\n")
+                ))
+                .apply(null, sorter_args);
+    }
+    else
+    {
+        a = "a"; b = "b"; lt = '-1'; gt = '1';
+        sorter = ""+a+" < "+b+" ? "+lt+" : ("+a+" > "+b+" ? "+gt+" : 0)";
+        return newFunc("a,b", 'return '+sorter+';');
+    }
+}
 
 /**[DOC_MARKDOWN]
 #### Model
@@ -2196,19 +2278,22 @@ Model[proto].bracketKey = bracketed;
 
 function Proxy(model, key)
 {
-    key = null == key ? '' : key;
-    var self = this, getKey, prefix = !key || !key.length ? '' : (key + '.');
+    var self = this, getKey, prefix;
     if (!is_instance(self, Proxy)) return new Proxy(model, key);
 
+    key = null == key ? '' : key;
+    prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
         return dottedKey && dottedKey.length ? prefix + dottedKey : key;
     };
-
     self.get = function(dottedKey, RAW) {
         return model.get(getKey(dottedKey), RAW);
     };
     self.getVal = function(dottedKey, RAW) {
         return model.getVal(getKey(dottedKey), RAW);
+    };
+    self.getProxy = function(dottedKey) {
+        return model.getProxy(getKey(dottedKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -2232,6 +2317,7 @@ Proxy[proto] = {
     constructor: Proxy
     ,get: null
     ,getVal: null
+    ,getProxy: null
     ,set: null
     ,add: null
     ,append: null

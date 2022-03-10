@@ -1,20 +1,20 @@
 
 //
 // PublishSubscribe (Interface)
-var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3,
+var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
 
-    PBEvent = function(evt, target, ns) {
-        var self = this;
-        if (!(self instanceof PBEvent)) return new PBEvent(evt, target, ns);
-        // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
-        self.type = evt;
-        self.target = target;
-        self.currentTarget = target;
-        self.timeStamp = NOW( );
-        self.eventPhase = AT_TARGET;
-        self.namespace = ns || null;
-    }
-;
+function PBEvent(evt, target, ns)
+{
+    var self = this;
+    if (!is_instance(self, PBEvent)) return new PBEvent(evt, target, ns);
+    // http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-Event
+    self.type = evt;
+    self.target = target;
+    self.currentTarget = target;
+    self.timeStamp = NOW();
+    self.eventPhase = AT_TARGET;
+    self.namespace = ns || null;
+}
 PBEvent[proto] = {
     constructor: PBEvent
 
