@@ -23,7 +23,7 @@ function get_value(a, k)
     var i, ai, l = a.length;
     if (undef !== k)
     {
-        for (i=0; i<l; i++)
+        for (i=0; i<l; ++i)
         {
             ai = a[ i ];
             if (ai)
@@ -35,7 +35,7 @@ function get_value(a, k)
     }
     else
     {
-        for (i=0; i<l; i++)
+        for (i=0; i<l; ++i)
         {
             ai = a[ i ];
             if (ai && ai.v) return ai.v;
@@ -515,13 +515,13 @@ function syncHandler(evt, data)
         prev_atomic = model.atomic; prev_atom = model.$atom;
         model.atomic = true; model.$atom = key;
         //val = HAS.call(data,'value') ? data.value : model.get( key );
-        for (k=0; k<allKeyslen; k++)
+        for (k=0; k<allKeyslen; ++k)
         {
             skey = allKeys[ k ];
             if (skey === key || startsWith(skey, keyDot))
             {
                 syncedKeys = $syncTo[skey]; val = model.get( skey );
-                for (i=0,l=syncedKeys.length; i<l; i++)
+                for (i=0,l=syncedKeys.length; i<l; ++i)
                 {
                     othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                     // fixed, too much recursion, when keys notified other keys, which then were re-synced
@@ -576,7 +576,7 @@ function sorter()
         variables = [];
         sorter_args = [];
         filter_args = [];
-        for (i=l-1; i>=0; i--)
+        for (i=l-1; i>=0; --i)
         {
             field = args[i];
             // if is array, it contains a filter function as well
@@ -753,7 +753,7 @@ model.data( [Object data] );
         var model = this, i, l, u;
         if (!model.$upds) model.$upds = {};
         u = model.$upds;
-        for (i=0,l=ks.length; i<l; i++)
+        for (i=0,l=ks.length; i<l; ++i)
         {
             if (!u.k) u.k = {};
             if (!u.k[ks[i]]) u.k[ks[i]] = {};
@@ -768,7 +768,7 @@ model.data( [Object data] );
     ,isDirty: function(ks) {
         var model = this, i, l, c, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
-        for (c=0,i=0,l=ks.length; i<l; i++)
+        for (c=0,i=0,l=ks.length; i<l; ++i)
         {
             if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
             u = u.k[ks[i]]; c++;
@@ -797,14 +797,14 @@ model.dependencies( Object dependencies );
                 {
                     // inverse dependencies, used by model
                     d = deps[ k ] ? [].concat( deps[ k ] ) : [];
-                    for (i=0; i<d.length; i++)
+                    for (i=0; i<d.length; ++i)
                     {
                         // add hierarchical/dotted key, all levels
                         kk = d[i].split('.');
                         dk = kk[0];
                         if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
                         if (0 > dependencies[ dk ].indexOf( k )) dependencies[ dk ].push( k );
-                        for (j=1; j<kk.length; j++)
+                        for (j=1; j<kk.length; ++j)
                         {
                             dk += '.' + kk[j];
                             if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
@@ -1081,7 +1081,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
         RAW = true === RAW;
         data = model.$data;
         getters = RAW ? null : [model.$getters];
-        for (f=0,fl=fields.length; f<fl; f++)
+        for (f=0,fl=fields.length; f<fl; ++f)
         {
             dottedKey = fields[f];
             stack = [[data, dottedKey, getters]];
@@ -1106,7 +1106,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             {
                                 k = p.slice(i).join('.');
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     stack.push([o, keys[kk] + '.' + k, get_next(g, keys[kk])]);
                                 break;
                             }
@@ -1121,7 +1121,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             if (WILDCARD === k)
                             {
                                 k = p.slice(i).join('.');
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                     stack.push([o, '' + kk + '.' + k, get_next(g, ''+kk)]);
                                 break;
                             }
@@ -1141,7 +1141,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             if (WILDCARD === k)
                             {
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                 {
                                     if (RAW)
                                     {
@@ -1169,7 +1169,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                         {
                             if (WILDCARD === k)
                             {
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                 {
                                     if (RAW)
                                     {
@@ -1324,7 +1324,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -1335,7 +1335,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             else if (collection_validator)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call( model, val[i], dottedKey ))
                     {
                         validated = false;
@@ -1539,7 +1539,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -1550,7 +1550,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             else if ( collection_validator )
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call(model, val[i], dottedKey))
                     {
                         validated = false;
@@ -1769,7 +1769,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -1780,7 +1780,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             else if (collection_validator)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call(model, val[i], dottedKey))
                     {
                         validated = false;
@@ -1985,7 +1985,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
         if (fields.substr) fields = [fields];
         reArrangeIndexes = false !== reArrangeIndexes;
         data = model.$data;
-        for (f=0,fl=fields.length; f<fl; f++)
+        for (f=0,fl=fields.length; f<fl; ++f)
         {
             dottedKey = fields[f];
             stack = [[data, dottedKey]];
@@ -2013,7 +2013,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             {
                                 k = p.slice(i).join('.');
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     stack.push([o, keys[kk] + '.' + k]);
                                 break;
                             }
@@ -2027,7 +2027,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             if (WILDCARD === k)
                             {
                                 k = p.slice(i).join('.');
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                     stack.push([o, '' + kk + '.' + k]);
                                 break;
                             }
@@ -2057,7 +2057,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             if (WILDCARD === k)
                             {
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     delete o[keys[kk]];
                             }
                             else if (HAS.call(o,k))
@@ -2069,7 +2069,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                         {
                             if (WILDCARD === k)
                             {
-                                for (kk=o.length-1; kk>=0; kk--)
+                                for (kk=o.length-1; kk>=0; --kk)
                                 {
                                     if (reArrangeIndexes)
                                     {
@@ -2125,7 +2125,7 @@ model.sync( Model otherModel, Object fieldsMap );
                     otherKey = otherKey[0];
                 }
                 list = model.$syncTo[key]; addIt = 1;
-                for (i=list.length-1; i>=0; i--)
+                for (i=list.length-1; i>=0; --i)
                 {
                     if (otherModel === list[i][0] && otherKey === list[i][1])
                     {
@@ -2160,7 +2160,7 @@ model.unsync( Model otherModel );
             if (HAS.call(syncTo,key))
             {
                 if (!(list=syncTo[ key ]) || !list.length) continue;
-                for (i=list.length-1; i>=0; i--)
+                for (i=list.length-1; i>=0; --i)
                 {
                     if (otherModel === list[i][0])
                     {
@@ -2208,7 +2208,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             {
                 // notify multiple keys
                 l = dottedKey.length;
-                for (k=0; k<l; k++)
+                for (k=0; k<l; ++k)
                 {
                     d.key = dk = dottedKey[ k ];
                     if (HAS.call(keys,'_'+dk)) continue;
@@ -2224,7 +2224,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 // notify any dependencies as well
                 deps2 = [];
                 d = {key: '', action: 'set'};
-                for (k=0; k<l; k++)
+                for (k=0; k<l; ++k)
                 {
                     dk = deps[ k ];
                     // avoid already notified keys previously
@@ -2649,7 +2649,7 @@ collection.mapped([start [, end]]);
         end = null == end ? items.length-1 : end;
         if (f)
         {
-            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; i++,j++)
+            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; ++i,++j)
                 ret[i] = f(items[j], j, items);
         }
         else

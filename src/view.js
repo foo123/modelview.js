@@ -72,7 +72,7 @@ function contains_non_strict(collection, value)
 {
     if (collection)
     {
-        for (var i=0,l=collection.length; i<l; i++)
+        for (var i=0,l=collection.length; i<l; ++i)
             if (value == Str(collection[i])) return true;
     }
     return false;
@@ -385,7 +385,7 @@ function clearInvalid(view)
 {
     // reset any Values/Collections present
     if (view.$model) view.$model.resetDirty();
-    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
+    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; ++i) r[i].reset();
     view.$reset = null;
     if (view.$cache) each(Keys(view.$cache), function(id){
         var comp = view.$cache[id], COMP;
@@ -715,7 +715,7 @@ view.shortcuts( Object shortcuts );
                 {
                     modifiers = [];
                     keys = k.toLowerCase().split('+').map(trim);
-                    for (i=keys.length-1; i>=0; i--)
+                    for (i=keys.length-1; i>=0; --i)
                     {
                         key = keys[ i ];
                         if ('alt' === key || 'ctrl' === key || 'shift' === key || 'meta' === key)
@@ -877,7 +877,7 @@ view.router({
             if (rl > l) continue;
             match = {};
             matches = true;
-            for (i = 0; i < l; i++)
+            for (i = 0; i < l; ++i)
             {
                 m = null;
                 if (i >= rl)
@@ -1112,7 +1112,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (startsWith(method, 'on_model_'))
+            if (startsWith(method, 'on_model_') && model)
             {
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, view[method] = bindF(view[method], view));
@@ -1193,13 +1193,14 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var view = this, out = '', callback, livebind = view.option('view.livebind');
+        var view = this, model = view.$model, out = '', callback,
+            livebind = view.option('view.livebind');
         if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         if ('text' === livebind)
         {
             if (!view.$renderdom)
             {
-                if (view.$out) out = view.$out.call(view, function(key){return Str(view.$model.get(key));}); // return the rendered string
+                if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
@@ -1212,9 +1213,9 @@ view.render( [Boolean immediate=false] );
                     view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    morphText(view.$map, view.$model, 'sync' === immediate ? null : view.$model.getDirty());
-                    view.$model.resetDirty();
-                    nextTick(function(){
+                    morphText(view.$map, view.$model, !model || ('sync' === immediate) ? null : model.getDirty());
+                    if (model) model.resetDirty();
+                    nextTick(function() {
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
                     });
@@ -1235,7 +1236,7 @@ view.render( [Boolean immediate=false] );
             {
                 view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                view.$model.resetDirty();
+                if (model) model.resetDirty();
                 view.$reset = null; view.$cache['#'] = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -1358,8 +1359,8 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (true !== livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
+            if ((true !== livebind) && model) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (autobind && model && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -1379,7 +1380,7 @@ view.sync_model();
             autobind = view.option('view.autobind'), autobinds
         ;
 
-        if (HASDOC && view.$dom && autobind)
+        if (HASDOC && model && view.$dom && autobind)
         {
             autobinds = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
             if (autobinds.length) fields2model(view, autobinds);
@@ -1473,7 +1474,7 @@ view.sync_model();
                     if (comp && comp[MV] && comp[MV].comp)
                         comp[MV].comp.model.set(key, val, 1, modeldata);
                 }
-                else
+                else if (model)
                 {
                     model.set(key, val, 1, modeldata);
                 }
@@ -1573,7 +1574,7 @@ view.sync_model();
             bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (HASDOC && view.$dom)
+        if (HASDOC && model && view.$dom)
         {
             key = model.id + bracketed(data.key);
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
@@ -1619,7 +1620,7 @@ view.sync_model();
             bindElements, autoBindElements
         ;
 
-        if (HASDOC && view.$dom)
+        if (HASDOC && model && view.$dom)
         {
             key = model.id + bracketed(data.key);
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
@@ -1675,9 +1676,11 @@ view.sync_model();
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -1700,9 +1703,11 @@ view.sync_model();
 
     // set element(s) css props based on model key value
     ,do_css: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -1733,9 +1738,11 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -1761,9 +1768,11 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -1789,8 +1798,7 @@ view.sync_model();
 
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function(evt, el, data) {
-        var view = this, model = view.$model,
-            name = data.name, key = data.key,
+        var view = this, name = data.name, key = data.key,
             input_type = (el[TYPE]||'').toLowerCase(),
             value, value_type, checked, checkboxes, is_dynamic_array
         ;

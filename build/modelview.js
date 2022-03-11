@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-10 20:35:43
+*   @built on 2022-03-11 10:31:37
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-10 20:35:43
+*   @built on 2022-03-11 10:31:37
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -52,8 +52,9 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-var MV = '$MV', NAMESPACE = "modelview", WILDCARD = "*",
-    MV0 = function(){return {att:null,mod:null,id:null,comp:null,key:null};},
+var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "*",
+    MV0 = function() {return {att:null,mod:null,id:null,comp:null,key:null};},
+    DEFAULT_MV = MV0(),
     undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
     Obj = Object, OP = Obj[proto], Create = Obj.create, Keys = Obj.keys, stdMath = Math,
@@ -353,7 +354,7 @@ function each(a, f)
 }
 function iterate(F, i0, i1, F0)
 {
-    for (var i=i0; i<=i1; i++) F(i, F0, i0, i1);
+    for (var i=i0; i<=i1; ++i) F(i, F0, i0, i1);
     return F0;
 }
 function Merge(/* var args here.. */)
@@ -362,7 +363,7 @@ function Merge(/* var args here.. */)
         o1, o2, v, p, i, T ;
     o1 = args[0] || {};
     argslen = args.length;
-    for (i=1; i<argslen; i++)
+    for (i=1; i<argslen; ++i)
     {
         o2 = args[ i ];
         if (T_OBJ === get_type( o2 ))
@@ -484,13 +485,13 @@ function $style(el, prop, val)
 }
 function show(el)
 {
-    if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
-    el[STYLE].display = 'none' !== $style(el, '--mvDisplay') ? $style(el, '--mvDisplay') : 'block';
-    $style(el, '--mvDisplay', '');
+    if ('' === $style(el, mvDisplay)) $style(el, mvDisplay, get_style(el).display || 'block');
+    el[STYLE].display = 'none' !== $style(el, mvDisplay) ? $style(el, mvDisplay) : 'block';
+    $style(el, mvDisplay, '');
 }
 function hide(el)
 {
-    if ('' === $style(el, '--mvDisplay')) $style(el,'--mvDisplay', get_style(el).display || 'block');
+    if ('' === $style(el, mvDisplay)) $style(el, mvDisplay, get_style(el).display || 'block');
     el[STYLE].display = 'none';
 }
 function opt_val(o)
@@ -510,7 +511,7 @@ function select_get(el)
     ;
 
     // Loop through all the selected options
-    for (; i<max; i++)
+    for (; i<max; ++i)
     {
         opt = options[ i ];
 
@@ -519,7 +520,7 @@ function select_get(el)
             (opt[SELECTED] || i === sel_index) &&
             // Don't return options that are disabled or in a disabled optgroup
             (!opt[DISABLED]) &&
-            (!opt[PARENT][DISABLED] || "OPTGROUP" !== opt[PARENT][TAG])
+            (!opt[PARENT][DISABLED] || 'OPTGROUP' !== opt[PARENT][TAG])
         )
         {
             // Get the specific value for the option
@@ -539,7 +540,7 @@ function select_set(el, v)
         opt, i, sel_index = -1, ret = false
     ;
 
-    for (i=0; i<options.length; i++ )
+    for (i=0; i<options.length; ++i)
     {
         opt = options[i];
         selected = opt[SELECTED];
@@ -715,10 +716,27 @@ function parse(view, str, opts, rootNode, withJsCode)
 }
 function jsx2code(view, tpl, opts)
 {
-    var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k, injsx = false, instr = false, esc = false, q = '', c = '';
+    var i = 0, l = tpl.length, out = '', jsx = '', j = 0, k,
+        injsx = false, inparen = false, instr = false, esc = false, q = '', c = '';
     while (i<l)
     {
         c = tpl.charAt(i++);
+        if (inparen && !SPACE.test(c))
+        {
+            inparen = false;
+            if ('<' === c)
+            {
+                injsx = true;
+                jsx = c;
+                j = 1;
+                continue;
+            }
+            else
+            {
+                out += '(';
+                if ('(' === c) inparen = true;
+            }
+        }
         if (instr && ('\\' === c))
         {
             esc = !esc;
@@ -771,15 +789,16 @@ function jsx2code(view, tpl, opts)
                 j++;
                 jsx += c;
             }
-            else if ('<' === tpl.charAt(i))
+            /*else if ('<' === tpl.charAt(i))
             {
                 injsx = true;
                 jsx = '';
                 j = 1;
-            }
+            }*/
             else
             {
-                out += c;
+                inparen = true;
+                //out += c;
             }
         }
         else if (!instr && ('/' === c) && ('*' === tpl.charAt(i)))
@@ -1663,7 +1682,7 @@ function to_node(view, vnode, with_meta)
     else if (!T || !T.length)
     {
         rnode = Fragment();
-        for (i=0,l=vnode.childNodes.length; i<l; i++)
+        for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
     else
@@ -1671,7 +1690,7 @@ function to_node(view, vnode, with_meta)
         isSVG = /*HAS.call(svgElements, T)*/svgElements[T];
         TT = lower(vnode[TYPE] || '');
         rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', T.slice(1,-1)) : document.createElement(T.slice(1,-1));
-        for (i=0,l=vnode.attributes.length; i<l; i++)
+        for (i=0,l=vnode.attributes.length; i<l; ++i)
         {
             a = vnode.attributes[i];
             n = a.name; v = a.value;
@@ -1761,7 +1780,7 @@ function to_node(view, vnode, with_meta)
             }
             else
             {
-                for (i=0,l=vnode.childNodes.length; i<l; i++)
+                for (i=0,l=vnode.childNodes.length; i<l; ++i)
                 {
                     rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
                 }
@@ -1772,29 +1791,34 @@ function to_node(view, vnode, with_meta)
 }
 function nodeType(node)
 {
-    switch (node.nodeType)
+    var tagName, NodeType = node.nodeType;
+    if (3 === NodeType)
     {
-        case 3: return 't';
-        case 8: return 'c';
-        default:
-            var tagName = '<'+(node[TAG] || '')+'>';
-            return svgElements[tagName] ? tagName : lower(tagName);
+        return 't';
+    }
+    else if (8 === NodeType)
+    {
+        return 'c';
+    }
+    else
+    {
+        tagName = '<'+(node[TAG] || '')+'>';
+        return svgElements[tagName] ? tagName : lower(tagName);
     }
 }
 function eqNodes(r, v, T)
 {
     T = T || nodeType(r);
-    var rmv = r[MV] || MV0();
+    var rmv = r[MV] || DEFAULT_MV;
     return (T === v.nodeType) && ((null == v.component && null == rmv.comp) || (null != v.component && null != rmv.comp && (v.component.name === rmv.comp.name))) && (v.id === rmv.id) && ('<input>' !== T || lower(v[TYPE]||'') === lower(r[TYPE]||''));
 }
 function attr(vnode, name)
 {
     if (!vnode.atts)
     {
-        vnode.atts = vnode.attributes.reduce(function(atts, a){
-            atts['@'+a.name] = a.value;
-            return atts;
-        }, {});
+        for (var atts={},a=vnode.attributes,l=a.length,i=0; i<l; ++i)
+            atts['@'+a[i].name] = a[i].value;
+        vnode.atts = atts;
     }
     return vnode.atts['@'+name];
 }
@@ -1925,7 +1949,7 @@ function delNodes(view, r, index, count)
             else
             {
                 // old-fashioned way
-                for (; (0 < count) && (index < r.childNodes.length); count--)
+                for (; (0 < count) && (index < r.childNodes.length); --count)
                     r.removeChild(r.childNodes[index]);
             }
         }
@@ -1937,7 +1961,7 @@ function insNodes(view, r, v, index, count, lastNode)
     if (1 < count)
     {
         // using fragment really faster??
-        for (frag = Fragment(); 0 < count && index < vc /*&& frag.childNodes.length < count*/; count--,index++)
+        for (frag = Fragment(); 0 < count && index < vc /*&& frag.childNodes.length < count*/; --count,++index)
             frag.appendChild(to_node(view, v.childNodes[index], true));
     }
     else if (0 < count && index < vc)
@@ -1959,13 +1983,13 @@ function morphAttsAll(view, r, v)
     vAtts = v.attributes;
     rAtts = r.attributes;
     // remove non-existent attributes
-    for (i=rAtts.length-1; i>=0; i--)
+    for (i=rAtts.length-1; i>=0; --i)
     {
         a = rAtts[i]; n = a.name;
         if (null == attr(v, n)) del_att(r, n, T, TT);
     }
     // update new attributes
-    for (i=vAtts.length-1; i>=0; i--)
+    for (i=vAtts.length-1; i>=0; --i)
     {
         a = vAtts[i]; n = a.name; av = a.value;
         if (is_instance(av, Value))
@@ -1987,7 +2011,7 @@ function morphAtts(view, r, v)
     matched = (modifiedAtts.length === modifiedAttsPrev.length);
     if (matched)
     {
-        for (count=0,mi=0,mc=modifiedAtts.length; mi<mc; mi++)
+        for (count=0,mi=0,mc=modifiedAtts.length; mi<mc; ++mi)
         {
             m = modifiedAtts[mi];
             mp = modifiedAttsPrev[mi];
@@ -2074,8 +2098,10 @@ function morphSingle(view, r, rnode, vnode)
     {
         if (vnode.unit)
         {
+            //r.replaceChild(to_node(view, vnode, true), rnode);
+            morphAttsAll(view, rnode, vnode);
             if (changed)
-                r.replaceChild(to_node(view, vnode, true), rnode);
+                morphAll(view, rnode, vnode);
         }
         else
         {
@@ -2094,7 +2120,7 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
     {
         collection = v.childNodes[startv].nodeValue;
         diff = collection.diff;
-        for (di=0,dc=diff.length; di<dc; di++)
+        for (di=0,dc=diff.length; di<dc; ++di)
         {
             d = diff[di];
             m = collection.mappedItem;
@@ -2115,7 +2141,7 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                     j = r.childNodes[start+k];
                     n = slice.call(r.childNodes, start, start+k);
                     count = 0;
-                    for (i=0; i<len; i++) for (l=0; l<m; l++) frag.appendChild(n[d.from[i]*m+l]);
+                    for (i=0; i<len; ++i) for (l=0; l<m; ++l) frag.appendChild(n[d.from[i]*m+l]);
                     if (j) r.insertBefore(frag, j);
                     else r.appendChild(frag);
                     return count; // break from diff loop completely, this should be only diff
@@ -2135,14 +2161,14 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                     i = slice.call(r.childNodes, start+d.from*m, start+d.from*m+m);
                     j = slice.call(r.childNodes, start+d.to*m, start+d.to*m+m);
                     k = j[j.length-1].nextSibling;
-                    for (l=0; l<m; l++) r.replaceChild(j[l], i[l]);
-                    if (k) for (l=0; l<m; l++) r.insertBefore(i[l], k);
-                    else for (l=0; l<m; l++) r.appendChild(i[l]);
+                    for (l=0; l<m; ++l) r.replaceChild(j[l], i[l]);
+                    if (k) for (l=0; l<m; ++l) r.insertBefore(i[l], k);
+                    else for (l=0; l<m; ++l) r.appendChild(i[l]);
                     break;
                 case 'change':
                     len = (d.to-d.from+1)*m;
                     z = new Array(len);
-                    for (w=start+d.from*m,j=0,i=0; i<len; i++)
+                    for (w=start+d.from*m,j=0,i=0; i<len; ++i)
                     {
                         rnode = r.childNodes[w+i];
                         x = rnode[MV] ? rnode[MV].comp : null;
@@ -2153,7 +2179,7 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                     items = collection.mapped(d.from, d.to);
                     frag = htmlNode(view, '', null, null, [], items);
                     view.$cache['#'] = z = null;
-                    for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; i++)
+                    for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; ++i)
                     {
                         vnode = n[i]; rnode = r.childNodes[w+i];
                         if (eqNodes(rnode, vnode))
@@ -2178,18 +2204,18 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
     )
     {
         // there are keyed nodes, associate them in a map for reuse
-        for (index=start; index<=end; index++)
+        for (index=start; index<=end; ++index)
         {
             if (index >= r.childNodes.length) break;
             rnode = r.childNodes[index];
-            //rnode[MV] = rnode[MV] || MV0();
+            //rnode[MV] = rnode[MV] || DEFAULT_MV;
             // store the keyed nodes in a map
             // to be retrieved and reused easily
             if (rnode[MV] && rnode[MV].id)
                 keyed['#'+rnode[MV].id] = rnode;
         }
     }
-    for (indexv=startv,index=start; index<=end; index++,indexv++)
+    for (indexv=startv,index=start; index<=end; ++index,++indexv)
     {
         if (indexv >= v.childNodes.length) break;
         vnode = v.childNodes[indexv];
@@ -2296,22 +2322,22 @@ function morphAll(view, r, v, alreadyInited)
     }
 
     // need to flatten first any existent collections
-    for (index=vc-1; index>=0; index--)
+    for (index=vc-1; index>=0; --index)
     {
         if ('collection' === v.childNodes[index].nodeType)
             v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
     }
     vc = v.childNodes.length;
     keyed = {};
-    for (index=0; index<vc; index++)
+    for (index=0; index<vc; ++index)
     {
         if (v.childNodes[index].id)
         {
             // there are keyed nodes, associate them in a map for reuse
-            for (index=0,count=r.childNodes.length; index<count; index++)
+            for (index=0,count=r.childNodes.length; index<count; ++index)
             {
                 rnode = r.childNodes[index];
-                //rnode[MV] = rnode[MV] || MV0();
+                //rnode[MV] = rnode[MV] || DEFAULT_MV;
                 // store the keyed nodes in a map
                 // to be retrieved and reused easily
                 if (rnode[MV] && rnode[MV].id)
@@ -2321,7 +2347,7 @@ function morphAll(view, r, v, alreadyInited)
         }
     }
     count = r.childNodes.length - vc;
-    for (index=0; index<vc; index++)
+    for (index=0; index<vc; ++index)
     {
         if (index >= r.childNodes.length)
         {
@@ -2425,7 +2451,7 @@ function morph(view, r, v)
         matched = (0 < modifiedNodes.length) && (modifiedNodes.length === modifiedNodesPrev.length);
         if (matched)
         {
-            for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+            for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; ++mi)
             {
                 m = modifiedNodes[mi];
                 match = (m.from === offset + modifiedNodesPrev[mi].from);
@@ -2436,7 +2462,7 @@ function morph(view, r, v)
         }
         if (matched)
         {
-            for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; mi++)
+            for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; ++mi)
             {
                 m = modifiedNodes[mi];
                 if (m.to < m.from)
@@ -2454,7 +2480,7 @@ function morph(view, r, v)
                     count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
                     if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
                     {
-                        for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); di++)
+                        for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); ++di)
                         {
                             count = morphSelectedNodes(view, r, v, v.diff[di][0], v.diff[di][1], m.to, v.diff[di][0]-offset, count);
                         }
@@ -2488,7 +2514,7 @@ function add_nodes(el, nodes, index, move, isStatic)
             if (!move && _mvModifiedNodes)
             {
                 f = false;
-                for (i=0; i<_mvModifiedNodes.length; i++)
+                for (i=0; i<_mvModifiedNodes.length; ++i)
                 {
                     if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
                     {
@@ -2512,7 +2538,7 @@ function add_nodes(el, nodes, index, move, isStatic)
                 if (1 < l)
                 {
                     frag = Fragment();
-                    for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
                     el.appendChild(frag);
                 }
                 else
@@ -2526,7 +2552,7 @@ function add_nodes(el, nodes, index, move, isStatic)
                 {
                     frag = Fragment();
                     n = el.childNodes[index];
-                    for (i=0; i<l; i++) frag.appendChild(nodes[i]);
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
                     el.insertBefore(frag, n);
                 }
                 else
@@ -2550,7 +2576,7 @@ function remove_nodes(el, count, index, isStatic)
             if (_mvModifiedNodes)
             {
                 f = false;
-                for (i=0; i<_mvModifiedNodes.length; i++)
+                for (i=0; i<_mvModifiedNodes.length; ++i)
                 {
                     if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
                     {
@@ -2573,7 +2599,7 @@ function remove_nodes(el, count, index, isStatic)
             }
             else
             {
-                for (; 0 < l; l--) el.removeChild(el.childNodes[index]);
+                for (; 0 < l; --l) el.removeChild(el.childNodes[index]);
             }
         }
     }
@@ -3664,7 +3690,7 @@ function get_value(a, k)
     var i, ai, l = a.length;
     if (undef !== k)
     {
-        for (i=0; i<l; i++)
+        for (i=0; i<l; ++i)
         {
             ai = a[ i ];
             if (ai)
@@ -3676,7 +3702,7 @@ function get_value(a, k)
     }
     else
     {
-        for (i=0; i<l; i++)
+        for (i=0; i<l; ++i)
         {
             ai = a[ i ];
             if (ai && ai.v) return ai.v;
@@ -4156,13 +4182,13 @@ function syncHandler(evt, data)
         prev_atomic = model.atomic; prev_atom = model.$atom;
         model.atomic = true; model.$atom = key;
         //val = HAS.call(data,'value') ? data.value : model.get( key );
-        for (k=0; k<allKeyslen; k++)
+        for (k=0; k<allKeyslen; ++k)
         {
             skey = allKeys[ k ];
             if (skey === key || startsWith(skey, keyDot))
             {
                 syncedKeys = $syncTo[skey]; val = model.get( skey );
-                for (i=0,l=syncedKeys.length; i<l; i++)
+                for (i=0,l=syncedKeys.length; i<l; ++i)
                 {
                     othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                     // fixed, too much recursion, when keys notified other keys, which then were re-synced
@@ -4217,7 +4243,7 @@ function sorter()
         variables = [];
         sorter_args = [];
         filter_args = [];
-        for (i=l-1; i>=0; i--)
+        for (i=l-1; i>=0; --i)
         {
             field = args[i];
             // if is array, it contains a filter function as well
@@ -4394,7 +4420,7 @@ model.data( [Object data] );
         var model = this, i, l, u;
         if (!model.$upds) model.$upds = {};
         u = model.$upds;
-        for (i=0,l=ks.length; i<l; i++)
+        for (i=0,l=ks.length; i<l; ++i)
         {
             if (!u.k) u.k = {};
             if (!u.k[ks[i]]) u.k[ks[i]] = {};
@@ -4409,7 +4435,7 @@ model.data( [Object data] );
     ,isDirty: function(ks) {
         var model = this, i, l, c, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
-        for (c=0,i=0,l=ks.length; i<l; i++)
+        for (c=0,i=0,l=ks.length; i<l; ++i)
         {
             if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
             u = u.k[ks[i]]; c++;
@@ -4438,14 +4464,14 @@ model.dependencies( Object dependencies );
                 {
                     // inverse dependencies, used by model
                     d = deps[ k ] ? [].concat( deps[ k ] ) : [];
-                    for (i=0; i<d.length; i++)
+                    for (i=0; i<d.length; ++i)
                     {
                         // add hierarchical/dotted key, all levels
                         kk = d[i].split('.');
                         dk = kk[0];
                         if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
                         if (0 > dependencies[ dk ].indexOf( k )) dependencies[ dk ].push( k );
-                        for (j=1; j<kk.length; j++)
+                        for (j=1; j<kk.length; ++j)
                         {
                             dk += '.' + kk[j];
                             if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
@@ -4722,7 +4748,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
         RAW = true === RAW;
         data = model.$data;
         getters = RAW ? null : [model.$getters];
-        for (f=0,fl=fields.length; f<fl; f++)
+        for (f=0,fl=fields.length; f<fl; ++f)
         {
             dottedKey = fields[f];
             stack = [[data, dottedKey, getters]];
@@ -4747,7 +4773,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             {
                                 k = p.slice(i).join('.');
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     stack.push([o, keys[kk] + '.' + k, get_next(g, keys[kk])]);
                                 break;
                             }
@@ -4762,7 +4788,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             if (WILDCARD === k)
                             {
                                 k = p.slice(i).join('.');
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                     stack.push([o, '' + kk + '.' + k, get_next(g, ''+kk)]);
                                 break;
                             }
@@ -4782,7 +4808,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                             if (WILDCARD === k)
                             {
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                 {
                                     if (RAW)
                                     {
@@ -4810,7 +4836,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                         {
                             if (WILDCARD === k)
                             {
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                 {
                                     if (RAW)
                                     {
@@ -4965,7 +4991,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -4976,7 +5002,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             else if (collection_validator)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call( model, val[i], dottedKey ))
                     {
                         validated = false;
@@ -5180,7 +5206,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -5191,7 +5217,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             else if ( collection_validator )
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call(model, val[i], dottedKey))
                     {
                         validated = false;
@@ -5410,7 +5436,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             else if (collection_type)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     val[i] = collection_type.call(model, val[i], dottedKey);
             }
 
@@ -5421,7 +5447,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             else if (collection_validator)
             {
-                for (i=0,l=val.length; i<l; i++)
+                for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call(model, val[i], dottedKey))
                     {
                         validated = false;
@@ -5626,7 +5652,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
         if (fields.substr) fields = [fields];
         reArrangeIndexes = false !== reArrangeIndexes;
         data = model.$data;
-        for (f=0,fl=fields.length; f<fl; f++)
+        for (f=0,fl=fields.length; f<fl; ++f)
         {
             dottedKey = fields[f];
             stack = [[data, dottedKey]];
@@ -5654,7 +5680,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             {
                                 k = p.slice(i).join('.');
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     stack.push([o, keys[kk] + '.' + k]);
                                 break;
                             }
@@ -5668,7 +5694,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             if (WILDCARD === k)
                             {
                                 k = p.slice(i).join('.');
-                                for (kk=0; kk<o.length; kk++)
+                                for (kk=0; kk<o.length; ++kk)
                                     stack.push([o, '' + kk + '.' + k]);
                                 break;
                             }
@@ -5698,7 +5724,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                             if (WILDCARD === k)
                             {
                                 keys = Keys(o);
-                                for (kk=0; kk<keys.length; kk++)
+                                for (kk=0; kk<keys.length; ++kk)
                                     delete o[keys[kk]];
                             }
                             else if (HAS.call(o,k))
@@ -5710,7 +5736,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                         {
                             if (WILDCARD === k)
                             {
-                                for (kk=o.length-1; kk>=0; kk--)
+                                for (kk=o.length-1; kk>=0; --kk)
                                 {
                                     if (reArrangeIndexes)
                                     {
@@ -5766,7 +5792,7 @@ model.sync( Model otherModel, Object fieldsMap );
                     otherKey = otherKey[0];
                 }
                 list = model.$syncTo[key]; addIt = 1;
-                for (i=list.length-1; i>=0; i--)
+                for (i=list.length-1; i>=0; --i)
                 {
                     if (otherModel === list[i][0] && otherKey === list[i][1])
                     {
@@ -5801,7 +5827,7 @@ model.unsync( Model otherModel );
             if (HAS.call(syncTo,key))
             {
                 if (!(list=syncTo[ key ]) || !list.length) continue;
-                for (i=list.length-1; i>=0; i--)
+                for (i=list.length-1; i>=0; --i)
                 {
                     if (otherModel === list[i][0])
                     {
@@ -5849,7 +5875,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             {
                 // notify multiple keys
                 l = dottedKey.length;
-                for (k=0; k<l; k++)
+                for (k=0; k<l; ++k)
                 {
                     d.key = dk = dottedKey[ k ];
                     if (HAS.call(keys,'_'+dk)) continue;
@@ -5865,7 +5891,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 // notify any dependencies as well
                 deps2 = [];
                 d = {key: '', action: 'set'};
-                for (k=0; k<l; k++)
+                for (k=0; k<l; ++k)
                 {
                     dk = deps[ k ];
                     // avoid already notified keys previously
@@ -6290,7 +6316,7 @@ collection.mapped([start [, end]]);
         end = null == end ? items.length-1 : end;
         if (f)
         {
-            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; i++,j++)
+            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; ++i,++j)
                 ret[i] = f(items[j], j, items);
         }
         else
@@ -6377,7 +6403,7 @@ function contains_non_strict(collection, value)
 {
     if (collection)
     {
-        for (var i=0,l=collection.length; i<l; i++)
+        for (var i=0,l=collection.length; i<l; ++i)
             if (value == Str(collection[i])) return true;
     }
     return false;
@@ -6690,7 +6716,7 @@ function clearInvalid(view)
 {
     // reset any Values/Collections present
     if (view.$model) view.$model.resetDirty();
-    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; i++) r[i].reset();
+    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; ++i) r[i].reset();
     view.$reset = null;
     if (view.$cache) each(Keys(view.$cache), function(id){
         var comp = view.$cache[id], COMP;
@@ -7020,7 +7046,7 @@ view.shortcuts( Object shortcuts );
                 {
                     modifiers = [];
                     keys = k.toLowerCase().split('+').map(trim);
-                    for (i=keys.length-1; i>=0; i--)
+                    for (i=keys.length-1; i>=0; --i)
                     {
                         key = keys[ i ];
                         if ('alt' === key || 'ctrl' === key || 'shift' === key || 'meta' === key)
@@ -7182,7 +7208,7 @@ view.router({
             if (rl > l) continue;
             match = {};
             matches = true;
-            for (i = 0; i < l; i++)
+            for (i = 0; i < l; ++i)
             {
                 m = null;
                 if (i >= rl)
@@ -7417,7 +7443,7 @@ view.bind( [Array events=['change', 'click'], DOMNode dom=document.body [, DOMNo
         {
             if (!is_type(view[method], T_FUNC)) continue;
 
-            if (startsWith(method, 'on_model_'))
+            if (startsWith(method, 'on_model_') && model)
             {
                 evt = method.slice(9);
                 evt.length && view.onTo(model, evt, view[method] = bindF(view[method], view));
@@ -7498,13 +7524,14 @@ view.render( [Boolean immediate=false] );
 
 [/DOC_MARKDOWN]**/
     ,render: function(immediate) {
-        var view = this, out = '', callback, livebind = view.option('view.livebind');
+        var view = this, model = view.$model, out = '', callback,
+            livebind = view.option('view.livebind');
         if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         if ('text' === livebind)
         {
             if (!view.$renderdom)
             {
-                if (view.$out) out = view.$out.call(view, function(key){return Str(view.$model.get(key));}); // return the rendered string
+                if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
@@ -7517,9 +7544,9 @@ view.render( [Boolean immediate=false] );
                     view.updateMap(view.$renderdom, 'add');
                 }
                 callback = function() {
-                    morphText(view.$map, view.$model, 'sync' === immediate ? null : view.$model.getDirty());
-                    view.$model.resetDirty();
-                    nextTick(function(){
+                    morphText(view.$map, view.$model, !model || ('sync' === immediate) ? null : model.getDirty());
+                    if (model) model.resetDirty();
+                    nextTick(function() {
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
                     });
@@ -7540,7 +7567,7 @@ view.render( [Boolean immediate=false] );
             {
                 view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                view.$model.resetDirty();
+                if (model) model.resetDirty();
                 view.$reset = null; view.$cache['#'] = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
@@ -7663,8 +7690,8 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (true !== livebind) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
+            if ((true !== livebind) && model) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (autobind && model && (true !== livebind || view.$dom !== view.$renderdom))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
@@ -7684,7 +7711,7 @@ view.sync_model();
             autobind = view.option('view.autobind'), autobinds
         ;
 
-        if (HASDOC && view.$dom && autobind)
+        if (HASDOC && model && view.$dom && autobind)
         {
             autobinds = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
             if (autobinds.length) fields2model(view, autobinds);
@@ -7778,7 +7805,7 @@ view.sync_model();
                     if (comp && comp[MV] && comp[MV].comp)
                         comp[MV].comp.model.set(key, val, 1, modeldata);
                 }
-                else
+                else if (model)
                 {
                     model.set(key, val, 1, modeldata);
                 }
@@ -7878,7 +7905,7 @@ view.sync_model();
             bindElements = [], autoBindElements = [], notTriggerElem
         ;
 
-        if (HASDOC && view.$dom)
+        if (HASDOC && model && view.$dom)
         {
             key = model.id + bracketed(data.key);
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
@@ -7924,7 +7951,7 @@ view.sync_model();
             bindElements, autoBindElements
         ;
 
-        if (HASDOC && view.$dom)
+        if (HASDOC && model && view.$dom)
         {
             key = model.id + bracketed(data.key);
             autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
@@ -7980,9 +8007,11 @@ view.sync_model();
 
     // set element(s) html/text prop based on model key value
     ,do_html: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -8005,9 +8034,11 @@ view.sync_model();
 
     // set element(s) css props based on model key value
     ,do_css: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -8038,9 +8069,11 @@ view.sync_model();
 
     // show/hide element(s) according to binding
     ,do_show: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -8066,9 +8099,11 @@ view.sync_model();
 
     // hide/show element(s) according to binding
     ,do_hide: function(evt, el, data) {
-        var view = this, model = view.$model, key = el[ATTR](view.attr('mv-model')) || data.key,
+        var view = this, model = view.$model, key,
             domref, callback, livebind = view.option('view.livebind');
 
+        if (!model) return;
+        key = el[ATTR](view.attr('mv-model')) || data.key;
         if (!key) return;
         if (!!(domref=el[ATTR](view.attr('mv-domref')))) el = View.getDomRef(el, domref);
         else el = [el];
@@ -8094,8 +8129,7 @@ view.sync_model();
 
     // default bind/update element(s) values according to binding on model:change
     ,do_bind: function(evt, el, data) {
-        var view = this, model = view.$model,
-            name = data.name, key = data.key,
+        var view = this, name = data.name, key = data.key,
             input_type = (el[TYPE]||'').toLowerCase(),
             value, value_type, checked, checkboxes, is_dynamic_array
         ;
