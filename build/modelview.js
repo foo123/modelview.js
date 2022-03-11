@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-11 10:49:46
+*   @built on 2022-03-11 11:52:38
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-11 10:49:46
+*   @built on 2022-03-11 11:52:38
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1688,6 +1688,7 @@ function to_node(view, vnode, with_meta)
     }
     else
     {
+        // createElement is faster than innerHTML in wrapper
         isSVG = /*HAS.call(svgElements, T)*/svgElements[T];
         TT = lower(vnode[TYPE] || '');
         rnode = isSVG ? document.createElementNS('http://www.w3.org/2000/svg', T.slice(1,-1)) : document.createElement(T.slice(1,-1));
@@ -2169,24 +2170,31 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                 case 'change':
                     len = (d.to-d.from+1)*m;
                     z = new Array(len);
-                    for (w=start+d.from*m,j=0,i=0; i<len; ++i)
+                    for (w=start+d.from*m,j=0,i=0,rnode=r.childNodes[w]; i<len; ++i)
                     {
-                        rnode = r.childNodes[w+i];
+                        //rnode = r.childNodes[w+i];
                         x = rnode[MV] ? rnode[MV].comp : null;
                         if (x) z[j++] = x;
+                        rnode = rnode.nextSibling;
                     }
                     //z.length = j;
                     view.$cache['#'] = z;
                     items = collection.mapped(d.from, d.to);
                     frag = htmlNode(view, '', null, null, [], items);
                     view.$cache['#'] = z = null;
-                    for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length; i<j; ++i)
+                    for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length,rnode=r.childNodes[w]; i<j; ++i)
                     {
-                        vnode = n[i]; rnode = r.childNodes[w+i];
+                        vnode = n[i]; //rnode = r.childNodes[w+i];
                         if (eqNodes(rnode, vnode))
+                        {
                             morphSingle(view, r, rnode, vnode);
+                            rnode = rnode.nextSibling;
+                        }
                         else
-                            r.replaceChild(to_node(view, vnode, true), rnode);
+                        {
+                            r.replaceChild(x=to_node(view, vnode, true), rnode);
+                            rnode = x.nextSibling;
+                        }
                     }
                     //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
                     break;
@@ -2205,24 +2213,27 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
     )
     {
         // there are keyed nodes, associate them in a map for reuse
-        for (index=start; index<=end; ++index)
+        for (index=start,rnode=r.childNodes[index],z=stdMath.min(end, r.childNodes.length-1); index<=z; ++index)
         {
-            if (index >= r.childNodes.length) break;
-            rnode = r.childNodes[index];
+            //if (index >= z) break;
+            // nextSibling is faster than childNodes[index]
+            //rnode = r.childNodes[index];
             //rnode[MV] = rnode[MV] || DEFAULT_MV;
             // store the keyed nodes in a map
             // to be retrieved and reused easily
             if (rnode[MV] && rnode[MV].id)
                 keyed['#'+rnode[MV].id] = rnode;
+            // nextSibling is faster than childNodes[index]
+            rnode = rnode.nextSibling;
         }
     }
-    for (indexv=startv,index=start; index<=end; ++index,++indexv)
+    for (indexv=startv,index=start,rnode=r.childNodes[index],w=v.childNodes.length,z=r.childNodes.length; index<=end; ++index,++indexv)
     {
-        if (indexv >= v.childNodes.length) break;
+        if (indexv >= w) break;
         vnode = v.childNodes[indexv];
-        if (index >= r.childNodes.length)
+        if (index >= z)
         {
-            l = r.childNodes.length;
+            l = z;//r.childNodes.length;
             insNodes(view, r, v, indexv, end-l+1, null);
             if (0 > count) count += end-l+1;
             break;
@@ -2234,12 +2245,13 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
             break;
         }
 
-        rnode = r.childNodes[index];
+        //rnode = r.childNodes[index];
         T = nodeType(rnode);
 
         if (eqNodes(rnode, vnode, T))
         {
             morphSingle(view, r, rnode, vnode);
+            rnode = rnode.nextSibling;
         }
         else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
         {
@@ -2249,10 +2261,12 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
         else if (0 === count)
         {
             r.replaceChild(frag=to_node(view, vnode, true), rnode);
+            rnode = frag.nextSibling;
         }
         else if (0 > count)
         {
             r.insertBefore(frag=to_node(view, vnode, true), rnode);
+            z++;
             count++;
         }
         else
@@ -2260,16 +2274,17 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
             for (i=index,j=0; 0 < count && j < count; )
             {
                 j++;
-                if (index+j >= r.childNodes.length) break;
-                rnode = r.childNodes[index+j];
+                if (index+j >= z/*r.childNodes.length*/) break;
+                rnode = rnode.nextSibling/*r.childNodes[index+j]*/;
                 if (eqNodes(rnode, vnode)) break;
             }
             if (0 < j)
             {
                 delNodes(view, r, i, j);
+                z -= j;
                 count -= j;
             }
-            if (index >= r.childNodes.length)
+            if (index >= z/*r.childNodes.length*/)
             {
                 insNodes(view, r, v, indexv, end-r.childNodes.length+1, null);
                 count = 0;
@@ -2280,9 +2295,15 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                 rnode = r.childNodes[index];
                 T = nodeType(rnode);
                 if (eqNodes(rnode, vnode, T))
+                {
                     morphSingle(view, r, rnode, vnode);
+                    rnode = rnode.nextSibling;
+                }
                 else
+                {
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
+                    rnode = frag.nextSibling;
+                }
             }
         }
     }
@@ -2297,7 +2318,7 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
 function morphAll(view, r, v, alreadyInited)
 {
     // morph unconditionally r (real) DOM to match v (virtual) DOM
-    var vc = v.childNodes.length,
+    var vc = v.childNodes.length, rc,
         count, i, j, index, keyed,
         vnode, rnode, T, frag,
         rmv, rComp, vComp;
@@ -2329,40 +2350,43 @@ function morphAll(view, r, v, alreadyInited)
             v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
     }
     vc = v.childNodes.length;
+    rc = r.childNodes.length;
     keyed = {};
     for (index=0; index<vc; ++index)
     {
         if (v.childNodes[index].id)
         {
             // there are keyed nodes, associate them in a map for reuse
-            for (index=0,count=r.childNodes.length; index<count; ++index)
+            for (index=0,rnode=r.firstChild; rnode; /*index<rc; ++index*/)
             {
-                rnode = r.childNodes[index];
+                //rnode = r.childNodes[index];
                 //rnode[MV] = rnode[MV] || DEFAULT_MV;
                 // store the keyed nodes in a map
                 // to be retrieved and reused easily
                 if (rnode[MV] && rnode[MV].id)
                     keyed['#'+rnode[MV].id] = rnode;
+                rnode = rnode.nextSibling;
             }
             break;
         }
     }
-    count = r.childNodes.length - vc;
-    for (index=0; index<vc; ++index)
+    count = rc - vc;
+    for (index=0,rnode=r.firstChild; index<vc; ++index)
     {
-        if (index >= r.childNodes.length)
+        if (index >= rc)
         {
             insNodes(view, r, v, index, vc-r.childNodes.length, null);
             if (0 > count) count = 0;
             break;
         }
         vnode = v.childNodes[index];
-        rnode = r.childNodes[index];
+        //rnode = r.childNodes[index];
         T = nodeType(rnode);
 
         if (eqNodes(rnode, vnode, T))
         {
             morphSingleAll(view, r, rnode, vnode);
+            rnode = rnode.nextSibling;
         }
         else if (vnode.id && (frag=keyed['#'+vnode.id]) && eqNodes(frag, vnode))
         {
@@ -2372,10 +2396,12 @@ function morphAll(view, r, v, alreadyInited)
         else if (0 === count)
         {
             r.replaceChild(frag=to_node(view, vnode, true), rnode);
+            rnode = frag.nextSibling;
         }
         else if (0 > count)
         {
             r.insertBefore(frag=to_node(view, vnode, true), rnode);
+            rc++;
             count++;
         }
         else
@@ -2383,18 +2409,19 @@ function morphAll(view, r, v, alreadyInited)
             for (i=index,j=0; 0 < count && j < count; )
             {
                 j++;
-                if (index+j >= r.childNodes.length) break;
-                rnode = r.childNodes[index+j];
+                if (index+j >= rc/*r.childNodes.length*/) break;
+                rnode = rnode.nextSibling/*r.childNodes[index+j]*/;
                 if (eqNodes(rnode, vnode)) break;
             }
             if (0 < j)
             {
                 delNodes(view, r, i, j);
+                rc -= j;
                 count -= j;
             }
-            if (index >= r.childNodes.length)
+            if (index >= rc)
             {
-                insNodes(view, r, v, index, vc-r.childNodes.length, null);
+                insNodes(view, r, v, index, vc-rc, null);
                 count = 0;
                 break;
             }
@@ -2405,10 +2432,12 @@ function morphAll(view, r, v, alreadyInited)
                 if (eqNodes(rnode, vnode, T))
                 {
                     morphSingleAll(view, r, rnode, vnode);
+                    rnode = rnode.nextSibling;
                 }
                 else
                 {
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
+                    rnode = frag.nextSibling;
                 }
             }
         }
