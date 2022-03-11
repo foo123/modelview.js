@@ -772,6 +772,7 @@ function jsx2code(view, tpl, opts)
         }
         if (instr) esc = false;
     }
+    if (inparen) out += '(';
     if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
     return trim(out);
 }

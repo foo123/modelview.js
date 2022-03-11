@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-11 10:31:37
+*   @built on 2022-03-11 10:49:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-11 10:31:37
+*   @built on 2022-03-11 10:49:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -820,6 +820,7 @@ function jsx2code(view, tpl, opts)
         }
         if (instr) esc = false;
     }
+    if (inparen) out += '(';
     if (jsx.length || (0 !== j)) throw err('Malformed HTML/JSX at "'+tpl+'"');
     return trim(out);
 }
