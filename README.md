@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 4.1.0 in progress** (84 kB minified)
+**Version 4.1.0** (84 kB minified)
 
 
 **see also:**
@@ -167,11 +167,11 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 
 ModelView furthermore has built-in (global) data Model which is available in each template (or component) via `view.model()` (`view` reference is available in all contexts and is always the main View instance, while `this` references the main view in main template, whereas it references the current component instance in a component template). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Global Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is. Components can have their own local Model as well to manage internal local state, see documentation.
 
-ModelView also has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
+ModelView additionally has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
 
 ModelView uses some heuristics in order to morph the real DOM as fast as posible and skip parts that haven't changed (or at least heuristics say so). However heuristics don't cover some edge cases (since these would require a deep diffing between real and virtual DOM, which beats the purpose of fast morphing). These cases are defined by implicitly dynamic parts which appear as static (they are implicitly dynamic as being parts of a larger dynamic element, whose static parts change as a whole, but are not marked as explicitly dynamic), while the explicitly dynamic parts are similar (see example below). These edge cases are however very easy to handle fully, by providing very simple hints to ModelView engine as to what to morph exactly and how.
 
-Example in question:
+An example:
 
 ```javascript
 <div>{
@@ -179,7 +179,7 @@ someCondition ? (<ul><li>{text}</li><li>some static text</li></ul>) : (<ul><li>{
 }</div>
 ```
 
-If you run above example and change the value of `someCondition` you will see that result is not what is expected (ie `some static text` does not morph to `some other static text` or vice-versa). This is because for ModelView to understand that these static parts are different would require a deep diffing of the two `<ul>` nodes which is slow(er), while its heuristics say that they are similar. However there are **at least two very simple ways to remedy the situation**:
+If you run above example and change the value of `someCondition` you will see that result is not what is expected (ie `some static text` does not morph to `some other static text` or vice-versa). This is because for ModelView to understand that these static parts are different would require a deep diffing of the two `<ul>` nodes which is slow(er), while its heuristics say that they are similar. However there are **three very simple ways to remedy the situation**:
 
 **1st way: make code manifestly dynamic**
 
@@ -191,7 +191,17 @@ someCondition ? (<ul><li>{text}</li><li>{'some static text'}</li></ul>) : (<ul><
 
 In this case, we make the different implicitly dynamic but manifestly static parts to be explicitly dynamic which makes ModelView morph them as expected.
 
-**2nd way: mark html as single unit**
+**2nd way: associate different modelview keys**
+
+```javascript
+<div>{
+someCondition ? (<ul mv-id="foo"><li>{text}</li><li>{'some static text'}</li></ul>) : (<ul mv-id="bar"><li>{text2}</li><li>{'some other static text'}</li></ul>)
+}</div>
+```
+
+In this case, we associate different modelview keys (`mv-id="foo"`, `mv-id="bar"`) to each node, so they are immediately counted as different and replaced (note that replacing may sometimes be slower).
+
+**3rd way: mark html nodes as single unit to be morphed completely**
 
 ```javascript
 <div>{
@@ -199,7 +209,7 @@ someCondition ? view.unit(<ul><li>{text}</li><li>some static text</li></ul>) : v
 }</div>
 ```
 
-In this case we mark the whole html node to be morphed as a single unit (ie `view.unit(..)`), instead of recursively piece-by-piece, so it is replaced at once and we have our expected result.
+In this case we mark the html nodes to be morphed completely as a single unit (ie `view.unit(..)`), instead of applying heuristics, so we have our expected result. Note that this solution is the more general, but might also be slightly slower in some cases.
 
 
 ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue or Inferno), other actors can manipulate the DOM and ModelView will still work (at least in most cases of interest). This is because ModelView relies on the **actual DOM** (and not any virtual DOM) which is the **only reliable source of truth**. In fact ModelView itself provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.
@@ -218,7 +228,7 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are some benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for Latest ModelView and some popular frameworks (env: Windows 7 64bit, Chrome 98.0.4758.82 64bit).
+Here are latest benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for Latest ModelView and some popular frameworks (env: Windows 7 64bit, Chrome 99.0.4844.51 64bit).
 
 
 **Keyed Results**

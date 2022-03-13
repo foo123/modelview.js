@@ -718,8 +718,15 @@ view.html( String htmlString );
 
 
 
-// mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
+// mark html virtual node(s) to be morphed completely as a single unit
+// (without using speed heuristics which may in some cases fail)
 view.unit( nodes );
+
+
+
+
+// declare that html virtual node(s) are keyed nodes
+view.keyed( nodes );
 
 
 

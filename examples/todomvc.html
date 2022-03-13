@@ -57,9 +57,9 @@
 <input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" checked={this.model().get('todoList.allCompleted')} />
 <label for="toggle-all">Mark all as complete</label>
 <ul id="todo-list" class="show-all">{
-this.model().get('todoList.display').map(todo => (
+this.keyed(this.model().get('todoList.display').map(todo => (
     <Todo id={todo.uuid.val()} props={todo}/>
-))
+)))
 }</ul>
 </section>
 

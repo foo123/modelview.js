@@ -989,21 +989,22 @@ view.html( String htmlString );
     ,html: function(str) {
         return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
     }
-    ,jsx: function jsx(node) {
-        if (is_instance(node, VNode))
-        {
-            node.cnodeType = node.nodeType = 'jsx';
-            return node;
-        }
-        return is_type(node, T_ARRAY) ? node.map(jsx) : node;
-    }
 /**[DOC_MARKDOWN]
-// mark html virtual node(s) to be morphed/replaced as a single unit, instead of recursively morphed piece by piece
+// mark html virtual node(s) to be morphed completely as a single unit
+// (without using speed heuristics which may in some cases fail)
 view.unit( nodes );
 
 [/DOC_MARKDOWN]**/
     ,unit: function(nodes) {
         return as_unit(nodes);
+    }
+/**[DOC_MARKDOWN]
+// declare that html virtual node(s) are keyed nodes
+view.keyed( nodes );
+
+[/DOC_MARKDOWN]**/
+    ,keyed: function(nodes) {
+        return new KeyedNode(nodes);
     }
 
     ,attr: function(attr) {
@@ -1244,7 +1245,7 @@ view.render( [Boolean immediate=false] );
             }
             callback = function() {
                 view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
-                morph(view, view.$renderdom, view.$out.call(view, htmlNode), true);
+                morph(view, view.$renderdom, view.$out.call(view, htmlNode));
                 view.$cache['#'] = null;
                 nextTick(function(){
                     clearInvalid(view);
