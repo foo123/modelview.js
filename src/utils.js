@@ -1457,12 +1457,13 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 else
                 {
                     var v = Str(n);
-                    /*if ('' === v)
+                    if ('' === v)
                     {
                         if (!node.modified) node.modified = {atts: [], nodes: []};
                         new_mod = insMod(node.modified.nodes, index, index-1, new_mod);
+                        node.simple = false;
                         return childNodes;
-                    }*/
+                    }
                     n = VNode('t', v, v, null, 0);
                     n.changed = true;
                     if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1530,11 +1531,13 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             else if (!n.nodeType || !n.nodeType.length)
             {
                 node.potentialChildNodes += n.potentialChildNodes;
-                if (n.modified && n.modified.nodes.length)
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
+                /*if (n.modified && n.modified.nodes.length)
                 {
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     insMod(node.modified.nodes, index, n.modified.nodes);
-                }
+                }*/
                 AP.push.apply(childNodes, n.childNodes.map(function(nn){
                     if (is_instance(nn, KeyedNode))
                     {
@@ -1545,9 +1548,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     nn.parentNode = node;
                     nn.index = index++;
                     nn.unit = nn.unit || n.unit;
-                    node.changed = node.changed || nn.changed || nn.achanged;
+                    //node.changed = node.changed || nn.changed || nn.achanged;
                     return nn;
                 }));
+                node.changed = true;
                 node.simple = false;
                 return childNodes;
             }
