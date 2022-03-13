@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-13 20:38:06
+*   @built on 2022-03-13 23:57:17
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-13 20:38:06
+*   @built on 2022-03-13 23:57:17
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1431,16 +1431,19 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     node.id = null == id ? null : Str(id);
     node.type = null == type ? null : Str(type);
     node.attributes = atts || [];
-    if (modified && !node.modified) node.modified = {
-        atts: [],
-        nodes: [],
-        updateAtts: modified.updateAtts,
-        updateNodes: modified.updateNodes
-    };
-    if (modified && modified.atts && modified.atts.length)
+    if (modified)
     {
-        node.modified.atts = modified.atts;
-        node.achanged = true;
+        node.modified = {
+            atts: [],
+            nodes: [],
+            updateAtts: modified.updateAtts,
+            updateNodes: modified.updateNodes
+        };
+        if (modified.atts && modified.atts.length)
+        {
+            node.modified.atts = modified.atts;
+            node.achanged = true;
+        }
     }
     if ('t' === nodeType || 'c' === nodeType)
     {
@@ -1473,7 +1476,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 node.potentialChildNodes += len;
                 index += len;
                 // reset Collection after current render session
-                view.$reset.push(n);
+                if (nn.changed) view.$reset.push(n);
                 node.changed = node.changed || nn.changed;
                 node.simple = false;
                 return childNodes;
@@ -1486,9 +1489,9 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
                 // if dirty and not not from model.getVal() (ie has no key)
-                if (val.dirty() && !val.key())
+                if (val.changed() && !val.key())
                     view.$reset.push(val);
-                n.changed = val.dirty();
+                n.changed = val.changed();
             }
             else if (!is_instance(n, VNode))
             {
@@ -1694,7 +1697,7 @@ function to_string(view, vnode)
                 var val = att.value;
                 if (is_instance(val, Value))
                 {
-                    if (val.dirty() && !val.key())
+                    if (val.changed() && !val.key())
                         view.$reset.push(val);
                     val = val.val();
                 }
@@ -1747,7 +1750,7 @@ function to_node(view, vnode, with_meta)
             n = a.name; v = a.value;
             if (is_instance(v, Value))
             {
-                if (v.dirty() && !v.key())
+                if (v.changed() && !v.key())
                     view.$reset.push(v);
                 v = v.val();
             }
@@ -1980,7 +1983,7 @@ function update_att(view, r, v, a, T, TT)
     var n = a.name, av = a.value;
     if (is_instance(av, Value))
     {
-        if (av.dirty())
+        if (av.changed())
         {
             if (!av.key()) view.$reset.push(av);
             av = av.val();
@@ -2069,7 +2072,7 @@ function morphAttsAll(view, r, v)
         a = vAtts[i]; n = a.name; av = a.value;
         if (is_instance(av, Value))
         {
-            if (av.dirty() && !av.key()) view.$reset.push(av);
+            if (av.changed() && !av.key()) view.$reset.push(av);
             av = av.val();
         }
         if (false === av) del_att(r, n, T, TT);
@@ -4831,8 +4834,8 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
-            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, model.isDirty([dottedKey]));
-            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey).changed(model.isDirty([dottedKey]));
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey).changed(model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
@@ -4845,10 +4848,10 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             else if (false === r[ 0 ])
             {
                 ret = r[ 1 ].call(model, dottedKey);
-                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, model.isDirty(ks));
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey).changed(model.isDirty(ks));
             }
             // model field
-            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey).changed(model.isDirty(ks));
         }
         return undef;
     }
@@ -6132,7 +6135,7 @@ Proxy[proto] = {
 var value = new Model.Value(val [, String key=undefined]);
 var val = value.val(); // get value
 value.set(newVal); // set new value and update dirty flag as needed
-var isDirty = value.dirty(); // get dirty flag
+var isDirty = value.changed(); // get dirty flag
 value.reset(); // reset dirty flag
 var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
@@ -6162,7 +6165,7 @@ function Value(_val, _key)
         _dirty = false;
         return self;
     };
-    self.dirty = function(isDirty) {
+    self.changed = self.dirty = function(isDirty) {
         if (arguments.length)
         {
             _dirty = !!isDirty;
@@ -6181,6 +6184,7 @@ Value[proto] = {
     ,val: null
     ,set: null
     ,reset: null
+    ,changed: null
     ,dirty: null
     ,toString: function() {
         return Str(this.val());
@@ -6293,7 +6297,7 @@ collection.set(newData);
                 if (is_instance(self._items[index], Value))
                 {
                     self._items[index].set(data);
-                    if (self._items[index].dirty()) self._upd('change', index, index);
+                    if (self._items[index].changed()) self._upd('change', index, index);
                 }
                 else if (self._items[index] !== data)
                 {

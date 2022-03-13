@@ -509,7 +509,7 @@ model.atom( String dottedKey | Boolean false );
 var value = new Model.Value(val [, String key=undefined]);
 var val = value.val(); // get value
 value.set(newVal); // set new value and update dirty flag as needed
-var isDirty = value.dirty(); // get dirty flag
+var isDirty = value.changed(); // get dirty flag
 value.reset(); // reset dirty flag
 var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 

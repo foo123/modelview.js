@@ -1032,8 +1032,8 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
-            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey, model.isDirty([dottedKey]));
-            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, model.isDirty([dottedKey]));
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey).changed(model.isDirty([dottedKey]));
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey).changed(model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
@@ -1046,10 +1046,10 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             else if (false === r[ 0 ])
             {
                 ret = r[ 1 ].call(model, dottedKey);
-                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, model.isDirty(ks));
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey).changed(model.isDirty(ks));
             }
             // model field
-            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey).changed(model.isDirty(ks));
         }
         return undef;
     }
@@ -2333,7 +2333,7 @@ Proxy[proto] = {
 var value = new Model.Value(val [, String key=undefined]);
 var val = value.val(); // get value
 value.set(newVal); // set new value and update dirty flag as needed
-var isDirty = value.dirty(); // get dirty flag
+var isDirty = value.changed(); // get dirty flag
 value.reset(); // reset dirty flag
 var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
@@ -2363,7 +2363,7 @@ function Value(_val, _key)
         _dirty = false;
         return self;
     };
-    self.dirty = function(isDirty) {
+    self.changed = self.dirty = function(isDirty) {
         if (arguments.length)
         {
             _dirty = !!isDirty;
@@ -2382,6 +2382,7 @@ Value[proto] = {
     ,val: null
     ,set: null
     ,reset: null
+    ,changed: null
     ,dirty: null
     ,toString: function() {
         return Str(this.val());
@@ -2494,7 +2495,7 @@ collection.set(newData);
                 if (is_instance(self._items[index], Value))
                 {
                     self._items[index].set(data);
-                    if (self._items[index].dirty()) self._upd('change', index, index);
+                    if (self._items[index].changed()) self._upd('change', index, index);
                 }
                 else if (self._items[index] !== data)
                 {
