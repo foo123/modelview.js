@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-14 20:49:55
+*   @built on 2022-03-15 00:08:20
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-14 20:49:55
+*   @built on 2022-03-15 00:08:20
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1023,7 +1023,7 @@ function html2ast(view, html, state, jscode)
                 if ('/' === html.charAt(i-1) || (HAS.call(autoclosedTags, state.dom.cnodeType)))
                 {
                     // closed
-                    if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
+                    if ((true === jscode) && hasComponent(view, state.dom.nodeType.slice(1,-1)))
                     {
                         // capital 1st letter signifies custom component
                         component = state.dom;
@@ -1165,7 +1165,7 @@ function html2ast(view, html, state, jscode)
                     else
                     {
                         state.intag = false;
-                        if ((true === jscode) && view.hasComponent(state.dom.nodeType.slice(1,-1)))
+                        if ((true === jscode) && hasComponent(view, state.dom.nodeType.slice(1,-1)))
                         {
                             // capital 1st letter signifies custom component
                             component = state.dom;
@@ -1424,6 +1424,15 @@ function insDiff(node, start, end, new_diff)
 }
 function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
 {
+    if (
+        // idempotent shortcut
+        ('' === nodeType) &&
+        children && (1 === children.length) &&
+        ('' === children[0].nodeType || '<mv-component>' === children[0].nodeType)
+    )
+    {
+        return children[0];
+    }
     var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
     id = id || null; type = type || null;
     if (is_instance(id, Value)) id = id.val();
@@ -6897,6 +6906,10 @@ function clearAll(view)
         }
     });
 }
+function hasComponent(view, name)
+{
+    return view && name && view.$components && is_instance(view.$components['#'+name], View.Component);
+}
 function viewHandler(view, method)
 {
     return function(evt) {return method.call(view, evt, {el:evt.target});};
@@ -7289,10 +7302,6 @@ view.components( Object components );
             }
         }
         return '';
-    }
-    ,hasComponent: function(name) {
-        var view = this;
-        return name && view.$components && is_instance(view.$components['#'+name], View.Component);
     }
 
 /**[DOC_MARKDOWN]

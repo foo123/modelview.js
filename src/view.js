@@ -427,6 +427,10 @@ function clearAll(view)
         }
     });
 }
+function hasComponent(view, name)
+{
+    return view && name && view.$components && is_instance(view.$components['#'+name], View.Component);
+}
 function viewHandler(view, method)
 {
     return function(evt) {return method.call(view, evt, {el:evt.target});};
@@ -819,10 +823,6 @@ view.components( Object components );
             }
         }
         return '';
-    }
-    ,hasComponent: function(name) {
-        var view = this;
-        return name && view.$components && is_instance(view.$components['#'+name], View.Component);
     }
 
 /**[DOC_MARKDOWN]
