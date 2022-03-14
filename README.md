@@ -195,7 +195,7 @@ In this case, we make the different implicitly dynamic but manifestly static par
 
 ```javascript
 <div>{
-someCondition ? (<ul mv-id="foo"><li>{text}</li><li>{'some static text'}</li></ul>) : (<ul mv-id="bar"><li>{text2}</li><li>{'some other static text'}</li></ul>)
+someCondition ? (<ul mv-id="foo"><li>{text}</li><li>some static text</li></ul>) : (<ul mv-id="bar"><li>{text2}</li><li>some other static text</li></ul>)
 }</div>
 ```
 
