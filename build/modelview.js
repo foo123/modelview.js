@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-14 08:04:39
+*   @built on 2022-03-14 20:49:55
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-14 08:04:39
+*   @built on 2022-03-14 20:49:55
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -2213,6 +2213,15 @@ function morphSingle(view, r, rnode, vnode)
         if (changed) morph(view, rnode, vnode);
     }
 }
+function mergeChildNodes(nodes)
+{
+    return 1 === nodes.length
+        ? nodes[0].childNodes
+        : nodes.reduce(function(nodes, node){
+            nodes.push.apply(nodes, node.childNodes);
+            return nodes;
+        }, []);
+}
 function morphCollection(view, r, v, start, end, end2, startv, count)
 {
     var vnode, rnode, collection,
@@ -2230,8 +2239,8 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
             case 'set':
                 len = collection.items().length*m;
                 items = collection.mapped();
-                frag = htmlNode(view, '', null, null, [], items);
-                frag.hasKeyedNodes = hasKeyed;
+                frag = {nodeType:'',hasKeyedNodes:hasKeyed,childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/;
+                //frag.hasKeyedNodes = hasKeyed;
                 morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
@@ -2251,7 +2260,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
             case 'add':
                 len = (d.to-d.from+1)*m;
                 items = collection.mapped(d.from, d.to);
-                insNodes(view, r, htmlNode(view, '', null, null, [], items), 0, len, r.childNodes[start+d.from*m]);
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, r.childNodes[start+d.from*m]);
                 if (0 > count) count += len;
                 break;
             case 'del':
@@ -2280,9 +2289,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 //z.length = j;
                 view.$cache['#'] = z;
                 items = collection.mapped(d.from, d.to);
-                frag = htmlNode(view, '', null, null, [], items);
+                frag = mergeChildNodes(items)/*htmlNode(view, '', null, null, [], items)*/;
                 view.$cache['#'] = z = null;
-                for (n=frag.childNodes,w=start+d.from*m,i=0,j=n.length,rnode=r.childNodes[w]; i<j; ++i)
+                for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=r.childNodes[w]; i<j; ++i)
                 {
                     vnode = n[i]; //rnode = r.childNodes[w+i];
                     if (eqNodes(rnode, vnode))
