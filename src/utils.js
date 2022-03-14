@@ -1406,6 +1406,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     {
         children = children || [];
         node.childNodes = children.reduce(function process(childNodes, n) {
+            var nn, i, len, val, v, a;
             if (is_instance(n, KeyedNode))
             {
                 node.hasKeyedNodes = true;
@@ -1413,7 +1414,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             }
             if (is_instance(n, Collection))
             {
-                var nn = new VNode('collection', n, null, node, index), len = n.items().length*n.mappedItem;
+                nn = new VNode('collection', n, null, node, index);
+                len = n.items().length*n.mappedItem;
                 nn.potentialChildNodes = len;
                 nn.changed = 0 < n.diff.length;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
@@ -1433,9 +1435,20 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 node.simple = false;
                 return childNodes;
             }
+            else if (is_array(n))
+            {
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                i = index;
+                childNodes = n.reduce(process, childNodes);
+                new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
+                node.changed = true;
+                node.simple = false;
+                return childNodes;
+            }
             else if (is_instance(n, Value))
             {
-                var val = n, v = Str(val.val());
+                val = n;
+                v = Str(val.val());
                 n = VNode('t', v, v, null, 0);
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
@@ -1447,31 +1460,11 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             }
             else if (!is_instance(n, VNode))
             {
-                if (is_array(n))
-                {
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    var i = index;
-                    childNodes = n.reduce(process, childNodes);
-                    new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
-                    node.changed = true;
-                    node.simple = false;
-                    return childNodes;
-                }
-                else
-                {
-                    var v = Str(n);
-                    if ('' === v)
-                    {
-                        if (!node.modified) node.modified = {atts: [], nodes: []};
-                        new_mod = insMod(node.modified.nodes, index, index-1, new_mod);
-                        node.simple = false;
-                        return childNodes;
-                    }
-                    n = VNode('t', v, v, null, 0);
-                    n.changed = true;
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    new_mod = insMod(node.modified.nodes, index, index, new_mod);
-                }
+                v = Str(n);
+                n = VNode('t', v, v, null, 0);
+                n.changed = true;
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                new_mod = insMod(node.modified.nodes, index, index, new_mod);
             }
             else if ('<mv-component>' === n.nodeType)
             {
@@ -1481,7 +1474,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                 /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
-                AP.push.apply(childNodes, n.childNodes.map(function(nn){
+                AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
@@ -1490,7 +1483,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     return nn;
                 }));
                 node.changed = node.changed || n.changed;
-                node.simple = false;
+                if (!n.simple) node.simple = false;
                 return childNodes;
             }
             else if ('collection' === n.nodeType)
@@ -1515,7 +1508,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             else if ('dyn' === n.nodeType)
             {
                 node.potentialChildNodes += n.potentialChildNodes;
-                var i = index, a = n.childNodes.map(function(nn){
+                i = index;
+                a = n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     nn.unit = true;
@@ -1541,7 +1535,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     if (!node.modified) node.modified = {atts: [], nodes: []};
                     insMod(node.modified.nodes, index, n.modified.nodes);
                 }*/
-                AP.push.apply(childNodes, n.childNodes.map(function(nn){
+                AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     if (is_instance(nn, KeyedNode))
                     {
                         node.hasKeyedNodes = true;

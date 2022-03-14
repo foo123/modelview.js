@@ -851,7 +851,7 @@ view.router({
         opts.prefix = trim(opts.prefix || '');
         if (!HAS.call(opts, 'routes')) opts.routes = {};
         opts.routes = opts.routes || {};
-        fail = opts.fail || function(){return '';};
+        fail = opts.fail || function(){return [];/*empty*/};
         loc = (HASDOC ? window.location : view.option('router.location')) || {pathname:'/', hash:'#/'};
         route = normalisePath(('path' === opts.type ? loc.pathname : loc.hash) || '');
         if (opts.prefix && opts.prefix.length)
