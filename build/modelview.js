@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-15 15:27:51
+*   @built on 2022-03-15 21:38:32
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-15 15:27:51
+*   @built on 2022-03-15 21:38:32
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -53,7 +53,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "*",
-    MV0 = function() {return {att:null,mod:null,id:null,comp:null,key:null};},
+    MV0 = function(att,mod,id,comp,key) {return {att:att||null,mod:mod||null,id:id||null,comp:comp||null,key:key||null};},
     DEFAULT_MV = MV0(),
     undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
     proto = "prototype", Arr = Array, AP = Arr[proto], Regex = RegExp, Num = Number,
@@ -289,7 +289,9 @@ VNode[proto] = {
     ,achanged: false
     ,unit: false
     ,simple: true
-    ,make: null
+    ,make: function(view, with_meta) {
+        return to_node(view, this, with_meta);
+    }
 };
 function VCode(code)
 {
@@ -1509,7 +1511,6 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 val = n;
                 v = Str(val.val());
                 n = VNode('t', v, v, null, 0);
-                n.make = function() {return Text(this.nodeValue2);};
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
@@ -1522,7 +1523,6 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             {
                 v = Str(n);
                 n = VNode('t', v, v, null, 0);
-                n.make = function() {return Text(this.nodeValue2);};
                 n.changed = true;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
@@ -1643,59 +1643,87 @@ function to_code(vnode, with_modified)
     {
         if ('t' === T)
         {
-            out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+', {make:function(){return document.createTextNode(this.nodeValue2);}})';
+            out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
         }
         else if ('c' === T)
         {
-            out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+', null, {make:function(){return document.createComment(this.nodeValue);}})';
+            out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+', null)';
         }
         else
         {
-            var modified = {atts: []},
+            var modifiedAtts = [],
                 updateAtts = '',
                 updateNodes = '',
-                makeAtt = function(name, val) {
-                    out = 'val='+val+';';
-                    out += 'if(val instanceof Value){if(val.changed()&&!val.key())view.$reset.push(val);val=val.val();}if(false!==val){';
+                setAtt = function(name, update) {
+                    var out = 'if(false!==val){';
                     if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
                     {
                         out += 'r.'+name+'=!!val;';
-                    }
-                    else if ('id' === name)
-                    {
-                        out += 'r.id=String(val);';
-                    }
-                    else if ('style' === name)
-                    {
-                        out += 'r.style.cssText=String(val);';
                     }
                     else if ('class' === name)
                     {
                         out += svgElements[T] ? 'r.setAttribute("class",String(val));' : 'r.className=String(val);';
                     }
+                    else if ('style' === name)
+                    {
+                        out += 'r.style.cssText=String(val);';
+                    }
+                    else if ('id' === name)
+                    {
+                        out += /*(update ? 'if(r.id!==val)' : '') +*/ 'r.id=String(val);';
+                    }
                     else if ('value' === name)
                     {
-                        out += 'r.value=String(val);';
+                        out += (update ? 'if(r.value!==val)' : '') + 'r.value=val;';
                     }
                     else
                     {
                         out += 'r.setAttribute("'+name+'",true===val?"'+name+'":String(val));';
                     }
                     out += '}';
+                    if (update)
+                    {
+                        out += 'else{';
+                        if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
+                        {
+                            out += 'r.'+name+'=false;';
+                        }
+                        else if ('value' === name)
+                        {
+                            out += 'r.value="";';
+                        }
+                        else
+                        {
+                            out += 'r.removeAttribute("'+name+'");';
+                        }
+                        out += '}';
+                    }
+                    return out;
+                },
+                makeAtt = function(name, val, update) {
+                    var out = 'val='+val+';';
+                    if (update)
+                    {
+                        out += 'if(val instanceof Value){if(val.changed()){if(!val.key())view.$reset.push(val);val=val.val();'+setAtt(name, update)+'}}else{'+setAtt(name, update)+'}';
+                    }
+                    else
+                    {
+                        out += 'if(val instanceof Value){if(val.changed()&&!val.key())view.$reset.push(val);val=val.val();}'+setAtt(name);
+                    }
                     return out;
                 },
                 makeNode = svgElements[T] ? 'r=document.createElementNS("http://www.w3.org/2000/svg","'+T.slice(1,-1)+'");' : 'r=document.createElement("'+T.slice(1,-1)+'");';
-                makeNode += 'r.$MV=rmv=MV0();rmv.id=v.id;rmv.comp=v.component;if(rmv.comp){if(rmv.comp.dom&&rmv.comp.dom.$MV)rmv.comp.dom.$MV.comp=null;rmv.comp.dom=r;}if(v.modified){if(v.modified.atts.length)rmv.att=v.modified.atts;if(v.modified.nodes.length)rmv.mod=v.modified.nodes;}';
-                if (-1 !== ['<textarea>','<script>','<style>'].indexOf(T)) makeNode += 'val=str(view,v.childNodes);r.textContent=val;';
+                makeNode += 'if(true===with_meta){r.$MV=rmv=MV0();rmv.id=v.id;rmv.comp=v.component;if(rmv.comp){if(rmv.comp.dom&&rmv.comp.dom.$MV)rmv.comp.dom.$MV.comp=null;rmv.comp.dom=r;}if(v.modified){if(v.modified.atts.length)rmv.att=v.modified.atts;if(v.modified.nodes.length)rmv.mod=v.modified.nodes;}}';
+                if (-1 !== ['<textarea>','<script>','<style>'].indexOf(T)) makeNode += 'r.textContent=val=str(view,v.childNodes);';
                 if ('<textarea>' === T) makeNode += 'r.value=val;'
             out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                 if (is_instance(a.value, VCode))
                 {
-                    if (!modified.atts.length || modified.atts[modified.atts.length-1].to < i-1)
-                        modified.atts.push({from:i, to:i});
+                    if (!modifiedAtts.length || modifiedAtts[modifiedAtts.length-1].to < i-1)
+                        modifiedAtts.push({from:i, to:i});
                     else
-                        modified.atts[modified.atts.length-1].to = i;
-                    updateAtts += 'u(view,r,v,v.attributes['+Str(i)+'],T,TT);';
+                        modifiedAtts[modifiedAtts.length-1].to = i;
+                    updateAtts += makeAtt(a.name,'v.attributes['+Str(i)+'].value',1);//'u(view,r,v,v.attributes['+Str(i)+'],T,TT);';
                     makeNode += makeAtt(a.name,'v.attributes['+Str(i)+'].value');
                     return '{name:"'+a.name+'",value:('+a.value.code+')}';
                 }
@@ -1709,10 +1737,10 @@ function to_code(vnode, with_modified)
                 }
                 if (-1 === ['<textarea>','<script>','<style>'].indexOf(T))
                 {
-                    makeNode += 'r.appendChild(v.childNodes['+Str(i)+'].make(view,Value,MV0,str));';
+                    makeNode += 'r.appendChild(v.childNodes['+Str(i)+'].make(view,with_meta,Value,MV0,str));';
                 }
                 return c[0];
-            }).join(',')+'], null, {atts:'+toJSON(modified.atts)+',make:function(view,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},updateAtts:'+(updateAtts.length ? 'function(view,r,v,u){var T=v.nodeType,TT=(v.type||"").toLowerCase();'+updateAtts+'}': 'function(){}')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}': 'function(){}')+'})';
+            }).join(',')+'], null, {make:function(view,with_meta,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},atts:'+toJSON(modifiedAtts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,u,Value){var val;'/*'T=v.nodeType,TT=(v.type||"").toLowerCase();'*/+updateAtts+'}' : 'function(){}')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}' : 'function(){}')+'})';
             mod = updateAtts.length || updateNodes.length;
         }
     }
@@ -1766,9 +1794,40 @@ function to_string_all(view, nodes)
 {
     return nodes.map(function(n){return to_string(view, n);}).join('');
 }
+function attach_meta(vnode, rnode)
+{
+    var v, r, i, rmv, c;
+    rnode[MV] = rmv = MV0();
+    rmv.id = vnode.id;
+    c = rmv.comp = vnode.component;
+    if (c)
+    {
+        if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
+        c.dom = rnode;
+    }
+    if (vnode.modified)
+    {
+        if (vnode.modified.atts.length)
+            rmv.att = vnode.modified.atts;
+        if (vnode.modified.nodes.length)
+            rmv.mod = vnode.modified.nodes;
+    }
+    for (i=0,v=vnode.childNodes[0],r=rnode.firstChild; r;)
+    {
+        attach_meta(v, r);
+        v = vnode.childNodes[++i];
+        r = r[NEXT];
+    }
+}
+function clone_node(vnode, tpl, with_meta)
+{
+    var rnode = tpl.cloneNode(true);
+    if (true === with_meta) attach_meta(vnode, rnode);
+    return rnode;
+}
 function to_node(view, vnode, with_meta)
 {
-    var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT;
+    var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT, C;
     if ('t' === T)
     {
         rnode = Text(vnode.nodeValue2);
@@ -1787,9 +1846,26 @@ function to_node(view, vnode, with_meta)
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
-    else if (vnode.simple && vnode.make)
+    else if (vnode.simple)
     {
-        rnode = vnode.make(view,Value,MV0,to_string_all);
+        /*if (vnode.component)
+        {
+            C = view.$components['#'+vnode.component.name];
+            if (!C.htpl)
+            {
+                C.htpl = rnode = vnode.make(view,with_meta,Value,MV0,to_string_all);
+            }
+            else
+            {
+                // does not seem faster
+                rnode = clone_node(vnode, C.htpl, with_meta);
+                update_node(view, rnode, vnode);
+            }
+        }
+        else
+        {*/
+            rnode = vnode.make(view,with_meta,Value,MV0,to_string_all);
+        /*}*/
     }
     else
     {
@@ -2154,7 +2230,7 @@ function morphAtts(view, r, v)
     if (matched)
     {
         if (modifiedAtts.length)
-            v.modified.updateAtts(view, r, v, update_att);
+            v.modified.updateAtts(view, r, v, update_att, Value);
     }
     else
     {
@@ -2177,7 +2253,7 @@ function update_node(view, rnode, vnode)
     }
     else if ('<textarea>' === T)
     {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
         if (changed)
         {
             val = to_string_all(view, vnode.childNodes);
@@ -2187,12 +2263,12 @@ function update_node(view, rnode, vnode)
     }
     else if ('<style>' === T || '<script>' === T)
     {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
         if (changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
     }
     else
     {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
         if (modified && changed) modified.updateNodes(view, rnode, vnode, update_node);
     }
 }
@@ -8430,6 +8506,7 @@ View.Component = function Component(name, tpl, opts) {
   if (!is_instance(self, Component)) return new Component(name, tpl, opts);
   self.name = trim(name);
   self.tpl = trim(tpl);
+  self.htpl = null;
   self.out = null;
   self.opts = opts || {};
 };
@@ -8438,11 +8515,13 @@ View.Component[proto] = {
     ,name: ''
     ,opts: null
     ,tpl: ''
+    ,htpl: null
     ,out: null
     ,dispose: function() {
         var self = this;
         self.opts = null;
         self.tpl = null;
+        self.htpl = null;
         self.out = null;
         return self;
     }

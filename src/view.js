@@ -1901,6 +1901,7 @@ View.Component = function Component(name, tpl, opts) {
   if (!is_instance(self, Component)) return new Component(name, tpl, opts);
   self.name = trim(name);
   self.tpl = trim(tpl);
+  self.htpl = null;
   self.out = null;
   self.opts = opts || {};
 };
@@ -1909,11 +1910,13 @@ View.Component[proto] = {
     ,name: ''
     ,opts: null
     ,tpl: ''
+    ,htpl: null
     ,out: null
     ,dispose: function() {
         var self = this;
         self.opts = null;
         self.tpl = null;
+        self.htpl = null;
         self.out = null;
         return self;
     }
