@@ -241,6 +241,7 @@ VNode[proto] = {
     ,achanged: false
     ,unit: false
     ,simple: true
+    ,make: null
 };
 function VCode(code)
 {
@@ -1394,6 +1395,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     node.attributes = atts || [];
     if (modified)
     {
+        node.make = modified.make;
         node.modified = {
             atts: [],
             nodes: [],
@@ -1459,6 +1461,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 val = n;
                 v = Str(val.val());
                 n = VNode('t', v, v, null, 0);
+                n.make = function() {return Text(this.nodeValue2);};
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
@@ -1471,6 +1474,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             {
                 v = Str(n);
                 n = VNode('t', v, v, null, 0);
+                n.make = function() {return Text(this.nodeValue2);};
                 n.changed = true;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
@@ -1591,15 +1595,51 @@ function to_code(vnode, with_modified)
     {
         if ('t' === T)
         {
-            out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+')';
+            out = '_$$_(view, "t", null, null, [], '+toJSON(vnode.nodeValue)+', '+toJSON(vnode.nodeValue2)+', {make:function(){return document.createTextNode(this.nodeValue2);}})';
         }
         else if ('c' === T)
         {
-            out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+')';
+            out = '_$$_(view, "c", null, null, [], '+toJSON(vnode.nodeValue)+', null, {make:function(){return document.createComment(this.nodeValue);}})';
         }
         else
         {
-            var modified = {atts: []}, updateAtts = '', updateNodes = '';
+            var modified = {atts: []},
+                updateAtts = '',
+                updateNodes = '',
+                makeAtt = function(name, val) {
+                    out = 'val='+val+';';
+                    out += 'if(val instanceof Value){if(val.changed()&&!val.key())view.$reset.push(val);val=val.val();}if(false!==val){';
+                    if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
+                    {
+                        out += 'r.'+name+'=!!val;';
+                    }
+                    else if ('id' === name)
+                    {
+                        out += 'r.id=String(val);';
+                    }
+                    else if ('style' === name)
+                    {
+                        out += 'r.style.cssText=String(val);';
+                    }
+                    else if ('class' === name)
+                    {
+                        out += svgElements[T] ? 'r.setAttribute("class",String(val));' : 'r.className=String(val);';
+                    }
+                    else if ('value' === name)
+                    {
+                        out += 'r.value=String(val);';
+                    }
+                    else
+                    {
+                        out += 'r.setAttribute("'+name+'",true===val?"'+name+'":String(val));';
+                    }
+                    out += '}';
+                    return out;
+                },
+                makeNode = svgElements[T] ? 'r=document.createElementNS("http://www.w3.org/2000/svg","'+T.slice(1,-1)+'");' : 'r=document.createElement("'+T.slice(1,-1)+'");';
+                makeNode += 'r.$MV=rmv=MV0();rmv.id=v.id;rmv.comp=v.component;if(rmv.comp){if(rmv.comp.dom&&rmv.comp.dom.$MV)rmv.comp.dom.$MV.comp=null;rmv.comp.dom=r;}if(v.modified){if(v.modified.atts.length)rmv.att=v.modified.atts;if(v.modified.nodes.length)rmv.mod=v.modified.nodes;}';
+                if (-1 !== ['<textarea>','<script>','<style>'].indexOf(T)) makeNode += 'val=str(view,v.childNodes);r.textContent=val;';
+                if ('<textarea>' === T) makeNode += 'r.value=val;'
             out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                 if (is_instance(a.value, VCode))
                 {
@@ -1607,18 +1647,24 @@ function to_code(vnode, with_modified)
                         modified.atts.push({from:i, to:i});
                     else
                         modified.atts[modified.atts.length-1].to = i;
-                    updateAtts += 'update_att(view,r,v,v.attributes['+Str(i)+'],T,TT);';
+                    updateAtts += 'u(view,r,v,v.attributes['+Str(i)+'],T,TT);';
+                    makeNode += makeAtt(a.name,'v.attributes['+Str(i)+'].value');
                     return '{name:"'+a.name+'",value:('+a.value.code+')}';
                 }
+                makeNode += makeAtt(a.name,'v.attributes['+Str(i)+'].value');
                 return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
             }).join(',')+'], ['+vnode.childNodes.map(function(child, i) {
                 var c =  to_code(child, '"with_modified"');
                 if (c[1])
                 {
-                    updateNodes += 'update_node(view,r.childNodes['+Str(i)+'],v.childNodes['+Str(i)+']);';
+                    updateNodes += 'u(view,r.childNodes['+Str(i)+'],v.childNodes['+Str(i)+']);';
+                }
+                if (-1 === ['<textarea>','<script>','<style>'].indexOf(T))
+                {
+                    makeNode += 'r.appendChild(v.childNodes['+Str(i)+'].make(view,Value,MV0,str));';
                 }
                 return c[0];
-            }).join(',')+'], null, {atts:'+toJSON(modified.atts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,update_att){var T=v.nodeType,TT=(v.type||"").toLowerCase();'+updateAtts+'}': 'null')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,update_node){'+updateNodes+'}': 'null')+'})';
+            }).join(',')+'], null, {atts:'+toJSON(modified.atts)+',make:function(view,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},updateAtts:'+(updateAtts.length ? 'function(view,r,v,u){var T=v.nodeType,TT=(v.type||"").toLowerCase();'+updateAtts+'}': 'function(){}')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}': 'function(){}')+'})';
             mod = updateAtts.length || updateNodes.length;
         }
     }
@@ -1693,6 +1739,10 @@ function to_node(view, vnode, with_meta)
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
+    else if (vnode.simple && vnode.make)
+    {
+        rnode = vnode.make(view,Value,MV0,to_string_all);
+    }
     else
     {
         // createElement is faster than innerHTML in wrapper
@@ -1723,7 +1773,7 @@ function to_node(view, vnode, with_meta)
                 if (isSVG) rnode[SET_ATTR](n, Str(v));
                 else rnode[CLASS] = Str(v);
             }
-            else if ('selected' === n && '<option>' === T)
+            /*else if ('selected' === n && '<option>' === T)
             {
                 rnode[n] = true;
             }
@@ -1734,17 +1784,17 @@ function to_node(view, vnode, with_meta)
             else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
             {
                 rnode[n] = true;
-            }
-            else if ('value' === n && '<input>' === T)
+            }*/
+            else if ('value' === n /*&& ('<input>' === T || '<textarea>' === T)*/)
             {
                 rnode[n] = Str(v);
             }
-            else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+            else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
                 'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
                 'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
                 'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
             {
-                rnode[n] = true;
+                rnode[n] = !!v;
             }
             /*else if (n in rnode)
             {
@@ -2055,7 +2105,7 @@ function morphAtts(view, r, v)
     }*/
     if (matched)
     {
-        if (modifiedAtts.length && v.modified.updateAtts)
+        if (modifiedAtts.length)
             v.modified.updateAtts(view, r, v, update_att);
     }
     else
@@ -2066,9 +2116,9 @@ function morphAtts(view, r, v)
 }
 function update_node(view, rnode, vnode)
 {
-    var T = vnode.nodeType, changed = vnode.changed, val,
-        updateAtts = vnode.modified && vnode.modified.updateAtts,
-        updateNodes = vnode.modified && vnode.modified.updateNodes;
+    var val, T = vnode.nodeType,
+        changed = vnode.changed,
+        modified = vnode.modified;
     if ('t' === T)
     {
         if (changed) rnode.nodeValue = vnode.nodeValue2;
@@ -2079,7 +2129,7 @@ function update_node(view, rnode, vnode)
     }
     else if ('<textarea>' === T)
     {
-        if (updateAtts) updateAtts(view, rnode, vnode, update_att);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
         if (changed)
         {
             val = to_string_all(view, vnode.childNodes);
@@ -2089,13 +2139,13 @@ function update_node(view, rnode, vnode)
     }
     else if ('<style>' === T || '<script>' === T)
     {
-        if (updateAtts) updateAtts(view, rnode, vnode, update_att);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
         if (changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
     }
     else
     {
-        if (updateAtts) updateAtts(view, rnode, vnode, update_att);
-        if (changed && updateNodes) updateNodes(view, rnode, vnode, update_node);
+        if (modified) modified.updateAtts(view, rnode, vnode, update_att);
+        if (modified && changed) modified.updateNodes(view, rnode, vnode, update_node);
     }
 }
 function morphSingleAll(view, r, rnode, vnode)
@@ -2140,6 +2190,16 @@ function morphSingle(view, r, rnode, vnode)
     {
         if (changed) rnode.nodeValue = vnode.nodeValue;
     }
+    else if (vnode.unit)
+    {
+        //r.replaceChild(to_node(view, vnode, true), rnode);
+        morphAttsAll(view, rnode, vnode);
+        morphAll(view, rnode, vnode);
+    }
+    else if (vnode.simple)
+    {
+        update_node(view, rnode, vnode);
+    }
     else if ('<textarea>' === T)
     {
         morphAtts(view, rnode, vnode);
@@ -2157,16 +2217,6 @@ function morphSingle(view, r, rnode, vnode)
     {
         morphAtts(view, rnode, vnode);
         if (changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
-    }
-    else if (vnode.unit)
-    {
-        //r.replaceChild(to_node(view, vnode, true), rnode);
-        morphAttsAll(view, rnode, vnode);
-        morphAll(view, rnode, vnode);
-    }
-    else if (vnode.simple)
-    {
-        update_node(view, rnode, vnode);
     }
     else
     {
@@ -2548,7 +2598,7 @@ function morph(view, r, v)
         modifiedNodes = modifiedNodes || [];
         offset = 0;
         matched = /*(0 < modifiedNodes.length) &&*/ (modifiedNodes.length === modifiedNodesPrev.length);
-        /*if (matched)
+        if (matched)
         {
             for (count=0,mi=0,mc=modifiedNodes.length; mi<mc; ++mi)
             {
@@ -2558,7 +2608,7 @@ function morph(view, r, v)
                 count += match;
             }
             matched = (modifiedNodes.length === count) && (offset+r.childNodes.length === vpc);
-        }*/
+        }
         if (matched)
         {
             for (offset=0,di=0,mi=0,mc=modifiedNodes.length; mi<mc; ++mi)

@@ -52,7 +52,7 @@ function updateModelFromStorage()
                 todo.uuid = Value(todo.uuid);
                 todo.title = Value(todo.title);
                 todo.completed = Value(todo.completed);
-                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''));
             });
             Model.set('todoList', storedOptions.todoList);
             return true;
