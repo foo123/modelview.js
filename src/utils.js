@@ -1798,7 +1798,7 @@ function to_node(view, vnode, with_meta)
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
-    else if (vnode.simple)
+    else if (vnode.simple && (vnode.make !== VNode[proto].make))
     {
         /*if (vnode.component)
         {

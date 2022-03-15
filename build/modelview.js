@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-15 21:38:32
+*   @built on 2022-03-15 23:16:17
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 4.1.0
-*   @built on 2022-03-15 21:38:32
+*   @built on 2022-03-15 23:16:17
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1846,7 +1846,7 @@ function to_node(view, vnode, with_meta)
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
-    else if (vnode.simple)
+    else if (vnode.simple && (vnode.make !== VNode[proto].make))
     {
         /*if (vnode.component)
         {
