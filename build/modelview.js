@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 4.1.0
-*   @built on 2022-03-15 23:16:17
+*   @version: 5.0.0
+*   @built on 2022-03-21 19:42:49
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -10,8 +10,8 @@
 **//**
 *
 *   ModelView.js
-*   @version: 4.1.0
-*   @built on 2022-03-15 23:16:17
+*   @version: 5.0.0
+*   @built on 2022-03-21 19:42:49
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -36,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 4.1.0**
+**Version 5.0.0**
 
 ### Contents
 
@@ -91,7 +91,8 @@ var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "
     ATTR = 'getAttribute', SET_ATTR = 'setAttribute', HAS_ATTR = 'hasAttribute', DEL_ATTR = 'removeAttribute',
     CHECKED = 'checked', DISABLED = 'disabled', SELECTED = 'selected',
     NAME = 'name', TAG = 'tagName', TYPE = 'type', VAL = 'value',
-    OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode', NEXT = 'nextSibling',
+    OPTIONS = 'options', SELECTED_INDEX = 'selectedIndex', PARENT = 'parentNode',
+    NEXT = 'nextSibling', PREV = 'previousSibling',
     STYLE = 'style', CLASS = 'className', HTML = 'innerHTML', TEXT = 'innerText', TEXTC = 'textContent',
     // use native methods and abbreviation aliases if available
     fromJSON = JSON.parse, toJSON = JSON.stringify,
@@ -118,8 +119,9 @@ var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "
         ? function(el) {return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
     // UUID counter for ModelViews
-    _uuid = 0,
+    _uuid = 0, _cnt = 0,
     placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
+    foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/,
     SPACE = /\s/,
     NUM = /^\d+$/,
     HEXNUM = /^[0-9a-fA-F]+$/,
@@ -266,6 +268,10 @@ function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
     self.attributes = [];
     self.childNodes = [];
 }
+function defaultMake(view, with_meta)
+{
+    return to_node(view, this, with_meta);
+}
 VNode[proto] = {
     constructor: VNode
     ,nodeType: ''
@@ -289,9 +295,7 @@ VNode[proto] = {
     ,achanged: false
     ,unit: false
     ,simple: true
-    ,make: function(view, with_meta) {
-        return to_node(view, this, with_meta);
-    }
+    ,make: defaultMake
 };
 function VCode(code)
 {
@@ -304,21 +308,19 @@ VCode[proto] = {
     ,code: ''
 };
 
+function NOOP() {}
 function newFunc(args, code) {return new Func(args, code);}
-function is_instance(o, T) {return (o instanceof T);}
+function is_instance(o, T) {return o instanceof T;}
 function is_array(x) {return '[object Array]' === toString.call(x);}
 function tostr(s) {return Str(s);}
 function lower(s) {return s.toLowerCase();}
 function upper(s) {return s.toUpperCase();}
+function esc_re(s) {return s.replace(ESCAPED_RE, "\\$&");}
 function err(msg, data)
 {
     var e = new Error(msg);
     if (null != data) e.data = data;
     return e;
-}
-function esc_re(s)
-{
-    return s.replace(ESCAPED_RE, "\\$&");
 }
 function del(o, k, soft)
 {
@@ -361,11 +363,11 @@ function is_array_index(n)
 }
 function filter(a, f)
 {
-    return [].filter.call(a, f);
+    return AP.filter.call(a, f);
 }
 function each(a, f)
 {
-    [].forEach.call(a, f);
+    AP.forEach.call(a, f);
     return a;
 }
 function iterate(F, i0, i1, F0)
@@ -446,10 +448,22 @@ function $class(classname, el)
 function $closest(selector, el)
 {
     el = el || document;
-    if (HASDOC && el.closest)
+    if (HASDOC)
     {
-        var found = el.closest(selector);
-        return found ? [found] : [];
+        if (el.closest)
+        {
+            var found = el.closest(selector);
+            return found ? [found] : [];
+        }
+        else if (el.matches)
+        {
+            while (el)
+            {
+                if (el.matches(selector)) return [el];
+                el = el.parentNode;
+            }
+            return [];
+        }
     }
     return [];
 }
@@ -621,6 +635,13 @@ function set_val(el, v)
             break;
     }
     return ret;
+}
+function get_index(node)
+{
+    /*var index = 0;
+    while (node = node[PREV]) ++index;
+    return index;*/
+    return node && node.parentNode ? AP.indexOf.call(node.parentNode.childNodes, node) : 0;
 }
 function is_child_of(el, node, finalNode)
 {
@@ -1491,7 +1512,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 node.potentialChildNodes += len;
                 index += len;
                 // reset Collection after current render session
-                if (nn.changed) view.$reset.push(n);
+                if (nn.changed) view.$reset[n.id()] = n;
                 node.changed = node.changed || nn.changed;
                 node.simple = false;
                 return childNodes;
@@ -1515,8 +1536,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
                 // if dirty and not not from model.getVal() (ie has no key)
-                if (val.changed() && !val.key())
-                    view.$reset.push(val);
+                if (val.changed() && val.id())
+                    view.$reset[val.id()] = val;
                 n.changed = val.changed();
             }
             else if (!is_instance(n, VNode))
@@ -1688,6 +1709,10 @@ function to_code(vnode, with_modified)
                         {
                             out += 'r.'+name+'=false;';
                         }
+                        else if ('class' === name)
+                        {
+                            out += svgElements[T] ? 'r.setAttribute("class","");' : 'r.className="";';
+                        }
                         else if ('value' === name)
                         {
                             out += 'r.value="";';
@@ -1704,11 +1729,11 @@ function to_code(vnode, with_modified)
                     var out = 'val='+val+';';
                     if (update)
                     {
-                        out += 'if(val instanceof Value){if(val.changed()){if(!val.key())view.$reset.push(val);val=val.val();'+setAtt(name, update)+'}}else{'+setAtt(name, update)+'}';
+                        out += 'if(val instanceof Value){if(val.changed()){if(val.id())view.$reset[val.id()]=val;val=val.val();'+setAtt(name, update)+'}}else{'+setAtt(name, update)+'}';
                     }
                     else
                     {
-                        out += 'if(val instanceof Value){if(val.changed()&&!val.key())view.$reset.push(val);val=val.val();}'+setAtt(name);
+                        out += 'if(val instanceof Value){if(val.changed()&&val.id())view.$reset[val.id()]=val;val=val.val();}'+setAtt(name);
                     }
                     return out;
                 },
@@ -1740,7 +1765,7 @@ function to_code(vnode, with_modified)
                     makeNode += 'r.appendChild(v.childNodes['+Str(i)+'].make(view,with_meta,Value,MV0,str));';
                 }
                 return c[0];
-            }).join(',')+'], null, {make:function(view,with_meta,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},atts:'+toJSON(modifiedAtts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,u,Value){var val;'/*'T=v.nodeType,TT=(v.type||"").toLowerCase();'*/+updateAtts+'}' : 'function(){}')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}' : 'function(){}')+'})';
+            }).join(',')+'], null, {make:function(view,with_meta,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},atts:'+toJSON(modifiedAtts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,u,Value){var val;'/*'T=v.nodeType,TT=(v.type||"").toLowerCase();'*/+updateAtts+'}' : 'view.nop')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}' : 'view.nop')+'})';
             mod = updateAtts.length || updateNodes.length;
         }
     }
@@ -1774,8 +1799,8 @@ function to_string(view, vnode)
                 var val = att.value;
                 if (is_instance(val, Value))
                 {
-                    if (val.changed() && !val.key())
-                        view.$reset.push(val);
+                    if (val.changed() && val.id())
+                        view.$reset[val.id()] = val;
                     val = val.val();
                 }
                 if (false !== val) atts.push(true === val ? att.name : att.name+'="'+val+'"');
@@ -1794,7 +1819,7 @@ function to_string_all(view, nodes)
 {
     return nodes.map(function(n){return to_string(view, n);}).join('');
 }
-function attach_meta(vnode, rnode)
+/*function attach_meta(vnode, rnode)
 {
     var v, r, i, rmv, c;
     rnode[MV] = rmv = MV0();
@@ -1824,7 +1849,7 @@ function clone_node(vnode, tpl, with_meta)
     var rnode = tpl.cloneNode(true);
     if (true === with_meta) attach_meta(vnode, rnode);
     return rnode;
-}
+}*/
 function to_node(view, vnode, with_meta)
 {
     var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT, C;
@@ -1846,7 +1871,7 @@ function to_node(view, vnode, with_meta)
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
     }
-    else if (vnode.simple && (vnode.make !== VNode[proto].make))
+    else if (vnode.simple && (vnode.make !== defaultMake))
     {
         /*if (vnode.component)
         {
@@ -1879,8 +1904,8 @@ function to_node(view, vnode, with_meta)
             n = a.name; v = a.value;
             if (is_instance(v, Value))
             {
-                if (v.changed() && !v.key())
-                    view.$reset.push(v);
+                if (v.changed() && v.id())
+                    view.$reset[v.id()] = v;
                 v = v.val();
             }
             if (false === v) continue;
@@ -1933,19 +1958,22 @@ function to_node(view, vnode, with_meta)
         if (true === with_meta)
         {
             rnode[MV] = rmv = MV0();
-            rmv.id = vnode.id;
-            c = rmv.comp = vnode.component;
-            if (c)
+            if (vnode.id || vnode.component || vnode.modified)
             {
-                if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
-                c.dom = rnode;
-            }
-            if (vnode.modified)
-            {
-                if (vnode.modified.atts.length)
-                    rmv.att = vnode.modified.atts;
-                if (vnode.modified.nodes.length)
-                    rmv.mod = vnode.modified.nodes;
+                rmv.id = vnode.id;
+                c = rmv.comp = vnode.component;
+                if (c)
+                {
+                    if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
+                    c.dom = rnode;
+                }
+                if (vnode.modified)
+                {
+                    if (vnode.modified.atts.length)
+                        rmv.att = vnode.modified.atts;
+                    if (vnode.modified.nodes.length)
+                        rmv.mod = vnode.modified.nodes;
+                }
             }
         }
         if (vnode.childNodes.length)
@@ -2021,7 +2049,7 @@ function del_att(r, n, T, TT)
     {
         r[n].cssText = '';
     }
-    else if ('selected' === n && '<option>' === T)
+    /*else if ('selected' === n && '<option>' === T)
     {
         r[n] = false;
     }
@@ -2032,17 +2060,17 @@ function del_att(r, n, T, TT)
     else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
     {
         r[n] = false;
-    }
-    else if ('value' === n && ('<input>' === T || '<textarea>' === T))
-    {
-        r[n] = '';
-    }
-    else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+    }*/
+    else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
         'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
         'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
         'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
     {
         r[n] = false;
+    }
+    else if ('value' === n && ('<input>' === T || '<textarea>' === T))
+    {
+        r[n] = '';
     }
     /*else if ((n in r) && (T_BOOL === get_type(r[n])))
     {
@@ -2071,7 +2099,7 @@ function set_att(r, n, s, T, TT, forced)
     {
         r[n].cssText = Str(s);
     }
-    else if ('selected' === n && '<option>' === T)
+    /*else if ('selected' === n && '<option>' === T)
     {
         r[n] = true;
     }
@@ -2082,8 +2110,8 @@ function set_att(r, n, s, T, TT, forced)
     else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
     {
         r[n] = true;
-    }
-    else if ('autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+    }*/
+    else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
         'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
         'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
         'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
@@ -2114,7 +2142,7 @@ function update_att(view, r, v, a, T, TT)
     {
         if (av.changed())
         {
-            if (!av.key()) view.$reset.push(av);
+            if (av.id()) view.$reset[av.id()] = av;
             av = av.val();
             if (false === av) del_att(r,n,T,TT);
             else  set_att(r,n,av,T,TT);
@@ -2201,7 +2229,7 @@ function morphAttsAll(view, r, v)
         a = vAtts[i]; n = a.name; av = a.value;
         if (is_instance(av, Value))
         {
-            if (av.changed() && !av.key()) view.$reset.push(av);
+            if (av.changed() && av.id()) view.$reset[av.id()] = av;
             av = av.val();
         }
         if (false === av) del_att(r, n, T, TT);
@@ -2245,7 +2273,8 @@ function update_node(view, rnode, vnode)
         modified = vnode.modified;
     if ('t' === T)
     {
-        if (changed) rnode.nodeValue = vnode.nodeValue2;
+        if (changed && (rnode.nodeValue !== vnode.nodeValue2))
+            rnode.nodeValue = vnode.nodeValue2;
     }
     else if ('c' === T)
     {
@@ -2282,7 +2311,7 @@ function morphSingleAll(view, r, rnode, vnode)
     }
     else if ('c' === T)
     {
-        if (rnode.nodeValue !== vnode.nodeValue)
+        //if (rnode.nodeValue !== vnode.nodeValue)
             rnode.nodeValue = vnode.nodeValue;
     }
     else if ('<textarea>' === T)
@@ -2308,7 +2337,8 @@ function morphSingle(view, r, rnode, vnode)
     var T = vnode.nodeType, changed = vnode.changed, val;
     if ('t' === T)
     {
-        if (changed) rnode.nodeValue = vnode.nodeValue2;
+        if (changed && (rnode.nodeValue !== vnode.nodeValue2))
+            rnode.nodeValue = vnode.nodeValue2;
     }
     else if ('c' === T)
     {
@@ -2375,8 +2405,33 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',hasKeyedNodes:hasKeyed,childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/;
-                //frag.hasKeyedNodes = hasKeyed;
                 morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
+                count = 0;
+                return count; // break from diff loop completely, this should be only diff
+                break;
+            case 'replace':
+                len = collection.items().length*m;
+                items = collection.mapped();
+                frag = {nodeType:'',childNodes:mergeChildNodes(items)};
+                x = r.childNodes[start];
+                for (rnode=x,i=0,l=stdMath.min(len, len+count); i<l; ++i)
+                {
+                    // replace common nodes
+                    vnode = frag.childNodes[i];
+                    x = rnode[NEXT];
+                    r.replaceChild(to_node(view, vnode, true), rnode);
+                    rnode = x;
+                }
+                if (0 > count)
+                {
+                    // add remaing nodes
+                    insNodes(view, r, {nodeType:'',childNodes:frag.childNodes.slice(len+count, len)}, 0, -count, r.childNodes[start+len+count]);
+                }
+                else if (0 < count)
+                {
+                    //delete excess nodes
+                    delNodes(view, r, start+len, count);
+                }
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -2879,8 +2934,9 @@ function remove_nodes(el, count, index, isStatic)
 }
 function insert_map(map, ks, v)
 {
+    if (!map) return;
     var m = map;
-    each(ks, function(k, i){
+    each(ks, function(k, i) {
         if (!HAS.call(m, 'c')) m.c = {};
         if (!HAS.call(m.c, k)) m.c[k] = {};
         m = m.c[k];
@@ -2894,28 +2950,24 @@ function insert_map(map, ks, v)
 function del_map(m, d)
 {
     if (!m) return;
-    if (m.v)
+    /*if (m.v)
     {
         d(m.v);
-    }
+    }*/
     if (m.c)
     {
-        each(Keys(m.c), function(k){
+        each(Keys(m.c), function(k) {
+            if (m.c[k].v)
+            {
+                d(m.c[k].v);
+            }
             if (m.c[k].c)
             {
                 del_map(m.c[k], d);
-                if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
-                {
-                    del(m.c, k);
-                }
             }
-            else if (m.c[k].v)
+            if ((!m.c[k].v || !m.c[k].v.length) && (!m.c[k].c || !Keys(m.c[k].c).length))
             {
-                d(m.c[k].v);
-                if (!m.c[k].v.length)
-                {
-                    del(m.c, k);
-                }
+                del(m.c, k);
             }
         });
     }
@@ -2930,214 +2982,453 @@ function walk_map(m, f, key)
     }
     if (m.c)
     {
-        each(Keys(m.c), function(k){
+        each(Keys(m.c), function(k) {
             var kk = key + (key.length ? '.' : '') + k;
             if (m.c[k].c) walk_map(m.c[k], f, kk);
             else if (m.c[k].v) f(m.c[k].v, kk);
         });
     }
 }
-function get_placeholders(node, map)
+function walk_clone_map(m, cm, f)
 {
-    var m, k, t, s, n;
-    if (node)
+    if (!m) return;
+    if (m.v)
     {
-        if (3 === node.nodeType)
-        {
-            n = node;
-            s = n.nodeValue;
+        cm.v = f(m.v);
+    }
+    if (m.c)
+    {
+        cm.c = {};
+        each(Keys(m.c), function(k) {
+            cm.c[k] = {};
+            if (m.c[k].c) walk_clone_map(m.c[k], cm.c[k], f);
+            else if (m.c[k].v) cm.c[k].v = f(m.c[k].v);
+        });
+    }
+}
+function split_key(key, rel)
+{
+    if (rel === key.charAt(0))
+    {
+        var ks = key.slice(1).split('.');
+        ks[0] = rel + ks[0];
+        return ks;
+    }
+    return key.split('.');
+}
+function get_placeholders(node, map, path)
+{
+    var m, k, t, s, n, list, nn, nnn, f, index;
+    if (!node) return node;
+    path = path || 'n';
+    if (node.attributes && node.attributes.length)
+    {
+        each(node.attributes, function(a) {
+            var t, m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
             while (s.length && (m = s.match(placeholder_re)))
             {
                 k = trim(m[1]);
                 if (k.length)
                 {
-                    t = n.splitText(m.index);
-                    n = t.splitText(m[0].length);
-                    s = n.nodeValue;
-                    insert_map(map.txt, k.split('.'), t);
+                    if (-1 === keys.indexOf(k)) keys.push(k);
+                    txt.pop();
+                    a1 = a.value.slice(index, index + m.index);
+                    a2 = a.value.slice(index + m.index + m[0].length);
+                    if (a1.length) txt.push(a1);
+                    txt.push({mvKey:k});
+                    if (a2.length) txt.push(a2);
+                }
+                s = s.slice(m.index + m[0].length);
+                index += m.index + m[0].length;
+            }
+            if (1 === keys.length && 1 === txt.length)
+            {
+                insert_map(map, split_key(keys[0], '.'), {type:'att1', node:node, att:a.name, clone:newFunc('n','var c=null; try{c='+path+';}catch(e){c=null;}return c;')});
+            }
+            else if (keys.length)
+            {
+                t = {type:'att', node:node, att:a.name, txt:txt, clone:newFunc('n','var c=null; try{c='+path+';}catch(e){c=null;}return c;')};
+                each(keys, function(k) {
+                    insert_map(map, split_key(k, '.'), t);
+                });
+            }
+        });
+    }
+    if (node.childNodes.length)
+    {
+        for (n=node.firstChild; n;)
+        {
+            if (3 === n.nodeType)
+            {
+                s = n.nodeValue; index = 0;
+                while (s.length && (m = s.match(placeholder_re)))
+                {
+                    k = trim(m[1]);
+                    if (k.length)
+                    {
+                        t = n.splitText(index + m.index);
+                        n = t.splitText(m[0].length);
+                        s = n.nodeValue;
+                        index = 0;
+                        insert_map(map, split_key(k, '.'), {type:'text', node:t, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(t)+']'+';}catch(e){c=null;}return c;')});
+                    }
+                    else
+                    {
+                        s = s.slice(m.index + m[0].length);
+                        index += m.index + m[0].length;
+                    }
+                }
+                n = n[NEXT];
+            }
+            else if (8 === n.nodeType)
+            {
+                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[1])) && k.length)
+                {
+                    list = {type:'list', tpl:[], tplmap:[], start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
+                    nn = n[NEXT];
+                    f = 1;
+                    while (nn)
+                    {
+                        if (8 === nn.nodeType)
+                        {
+                            if (startsWith(nn.nodeValue, '/foreach'))
+                            {
+                                --f;
+                                if (0 === f)
+                                {
+                                    list.end = nn;
+                                    break;
+                                }
+                            }
+                            else if (foreach_re.test(nn.nodeValue))
+                            {
+                                ++f;
+                            }
+                        }
+                        if (3 === nn.nodeType && !trim(nn.nodeValue).length)
+                        {
+                            // ignore only whitespace
+                            nnn = nn[NEXT];
+                            node.removeChild(nn);
+                            nn = nnn;
+                        }
+                        else
+                        {
+                            nnn = nn[NEXT];
+                            node.removeChild(nn);
+                            list.tpl.push(nn);
+                            list.tplmap.push({});
+                            get_placeholders(nn, list.tplmap[list.tplmap.length-1]);
+                            nn = nnn;
+                        }
+                    }
+                    insert_map(map, split_key(k, '.'), list);
+                    n = nn ? nn[NEXT] : null;
                 }
                 else
                 {
-                    s = s.slice(m.index+m[0].length);
+                    n = n[NEXT];
                 }
             }
-        }
-        else
-        {
-            if (node.attributes && node.attributes.length)
+            else
             {
-                each(node.attributes, function(a) {
-                    var m, k, s = a.value, a1, a2, index = 0, txt = [s], keys = [];
-                    while (s.length && (m = s.match(placeholder_re)))
-                    {
-                        k = trim(m[1]);
-                        if (k.length)
-                        {
-                            if (-1 === keys.indexOf(k)) keys.push(k);
-                            txt.pop();
-                            a1 = a.value.slice(index, index+m.index);
-                            a2 = a.value.slice(index+m.index+m[0].length);
-                            if (a1.length) txt.push(a1);
-                            txt.push({mvKey:k});
-                            if (a2.length) txt.push(a2);
-                        }
-                        s = s.slice(m.index+m[0].length);
-                        index += m.index + m[0].length;
-                    }
-                    if (1 === keys.length && 1 === txt.length)
-                    {
-                        insert_map(map.att1, keys[0].split('.'), {node:node, att:a.name});
-                    }
-                    else
-                    {
-                        each(keys, function(k) {
-                            var t = {node:node, att:a.name, txt:txt.slice()};
-                            insert_map(map.att, k.split('.'), t);
-                        });
-                    }
-                });
-            }
-            if (node.childNodes.length)
-            {
-                each(node.childNodes, function(n) {
-                    var m, k, t, s;
-                    if (3 === n.nodeType)
-                    {
-                        s = n.nodeValue;
-                        while (s.length && (m = s.match(placeholder_re)))
-                        {
-                            k = trim(m[1]);
-                            if (k.length)
-                            {
-                                t = n.splitText(m.index);
-                                n = t.splitText(m[0].length);
-                                s = n.nodeValue;
-                                insert_map(map.txt, k.split('.'), t);
-                            }
-                            else
-                            {
-                                s = s.slice(m.index+m[0].length);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        get_placeholders(n, map);
-                    }
-                });
+                get_placeholders(n, map, path+'.childNodes['+get_index(n)+']');
+                n = n[NEXT];
             }
         }
     }
     return node;
 }
-function morphTextVal(list, key, model)
+function morphTextSimple(view, t, key, val, isDirty, model, onlyIfDirty)
 {
-    var val = Str(model.get(key));
-    each(list, function(t) {
-        //if (t.nodeValue !== val)
-            t.nodeValue = val;
-    });
+    if (onlyIfDirty && !isDirty) return;
+    if (t.node.nodeValue !== val) t.node.nodeValue = val;
 }
-function morphTextAtt1(list, key, model)
+function morphAtt1Simple(view, a, key, val, isDirty, model, onlyIfDirty)
 {
-    var v = model.get(key);
-    each(list, function(a) {
-        var n = a.att, r = a.node;
-        if (true === v || false === v)
+    if (onlyIfDirty && !isDirty) return;
+    var n = a.att, r = a.node;
+    if (true === val || false === val)
+    {
+        // allow to enable/disable attributes via single boolean values
+        if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
         {
-            // allow to enable/disable attributes via single boolean values
-            if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
-                'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
-                'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
-                'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
-            {
-                r[n] = v;
-            }
-            else
-            {
-                if (v) r[SET_ATTR](n, n);
-                else r[DEL_ATTR](n);
-            }
+            r[n] = val;
         }
         else
         {
-            v = Str(v);
-            if ('id' === n)
-            {
-                r[n] = v;
-            }
-            else if ('class' === n)
-            {
-                r[CLASS] = v;
-            }
-            else if ('style' === n)
-            {
-                r[n].cssText = v;
-            }
-            else if ('value' === n)
-            {
-                if (r[n] !== v) r[n] = v;
-            }
-            else//if (r[ATTR](n) !== v)
-            {
-                r[SET_ATTR](n, v);
-            }
+            if (val) r[SET_ATTR](n, n);
+            else r[DEL_ATTR](n);
         }
-    });
-}
-function morphTextAtt(list, model)
-{
-    each(list, function(a) {
-        var r = a.node, n = a.att,
-            v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
-        if ('id' === n)
-        {
-            r[n] = v;
-        }
-        else if ('class' === n)
-        {
-            r[CLASS] = v;
-        }
-        else if ('style' === n)
-        {
-            r[n].cssText = v;
-        }
-        else if ('value' === n)
-        {
-            if (r[n] !== v) r[n] = v;
-        }
-        else//if (r[ATTR](n) !== v)
-        {
-            r[SET_ATTR](n, v);
-        }
-    });
-}
-function morphText(map, model, keys)
-{
-    if (!map || (!map.txt && !map.att1 && !map.att)) return;
-    if (keys)
-    {
-        each(keys, function(ks) {
-            var kk = ks.split('.'), mt = map.txt, ma1 = map.att1, ma = map.att;
-            each(kk, function(k, i) {
-                mt = mt && mt.c && HAS.call(mt.c, k) ? mt.c[k] : null;
-                ma1 = ma1 && ma1.c && HAS.call(ma1.c, k) ? ma1.c[k] : null;
-                ma = ma && ma.c && HAS.call(ma.c, k) ? ma.c[k] : null;
-                if (kk.length-1 === i)
-                {
-                    walk_map(mt, function(list, k) {morphTextVal(list, k, model);}, ks);
-                    walk_map(ma1, function(list, k) {morphTextAtt1(list, k, model);}, ks);
-                    walk_map(ma, function(list) {morphTextAtt(list, model);}, ks);
-                }
-            });
-        });
     }
     else
     {
-        walk_map(map.txt, function(list, k) {morphTextVal(list, k, model);}, '');
-        walk_map(map.att1, function(list, k) {morphTextAtt1(list, k, model);}, '');
-        walk_map(map.att, function(list) {morphTextAtt(list, model);}, '');
+        if ('checked' === n || 'selected' === n || 'disabled' === n || 'required' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
+            'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
+            'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
+            'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
+        {
+            r[n] = !!val;
+        }
+        else
+        {
+            val = Str(val);
+            if ('id' === n)
+            {
+                if (r[n] !== val) r[n] = val;
+            }
+            else if ('class' === n)
+            {
+                r[CLASS] = val;
+            }
+            else if ('style' === n)
+            {
+                r[n].cssText = val;
+            }
+            else if ('value' === n)
+            {
+                if (r[n] !== val) r[n] = val;
+            }
+            else if (r[ATTR](n) !== val)
+            {
+                r[SET_ATTR](n, val);
+            }
+        }
     }
+}
+function morphAttSimple(view, a, key, val, isDirty, model, onlyIfDirty)
+{
+    //if (onlyIfDirty && !isDirty) return;
+    var r = a.node, n = a.att,
+        v = a.txt.map(function(s) {return s.mvKey ? Str(model.get(s.mvKey)) : s;}).join('');
+    if ('id' === n)
+    {
+        r[n] = v;
+    }
+    else if ('class' === n)
+    {
+        r[CLASS] = v;
+    }
+    else if ('style' === n)
+    {
+        r[n].cssText = v;
+    }
+    else if ('value' === n)
+    {
+        if (r[n] !== v) r[n] = v;
+    }
+    else if (r[ATTR](n) !== v)
+    {
+        r[SET_ATTR](n, v);
+    }
+}
+function clone(list)
+{
+    var cloned = {map: [], dom: null};
+    cloned.dom = list.tpl.map(function(n, i) {
+        var nn = n.cloneNode(true);
+        cloned.map.push({});
+        walk_clone_map(list.tplmap[i], cloned.map[i], function(v) {
+            return v.map(function(t) {
+                switch (t.type)
+                {
+                    case 'text':
+                    return {
+                        type: t.type,
+                        node: t.clone(nn),
+                        clone: t.clone
+                    };
+                    case 'att1':
+                    return {
+                        type: t.type,
+                        node: t.clone(nn),
+                        att: t.att,
+                        clone: t.clone
+                    };
+                    case 'att':
+                    return {
+                        type: t.type,
+                        node: t.clone(nn),
+                        att: t.att,
+                        txt: t.txt,
+                        clone: t.clone
+                    };
+                    case 'list':
+                    var startend = t.clone(nn);
+                    return {
+                        type: t.type,
+                        tpl: t.tpl,
+                        tplmap: t.tplmap,
+                        start: startend[0],
+                        end: startend[1],
+                        clone: t.clone
+                    };
+                }
+            });
+        });
+        return nn;
+    });
+    return cloned;
+}
+function morphCollectionSimple(view, list, key, collection, isDirty, model, onlyIfDirty)
+{
+    if (!is_instance(collection, Collection)) return;
+    var diff = collection.diff;
+    if (!diff.length) return;
+    view.$reset[collection.id()] = collection;
+    var items = collection.items(), start = list.start, end = list.end,
+        parentNode = start.parentNode, startIndex = get_index(start),
+        m = list.tpl.length, di, dc, d,
+        range, frag, n, count, i, j, k, l, x;
+    list.map = list.map || [];
+    for (di=0,dc=diff.length; di<dc; ++di)
+    {
+        d = diff[di];
+        switch(d.action)
+        {
+            case 'set':
+                count = items.length - list.map.length;
+                // morph common nodes
+                iterate(function(index) {
+                    var proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                    each(list.map[index], function(m) {morphSimple(view, m, proxy, true);});
+                }, 0, stdMath.min(list.map.length, items.length)-1);
+                if (0 < count)
+                {
+                    // add missing nodes
+                    frag = Fragment();
+                    iterate(function(index) {
+                        var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                        list.map.push(nodes.map);
+                        each(nodes.dom, function(n, i){
+                            morphSimple(view, list.map[index][i], proxy, false);
+                            frag.appendChild(n);
+                        });
+                    }, items.length-count, items.length-1);
+                    if (end) parentNode.insertBefore(frag, end);
+                    else parentNode.appendChild(frag);
+                }
+                else if (0 > count)
+                {
+                    // remove excess nodes
+                    list.map.splice(items.length, -count);
+                    delNodes(null, parentNode, startIndex+1+m*items.length, -count);
+                }
+                return;
+            case 'replace':
+                count = items.length - list.map.length;
+                // replace common nodes
+                n = parentNode.childNodes[startIndex + 1];
+                iterate(function(index) {
+                    var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                    list.map[index] = nodes.map;
+                    each(nodes.dom, function(nn, i){
+                        morphSimple(view, list.map[index][i], proxy, false);
+                        x = n[NEXT];
+                        parentNode.replaceChild(nn, n);
+                        n = x;
+                    });
+                }, 0, stdMath.min(list.map.length, items.length)-1);
+                if (0 < count)
+                {
+                    // add missing nodes
+                    frag = Fragment();
+                    iterate(function(index) {
+                        var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                        list.map.push(nodes.map);
+                        each(nodes.dom, function(n, i){
+                            morphSimple(view, list.map[index][i], proxy, false);
+                            frag.appendChild(n);
+                        });
+                    }, items.length-count, items.length-1);
+                    if (end) parentNode.insertBefore(frag, end);
+                    else parentNode.appendChild(frag);
+                }
+                else if (0 > count)
+                {
+                    // remove excess nodes
+                    list.map.splice(items.length, -count);
+                    delNodes(null, parentNode, startIndex+1+m*items.length, -count);
+                }
+                return;
+            case 'reorder':
+                count = items.length;
+                k = count*m;
+                frag = Fragment();
+                n = slice.call(parentNode.childNodes, startIndex+1, startIndex+1+k);
+                l = list.map.slice();
+                for (i=0; i<count; ++i)
+                {
+                    list.map[i] = l[d.from[i]];
+                    for (j=0; j<m; ++j)
+                        frag.appendChild(n[d.from[i]*m+j]);
+                }
+                if (end) parentNode.insertBefore(frag, end);
+                else parentNode.appendChild(frag);
+                return;
+            case 'swap':
+                x = list.map[d.from];
+                list.map[d.from] = list.map[d.to];
+                list.map[d.to] = x;
+                i = slice.call(parentNode.childNodes, startIndex+1+d.from*m, startIndex+1+d.from*m+m);
+                j = slice.call(parentNode.childNodes, startIndex+1+d.to*m, startIndex+1+d.to*m+m);
+                k = j[j.length-1][NEXT];
+                for (l=0; l<m; ++l) parentNode.replaceChild(j[l], i[l]);
+                if (k) for (l=0; l<m; ++l) parentNode.insertBefore(i[l], k);
+                else for (l=0; l<m; ++l) parentNode.appendChild(i[l]);
+                break;
+            case 'del':
+                list.map.splice(d.from, d.to-d.from+1);
+                delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
+                break;
+            case 'add':
+                frag = Fragment();
+                iterate(function(index) {
+                    var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                    list.map[index] = nodes.map;
+                    each(nodes.dom, function(n, i){
+                        morphSimple(view, list.map[index][i], proxy, false);
+                        frag.appendChild(n);
+                    });
+                }, d.from, d.to);
+                n = parentNode.childNodes[startIndex+1+m*d.from];
+                if (n) parentNode.insertBefore(frag, n);
+                else parentNode.appendChild(frag);
+                break;
+            case 'change':
+                iterate(function(index) {
+                    var proxy = model.getProxy(key+'.'+index, '.', items[index]);
+                    each(list.map[index], function(m) {morphSimple(view, m, proxy, true);});
+                }, d.from, d.to);
+                break;
+        }
+    }
+}
+function morphSimple(view, map, model, onlyIfDirty)
+{
+    walk_map(map, function(nodeList, key) {
+        var val = model.get(key), isDirty = model.isDirty(key);
+        each(nodeList, function(node) {
+            switch (node.type)
+            {
+                case 'text':
+                morphTextSimple(view, node, key, Str(val), isDirty, model, onlyIfDirty);
+                break;
+                case 'att1':
+                morphAtt1Simple(view, node, key, val, isDirty, model, onlyIfDirty);
+                break;
+                case 'att':
+                morphAttSimple(view, node, key, val, isDirty, model, onlyIfDirty);
+                break;
+                case 'list':
+                morphCollectionSimple(view, node, key, val, isDirty, model, onlyIfDirty);
+                break;
+            }
+        });
+    }, '');
 }
 
 
@@ -4119,7 +4410,7 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
         k = p[i++];
         if (is_instance(o, Collection) && i < l)
         {
-            if (collections) collections.push([o, +k]);
+            if (collections) collections.push([o, +k, p.slice(0, i-1)]);
             o = o.items();
         }
         to = get_type( o );
@@ -4481,14 +4772,30 @@ function syncHandler(evt, data)
         model.$atom = prev_atom; model.atomic = prev_atomic;
     }
 }
-function getDirty(u)
+function getDirty(u, ks)
 {
-    var upds = [];
-    if (u.k) each(Keys(u.k), function(k){
-        var rest = getDirty(u.k[k]);
-        if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
-        else upds.push(k);
-    });
+    var upds = [], k;
+    if (u.k)
+    {
+        if (ks && ks.length)
+        {
+            k = ks[0];
+            if (u.k[k])
+            {
+                ks.shift();
+                return getDirty(u.k[k], ks);
+            }
+        }
+        else
+        {
+            each(Keys(u.k), function(k){
+                if (u.k[k].f) upds.push(k);
+                var rest = getDirty(u.k[k], ks);
+                if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+                //else upds.push(k);
+            });
+        }
+    }
     return upds;
 }
 function setDirty(model, key, many)
@@ -4693,27 +5000,31 @@ model.data( [Object data] );
         var model = this, i, l, u;
         if (!model.$upds) model.$upds = {};
         u = model.$upds;
+        //if (!is_array(ks)) ks = Str(ks).split('.');
         for (i=0,l=ks.length; i<l; ++i)
         {
             if (!u.k) u.k = {};
             if (!u.k[ks[i]]) u.k[ks[i]] = {};
             u = u.k[ks[i]];
+            if (i+1 === l) u.f = true;
         }
         return model;
     }
-    ,getDirty: function() {
+    ,getDirty: function(ks) {
         var model = this;
-        return model.$upds ? getDirty(model.$upds) : [];
+        return model.$upds ? getDirty(model.$upds, ks) : [];
     }
     ,isDirty: function(ks) {
         var model = this, i, l, c, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
+        if (!is_array(ks)) ks = Str(ks).split('.');
         for (c=0,i=0,l=ks.length; i<l; ++i)
         {
             if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
-            u = u.k[ks[i]]; c++;
+            u = u.k[ks[i]]; //c++;
+            if (u.f) return true;
         }
-        return (0 < l) && (c === l);
+        return false;//(0 < l) && (c === l);
     }
     ,resetDirty: function() {
         this.$upds = null;
@@ -4972,8 +5283,12 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
-            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey).changed(model.isDirty([dottedKey]));
-            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey).changed(model.isDirty([dottedKey]));
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)
+            {
+                ret = r.v.call(model, dottedKey);
+                return is_instance(ret, Value) ? ret : Value(v, dottedKey, true).changed(model.isDirty([dottedKey]));
+            }
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, true).changed(model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
@@ -4986,10 +5301,10 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             else if (false === r[ 0 ])
             {
                 ret = r[ 1 ].call(model, dottedKey);
-                return is_instance(ret, Value) ? ret : Value(ret, dottedKey).changed(model.isDirty(ks));
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true).changed(model.isDirty(ks));
             }
             // model field
-            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey).changed(model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, true).changed(model.isDirty(ks));
         }
         return undef;
     }
@@ -5002,8 +5317,8 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 model.getProxy( String dottedKey );
 
 [/DOC_MARKDOWN]**/
-    ,getProxy: function(dottedKey) {
-        return new Proxy(this, dottedKey);
+    ,getProxy: function(dottedKey, rel) {
+        return 2 < arguments.length ? (new Proxy(this, dottedKey, rel, arguments[2])) : (new Proxy(this, dottedKey, rel));
     }
 
 /**[DOC_MARKDOWN]
@@ -5204,6 +5519,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         o.set(k, val, pub, callData);
                         each(collections, function(collection){
                             collection[0]._upd('change', collection[1], collection[1]);
+                            setDirty(model, collection[2]);
                         });
                     }
                     else pub = false;
@@ -5215,23 +5531,20 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     else pub = false;
                 }
 
-                if (pub)
-                {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: 'set',
-                        valuePrev: prevval,
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: 'set',
+                    valuePrev: prevval,
+                    $callData: callData
+                });
+                setDirty(model, ks);
 
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
+                {
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -5304,24 +5617,22 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
-                    if (pub)
+                    pub && model.publish('change', {
+                        key: dottedKey,
+                        value: val,
+                        action: 'set',
+                        $callData: callData
+                    });
+                    setDirty(model, ks);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
                     {
-                        model.publish('change', {
-                            key: dottedKey,
-                            value: val,
-                            action: 'set',
-                            $callData: callData
-                        });
-                        setDirty(model, ks);
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
-                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+                    if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
                 return model;
             }
@@ -5333,6 +5644,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
+                    setDirty(model, collection[2]);
                 });
 
                 // modify or add final node here
@@ -5341,22 +5653,19 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    valuePrev: prevval,
+                    action: 'set',
+                    $callData: callData
+                });
+                setDirty(model, ks);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        valuePrev: prevval,
-                        action: 'set',
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
 
                 if (model.$atom && dottedKey === model.$atom) model.atomic = true;
@@ -5424,6 +5733,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -5432,22 +5742,19 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.data(val);
                 }
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: prepend ? 'prepend' : 'append',
+                    index: index,
+                    $callData: callData
+                });
+                setDirty(model, ks/*.concat(index)*/);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: prepend ? 'prepend' : 'append',
-                        index: index,
-                        $callData: callData
-                    });
-                    setDirty(model, ks.concat(index));
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -5520,6 +5827,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                     if (pub)
                     {
@@ -5534,13 +5842,13 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             index: index,
                             $callData: callData
                         });
-                        setDirty(model, ks);
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                    }
+                    setDirty(model, ks);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -5571,24 +5879,22 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
-            if (pub)
+            pub && model.publish('change', {
+                key: dottedKey,
+                value: val,
+                action: 'append',
+                index: index,
+                $callData: callData
+            });
+            setDirty(model, ks/*.concat(index)*/);
+            // notify any dependencies as well
+            if (HAS.call(ideps,dottedKey))
             {
-                model.publish('change', {
-                    key: dottedKey,
-                    value: val,
-                    action: 'append',
-                    index: index,
-                    $callData: callData
-                });
-                setDirty(model, ks.concat(index));
-                // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
-                {
-                    setDirty(model, ideps[dottedKey], true);
-                    model.notify(ideps[dottedKey]);
-                }
+                //setDirty(model, ideps[dottedKey], true);
+                pub && model.notify(ideps[dottedKey]);
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -5654,6 +5960,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -5662,22 +5969,19 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.data(val);
                 }
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: 'insert',
+                    index: index,
+                    $callData: callData
+                });
+                setDirty(model, ks/*.concat(index)*/);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: 'insert',
-                        index: index,
-                        $callData: callData
-                    });
-                    setDirty(model, ks.concat(index));
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -5729,18 +6033,14 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             if (!validated)
             {
-                if (pub)
-                {
-                    if (callData) callData.error = true;
-                    model.publish('error', {
-                        key: dottedKey,
-                        value: /*val*/undef,
-                        action: 'insert',
-                        index: -1,
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
-                }
+                if (callData) callData.error = true;
+                pub && model.publish('error', {
+                    key: dottedKey,
+                    value: /*val*/undef,
+                    action: 'insert',
+                    index: -1,
+                    $callData: callData
+                });
                 return model;
             }
 
@@ -5751,23 +6051,21 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
-                    if (pub)
+                    pub && model.publish('change', {
+                        key: dottedKey,
+                        value: val,
+                        action: 'insert',
+                        index: index,
+                        $callData: callData
+                    });
+                    setDirty(model, ks/*.concat(index)*/);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
                     {
-                        model.publish('change', {
-                            key: dottedKey,
-                            value: val,
-                            action: 'insert',
-                            index: index,
-                            $callData: callData
-                        });
-                        setDirty(model, ks.concat(index));
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -5788,24 +6086,22 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
-            if (pub)
+            pub && model.publish('change', {
+                key: dottedKey,
+                value: val,
+                action: 'insert',
+                index: index,
+                $callData: callData
+            });
+            setDirty(model, ks/*.concat(index)*/);
+            // notify any dependencies as well
+            if (HAS.call(ideps,dottedKey))
             {
-                model.publish('change', {
-                    key: dottedKey,
-                    value: val,
-                    action: 'insert',
-                    index: index,
-                    $callData: callData
-                });
-                setDirty(model, ks.concat(index));
-                // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
-                {
-                    setDirty(model, ideps[dottedKey], true);
-                    model.notify(ideps[dottedKey]);
-                }
+                //setDirty(model, ideps[dottedKey], true);
+                pub && model.notify(ideps[dottedKey]);
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -5819,7 +6115,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function(dottedKey, pub, reArrangeIndexes, callData) {
-        var model = this, r, o, k, p, val, index = -1, canDel = false, collections = [];
+        var model = this, r, o, k, p, val, index = -1, canDel = false, collections = [], ideps = model.$idependencies, ks;
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
 
@@ -5833,11 +6129,13 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
         {
             // handle single key fast
             k = dottedKey;
+            ks = [k];
             canDel = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, null, null, null, Model, false, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, null, null, null, Model, false, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
+            ks.length = ks.length-1; // not include removed key/index
 
             if (Model === r[ 0 ] && k.length)
             {
@@ -5847,6 +6145,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
+                    setDirty(model, collection[2]);
                 });
                 pub && model.publish('change', {
                         key: dottedKey,
@@ -5895,6 +6194,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
             pub && model.publish('change', {
@@ -5905,6 +6205,15 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                     rearrange: reArrangeIndexes,
                     $callData: callData
                 });
+
+            setDirty(model, ks);
+            k = ks.join('.');
+            // notify any dependencies as well
+            if (HAS.call(ideps,k))
+            {
+                //setDirty(model, ideps[k], true);
+                pub && model.notify(ideps[k]);
+            }
 
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -6041,6 +6350,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
         }
         each(collections, function(collection){
             collection[0]._upd('change', collection[1], collection[1]);
+            setDirty(model, collection[2]);
         });
         return model;
     }
@@ -6142,6 +6452,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
                 if (HAS.call(ideps,dottedKey)) deps = deps.concat(ideps[dottedKey]);
+                model.setDirty(dottedKey.split('.'));
                 model.publish(evt, d);
             }
             else if (T_ARRAY === t)
@@ -6155,6 +6466,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps,dk)) deps = deps.concat(ideps[dk]);
+                    model.setDirty(dk.split('.'));
                     model.publish(evt, d);
                 }
             }
@@ -6172,6 +6484,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps,dk)) deps2 = deps2.concat(ideps[dk]);
                     d.key = dk;
+                    model.setDirty(dk.split('.'));
                     model.publish("change", d);
                 }
                 deps = deps2;
@@ -6215,25 +6528,51 @@ Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
+Model[proto].setChanged = Model[proto].setDirty;
+Model[proto].getChanged = Model[proto].getDirty;
+Model[proto].isChanged = Model[proto].isDirty;
+Model[proto].resetChanged = Model[proto].resetDirty;
 
-function Proxy(model, key)
+function Proxy(model, key, rel)
 {
-    var self = this, getKey, prefix;
-    if (!is_instance(self, Proxy)) return new Proxy(model, key);
+    var self = this, getKey, prefix, data, getData;
+    if (!is_instance(self, Proxy)) return 3 < arguments.length ? (new Proxy(model, key, rel, arguments[3])) : (new Proxy(model, key, rel));
 
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
-        return dottedKey && dottedKey.length ? prefix + dottedKey : key;
+        return rel ? (rel === dottedKey ? key : (rel === dottedKey.charAt(0) ? prefix + dottedKey.slice(1) : dottedKey)) : (dottedKey && dottedKey.length ? prefix + dottedKey : key);
+    };
+    data = 3 < arguments.length ? arguments[3] : NOOP;
+    getData = function(dottedKey) {
+        if (!rel || (rel !== dottedKey.charAt(0))) return NOOP;
+        if (NOOP === data) data = model.get(key);
+        dottedKey = dottedKey.slice(1);
+        if ('' === dottedKey) return data;
+        dottedKey = dottedKey.split('.');
+        for (var i=0,l=dottedKey.length,o=data; i<l; ++i)
+        {
+            if (HAS.call(o, dottedKey[i])) o = o[dottedKey[i]];
+            else return NOOP;
+        }
+        return o;
     };
     self.get = function(dottedKey, RAW) {
-        return model.get(getKey(dottedKey), RAW);
+        var ret = getData(dottedKey);
+        return NOOP === ret ? model.get(getKey(dottedKey), RAW) : ret;
     };
     self.getVal = function(dottedKey, RAW) {
-        return model.getVal(getKey(dottedKey), RAW);
+        var ret = getData(dottedKey), fullKey = getKey(dottedKey);
+        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(model.isDirty(fullKey));
     };
-    self.getProxy = function(dottedKey) {
-        return model.getProxy(getKey(dottedKey));
+    self.getProxy = function(dottedKey, rel) {
+        return 2 < arguments.length ? (new Proxy(model, getKey(dottedKey), rel, arguments[2])) : (new Proxy(model, getKey(dottedKey), rel));
+    };
+    self.getChanged = self.getDirty = function() {
+        return model.getDirty(key && key.length ? key.split('.') : null);
+    };
+    self.isChanged = self.isDirty = function(dottedKey) {
+        return model.isDirty(getKey(dottedKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -6258,6 +6597,10 @@ Proxy[proto] = {
     ,get: null
     ,getVal: null
     ,getProxy: null
+    ,getDirty: null
+    ,getChanged: null
+    ,isDirty: null
+    ,isChanged: null
     ,set: null
     ,add: null
     ,append: null
@@ -6278,14 +6621,26 @@ value.reset(); // reset dirty flag
 var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
 [/DOC_MARKDOWN]**/
-function Value(_val, _key)
+function Value(_val, _key, noID)
 {
-    var self = this, _dirty = true;
+    var self = this, _dirty = true, _id = 0;
     if (is_instance(_val, Value)) {_key = _val.key(); _val = _val.val();}
-    if (!is_instance(self, Value)) return new Value(_val, _key);
+    if (!is_instance(self, Value)) return new Value(_val, _key, noID);
 
-    self.key = function() {
-        return _key;
+    _id = true === noID ? 0 : (++_cnt);
+    self.id = function() {
+        return _id;
+    };
+    self.key = function(key) {
+        if (arguments.length)
+        {
+            _key = key;
+            return self;
+        }
+        else
+        {
+            return _key;
+        }
     };
     self.val = function() {
         return _val;
@@ -6318,6 +6673,7 @@ function Value(_val, _key)
 Model.Value = Value;
 Value[proto] = {
     constructor: Value
+    ,id: null
     ,key: null
     ,val: null
     ,set: null
@@ -6339,9 +6695,13 @@ var collection = new Model.Collection( [Array array=[]] );
 [/DOC_MARKDOWN]**/
 function Collection(array)
 {
-    var self = this;
+    var self = this, _id = 0;
     if (is_instance(array, Collection)) return array;
     if (!is_instance(self, Collection)) return new Collection(array);
+    _id = ++_cnt;
+    self.id = function() {
+        return _id;
+    };
     self.set(array || []);
 }
 Model.Collection = Collection;
@@ -6351,6 +6711,7 @@ Collection[proto] = {
     ,diff: null
     ,mapper: null
     ,mappedItem: 1
+    ,id: null
     ,dispose: function() {
         var self = this;
         self._items = null;
@@ -6443,6 +6804,20 @@ collection.set(newData);
                     self._upd('change', index, index);
                 }
             }
+        }
+        return self;
+    }
+/**[DOC_MARKDOWN]
+// replace data with completely new data, return same collection
+collection.replace(newData);
+
+[/DOC_MARKDOWN]**/
+    ,replace: function(data) {
+        var self = this;
+        if (self._items !== data)
+        {
+            self._items = data;
+            self.reset()._upd('replace', 0, self._items.length-1);
         }
         return self;
     }
@@ -6990,9 +7365,11 @@ function clearInvalid(view)
 {
     // reset any Values/Collections present
     if (view.$model) view.$model.resetDirty();
-    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; ++i) r[i].reset();
+    if (view.$reset) each(Keys(view.$reset), function(k) {
+        view.$reset[k].reset();
+    });
     view.$reset = null;
-    if (view.$cache) each(Keys(view.$cache), function(id){
+    if (view.$cache) each(Keys(view.$cache), function(id) {
         var comp = view.$cache[id], COMP;
         if (is_instance(comp, MVComponentInstance))
         {
@@ -7023,6 +7400,7 @@ function clearInvalid(view)
 }
 function clearAll(view)
 {
+    view.$reset = null;
     if (view.$cache) each(Keys(view.$cache), function(id){
         var comp = view.$cache[id];
         if (is_instance(comp, MVComponentInstance))
@@ -7031,6 +7409,29 @@ function clearAll(view)
             delete view.$cache[id];
         }
     });
+}
+function updateMap(node, action, map, topNode)
+{
+    if (!map) return node;
+    if ('add' === action)
+    {
+        if (node) get_placeholders(node, map);
+    }
+    else if ('remove' === action)
+    {
+        del_map(map, function(v) {
+            v.reduce(function(rem, t, i) {
+                if (('list' === t.type) && ((node && is_child_of(t.start, node)) || (!node && !is_child_of(t.start, topNode)))) rem.push(i);
+                else if (('list' !== t.type) && ((node && is_child_of(t.node, node)) || (!node && !is_child_of(t.node, topNode)))) rem.push(i);
+                return rem;
+            }, [])
+            .reverse()
+            .forEach(function(i) {
+                v.splice(i, 1);
+            });
+        });
+    }
+    return node;
 }
 function hasComponent(view, name)
 {
@@ -7140,16 +7541,18 @@ var view = new ModelView.View( [String id=UUID] );
 [/DOC_MARKDOWN]**/
 //
 // View Class
-var View = function View(id, opts) {
+var View = function View(id) {
     var view = this;
 
     // constructor-factory pattern
-    if (!is_instance(view, View)) return new View(id, opts);
+    if (!is_instance(view, View)) return new View(id);
 
-    view.$opts = opts || {};
+    view.$opts = {};
     view.option('view.uuid', uuid('View'));
     view.option('view.livebind', true);
     view.option('view.autobind', true);
+    view.option('view.autobindAll', true);
+    view.option('model.events', true);
     view.namespace = view.id = id || view.option('view.uuid');
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
@@ -7210,6 +7613,8 @@ view.dispose( );
         view.$reset = null;
         return view;
     }
+
+    ,nop: NOOP
 
     ,changeHandler: function changeHandler(evt) {
         var view = this;
@@ -7674,7 +8079,15 @@ view.precompile();
         {
             view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         }
-        if (true === livebind)
+        if ('text' === livebind)
+        {
+            if (!view.$map)
+            {
+                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
+            }
+        }
+        else if (true === livebind)
         {
             for (n in view.$components)
             {
@@ -7806,7 +8219,10 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
+                view.$reset = {}; view.$cache = null;
                 if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
+                if (model) model.resetDirty();
+                view.$reset = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
@@ -7816,12 +8232,13 @@ view.render( [Boolean immediate=false] );
                 if (!view.$map)
                 {
                     if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
-                    view.updateMap(view.$renderdom, 'add');
+                    updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
                 callback = function() {
-                    morphText(view.$map, view.$model, !model || ('sync' === immediate) ? null : model.getDirty());
-                    if (model) model.resetDirty();
-                    nextTick(function() {
+                    view.$reset = {}; view.$cache = null;
+                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
+                    nextTick(function(){
+                        clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
                     });
@@ -7840,7 +8257,7 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
                 if (model) model.resetDirty();
                 view.$reset = null; view.$cache['#'] = null;
@@ -7849,7 +8266,7 @@ view.render( [Boolean immediate=false] );
                 return out;
             }
             callback = function() {
-                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode));
                 view.$cache['#'] = null;
                 nextTick(function(){
@@ -7902,57 +8319,6 @@ view.removeNode( nodeToRemove );
     }
 
 /**[DOC_MARKDOWN]
-// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
-view.updateMap( node, action='add'|'remove' );
-
-[/DOC_MARKDOWN]**/
-    ,updateMap: function(node, action) {
-        var view = this;
-        if (view.$dom && node && ('text' === view.option('view.livebind')))
-        {
-            if ('add' === action)
-            {
-                if (!view.$map) view.$map = {att:{}, att1:{}, txt:{}};
-                get_placeholders(node, view.$map);
-            }
-            else if (('remove' === action) && view.$map)
-            {
-                del_map(view.$map.txt, function(v){
-                    v.reduce(function(rem, t, i){
-                        if (is_child_of(t, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-                del_map(view.$map.att1, function(v){
-                    v.reduce(function(rem, a, i){
-                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-                del_map(view.$map.att, function(v){
-                    v.reduce(function(rem, a, i){
-                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-            }
-        }
-        return node;
-    }
-
-/**[DOC_MARKDOWN]
 // synchronize dom to underlying model
 view.sync();
 
@@ -8001,8 +8367,8 @@ view.sync_model();
     ,on_view_change: function(evt, data) {
         var view = this, model = view.$model,
             el = data.el, name, key, val,
-            checkboxes, is_dynamic_array, input_type, alternative, comp, isFromComponent = false,
-            modeldata = { }
+            checkboxes, is_dynamic_array, input_type, alternative,
+            comp, isFromComponent = false, modeldata = {}
         ;
 
         // evt triggered by view itself, ignore
@@ -8068,7 +8434,7 @@ view.sync_model();
                     val = get_val(el);
                 }
 
-                modeldata.$trigger = el;
+                modeldata.triggerEl = el;
                 if (isFromComponent)
                 {
                     comp = el;
@@ -8077,7 +8443,7 @@ view.sync_model();
                         if (comp[MV] && comp[MV].comp) break;
                         comp = comp.parentNode;
                     }
-                    if (comp && comp[MV] && comp[MV].comp)
+                    if (comp && comp[MV] && comp[MV].comp && comp[MV].comp.model)
                         comp[MV].comp.model.set(key, val, 1, modeldata);
                 }
                 else if (model)
@@ -8162,59 +8528,46 @@ view.sync_model();
         }
     }
 
-    /*,on_window_resize: function(evt, data) {
-        var view = this;
-        view.render();
-    }
-
-    ,on_window_popstate: function(evt, data) {
-        var view = this;
-        view.render();
-    }*/
-
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model,
             autobind = view.option('view.autobind'),
             livebind = view.option('view.livebind'),
-            key, autobindSelector, bindSelector,
-            bindElements = [], autoBindElements = [], notTriggerElem
+            key, autobindSelector, bindSelector, triggerEl,
+            bindElements, autoBindElements, notTriggerElem
         ;
 
         if (HASDOC && model && view.$dom)
         {
-            key = model.id + bracketed(data.key);
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
-            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
-
-            bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
-            if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
-
             // bypass element that triggered the "model:change" event
-            if (data.$callData && data.$callData.$trigger)
+            if (data.$callData && data.$callData.triggerEl)
             {
-                notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = filter(bindElements, notTriggerElem);
-                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
+                triggerEl = data.$callData.triggerEl;
                 data.$callData = null;
+                notTriggerElem = function(ele) {return ele !== triggerEl;};
             }
-            // do actions ..
 
-            // do view action first
-            if (bindElements.length)
+            // do actions ..
+            if ((true !== livebind) && view.option('model.events'))
             {
-                do_bind_action(view, evt, bindElements, data);
+                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+                bindElements = $sel(bindSelector, view.$dom);
+                if (notTriggerElem) bindElements = filter(bindElements, notTriggerElem);
+                // do view action first
+                if (bindElements.length) do_bind_action(view, evt, bindElements, data);
             }
-            // do view autobind action to bind input elements that map to the model, afterwards
-            if (autobind && autoBindElements.length)
+
+            if (autobind && ((true !== livebind) || ((view.$dom !== view.$renderdom) && view.option('view.autobindAll'))))
             {
-                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-                do_auto_bind_action(view, evt, autoBindElements, data);
+                key = model.id + bracketed(data.key);
+                autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
+                autoBindElements = $sel(autobindSelector, view.$dom);
+                if (notTriggerElem) autoBindElements = filter(autoBindElements, notTriggerElem);
+                // do autobind action to bind input elements that map to the model, afterwards
+                if (autoBindElements.length) do_auto_bind_action(view, evt, autoBindElements, data);
             }
+
             // do view live DOM update action
-            if (livebind)
-            {
-                view.render();
-            }
+            if (livebind) view.render();
         }
     }
 
@@ -8228,28 +8581,24 @@ view.sync_model();
 
         if (HASDOC && model && view.$dom)
         {
-            key = model.id + bracketed(data.key);
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
-            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-error')+']';
-            // do actions ..
+            if ((true !== livebind) && view.option('model.events'))
+            {
+                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+                bindElements = $sel(bindSelector, view.$dom);
+                // do view action first
+                if (bindElements.length) do_bind_action(view, evt, bindElements, data);
+            }
 
-            // do view bind action first
-            if ((true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
+            if (autobind && ((true !== livebind) || ((view.$dom !== view.$renderdom) && view.option('view.autobindAll'))))
             {
-                do_bind_action(view, evt, bindElements, data);
-            }
-            // do view autobind action to bind input elements that map to the model, afterwards
-            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
-            {
+                key = model.id + bracketed(data.key);
+                autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
                 autoBindElements = $sel(autobindSelector, view.$dom);
-                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-                do_auto_bind_action(view, evt, autoBindElements, data);
+                if (autoBindElements.length) do_auto_bind_action(view, evt, autoBindElements, data);
             }
+
             // do view live DOM bindings update action
-            if (livebind)
-            {
-                view.render();
-            }
+            if (true === livebind) view.render();
         }
     }
 
@@ -8258,7 +8607,7 @@ view.sync_model();
     //
 
     // NOP action
-    ,do_nop: null
+    //,do_nop: null
 
     // simulate link url change, through history api
     ,do_link: function(evt, el, data) {
@@ -8292,9 +8641,9 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var html = Str(model.get(key));
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 var val = el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML];
                 if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
@@ -8322,7 +8671,7 @@ view.sync_model();
         callback = function(){
             var style = model.get(key);
             if (!is_type(style, T_OBJ)) return;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 // css attributes
                 for (var p in style)
@@ -8354,12 +8703,12 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var modelkey = model.get(key);
             // show if data[key] is value, else hide
             // show if data[key] is true, else hide
             var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) show(el);
                 else hide(el);
@@ -8384,12 +8733,12 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var modelkey = model.get(key);
             // hide if data[key] is value, else show
             // hide if data[key] is true, else show
             var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) hide(el);
                 else show(el);
@@ -8683,7 +9032,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "4.1.0"
+    VERSION: "5.0.0"
     
     ,UUID: uuid
     

@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 4.1.0** (86 kB minified)
+**Version 5.0.0 in progress** (90 kB minified)
 
 
 **see also:**
@@ -132,7 +132,41 @@ console.log(view.render());
 
 #### How it works
 
-ModelView uses only the basic building blocks of Web Development: **HTML and JavaScript**. No need to learn new syntax, or do things differently. ModelView works with **simple `HTML` strings** which are interspersed with **arbitrary `JavaScript` Expressions**. It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. ModelView understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it acquires an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by wrapping the HTML in parentheses (JSX syntax), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
+ModelView uses only the basic building blocks of Web Development: **HTML and JavaScript**. No need to learn new syntax, or do things differently. ModelView works with **simple `HTML` strings** which are interspersed with **arbitrary `JavaScript` Expressions**.
+
+
+**Data Model**
+
+ModelView.Model is the **single source of truth** for the data used by the app. Model is an event emitter and a proxy for the data which keeps note of when data change and publishes change events to underlying ModelView.View (which subscribes to them) along with the changed data.
+
+
+For example, instead of doing:
+```javascript
+var foo = data.some.key;
+data.some.key = bar;
+```
+
+You do:
+```javascript
+var foo = view.model().get('some.key');
+view.model().set('some.key', bar, true);
+```
+
+Plus it supports many other functions like: having models within models, data dependency graph (which data depend on others), data typecasting, data validation, data serialization and dynamic computed properties and custom getters and setters.
+
+Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed.
+
+Global Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how flexible and powerful Model is. Components (see below) can have their own local Model as well to manage internal local state.
+
+
+**Simple/Text Mode**
+
+ModelView has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of text nodes and element attributes marked with the values of specific data model keys and a list of child nodes that reference a model collection of items and use a template (see [Hello World Simple version](/examples/hello-world-simple.html) example and [Collection Simple version](/examples/collection-simple.html) example).
+
+
+**General Mode**
+
+This is the general livebind mode of ModelView (`view.livebind(true)`) (see [Hello World](/examples/hello-world.html) example and [Collection](/examples/collection.html) example). It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. ModelView understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it acquires an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by wrapping the HTML in parentheses (JSX syntax), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
 
 For example, see all the above in action:
 
@@ -164,10 +198,6 @@ this.model().get('items').map(item => (<ListItem props={item}/>))
 ```
 
 **make sure** your custom component names **do not match default html element names!**
-
-ModelView furthermore has built-in (global) data Model which is available in each template (or component) via `view.model()` (`view` reference is available in all contexts and is always the main View instance, while `this` references the main view in main template, whereas it references the current component instance in a component template). Model supports custom getters and setters, typecasters, validators and notification functionality when data change. Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed. Global Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how easy and powerful Model is. Components can have their own local Model as well to manage internal local state, see documentation.
-
-ModelView additionally has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of only text nodes and element attributes marked with the values of specific data model keys (see [Hello World Text-Only](/examples/hello-world-text-only.html) example).
 
 ModelView uses some heuristics in order to morph the real DOM as fast as posible and skip parts that haven't changed (or at least heuristics say so). However heuristics don't cover some edge cases (since these would require a deep diffing between real and virtual DOM, which beats the purpose of fast morphing). These cases are defined by implicitly dynamic parts which appear as static (they are implicitly dynamic as being parts of a larger dynamic element, whose static parts change as a whole, but are not marked as explicitly dynamic), while the explicitly dynamic parts are similar (see example below). These edge cases are however very easy to handle fully, by providing very simple hints to ModelView engine as to what to morph exactly and how.
 
@@ -228,7 +258,10 @@ Take a look at the examples and manual to see how easy and intuitive is to make 
 
 #### Performance Notes
 
-Here are latest benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for Latest ModelView and some popular frameworks (env: Windows 7 64bit, Chrome 99.0.4844.51 64bit).
+
+In progress..
+
+<!--Here are latest benchmark results using [js-framework-benchmark](https://github.com/foo123/js-framework-benchmark) for Latest ModelView and some popular frameworks (env: Windows 7 64bit, Chrome 99.0.4844.51 64bit).
 
 
 **Keyed Results**
@@ -246,7 +279,7 @@ Here are latest benchmark results using [js-framework-benchmark](https://github.
 
 ![Memory 2](/examples/mem2.png)
 
-It is shown that ModelView has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits, and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).
+It is shown that ModelView has very good performance (comparable to, or even better than, other popular frameworks which work differently), while memory consumption is within acceptable limits, and all that while retaining maximum generalizability (unlike solutions that although slightly faster are in essense handcrafted to match the benchmark task and don't generalize nor scale; not displayed in results).-->
 
 
 #### JavaScript and Browser Support

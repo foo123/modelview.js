@@ -81,6 +81,7 @@
         'alt+h': 'alert'
     })
     .autovalidate(true)
+    .option('model.events', false)
     .autobind(true) // default
     .livebind('text')
     .bind(['click', 'keyup'], document.getElementById('app'))

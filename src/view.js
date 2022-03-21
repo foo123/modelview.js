@@ -385,9 +385,11 @@ function clearInvalid(view)
 {
     // reset any Values/Collections present
     if (view.$model) view.$model.resetDirty();
-    if (view.$reset) for (var r=view.$reset,i=0,l=r.length; i<l; ++i) r[i].reset();
+    if (view.$reset) each(Keys(view.$reset), function(k) {
+        view.$reset[k].reset();
+    });
     view.$reset = null;
-    if (view.$cache) each(Keys(view.$cache), function(id){
+    if (view.$cache) each(Keys(view.$cache), function(id) {
         var comp = view.$cache[id], COMP;
         if (is_instance(comp, MVComponentInstance))
         {
@@ -418,6 +420,7 @@ function clearInvalid(view)
 }
 function clearAll(view)
 {
+    view.$reset = null;
     if (view.$cache) each(Keys(view.$cache), function(id){
         var comp = view.$cache[id];
         if (is_instance(comp, MVComponentInstance))
@@ -426,6 +429,29 @@ function clearAll(view)
             delete view.$cache[id];
         }
     });
+}
+function updateMap(node, action, map, topNode)
+{
+    if (!map) return node;
+    if ('add' === action)
+    {
+        if (node) get_placeholders(node, map);
+    }
+    else if ('remove' === action)
+    {
+        del_map(map, function(v) {
+            v.reduce(function(rem, t, i) {
+                if (('list' === t.type) && ((node && is_child_of(t.start, node)) || (!node && !is_child_of(t.start, topNode)))) rem.push(i);
+                else if (('list' !== t.type) && ((node && is_child_of(t.node, node)) || (!node && !is_child_of(t.node, topNode)))) rem.push(i);
+                return rem;
+            }, [])
+            .reverse()
+            .forEach(function(i) {
+                v.splice(i, 1);
+            });
+        });
+    }
+    return node;
 }
 function hasComponent(view, name)
 {
@@ -535,16 +561,18 @@ var view = new ModelView.View( [String id=UUID] );
 [/DOC_MARKDOWN]**/
 //
 // View Class
-var View = function View(id, opts) {
+var View = function View(id) {
     var view = this;
 
     // constructor-factory pattern
-    if (!is_instance(view, View)) return new View(id, opts);
+    if (!is_instance(view, View)) return new View(id);
 
-    view.$opts = opts || {};
+    view.$opts = {};
     view.option('view.uuid', uuid('View'));
     view.option('view.livebind', true);
     view.option('view.autobind', true);
+    view.option('view.autobindAll', true);
+    view.option('model.events', true);
     view.namespace = view.id = id || view.option('view.uuid');
     view.$shortcuts = {};
     view.$num_shortcuts = 0;
@@ -605,6 +633,8 @@ view.dispose( );
         view.$reset = null;
         return view;
     }
+
+    ,nop: NOOP
 
     ,changeHandler: function changeHandler(evt) {
         var view = this;
@@ -1069,7 +1099,15 @@ view.precompile();
         {
             view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         }
-        if (true === livebind)
+        if ('text' === livebind)
+        {
+            if (!view.$map)
+            {
+                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
+            }
+        }
+        else if (true === livebind)
         {
             for (n in view.$components)
             {
@@ -1201,7 +1239,10 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
+                view.$reset = {}; view.$cache = null;
                 if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
+                if (model) model.resetDirty();
+                view.$reset = null;
                 // notify any 3rd-party also if needed
                 view.publish('render', {});
                 return out;
@@ -1211,12 +1252,13 @@ view.render( [Boolean immediate=false] );
                 if (!view.$map)
                 {
                     if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
-                    view.updateMap(view.$renderdom, 'add');
+                    updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
                 callback = function() {
-                    morphText(view.$map, view.$model, !model || ('sync' === immediate) ? null : model.getDirty());
-                    if (model) model.resetDirty();
-                    nextTick(function() {
+                    view.$reset = {}; view.$cache = null;
+                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
+                    nextTick(function(){
+                        clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
                     });
@@ -1235,7 +1277,7 @@ view.render( [Boolean immediate=false] );
         {
             if (!view.$renderdom)
             {
-                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
                 if (model) model.resetDirty();
                 view.$reset = null; view.$cache['#'] = null;
@@ -1244,7 +1286,7 @@ view.render( [Boolean immediate=false] );
                 return out;
             }
             callback = function() {
-                view.$cnt = {}; view.$reset = []; view.$cache['#'] = null;
+                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode));
                 view.$cache['#'] = null;
                 nextTick(function(){
@@ -1297,57 +1339,6 @@ view.removeNode( nodeToRemove );
     }
 
 /**[DOC_MARKDOWN]
-// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
-view.updateMap( node, action='add'|'remove' );
-
-[/DOC_MARKDOWN]**/
-    ,updateMap: function(node, action) {
-        var view = this;
-        if (view.$dom && node && ('text' === view.option('view.livebind')))
-        {
-            if ('add' === action)
-            {
-                if (!view.$map) view.$map = {att:{}, att1:{}, txt:{}};
-                get_placeholders(node, view.$map);
-            }
-            else if (('remove' === action) && view.$map)
-            {
-                del_map(view.$map.txt, function(v){
-                    v.reduce(function(rem, t, i){
-                        if (is_child_of(t, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-                del_map(view.$map.att1, function(v){
-                    v.reduce(function(rem, a, i){
-                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-                del_map(view.$map.att, function(v){
-                    v.reduce(function(rem, a, i){
-                        if (is_child_of(a.node, node, view.$dom)) rem.push(i);
-                        return rem;
-                    }, [])
-                    .reverse()
-                    .forEach(function(i){
-                        v.splice(i, 1);
-                    });
-                });
-            }
-        }
-        return node;
-    }
-
-/**[DOC_MARKDOWN]
 // synchronize dom to underlying model
 view.sync();
 
@@ -1396,8 +1387,8 @@ view.sync_model();
     ,on_view_change: function(evt, data) {
         var view = this, model = view.$model,
             el = data.el, name, key, val,
-            checkboxes, is_dynamic_array, input_type, alternative, comp, isFromComponent = false,
-            modeldata = { }
+            checkboxes, is_dynamic_array, input_type, alternative,
+            comp, isFromComponent = false, modeldata = {}
         ;
 
         // evt triggered by view itself, ignore
@@ -1463,7 +1454,7 @@ view.sync_model();
                     val = get_val(el);
                 }
 
-                modeldata.$trigger = el;
+                modeldata.triggerEl = el;
                 if (isFromComponent)
                 {
                     comp = el;
@@ -1472,7 +1463,7 @@ view.sync_model();
                         if (comp[MV] && comp[MV].comp) break;
                         comp = comp.parentNode;
                     }
-                    if (comp && comp[MV] && comp[MV].comp)
+                    if (comp && comp[MV] && comp[MV].comp && comp[MV].comp.model)
                         comp[MV].comp.model.set(key, val, 1, modeldata);
                 }
                 else if (model)
@@ -1557,59 +1548,46 @@ view.sync_model();
         }
     }
 
-    /*,on_window_resize: function(evt, data) {
-        var view = this;
-        view.render();
-    }
-
-    ,on_window_popstate: function(evt, data) {
-        var view = this;
-        view.render();
-    }*/
-
     ,on_model_change: function(evt, data) {
         var view = this, model = view.$model,
             autobind = view.option('view.autobind'),
             livebind = view.option('view.livebind'),
-            key, autobindSelector, bindSelector,
-            bindElements = [], autoBindElements = [], notTriggerElem
+            key, autobindSelector, bindSelector, triggerEl,
+            bindElements, autoBindElements, notTriggerElem
         ;
 
         if (HASDOC && model && view.$dom)
         {
-            key = model.id + bracketed(data.key);
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
-            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
-
-            bindElements = true !== livebind ? $sel(bindSelector, view.$dom) : [];
-            if (autobind) autoBindElements = (true !== livebind || view.$dom !== view.$renderdom) ? $sel(autobindSelector, view.$dom) : [];
-
             // bypass element that triggered the "model:change" event
-            if (data.$callData && data.$callData.$trigger)
+            if (data.$callData && data.$callData.triggerEl)
             {
-                notTriggerElem = function(ele) {return ele !== data.$callData.$trigger;};
-                bindElements = filter(bindElements, notTriggerElem);
-                if (autobind) autoBindElements = filter(autoBindElements, notTriggerElem);
+                triggerEl = data.$callData.triggerEl;
                 data.$callData = null;
+                notTriggerElem = function(ele) {return ele !== triggerEl;};
             }
-            // do actions ..
 
-            // do view action first
-            if (bindElements.length)
+            // do actions ..
+            if ((true !== livebind) && view.option('model.events'))
             {
-                do_bind_action(view, evt, bindElements, data);
+                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+                bindElements = $sel(bindSelector, view.$dom);
+                if (notTriggerElem) bindElements = filter(bindElements, notTriggerElem);
+                // do view action first
+                if (bindElements.length) do_bind_action(view, evt, bindElements, data);
             }
-            // do view autobind action to bind input elements that map to the model, afterwards
-            if (autobind && autoBindElements.length)
+
+            if (autobind && ((true !== livebind) || ((view.$dom !== view.$renderdom) && view.option('view.autobindAll'))))
             {
-                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-                do_auto_bind_action(view, evt, autoBindElements, data);
+                key = model.id + bracketed(data.key);
+                autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
+                autoBindElements = $sel(autobindSelector, view.$dom);
+                if (notTriggerElem) autoBindElements = filter(autoBindElements, notTriggerElem);
+                // do autobind action to bind input elements that map to the model, afterwards
+                if (autoBindElements.length) do_auto_bind_action(view, evt, autoBindElements, data);
             }
+
             // do view live DOM update action
-            if (livebind)
-            {
-                view.render();
-            }
+            if (livebind) view.render();
         }
     }
 
@@ -1623,28 +1601,24 @@ view.sync_model();
 
         if (HASDOC && model && view.$dom)
         {
-            key = model.id + bracketed(data.key);
-            autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
-            bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-error')+']';
-            // do actions ..
+            if ((true !== livebind) && view.option('model.events'))
+            {
+                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+                bindElements = $sel(bindSelector, view.$dom);
+                // do view action first
+                if (bindElements.length) do_bind_action(view, evt, bindElements, data);
+            }
 
-            // do view bind action first
-            if ((true !== livebind) && (bindElements=$sel(bindSelector, view.$dom)).length)
+            if (autobind && ((true !== livebind) || ((view.$dom !== view.$renderdom) && view.option('view.autobindAll'))))
             {
-                do_bind_action(view, evt, bindElements, data);
-            }
-            // do view autobind action to bind input elements that map to the model, afterwards
-            if (autobind && (true !== livebind || view.$dom !== view.$renderdom))
-            {
+                key = model.id + bracketed(data.key);
+                autobindSelector = 'input[name^="' + key + '"],textarea[name^="' + key + '"],select[name^="' + key + '"]';
                 autoBindElements = $sel(autobindSelector, view.$dom);
-                //if (livebind) autoBindElements = filter(autoBindElements, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
-                do_auto_bind_action(view, evt, autoBindElements, data);
+                if (autoBindElements.length) do_auto_bind_action(view, evt, autoBindElements, data);
             }
+
             // do view live DOM bindings update action
-            if (livebind)
-            {
-                view.render();
-            }
+            if (true === livebind) view.render();
         }
     }
 
@@ -1653,7 +1627,7 @@ view.sync_model();
     //
 
     // NOP action
-    ,do_nop: null
+    //,do_nop: null
 
     // simulate link url change, through history api
     ,do_link: function(evt, el, data) {
@@ -1687,9 +1661,9 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var html = Str(model.get(key));
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 var val = el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML];
                 if (val !== html) el[data && data.text ? (TEXTC in el ? TEXTC : TEXT) : HTML] = html;
@@ -1717,7 +1691,7 @@ view.sync_model();
         callback = function(){
             var style = model.get(key);
             if (!is_type(style, T_OBJ)) return;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 // css attributes
                 for (var p in style)
@@ -1749,12 +1723,12 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var modelkey = model.get(key);
             // show if data[key] is value, else hide
             // show if data[key] is true, else hide
             var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) show(el);
                 else hide(el);
@@ -1779,12 +1753,12 @@ view.sync_model();
         else el = [el];
         if (!el || !el.length) return;
 
-        callback = function(){
+        callback = function() {
             var modelkey = model.get(key);
             // hide if data[key] is value, else show
             // hide if data[key] is true, else show
             var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
-            each(el, function(el){
+            each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) hide(el);
                 else show(el);

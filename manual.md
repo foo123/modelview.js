@@ -1,7 +1,7 @@
 
 ### ModelView API
 
-**Version 4.1.0**
+**Version 5.0.0**
 
 ### Contents
 
@@ -553,6 +553,12 @@ collection.set(newData);
 
 
 
+// replace data with completely new data, return same collection
+collection.replace(newData);
+
+
+
+
 // swap data item at index1 with data item at index2, return same collection
 collection.swap(index1, index2);
 
@@ -792,12 +798,6 @@ view.moveNode( parentNode, nodeToMove, atIndex );
 
 // directly remove node (this method is compatible with general morphing routines)
 view.removeNode( nodeToRemove );
-
-
-
-
-// update internal key maps for dynamically added or to-be-removed node, when using text-only livebind
-view.updateMap( node, action='add'|'remove' );
 
 
 

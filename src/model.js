@@ -179,7 +179,7 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
         k = p[i++];
         if (is_instance(o, Collection) && i < l)
         {
-            if (collections) collections.push([o, +k]);
+            if (collections) collections.push([o, +k, p.slice(0, i-1)]);
             o = o.items();
         }
         to = get_type( o );
@@ -541,14 +541,30 @@ function syncHandler(evt, data)
         model.$atom = prev_atom; model.atomic = prev_atomic;
     }
 }
-function getDirty(u)
+function getDirty(u, ks)
 {
-    var upds = [];
-    if (u.k) each(Keys(u.k), function(k){
-        var rest = getDirty(u.k[k]);
-        if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
-        else upds.push(k);
-    });
+    var upds = [], k;
+    if (u.k)
+    {
+        if (ks && ks.length)
+        {
+            k = ks[0];
+            if (u.k[k])
+            {
+                ks.shift();
+                return getDirty(u.k[k], ks);
+            }
+        }
+        else
+        {
+            each(Keys(u.k), function(k){
+                if (u.k[k].f) upds.push(k);
+                var rest = getDirty(u.k[k], ks);
+                if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+                //else upds.push(k);
+            });
+        }
+    }
     return upds;
 }
 function setDirty(model, key, many)
@@ -753,27 +769,31 @@ model.data( [Object data] );
         var model = this, i, l, u;
         if (!model.$upds) model.$upds = {};
         u = model.$upds;
+        //if (!is_array(ks)) ks = Str(ks).split('.');
         for (i=0,l=ks.length; i<l; ++i)
         {
             if (!u.k) u.k = {};
             if (!u.k[ks[i]]) u.k[ks[i]] = {};
             u = u.k[ks[i]];
+            if (i+1 === l) u.f = true;
         }
         return model;
     }
-    ,getDirty: function() {
+    ,getDirty: function(ks) {
         var model = this;
-        return model.$upds ? getDirty(model.$upds) : [];
+        return model.$upds ? getDirty(model.$upds, ks) : [];
     }
     ,isDirty: function(ks) {
         var model = this, i, l, c, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
+        if (!is_array(ks)) ks = Str(ks).split('.');
         for (c=0,i=0,l=ks.length; i<l; ++i)
         {
             if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
-            u = u.k[ks[i]]; c++;
+            u = u.k[ks[i]]; //c++;
+            if (u.f) return true;
         }
-        return (0 < l) && (c === l);
+        return false;//(0 < l) && (c === l);
     }
     ,resetDirty: function() {
         this.$upds = null;
@@ -1032,8 +1052,12 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         if (0 > dottedKey.indexOf('.'))
         {
             // handle single key fast
-            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return Value(r.v.call(model, dottedKey), dottedKey).changed(model.isDirty([dottedKey]));
-            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey).changed(model.isDirty([dottedKey]));
+            if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)
+            {
+                ret = r.v.call(model, dottedKey);
+                return is_instance(ret, Value) ? ret : Value(v, dottedKey, true).changed(model.isDirty([dottedKey]));
+            }
+            return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, true).changed(model.isDirty([dottedKey]));
         }
         else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
         {
@@ -1046,10 +1070,10 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             else if (false === r[ 0 ])
             {
                 ret = r[ 1 ].call(model, dottedKey);
-                return is_instance(ret, Value) ? ret : Value(ret, dottedKey).changed(model.isDirty(ks));
+                return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true).changed(model.isDirty(ks));
             }
             // model field
-            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey).changed(model.isDirty(ks));
+            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, true).changed(model.isDirty(ks));
         }
         return undef;
     }
@@ -1062,8 +1086,8 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 model.getProxy( String dottedKey );
 
 [/DOC_MARKDOWN]**/
-    ,getProxy: function(dottedKey) {
-        return new Proxy(this, dottedKey);
+    ,getProxy: function(dottedKey, rel) {
+        return 2 < arguments.length ? (new Proxy(this, dottedKey, rel, arguments[2])) : (new Proxy(this, dottedKey, rel));
     }
 
 /**[DOC_MARKDOWN]
@@ -1264,6 +1288,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         o.set(k, val, pub, callData);
                         each(collections, function(collection){
                             collection[0]._upd('change', collection[1], collection[1]);
+                            setDirty(model, collection[2]);
                         });
                     }
                     else pub = false;
@@ -1275,23 +1300,20 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     else pub = false;
                 }
 
-                if (pub)
-                {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: 'set',
-                        valuePrev: prevval,
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: 'set',
+                    valuePrev: prevval,
+                    $callData: callData
+                });
+                setDirty(model, ks);
 
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
+                {
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -1364,24 +1386,22 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
-                    if (pub)
+                    pub && model.publish('change', {
+                        key: dottedKey,
+                        value: val,
+                        action: 'set',
+                        $callData: callData
+                    });
+                    setDirty(model, ks);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
                     {
-                        model.publish('change', {
-                            key: dottedKey,
-                            value: val,
-                            action: 'set',
-                            $callData: callData
-                        });
-                        setDirty(model, ks);
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
-                    if ( model.$atom && dottedKey === model.$atom ) model.atomic = true;
+                    if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
                 return model;
             }
@@ -1393,6 +1413,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
+                    setDirty(model, collection[2]);
                 });
 
                 // modify or add final node here
@@ -1401,22 +1422,19 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    valuePrev: prevval,
+                    action: 'set',
+                    $callData: callData
+                });
+                setDirty(model, ks);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        valuePrev: prevval,
-                        action: 'set',
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
 
                 if (model.$atom && dottedKey === model.$atom) model.atomic = true;
@@ -1484,6 +1502,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -1492,22 +1511,19 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.data(val);
                 }
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: prepend ? 'prepend' : 'append',
+                    index: index,
+                    $callData: callData
+                });
+                setDirty(model, ks/*.concat(index)*/);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: prepend ? 'prepend' : 'append',
-                        index: index,
-                        $callData: callData
-                    });
-                    setDirty(model, ks.concat(index));
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -1580,6 +1596,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                     if (pub)
                     {
@@ -1594,13 +1611,13 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             index: index,
                             $callData: callData
                         });
-                        setDirty(model, ks);
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                    }
+                    setDirty(model, ks);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
+                    {
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -1631,24 +1648,22 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
-            if (pub)
+            pub && model.publish('change', {
+                key: dottedKey,
+                value: val,
+                action: 'append',
+                index: index,
+                $callData: callData
+            });
+            setDirty(model, ks/*.concat(index)*/);
+            // notify any dependencies as well
+            if (HAS.call(ideps,dottedKey))
             {
-                model.publish('change', {
-                    key: dottedKey,
-                    value: val,
-                    action: 'append',
-                    index: index,
-                    $callData: callData
-                });
-                setDirty(model, ks.concat(index));
-                // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
-                {
-                    setDirty(model, ideps[dottedKey], true);
-                    model.notify(ideps[dottedKey]);
-                }
+                //setDirty(model, ideps[dottedKey], true);
+                pub && model.notify(ideps[dottedKey]);
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -1714,6 +1729,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -1722,22 +1738,19 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.data(val);
                 }
 
-                if (pub)
+                pub && model.publish('change', {
+                    key: dottedKey,
+                    value: val,
+                    action: 'insert',
+                    index: index,
+                    $callData: callData
+                });
+                setDirty(model, ks/*.concat(index)*/);
+                // notify any dependencies as well
+                if (HAS.call(ideps,dottedKey))
                 {
-                    model.publish('change', {
-                        key: dottedKey,
-                        value: val,
-                        action: 'insert',
-                        index: index,
-                        $callData: callData
-                    });
-                    setDirty(model, ks.concat(index));
-                    // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
-                    {
-                        setDirty(model, ideps[dottedKey], true);
-                        model.notify(ideps[dottedKey]);
-                    }
+                    //setDirty(model, ideps[dottedKey], true);
+                    pub && model.notify(ideps[dottedKey]);
                 }
                 return model;
             }
@@ -1789,18 +1802,14 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
             if (!validated)
             {
-                if (pub)
-                {
-                    if (callData) callData.error = true;
-                    model.publish('error', {
-                        key: dottedKey,
-                        value: /*val*/undef,
-                        action: 'insert',
-                        index: -1,
-                        $callData: callData
-                    });
-                    setDirty(model, ks);
-                }
+                if (callData) callData.error = true;
+                pub && model.publish('error', {
+                    key: dottedKey,
+                    value: /*val*/undef,
+                    action: 'insert',
+                    index: -1,
+                    $callData: callData
+                });
                 return model;
             }
 
@@ -1811,23 +1820,21 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     each(collections, function(collection){
                         collection[0]._upd('change', collection[1], collection[1]);
+                        setDirty(model, collection[2]);
                     });
-                    if (pub)
+                    pub && model.publish('change', {
+                        key: dottedKey,
+                        value: val,
+                        action: 'insert',
+                        index: index,
+                        $callData: callData
+                    });
+                    setDirty(model, ks/*.concat(index)*/);
+                    // notify any dependencies as well
+                    if (HAS.call(ideps,dottedKey))
                     {
-                        model.publish('change', {
-                            key: dottedKey,
-                            value: val,
-                            action: 'insert',
-                            index: index,
-                            $callData: callData
-                        });
-                        setDirty(model, ks.concat(index));
-                        // notify any dependencies as well
-                        if (HAS.call(ideps,dottedKey))
-                        {
-                            setDirty(model, ideps[dottedKey], true);
-                            model.notify(ideps[dottedKey]);
-                        }
+                        //setDirty(model, ideps[dottedKey], true);
+                        pub && model.notify(ideps[dottedKey]);
                     }
                     if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 }
@@ -1848,24 +1855,22 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
-            if (pub)
+            pub && model.publish('change', {
+                key: dottedKey,
+                value: val,
+                action: 'insert',
+                index: index,
+                $callData: callData
+            });
+            setDirty(model, ks/*.concat(index)*/);
+            // notify any dependencies as well
+            if (HAS.call(ideps,dottedKey))
             {
-                model.publish('change', {
-                    key: dottedKey,
-                    value: val,
-                    action: 'insert',
-                    index: index,
-                    $callData: callData
-                });
-                setDirty(model, ks.concat(index));
-                // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
-                {
-                    setDirty(model, ideps[dottedKey], true);
-                    model.notify(ideps[dottedKey]);
-                }
+                //setDirty(model, ideps[dottedKey], true);
+                pub && model.notify(ideps[dottedKey]);
             }
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -1879,7 +1884,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 [/DOC_MARKDOWN]**/
     // delete/remove, with or without re-arranging (array) indexes
     ,del: function(dottedKey, pub, reArrangeIndexes, callData) {
-        var model = this, r, o, k, p, val, index = -1, canDel = false, collections = [];
+        var model = this, r, o, k, p, val, index = -1, canDel = false, collections = [], ideps = model.$idependencies, ks;
 
         if (model.atomic && startsWith(dottedKey, model.$atom)) return model;
 
@@ -1893,11 +1898,13 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
         {
             // handle single key fast
             k = dottedKey;
+            ks = [k];
             canDel = true;
         }
-        else if ((r = walk_and_get3(dottedKey.split('.'), o, null, null, null, Model, false, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, null, null, null, Model, false, collections)))
         {
             o = r[ 1 ]; k = r[ 2 ];
+            ks.length = ks.length-1; // not include removed key/index
 
             if (Model === r[ 0 ] && k.length)
             {
@@ -1907,6 +1914,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection){
                     collection[0]._upd('change', collection[1], collection[1]);
+                    setDirty(model, collection[2]);
                 });
                 pub && model.publish('change', {
                         key: dottedKey,
@@ -1955,6 +1963,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
             each(collections, function(collection){
                 collection[0]._upd('change', collection[1], collection[1]);
+                setDirty(model, collection[2]);
             });
 
             pub && model.publish('change', {
@@ -1965,6 +1974,15 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                     rearrange: reArrangeIndexes,
                     $callData: callData
                 });
+
+            setDirty(model, ks);
+            k = ks.join('.');
+            // notify any dependencies as well
+            if (HAS.call(ideps,k))
+            {
+                //setDirty(model, ideps[k], true);
+                pub && model.notify(ideps[k]);
+            }
 
             if (model.$atom && dottedKey === model.$atom) model.atomic = true;
         }
@@ -2101,6 +2119,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
         }
         each(collections, function(collection){
             collection[0]._upd('change', collection[1], collection[1]);
+            setDirty(model, collection[2]);
         });
         return model;
     }
@@ -2202,6 +2221,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
                 if (HAS.call(ideps,dottedKey)) deps = deps.concat(ideps[dottedKey]);
+                model.setDirty(dottedKey.split('.'));
                 model.publish(evt, d);
             }
             else if (T_ARRAY === t)
@@ -2215,6 +2235,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps,dk)) deps = deps.concat(ideps[dk]);
+                    model.setDirty(dk.split('.'));
                     model.publish(evt, d);
                 }
             }
@@ -2232,6 +2253,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps,dk)) deps2 = deps2.concat(ideps[dk]);
                     d.key = dk;
+                    model.setDirty(dk.split('.'));
                     model.publish("change", d);
                 }
                 deps = deps2;
@@ -2275,25 +2297,51 @@ Model[proto].remove = Model[proto]['delete'] = Model[proto].del;
 Model[proto].deleteAll = Model[proto].delAll;
 Model[proto].dotKey = dotted;
 Model[proto].bracketKey = bracketed;
+Model[proto].setChanged = Model[proto].setDirty;
+Model[proto].getChanged = Model[proto].getDirty;
+Model[proto].isChanged = Model[proto].isDirty;
+Model[proto].resetChanged = Model[proto].resetDirty;
 
-function Proxy(model, key)
+function Proxy(model, key, rel)
 {
-    var self = this, getKey, prefix;
-    if (!is_instance(self, Proxy)) return new Proxy(model, key);
+    var self = this, getKey, prefix, data, getData;
+    if (!is_instance(self, Proxy)) return 3 < arguments.length ? (new Proxy(model, key, rel, arguments[3])) : (new Proxy(model, key, rel));
 
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
-        return dottedKey && dottedKey.length ? prefix + dottedKey : key;
+        return rel ? (rel === dottedKey ? key : (rel === dottedKey.charAt(0) ? prefix + dottedKey.slice(1) : dottedKey)) : (dottedKey && dottedKey.length ? prefix + dottedKey : key);
+    };
+    data = 3 < arguments.length ? arguments[3] : NOOP;
+    getData = function(dottedKey) {
+        if (!rel || (rel !== dottedKey.charAt(0))) return NOOP;
+        if (NOOP === data) data = model.get(key);
+        dottedKey = dottedKey.slice(1);
+        if ('' === dottedKey) return data;
+        dottedKey = dottedKey.split('.');
+        for (var i=0,l=dottedKey.length,o=data; i<l; ++i)
+        {
+            if (HAS.call(o, dottedKey[i])) o = o[dottedKey[i]];
+            else return NOOP;
+        }
+        return o;
     };
     self.get = function(dottedKey, RAW) {
-        return model.get(getKey(dottedKey), RAW);
+        var ret = getData(dottedKey);
+        return NOOP === ret ? model.get(getKey(dottedKey), RAW) : ret;
     };
     self.getVal = function(dottedKey, RAW) {
-        return model.getVal(getKey(dottedKey), RAW);
+        var ret = getData(dottedKey), fullKey = getKey(dottedKey);
+        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(model.isDirty(fullKey));
     };
-    self.getProxy = function(dottedKey) {
-        return model.getProxy(getKey(dottedKey));
+    self.getProxy = function(dottedKey, rel) {
+        return 2 < arguments.length ? (new Proxy(model, getKey(dottedKey), rel, arguments[2])) : (new Proxy(model, getKey(dottedKey), rel));
+    };
+    self.getChanged = self.getDirty = function() {
+        return model.getDirty(key && key.length ? key.split('.') : null);
+    };
+    self.isChanged = self.isDirty = function(dottedKey) {
+        return model.isDirty(getKey(dottedKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -2318,6 +2366,10 @@ Proxy[proto] = {
     ,get: null
     ,getVal: null
     ,getProxy: null
+    ,getDirty: null
+    ,getChanged: null
+    ,isDirty: null
+    ,isChanged: null
     ,set: null
     ,add: null
     ,append: null
@@ -2338,14 +2390,26 @@ value.reset(); // reset dirty flag
 var key = value.key(); // get associated Model key of value (if associated with some Model key, else undefined/null)
 
 [/DOC_MARKDOWN]**/
-function Value(_val, _key)
+function Value(_val, _key, noID)
 {
-    var self = this, _dirty = true;
+    var self = this, _dirty = true, _id = 0;
     if (is_instance(_val, Value)) {_key = _val.key(); _val = _val.val();}
-    if (!is_instance(self, Value)) return new Value(_val, _key);
+    if (!is_instance(self, Value)) return new Value(_val, _key, noID);
 
-    self.key = function() {
-        return _key;
+    _id = true === noID ? 0 : (++_cnt);
+    self.id = function() {
+        return _id;
+    };
+    self.key = function(key) {
+        if (arguments.length)
+        {
+            _key = key;
+            return self;
+        }
+        else
+        {
+            return _key;
+        }
     };
     self.val = function() {
         return _val;
@@ -2378,6 +2442,7 @@ function Value(_val, _key)
 Model.Value = Value;
 Value[proto] = {
     constructor: Value
+    ,id: null
     ,key: null
     ,val: null
     ,set: null
@@ -2399,9 +2464,13 @@ var collection = new Model.Collection( [Array array=[]] );
 [/DOC_MARKDOWN]**/
 function Collection(array)
 {
-    var self = this;
+    var self = this, _id = 0;
     if (is_instance(array, Collection)) return array;
     if (!is_instance(self, Collection)) return new Collection(array);
+    _id = ++_cnt;
+    self.id = function() {
+        return _id;
+    };
     self.set(array || []);
 }
 Model.Collection = Collection;
@@ -2411,6 +2480,7 @@ Collection[proto] = {
     ,diff: null
     ,mapper: null
     ,mappedItem: 1
+    ,id: null
     ,dispose: function() {
         var self = this;
         self._items = null;
@@ -2503,6 +2573,20 @@ collection.set(newData);
                     self._upd('change', index, index);
                 }
             }
+        }
+        return self;
+    }
+/**[DOC_MARKDOWN]
+// replace data with completely new data, return same collection
+collection.replace(newData);
+
+[/DOC_MARKDOWN]**/
+    ,replace: function(data) {
+        var self = this;
+        if (self._items !== data)
+        {
+            self._items = data;
+            self.reset()._upd('replace', 0, self._items.length-1);
         }
         return self;
     }

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>modelview.js • Collection Simple Test</title>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<meta name="description" content="modelview.js • Hello World" />
+
+<style type="text/css">
+#forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}
+</style>
+</head>
+
+<body>
+    <span id="forkongithub"><a href="https://github.com/foo123/modelview.js">Fork me on GitHub</a></span>
+    <header id="header">
+        <h1>ModelView.js Collection Simple Test</h1>
+    </header>
+
+<script id="content" type="text/x-template">
+<button mv-evt mv-on-click="reset">Reset</button>
+<button mv-evt mv-on-click="append_item">Append Items</button>
+<button mv-evt mv-on-click="splice_items">Splice Item 1</button>
+<button mv-evt mv-on-click="append_tag_item1">Append Tag Item 1</button>
+<button mv-evt mv-on-click="splice_tags_item1">Splice Tags Item 1</button>
+<button mv-evt mv-on-click="reorder">Reorder</button>
+<button mv-evt mv-on-click="empty">Empty</button>
+<ul><!--foreach {items}-->
+<li>{.label} &nbsp;&nbsp;<!--foreach {.tags}--><span>{.},</span><!--/foreach--></li>
+<!--/foreach--></ul>
+</script>
+<div id="app"></div>
+
+<script src="../build/modelview.js"></script>
+<script type="text/javascript">
+(function modelView(ModelView)
+{
+    "use strict";
+    new ModelView.View('view')
+    .model(
+        new ModelView.Model(
+            'model',
+            // model data here ..
+            {
+                items: new ModelView.Model.Collection([])
+            }
+        )
+    )
+    .template(document.getElementById('content').innerHTML)
+    .actions({
+        reset: function() {
+            this.model().set('items', [
+                {label: 'item1', tags: new ModelView.Model.Collection(['tag1', 'tag2'])},
+                {label: 'item2', tags: new ModelView.Model.Collection(['tag3', 'tag2'])},
+                {label: 'item3', tags: new ModelView.Model.Collection(['tag4', 'tag5'])},
+                {label: 'item4', tags: new ModelView.Model.Collection(['tag6', 'tag1'])}
+            ], true);
+        },
+        append_item: function() {
+            this.model().add('items', {label: 'item6', tags: new ModelView.Model.Collection(['tag7', 'tag8', 'tag9'])}, false, true);
+        },
+        append_tag_item1: function() {
+            this.model().add('items.1.tags', 'tag9', false, true);
+        },
+        splice_tags_item1: function() {
+            this.model().del('items.1.tags.1', true);
+        },
+        splice_items: function() {
+            this.model().del('items.1', true);
+        },
+        reorder: function() {
+            this.model().data().items.sort(function(a,b){return 0.5-Math.random();});
+            this.model().notify('items');
+        },
+        empty: function() {
+            this.model().set('items', [], true);
+        }
+    })
+    .autovalidate(false)
+    .option('model.events', false)
+    .autobind(false) // default
+    .livebind('text')
+    .bind(['click'], document.getElementById('app'))
+    .sync()
+    ;
+})(ModelView);
+</script>
+</body>
+</html>
