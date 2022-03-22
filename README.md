@@ -137,7 +137,7 @@ ModelView uses only the basic building blocks of Web Development: **HTML and Jav
 
 **Data Model**
 
-ModelView.Model is the **single source of truth** for the data used by the app. Model is an event emitter and a proxy for the data which keeps note of when data change and publishes change events to underlying ModelView.View (which subscribes to them) along with the changed data.
+ModelView.Model is the **single source of truth** for any data used by the app. Model is an event emitter and a proxy for the data which keeps note of when data change and publishes change events to underlying ModelView.View (which subscribes to them) along with the changed data.
 
 
 For example, instead of doing:
@@ -152,11 +152,11 @@ var foo = view.model().get('some.key');
 view.model().set('some.key', bar, true);
 ```
 
-Plus it supports many other functions like: having models within models, data dependency graph (which data depend on others), data typecasting, data validation, data serialization and dynamic computed properties and custom getters and setters.
+Model also supports many other functions like: having models within models, data dependency graph (which data depend on others), data typecasting, data validation, data serialization and dynamic computed properties and custom getters and setters.
 
 Model also supports a dynamic (scalar) Value data structure which represents a single value which keeps note of when value has changed, and dynamic Collection data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed.
 
-Global Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how flexible and powerful Model is. Components (see below) can have their own local Model as well to manage internal local state.
+Global View Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how flexible and powerful Model is. Components (see below) can have their own local Model as well to manage internal local state.
 
 
 **Simple/Text Mode**
@@ -164,7 +164,7 @@ Global Model can also play the role that redux or vuex play in some other popula
 ModelView has a **simpler and faster livebind mode** called **text-only** (`view.livebind('text')`) which supports very fast morphing of text nodes and element attributes marked with the values of specific data model keys and a list of child nodes that reference a model collection of items and use a template (see [Hello World Simple version](/examples/hello-world-simple.html) example and [Collection Simple version](/examples/collection-simple.html) example).
 
 
-**General Mode**
+**General/JSX Mode**
 
 This is the general livebind mode of ModelView (`view.livebind(true)`) (see [Hello World](/examples/hello-world.html) example and [Collection](/examples/collection.html) example). It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. ModelView understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it acquires an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by wrapping the HTML in parentheses (JSX syntax), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
 

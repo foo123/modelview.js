@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-21 19:42:49
+*   @built on 2022-03-22 11:29:13
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-21 19:42:49
+*   @built on 2022-03-22 11:29:13
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -120,8 +120,6 @@ var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "
         : function(el) {return el.currentStyle;},
     // UUID counter for ModelViews
     _uuid = 0, _cnt = 0,
-    placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
-    foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/,
     SPACE = /\s/,
     NUM = /^\d+$/,
     HEXNUM = /^[0-9a-fA-F]+$/,
@@ -268,10 +266,6 @@ function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
     self.attributes = [];
     self.childNodes = [];
 }
-function defaultMake(view, with_meta)
-{
-    return to_node(view, this, with_meta);
-}
 VNode[proto] = {
     constructor: VNode
     ,nodeType: ''
@@ -295,7 +289,8 @@ VNode[proto] = {
     ,achanged: false
     ,unit: false
     ,simple: true
-    ,make: defaultMake
+    ,uAtts: null
+    ,uNodes: null
 };
 function VCode(code)
 {
@@ -455,11 +450,11 @@ function $closest(selector, el)
             var found = el.closest(selector);
             return found ? [found] : [];
         }
-        else if (el.matches)
+        else if (el[MATCHES])
         {
             while (el)
             {
-                if (el.matches(selector)) return [el];
+                if (el[MATCHES](selector)) return [el];
                 el = el.parentNode;
             }
             return [];
@@ -638,9 +633,6 @@ function set_val(el, v)
 }
 function get_index(node)
 {
-    /*var index = 0;
-    while (node = node[PREV]) ++index;
-    return index;*/
     return node && node.parentNode ? AP.indexOf.call(node.parentNode.childNodes, node) : 0;
 }
 function is_child_of(el, node, finalNode)
@@ -1466,17 +1458,45 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     node.attributes = atts || [];
     if (modified)
     {
-        node.make = modified.make;
-        node.modified = {
-            atts: [],
-            nodes: [],
-            updateAtts: modified.updateAtts,
-            updateNodes: modified.updateNodes
-        };
+        node.modified = {atts: [], nodes: []};
         if (modified.atts && modified.atts.length)
         {
             node.modified.atts = modified.atts;
             node.achanged = true;
+            each(modified.atts, function(range){
+                for (var v,a=node.attributes,i=range.from,e=range.to; i<=e; ++i)
+                {
+                    v = a[i].value;
+                    if (!is_instance(v, Value))
+                    {
+                        node.uAtts = (function(u, i) {
+                            return u ? function(view, r, v) {
+                                u_att(r, v, v.attributes[i]);
+                                u(view, r, v);
+                            } : function(view, r, v) {
+                                u_att(r, v, v.attributes[i]);
+                            };
+                        })(node.uAtts, i);
+                    }
+                    else if (v.changed())
+                    {
+                        node.uAtts = (function(u, i) {
+                            return u ? function(view, r, v) {
+                                var a = v.attributes[i];
+                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
+                                a.value = a.value.val();
+                                u_att(r, v, a);
+                                u(view, r, v);
+                            } : function(view, r, v) {
+                                var a = v.attributes[i];
+                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
+                                a.value = a.value.val();
+                                u_att(r, v, a);
+                            };
+                        })(node.uAtts, i);
+                    }
+                }
+            });
         }
     }
     if ('t' === nodeType || 'c' === nodeType)
@@ -1539,6 +1559,12 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (val.changed() && val.id())
                     view.$reset[val.id()] = val;
                 n.changed = val.changed();
+                if (n.changed)
+                    n.uNodes = (function(t) {
+                        return function(view, r, v) {
+                            u_text(r, v, t);
+                        };
+                    })(v);
             }
             else if (!is_instance(n, VNode))
             {
@@ -1547,6 +1573,11 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 n.changed = true;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                n.uNodes = (function(t) {
+                    return function(view, r, v) {
+                        u_text(r, v, t);
+                    };
+                })(v);
             }
             else if ('<mv-component>' === n.nodeType)
             {
@@ -1646,6 +1677,16 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             childNodes.push(n);
             node.changed = node.changed || n.changed || n.achanged;
             if (!n.simple) node.simple = false;
+            if (node.simple && (n.uAtts || n.uNodes))
+            {
+                node.uNodes = (function(u, ua, un, index) {
+                    return function(view, r, v) {
+                        u && u(view, r, v);
+                        ua && ua(view, r.childNodes[index], v.childNodes[index]);
+                        un && un(view, r.childNodes[index], v.childNodes[index]);
+                    };
+                })(node.uNodes, n.uAtts, n.uNodes, n.index);
+            }
             return childNodes;
         }, []);
     }
@@ -1653,12 +1694,11 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
 }
 function to_code(vnode, with_modified)
 {
-    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType, mod = 0;
-    with_modified = '"with_modified"' === with_modified;
+    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType;
+    //with_modified = '"with_modified"' === with_modified;
     if (is_instance(vnode, VCode))
     {
         out = vnode.code;
-        mod = 1;
     }
     else if (T && T.length)
     {
@@ -1672,75 +1712,7 @@ function to_code(vnode, with_modified)
         }
         else
         {
-            var modifiedAtts = [],
-                updateAtts = '',
-                updateNodes = '',
-                setAtt = function(name, update) {
-                    var out = 'if(false!==val){';
-                    if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
-                    {
-                        out += 'r.'+name+'=!!val;';
-                    }
-                    else if ('class' === name)
-                    {
-                        out += svgElements[T] ? 'r.setAttribute("class",String(val));' : 'r.className=String(val);';
-                    }
-                    else if ('style' === name)
-                    {
-                        out += 'r.style.cssText=String(val);';
-                    }
-                    else if ('id' === name)
-                    {
-                        out += /*(update ? 'if(r.id!==val)' : '') +*/ 'r.id=String(val);';
-                    }
-                    else if ('value' === name)
-                    {
-                        out += (update ? 'if(r.value!==val)' : '') + 'r.value=val;';
-                    }
-                    else
-                    {
-                        out += 'r.setAttribute("'+name+'",true===val?"'+name+'":String(val));';
-                    }
-                    out += '}';
-                    if (update)
-                    {
-                        out += 'else{';
-                        if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
-                        {
-                            out += 'r.'+name+'=false;';
-                        }
-                        else if ('class' === name)
-                        {
-                            out += svgElements[T] ? 'r.setAttribute("class","");' : 'r.className="";';
-                        }
-                        else if ('value' === name)
-                        {
-                            out += 'r.value="";';
-                        }
-                        else
-                        {
-                            out += 'r.removeAttribute("'+name+'");';
-                        }
-                        out += '}';
-                    }
-                    return out;
-                },
-                makeAtt = function(name, val, update) {
-                    var out = 'val='+val+';';
-                    if (update)
-                    {
-                        out += 'if(val instanceof Value){if(val.changed()){if(val.id())view.$reset[val.id()]=val;val=val.val();'+setAtt(name, update)+'}}else{'+setAtt(name, update)+'}';
-                    }
-                    else
-                    {
-                        out += 'if(val instanceof Value){if(val.changed()&&val.id())view.$reset[val.id()]=val;val=val.val();}'+setAtt(name);
-                    }
-                    return out;
-                },
-                makeNode = svgElements[T] ? 'r=document.createElementNS("http://www.w3.org/2000/svg","'+T.slice(1,-1)+'");' : 'r=document.createElement("'+T.slice(1,-1)+'");';
-                makeNode += 'if(true===with_meta){r.$MV=rmv=MV0();rmv.id=v.id;rmv.comp=v.component;if(rmv.comp){if(rmv.comp.dom&&rmv.comp.dom.$MV)rmv.comp.dom.$MV.comp=null;rmv.comp.dom=r;}if(v.modified){if(v.modified.atts.length)rmv.att=v.modified.atts;if(v.modified.nodes.length)rmv.mod=v.modified.nodes;}}';
-                if (-1 !== ['<textarea>','<script>','<style>'].indexOf(T)) makeNode += 'r.textContent=val=str(view,v.childNodes);';
-                if ('<textarea>' === T) makeNode += 'r.value=val;'
+            var modifiedAtts = [];
             out = '_$$_(view, "'+(svgElements[T] ? T : lower(T))+'", '+Str(vnode.id)+', '+Str(vnode.type)+', ['+vnode.attributes.map(function(a, i){
                 if (is_instance(a.value, VCode))
                 {
@@ -1748,32 +1720,17 @@ function to_code(vnode, with_modified)
                         modifiedAtts.push({from:i, to:i});
                     else
                         modifiedAtts[modifiedAtts.length-1].to = i;
-                    updateAtts += makeAtt(a.name,'v.attributes['+Str(i)+'].value',1);//'u(view,r,v,v.attributes['+Str(i)+'],T,TT);';
-                    makeNode += makeAtt(a.name,'v.attributes['+Str(i)+'].value');
                     return '{name:"'+a.name+'",value:('+a.value.code+')}';
                 }
-                makeNode += makeAtt(a.name,'v.attributes['+Str(i)+'].value');
                 return '{name:"'+a.name+'",value:'+toJSON(a.value)+'}';
-            }).join(',')+'], ['+vnode.childNodes.map(function(child, i) {
-                var c =  to_code(child, '"with_modified"');
-                if (c[1])
-                {
-                    updateNodes += 'u(view,r.childNodes['+Str(i)+'],v.childNodes['+Str(i)+']);';
-                }
-                if (-1 === ['<textarea>','<script>','<style>'].indexOf(T))
-                {
-                    makeNode += 'r.appendChild(v.childNodes['+Str(i)+'].make(view,with_meta,Value,MV0,str));';
-                }
-                return c[0];
-            }).join(',')+'], null, {make:function(view,with_meta,Value,MV0,str){var v=this,r,rmv,val;'+makeNode+'return r;},atts:'+toJSON(modifiedAtts)+',updateAtts:'+(updateAtts.length ? 'function(view,r,v,u,Value){var val;'/*'T=v.nodeType,TT=(v.type||"").toLowerCase();'*/+updateAtts+'}' : 'view.nop')+',updateNodes:'+(updateNodes.length ? 'function(view,r,v,u){'+updateNodes+'}' : 'view.nop')+'})';
-            mod = updateAtts.length || updateNodes.length;
+            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modifiedAtts)+'})';
         }
     }
     else if (vnode.childNodes.length)
     {
         out = '_$$_(view, "", null, null, [], ['+vnode.childNodes.map(to_code).join(',')+'])';
     }
-    return with_modified ? [out, mod] : out;
+    return out;
 }
 function to_string(view, vnode)
 {
@@ -1819,37 +1776,6 @@ function to_string_all(view, nodes)
 {
     return nodes.map(function(n){return to_string(view, n);}).join('');
 }
-/*function attach_meta(vnode, rnode)
-{
-    var v, r, i, rmv, c;
-    rnode[MV] = rmv = MV0();
-    rmv.id = vnode.id;
-    c = rmv.comp = vnode.component;
-    if (c)
-    {
-        if (c.dom && c.dom[MV]) c.dom[MV].comp = null;
-        c.dom = rnode;
-    }
-    if (vnode.modified)
-    {
-        if (vnode.modified.atts.length)
-            rmv.att = vnode.modified.atts;
-        if (vnode.modified.nodes.length)
-            rmv.mod = vnode.modified.nodes;
-    }
-    for (i=0,v=vnode.childNodes[0],r=rnode.firstChild; r;)
-    {
-        attach_meta(v, r);
-        v = vnode.childNodes[++i];
-        r = r[NEXT];
-    }
-}
-function clone_node(vnode, tpl, with_meta)
-{
-    var rnode = tpl.cloneNode(true);
-    if (true === with_meta) attach_meta(vnode, rnode);
-    return rnode;
-}*/
 function to_node(view, vnode, with_meta)
 {
     var rnode, rmv, i, l, a, v, n, t, c, isSVG, T = vnode.nodeType, TT, C;
@@ -1870,27 +1796,6 @@ function to_node(view, vnode, with_meta)
         rnode = Fragment();
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
             rnode.appendChild(to_node(view, vnode.childNodes[i], with_meta));
-    }
-    else if (vnode.simple && (vnode.make !== defaultMake))
-    {
-        /*if (vnode.component)
-        {
-            C = view.$components['#'+vnode.component.name];
-            if (!C.htpl)
-            {
-                C.htpl = rnode = vnode.make(view,with_meta,Value,MV0,to_string_all);
-            }
-            else
-            {
-                // does not seem faster
-                rnode = clone_node(vnode, C.htpl, with_meta);
-                update_node(view, rnode, vnode);
-            }
-        }
-        else
-        {*/
-            rnode = vnode.make(view,with_meta,Value,MV0,to_string_all);
-        /*}*/
     }
     else
     {
@@ -1922,22 +1827,6 @@ function to_node(view, vnode, with_meta)
                 if (isSVG) rnode[SET_ATTR](n, Str(v));
                 else rnode[CLASS] = Str(v);
             }
-            /*else if ('selected' === n && '<option>' === T)
-            {
-                rnode[n] = true;
-            }
-            else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-            {
-                rnode[n] = true;
-            }
-            else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-            {
-                rnode[n] = true;
-            }*/
-            else if ('value' === n /*&& ('<input>' === T || '<textarea>' === T)*/)
-            {
-                rnode[n] = Str(v);
-            }
             else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
                 'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
                 'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
@@ -1945,11 +1834,10 @@ function to_node(view, vnode, with_meta)
             {
                 rnode[n] = !!v;
             }
-            /*else if (n in rnode)
+            else if ('value' === n)
             {
-                t = get_type(rnode[n]);
-                rnode[n] = T_NUM === t ? parseFloat(v) : (T_BOOL === t ? !!v : v);
-            }*/
+                rnode[n] = Str(v);
+            }
             else
             {
                 rnode[SET_ATTR](n, Str(true === v ? n : v));
@@ -1983,7 +1871,6 @@ function to_node(view, vnode, with_meta)
                 v = to_string_all(view, vnode.childNodes);
                 rnode[VAL] = v;
                 rnode[TEXTC] = v;
-                //rnode.innerHTML = v;
             }
             else if ('<script>' === T || '<style>' === T)
             {
@@ -2037,7 +1924,6 @@ function del_att(r, n, T, TT)
 {
     if ('id' === n)
     {
-        //r[n] = '';
         r[DEL_ATTR](n);
     }
     else if ('class' === n)
@@ -2049,18 +1935,6 @@ function del_att(r, n, T, TT)
     {
         r[n].cssText = '';
     }
-    /*else if ('selected' === n && '<option>' === T)
-    {
-        r[n] = false;
-    }
-    else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-    {
-        r[n] = false;
-    }
-    else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-    {
-        r[n] = false;
-    }*/
     else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
         'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
         'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
@@ -2068,14 +1942,10 @@ function del_att(r, n, T, TT)
     {
         r[n] = false;
     }
-    else if ('value' === n && ('<input>' === T || '<textarea>' === T))
+    else if ('value' === n)
     {
         r[n] = '';
     }
-    /*else if ((n in r) && (T_BOOL === get_type(r[n])))
-    {
-        r[n] = false;
-    }*/
     else
     {
         r[DEL_ATTR](n);
@@ -2099,18 +1969,6 @@ function set_att(r, n, s, T, TT, forced)
     {
         r[n].cssText = Str(s);
     }
-    /*else if ('selected' === n && '<option>' === T)
-    {
-        r[n] = true;
-    }
-    else if (('disabled' === n || 'required' === n) && ('<select>' === T || '<input>' === T || '<textarea>' === T))
-    {
-        r[n] = true;
-    }
-    else if ('checked' === n && '<input>' === T && ('checkbox' === TT || 'radio' === TT))
-    {
-        r[n] = true;
-    }*/
     else if ('selected' === n || 'disabled' === n || 'required' === n || 'checked' === n || 'autoFocus' === n || 'allowfullscreen' === n || 'autoplay' === n ||
         'capture' === n || 'controls' === n || 'default' === n || 'hidden' === n ||
         'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
@@ -2118,41 +1976,16 @@ function set_att(r, n, s, T, TT, forced)
     {
         r[n] = true;
     }
-    else if ('value' === n && ('<input>' === T || '<textarea>' === T))
+    else if ('value' === n)
     {
         if (r[n] !== s) r[n] = s;
     }
-    /*else if (n in r)
-    {
-        t = get_type(r[n]);
-        s = T_NUM === t ? +s : (T_BOOL === t ? !!s : s);
-        if (unconditionally || (r[n] !== s)) r[n] = s;
-    }*/
     else
     {
         s = Str(true === s ? n : s);
         if (!forced || (r[ATTR](n) !== s)) r[SET_ATTR](n, s);
     }
     return r;
-}
-function update_att(view, r, v, a, T, TT)
-{
-    var n = a.name, av = a.value;
-    if (is_instance(av, Value))
-    {
-        if (av.changed())
-        {
-            if (av.id()) view.$reset[av.id()] = av;
-            av = av.val();
-            if (false === av) del_att(r,n,T,TT);
-            else  set_att(r,n,av,T,TT);
-        }
-    }
-    else
-    {
-        if (false === av) del_att(r,n,T,TT);
-        else set_att(r,n,av,T,TT);
-    }
 }
 function delNodes(view, r, index, count)
 {
@@ -2237,6 +2070,17 @@ function morphAttsAll(view, r, v)
     }
     return r;
 }
+function u_att(r, v, a)
+{
+    var n = a.name, v = a.value;
+    if (false === v) del_att(r, n, v.nodeType/*, lower(v[TYPE]||'')*/);
+    else set_att(r, n, v, v.nodeType/*, lower(v[TYPE]||'')*/);
+}
+function u_text(r, v, t)
+{
+    if (r.nodeValue !== t)
+        r.nodeValue = t;
+}
 function morphAtts(view, r, v)
 {
     var count, mi, mc, m, mp, match, matched,
@@ -2257,49 +2101,14 @@ function morphAtts(view, r, v)
     }*/
     if (matched)
     {
-        if (modifiedAtts.length)
-            v.modified.updateAtts(view, r, v, update_att, Value);
+        if (modifiedAtts.length && v.uAtts)
+            v.uAtts(view, r, v);
     }
     else
     {
         morphAttsAll(view, r, v);
     }
     return r;
-}
-function update_node(view, rnode, vnode)
-{
-    var val, T = vnode.nodeType,
-        changed = vnode.changed,
-        modified = vnode.modified;
-    if ('t' === T)
-    {
-        if (changed && (rnode.nodeValue !== vnode.nodeValue2))
-            rnode.nodeValue = vnode.nodeValue2;
-    }
-    else if ('c' === T)
-    {
-        if (changed) rnode.nodeValue = vnode.nodeValue;
-    }
-    else if ('<textarea>' === T)
-    {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
-        if (changed)
-        {
-            val = to_string_all(view, vnode.childNodes);
-            rnode[VAL] = val;
-            rnode[TEXTC] = val;
-        }
-    }
-    else if ('<style>' === T || '<script>' === T)
-    {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
-        if (changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
-    }
-    else
-    {
-        if (modified) modified.updateAtts(view, rnode, vnode, update_att, Value);
-        if (modified && changed) modified.updateNodes(view, rnode, vnode, update_node);
-    }
 }
 function morphSingleAll(view, r, rnode, vnode)
 {
@@ -2346,13 +2155,13 @@ function morphSingle(view, r, rnode, vnode)
     }
     else if (vnode.unit)
     {
-        //r.replaceChild(to_node(view, vnode, true), rnode);
         morphAttsAll(view, rnode, vnode);
         morphAll(view, rnode, vnode);
     }
     else if (vnode.simple)
     {
-        update_node(view, rnode, vnode);
+        if (vnode.uAtts) vnode.uAtts(view, rnode, vnode);
+        if (vnode.uNodes) vnode.uNodes(view, rnode, vnode);
     }
     else if ('<textarea>' === T)
     {
@@ -2932,6 +2741,15 @@ function remove_nodes(el, count, index, isStatic)
         }
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+//
+// utilities for simple mode
+//
+///////////////////////////////////////////////////////////////////////////////////////
+var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
+    foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
+
 function insert_map(map, ks, v)
 {
     if (!map) return;
@@ -3084,7 +2902,7 @@ function get_placeholders(node, map, path)
             {
                 if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[1])) && k.length)
                 {
-                    list = {type:'list', tpl:[], tplmap:[], start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
+                    list = {type:'list', tpl:Fragment(), tplmap:{}, start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
                     nn = n[NEXT];
                     f = 1;
                     while (nn)
@@ -3115,13 +2933,11 @@ function get_placeholders(node, map, path)
                         else
                         {
                             nnn = nn[NEXT];
-                            node.removeChild(nn);
-                            list.tpl.push(nn);
-                            list.tplmap.push({});
-                            get_placeholders(nn, list.tplmap[list.tplmap.length-1]);
+                            list.tpl.appendChild(nn);
                             nn = nnn;
                         }
                     }
+                    get_placeholders(list.tpl, list.tplmap);
                     insert_map(map, split_key(k, '.'), list);
                     n = nn ? nn[NEXT] : null;
                 }
@@ -3227,49 +3043,44 @@ function morphAttSimple(view, a, key, val, isDirty, model, onlyIfDirty)
 }
 function clone(list)
 {
-    var cloned = {map: [], dom: null};
-    cloned.dom = list.tpl.map(function(n, i) {
-        var nn = n.cloneNode(true);
-        cloned.map.push({});
-        walk_clone_map(list.tplmap[i], cloned.map[i], function(v) {
-            return v.map(function(t) {
-                switch (t.type)
-                {
-                    case 'text':
-                    return {
-                        type: t.type,
-                        node: t.clone(nn),
-                        clone: t.clone
-                    };
-                    case 'att1':
-                    return {
-                        type: t.type,
-                        node: t.clone(nn),
-                        att: t.att,
-                        clone: t.clone
-                    };
-                    case 'att':
-                    return {
-                        type: t.type,
-                        node: t.clone(nn),
-                        att: t.att,
-                        txt: t.txt,
-                        clone: t.clone
-                    };
-                    case 'list':
-                    var startend = t.clone(nn);
-                    return {
-                        type: t.type,
-                        tpl: t.tpl,
-                        tplmap: t.tplmap,
-                        start: startend[0],
-                        end: startend[1],
-                        clone: t.clone
-                    };
-                }
-            });
+    var cloned = {map: {}, dom: list.tpl.cloneNode(true)};
+    walk_clone_map(list.tplmap, cloned.map, function(v) {
+        return v.map(function(t) {
+            switch (t.type)
+            {
+                case 'text':
+                return {
+                    type: t.type,
+                    node: t.clone(cloned.dom),
+                    clone: t.clone
+                };
+                case 'att1':
+                return {
+                    type: t.type,
+                    node: t.clone(cloned.dom),
+                    att: t.att,
+                    clone: t.clone
+                };
+                case 'att':
+                return {
+                    type: t.type,
+                    node: t.clone(cloned.dom),
+                    att: t.att,
+                    txt: t.txt,
+                    clone: t.clone
+                };
+                case 'list':
+                var startend = t.clone(cloned.dom);
+                return {
+                    type: t.type,
+                    tpl: t.tpl,
+                    tplmap: t.tplmap,
+                    start: startend[0],
+                    end: startend[1],
+                    clone: t.clone
+                };
+            }
         });
-        return nn;
     });
     return cloned;
 }
@@ -3281,7 +3092,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
     view.$reset[collection.id()] = collection;
     var items = collection.items(), start = list.start, end = list.end,
         parentNode = start.parentNode, startIndex = get_index(start),
-        m = list.tpl.length, di, dc, d,
+        m = list.tpl.childNodes.length, di, dc, d,
         range, frag, n, count, i, j, k, l, x;
     list.map = list.map || [];
     for (di=0,dc=diff.length; di<dc; ++di)
@@ -3293,20 +3104,17 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 count = items.length - list.map.length;
                 // morph common nodes
                 iterate(function(index) {
-                    var proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                    each(list.map[index], function(m) {morphSimple(view, m, proxy, true);});
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), true);
                 }, 0, stdMath.min(list.map.length, items.length)-1);
                 if (0 < count)
                 {
                     // add missing nodes
                     frag = Fragment();
                     iterate(function(index) {
-                        var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                        list.map.push(nodes.map);
-                        each(nodes.dom, function(n, i){
-                            morphSimple(view, list.map[index][i], proxy, false);
-                            frag.appendChild(n);
-                        });
+                        var node = clone(list);
+                        list.map.push(node.map);
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                        frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
                     else parentNode.appendChild(frag);
@@ -3315,7 +3123,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // remove excess nodes
                     list.map.splice(items.length, -count);
-                    delNodes(null, parentNode, startIndex+1+m*items.length, -count);
+                    delNodes(null, parentNode, startIndex+1+m*items.length, -m*count);
                 }
                 return;
             case 'replace':
@@ -3323,10 +3131,10 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 // replace common nodes
                 n = parentNode.childNodes[startIndex + 1];
                 iterate(function(index) {
-                    var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                    list.map[index] = nodes.map;
-                    each(nodes.dom, function(nn, i){
-                        morphSimple(view, list.map[index][i], proxy, false);
+                    var node = clone(list);
+                    list.map[index] = node.map;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    each(node.dom.childNodes, function(nn){
                         x = n[NEXT];
                         parentNode.replaceChild(nn, n);
                         n = x;
@@ -3337,12 +3145,10 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     // add missing nodes
                     frag = Fragment();
                     iterate(function(index) {
-                        var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                        list.map.push(nodes.map);
-                        each(nodes.dom, function(n, i){
-                            morphSimple(view, list.map[index][i], proxy, false);
-                            frag.appendChild(n);
-                        });
+                        var node = clone(list);
+                        list.map.push(node.map);
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                        frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
                     else parentNode.appendChild(frag);
@@ -3351,7 +3157,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // remove excess nodes
                     list.map.splice(items.length, -count);
-                    delNodes(null, parentNode, startIndex+1+m*items.length, -count);
+                    delNodes(null, parentNode, startIndex+1+m*items.length, -m*count);
                 }
                 return;
             case 'reorder':
@@ -3387,12 +3193,10 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'add':
                 frag = Fragment();
                 iterate(function(index) {
-                    var nodes = clone(list), proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                    list.map[index] = nodes.map;
-                    each(nodes.dom, function(n, i){
-                        morphSimple(view, list.map[index][i], proxy, false);
-                        frag.appendChild(n);
-                    });
+                    var node = clone(list);
+                    list.map[index] = node.map;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
                 if (n) parentNode.insertBefore(frag, n);
@@ -3400,8 +3204,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 break;
             case 'change':
                 iterate(function(index) {
-                    var proxy = model.getProxy(key+'.'+index, '.', items[index]);
-                    each(list.map[index], function(m) {morphSimple(view, m, proxy, true);});
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), true);
                 }, d.from, d.to);
                 break;
         }
@@ -3430,7 +3233,6 @@ function morphSimple(view, map, model, onlyIfDirty)
         });
     }, '');
 }
-
 
 //
 // PublishSubscribe (Interface)
@@ -8234,6 +8036,7 @@ view.render( [Boolean immediate=false] );
                     if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
                     updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
+                //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
                 callback = function() {
                     view.$reset = {}; view.$cache = null;
                     morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
@@ -8265,6 +8068,7 @@ view.render( [Boolean immediate=false] );
                 view.publish('render', {});
                 return out;
             }
+            //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
             callback = function() {
                 view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode));
@@ -8331,8 +8135,8 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if ((true !== livebind) && model) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (autobind && model && (true !== livebind || view.$dom !== view.$renderdom))
+            if (model && (true !== livebind) && view.option('model.events')) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (model && autobind && ((true !== livebind) || (view.$dom !== view.$renderdom && view.option('view.autobindAll'))))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});

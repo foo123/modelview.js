@@ -1254,6 +1254,7 @@ view.render( [Boolean immediate=false] );
                     if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
                     updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
+                //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
                 callback = function() {
                     view.$reset = {}; view.$cache = null;
                     morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
@@ -1285,6 +1286,7 @@ view.render( [Boolean immediate=false] );
                 view.publish('render', {});
                 return out;
             }
+            //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
             callback = function() {
                 view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                 morph(view, view.$renderdom, view.$out.call(view, htmlNode));
@@ -1351,8 +1353,8 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if ((true !== livebind) && model) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
-            if (autobind && model && (true !== livebind || view.$dom !== view.$renderdom))
+            if (model && (true !== livebind) && view.option('model.events')) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            if (model && autobind && ((true !== livebind) || (view.$dom !== view.$renderdom && view.option('view.autobindAll'))))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
                 //if (livebind) els = filter(els, function(el){return !is_child_of(el, view.$renderdom, view.$dom);});
