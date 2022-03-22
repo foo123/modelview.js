@@ -1095,20 +1095,22 @@ view.precompile();
 [/DOC_MARKDOWN]**/
     ,precompile: function() {
         var view = this, n, c, livebind = view.option('view.livebind');
-        if (!view.$out && view.$tpl)
-        {
-            view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
-        }
         if ('text' === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2codesimple(view, view.$tpl, '');
+
             if (!view.$map)
             {
-                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view);
                 updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
             }
         }
         else if (true === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
+
             for (n in view.$components)
             {
                 if (HAS.call(view.$components, n))
@@ -1234,13 +1236,15 @@ view.render( [Boolean immediate=false] );
     ,render: function(immediate) {
         var view = this, model = view.$model, out = '', callback,
             livebind = view.option('view.livebind');
-        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         if ('text' === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2codesimple(view, view.$tpl, '');
+
             if (!view.$renderdom)
             {
                 view.$reset = {}; view.$cache = null;
-                if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
+                if (view.$out) out = view.$out.call(view, model); // return the rendered string
                 if (model) model.resetDirty();
                 view.$reset = null;
                 // notify any 3rd-party also if needed
@@ -1251,7 +1255,7 @@ view.render( [Boolean immediate=false] );
             {
                 if (!view.$map)
                 {
-                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view);
                     updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
                 //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
@@ -1274,36 +1278,42 @@ view.render( [Boolean immediate=false] );
                 }
             }
         }
-        else if (view.$out)
+        else
         {
-            if (!view.$renderdom)
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
+
+            if (view.$out)
             {
-                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                if (model) model.resetDirty();
-                view.$reset = null; view.$cache['#'] = null;
-                // notify any 3rd-party also if needed
-                view.publish('render', {});
-                return out;
-            }
-            //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
-            callback = function() {
-                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                morph(view, view.$renderdom, view.$out.call(view, htmlNode));
-                view.$cache['#'] = null;
-                nextTick(function(){
-                    clearInvalid(view);
+                if (!view.$renderdom)
+                {
+                    view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
+                    var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
+                    if (model) model.resetDirty();
+                    view.$reset = null; view.$cache['#'] = null;
                     // notify any 3rd-party also if needed
                     view.publish('render', {});
-                });
-            };
-            if (true === immediate || 'sync' === immediate)
-            {
-                callback();
-            }
-            else
-            {
-                debounce(callback, view);
+                    return out;
+                }
+                //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
+                callback = function() {
+                    view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
+                    morph(view, view.$renderdom, view.$out.call(view, htmlNode));
+                    view.$cache['#'] = null;
+                    nextTick(function(){
+                        clearInvalid(view);
+                        // notify any 3rd-party also if needed
+                        view.publish('render', {});
+                    });
+                };
+                if (true === immediate || 'sync' === immediate)
+                {
+                    callback();
+                }
+                else
+                {
+                    debounce(callback, view);
+                }
             }
         }
         return view;

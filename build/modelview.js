@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-22 11:29:13
+*   @built on 2022-03-22 21:18:59
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-22 11:29:13
+*   @built on 2022-03-22 21:18:59
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -672,37 +672,9 @@ function Text(val)
 function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType, viewInstance)
 {
     var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
-    if ('text' === type)
-    {
-        tpl = trim(tpl);
-        args = 'MODEL';
-        code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{'+String(key)+'}';};";
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('{');
-            if (-1 === p1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            p2 = tpl.indexOf('}', p1+1);
-            if (-1 === p2)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+1, p2))+'\'));';
-            tpl = tpl.slice(p2+1);
-        }
-        code += "\nreturn _$$_;";
-    }
-    else
-    {
-        args = (args || '') + '_$$_';
-        if (scoped && scoped.length) code += "\n" + Str(scoped);
-        code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
-    }
+    args = (args || '') + '_$$_';
+    if (scoped && scoped.length) code += "\n" + Str(scoped);
+    code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
     return newFunc(args, code);
 }
 function initState(opts, nodeType)
@@ -1463,17 +1435,15 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
         {
             node.modified.atts = modified.atts;
             node.achanged = true;
-            each(modified.atts, function(range){
+            each(modified.atts, function(range) {
                 for (var v,a=node.attributes,i=range.from,e=range.to; i<=e; ++i)
                 {
                     v = a[i].value;
                     if (!is_instance(v, Value))
                     {
                         node.uAtts = (function(u, i) {
-                            return u ? function(view, r, v) {
-                                u_att(r, v, v.attributes[i]);
-                                u(view, r, v);
-                            } : function(view, r, v) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 u_att(r, v, v.attributes[i]);
                             };
                         })(node.uAtts, i);
@@ -1481,15 +1451,11 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     else if (v.changed())
                     {
                         node.uAtts = (function(u, i) {
-                            return u ? function(view, r, v) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
-                                a.value = a.value.val();
-                                u_att(r, v, a);
-                                u(view, r, v);
-                            } : function(view, r, v) {
-                                var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
+                                if (a.value.id())
+                                    view.$reset[a.value.id()] = a.value;
                                 a.value = a.value.val();
                                 u_att(r, v, a);
                             };
@@ -1559,12 +1525,9 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (val.changed() && val.id())
                     view.$reset[val.id()] = val;
                 n.changed = val.changed();
-                if (n.changed)
-                    n.uNodes = (function(t) {
-                        return function(view, r, v) {
-                            u_text(r, v, t);
-                        };
-                    })(v);
+                if (n.changed) n.uNodes = (function(t) {
+                    return function(view, r, v) {u_text(r, v, t);};
+                })(v);
             }
             else if (!is_instance(n, VNode))
             {
@@ -1574,9 +1537,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 n.uNodes = (function(t) {
-                    return function(view, r, v) {
-                        u_text(r, v, t);
-                    };
+                    return function(view, r, v) {u_text(r, v, t);};
                 })(v);
             }
             else if ('<mv-component>' === n.nodeType)
@@ -1587,16 +1548,26 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                 /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
+                node.changed = node.changed || n.changed;
+                if (!n.simple) node.simple = false;
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
                     nn.component = nn.component || n.component;
                     nn.unit = nn.unit || n.unit;
+                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    {
+                        node.uNodes = (function(u, ua, un, index) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
+                                ua && ua(view, r.childNodes[index], v.childNodes[index]);
+                                un && un(view, r.childNodes[index], v.childNodes[index]);
+                            };
+                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                    }
                     return nn;
                 }));
-                node.changed = node.changed || n.changed;
-                if (!n.simple) node.simple = false;
                 return childNodes;
             }
             else if ('collection' === n.nodeType)
@@ -2750,6 +2721,72 @@ function remove_nodes(el, count, index, isStatic)
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
+function tpl2codesimple1(tpl)
+{
+    var p1, p2, code = '';
+    // parse simple keys
+    while (tpl && tpl.length)
+    {
+        p1 = tpl.indexOf('{');
+        if (-1 === p1)
+        {
+            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+            break;
+        }
+        p2 = tpl.indexOf('}', p1+1);
+        if (-1 === p2)
+        {
+            code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+            break;
+        }
+        code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
+        code += "\n"+'_$$_ += (MODEL ? String(MODEL.get(\''+trim(tpl.slice(p1+1, p2))+'\')) : \'{'+trim(tpl.slice(p1+1, p2))+'}\');';
+        tpl = tpl.slice(p2+1);
+    }
+    return code;
+}
+function tpl2codesimple2(tpl)
+{
+    var p1, p2, start, end, f = 0, offset = 0, code = '';
+    // parse foreach (nested) loops
+    while (tpl.length && (-1 !== (p1 = tpl.indexOf('<!--', offset))))
+    {
+        p2 = tpl.indexOf('-->', p1+4);
+        if (startsWith(tpl.slice(p1+4, p2), 'foreach'))
+        {
+            if (0 === f)
+            {
+                start = [p1, p2+3, tpl.slice(p1+4, p2).match(placeholder_re)[1]];
+            }
+            f++;
+            offset = p2+3;
+        }
+        else if (startsWith(tpl.slice(p1+4, p2), '/foreach'))
+        {
+            f--;
+            if (0 === f)
+            {
+                end = [p1, p2+3];
+                code += tpl2codesimple1(tpl.slice(0, start[0]));
+                code += "\n_$$_ += '<!--foreach {"+start[2]+"}-->';";
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimple2(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_=ITEM();}return _$$_;})(MODEL);"
+                code += "\n_$$_ += '<!--/foreach-->';";
+                tpl = tpl.slice(end[1]);
+                offset = 0;
+            }
+            else
+            {
+                offset = p2+3;
+            }
+        }
+    }
+    code += tpl2codesimple1(tpl);
+    return code;
+}
+function tpl2codesimple(view, tpl, args, viewInstance)
+{
+    return newFunc('MODEL', '"use strict";'+"\n"+'var view='+(viewInstance||'this')+',_$$_=\'\';'+"\n"+tpl2codesimple2(trim(tpl))+"\nreturn _$$_;");
+}
 function insert_map(map, ks, v)
 {
     if (!map) return;
@@ -7877,20 +7914,22 @@ view.precompile();
 [/DOC_MARKDOWN]**/
     ,precompile: function() {
         var view = this, n, c, livebind = view.option('view.livebind');
-        if (!view.$out && view.$tpl)
-        {
-            view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
-        }
         if ('text' === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2codesimple(view, view.$tpl, '');
+
             if (!view.$map)
             {
-                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                if (view.$out) view.$renderdom.innerHTML = view.$out.call(view);
                 updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
             }
         }
         else if (true === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
+
             for (n in view.$components)
             {
                 if (HAS.call(view.$components, n))
@@ -8016,13 +8055,15 @@ view.render( [Boolean immediate=false] );
     ,render: function(immediate) {
         var view = this, model = view.$model, out = '', callback,
             livebind = view.option('view.livebind');
-        if (!view.$out && view.$tpl) view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), livebind, {trim:true, id:view.attr('mv-id')});
         if ('text' === livebind)
         {
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2codesimple(view, view.$tpl, '');
+
             if (!view.$renderdom)
             {
                 view.$reset = {}; view.$cache = null;
-                if (view.$out) out = view.$out.call(view, function(key){return Str(model.get(key));}); // return the rendered string
+                if (view.$out) out = view.$out.call(view, model); // return the rendered string
                 if (model) model.resetDirty();
                 view.$reset = null;
                 // notify any 3rd-party also if needed
@@ -8033,7 +8074,7 @@ view.render( [Boolean immediate=false] );
             {
                 if (!view.$map)
                 {
-                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view, function(key){return '{'+Str(key)+'}';});
+                    if (view.$out) view.$renderdom.innerHTML = view.$out.call(view);
                     updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
                 //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
@@ -8056,36 +8097,42 @@ view.render( [Boolean immediate=false] );
                 }
             }
         }
-        else if (view.$out)
+        else
         {
-            if (!view.$renderdom)
+            if (!view.$out && view.$tpl)
+                view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
+
+            if (view.$out)
             {
-                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
-                if (model) model.resetDirty();
-                view.$reset = null; view.$cache['#'] = null;
-                // notify any 3rd-party also if needed
-                view.publish('render', {});
-                return out;
-            }
-            //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
-            callback = function() {
-                view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                morph(view, view.$renderdom, view.$out.call(view, htmlNode));
-                view.$cache['#'] = null;
-                nextTick(function(){
-                    clearInvalid(view);
+                if (!view.$renderdom)
+                {
+                    view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
+                    var out = to_string(view, view.$out.call(view, htmlNode)); // return the rendered string
+                    if (model) model.resetDirty();
+                    view.$reset = null; view.$cache['#'] = null;
                     // notify any 3rd-party also if needed
                     view.publish('render', {});
-                });
-            };
-            if (true === immediate || 'sync' === immediate)
-            {
-                callback();
-            }
-            else
-            {
-                debounce(callback, view);
+                    return out;
+                }
+                //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
+                callback = function() {
+                    view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
+                    morph(view, view.$renderdom, view.$out.call(view, htmlNode));
+                    view.$cache['#'] = null;
+                    nextTick(function(){
+                        clearInvalid(view);
+                        // notify any 3rd-party also if needed
+                        view.publish('render', {});
+                    });
+                };
+                if (true === immediate || 'sync' === immediate)
+                {
+                    callback();
+                }
+                else
+                {
+                    debounce(callback, view);
+                }
             }
         }
         return view;

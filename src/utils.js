@@ -624,37 +624,9 @@ function Text(val)
 function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType, viewInstance)
 {
     var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
-    if ('text' === type)
-    {
-        tpl = trim(tpl);
-        args = 'MODEL';
-        code += "\nvar _$$_ = '';\nMODEL = MODEL || function(key){return '{'+String(key)+'}';};";
-        while (tpl && tpl.length)
-        {
-            p1 = tpl.indexOf('{');
-            if (-1 === p1)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            p2 = tpl.indexOf('}', p1+1);
-            if (-1 === p2)
-            {
-                code += "\n"+'_$$_ += \''+tpl.replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-                break;
-            }
-            code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-            code += "\n"+'_$$_ += String(MODEL(\''+trim(tpl.slice(p1+1, p2))+'\'));';
-            tpl = tpl.slice(p2+1);
-        }
-        code += "\nreturn _$$_;";
-    }
-    else
-    {
-        args = (args || '') + '_$$_';
-        if (scoped && scoped.length) code += "\n" + Str(scoped);
-        code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
-    }
+    args = (args || '') + '_$$_';
+    if (scoped && scoped.length) code += "\n" + Str(scoped);
+    code += "\nreturn " + to_code(parse(view, tpl, opts, rootNodeType || '', true)) + ";";
     return newFunc(args, code);
 }
 function initState(opts, nodeType)
@@ -1415,17 +1387,15 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
         {
             node.modified.atts = modified.atts;
             node.achanged = true;
-            each(modified.atts, function(range){
+            each(modified.atts, function(range) {
                 for (var v,a=node.attributes,i=range.from,e=range.to; i<=e; ++i)
                 {
                     v = a[i].value;
                     if (!is_instance(v, Value))
                     {
                         node.uAtts = (function(u, i) {
-                            return u ? function(view, r, v) {
-                                u_att(r, v, v.attributes[i]);
-                                u(view, r, v);
-                            } : function(view, r, v) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 u_att(r, v, v.attributes[i]);
                             };
                         })(node.uAtts, i);
@@ -1433,15 +1403,11 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     else if (v.changed())
                     {
                         node.uAtts = (function(u, i) {
-                            return u ? function(view, r, v) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
-                                a.value = a.value.val();
-                                u_att(r, v, a);
-                                u(view, r, v);
-                            } : function(view, r, v) {
-                                var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
+                                if (a.value.id())
+                                    view.$reset[a.value.id()] = a.value;
                                 a.value = a.value.val();
                                 u_att(r, v, a);
                             };
@@ -1511,12 +1477,9 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (val.changed() && val.id())
                     view.$reset[val.id()] = val;
                 n.changed = val.changed();
-                if (n.changed)
-                    n.uNodes = (function(t) {
-                        return function(view, r, v) {
-                            u_text(r, v, t);
-                        };
-                    })(v);
+                if (n.changed) n.uNodes = (function(t) {
+                    return function(view, r, v) {u_text(r, v, t);};
+                })(v);
             }
             else if (!is_instance(n, VNode))
             {
@@ -1526,9 +1489,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 n.uNodes = (function(t) {
-                    return function(view, r, v) {
-                        u_text(r, v, t);
-                    };
+                    return function(view, r, v) {u_text(r, v, t);};
                 })(v);
             }
             else if ('<mv-component>' === n.nodeType)
@@ -1539,16 +1500,26 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                 /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
+                node.changed = node.changed || n.changed;
+                if (!n.simple) node.simple = false;
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
                     nn.component = nn.component || n.component;
                     nn.unit = nn.unit || n.unit;
+                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    {
+                        node.uNodes = (function(u, ua, un, index) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
+                                ua && ua(view, r.childNodes[index], v.childNodes[index]);
+                                un && un(view, r.childNodes[index], v.childNodes[index]);
+                            };
+                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                    }
                     return nn;
                 }));
-                node.changed = node.changed || n.changed;
-                if (!n.simple) node.simple = false;
                 return childNodes;
             }
             else if ('collection' === n.nodeType)

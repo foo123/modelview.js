@@ -4,17 +4,17 @@
 *   https://github.com/foo123/modelview.js
 *
 **/
-!function( root, name, factory ) {
+!function(root, name, factory) {
 "use strict";
-if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
-    module.exports = factory.call( root, require(/\.min(\.js)?/i.test(__filename) ? './modelview.min' : './modelview') );
-else if ( ('function'===typeof define)&&define.amd&&('function'===typeof require)&&('function'===typeof require.specified)&&(require.specified(name)||require.specified('ModelView')) ) /* AMD */
-    define(name,['ModelView'],function(ModelView){return factory.call(root,ModelView);});
+if (('object' === typeof module) && module.exports) /* CommonJS */
+    module.exports = factory.call(root, require(/\.min(\.js)?$/i.test(__filename) ? './modelview.min' : './modelview'));
+else if (('function' === typeof define) && define.amd && ('function' === typeof require) && ('function' === typeof require.specified) && (require.specified(name) || require.specified('ModelView'))) /* AMD */
+    define(name, ['ModelView'], function(ModelView) {return factory.call(root,ModelView);});
 else /* Browser/WebWorker/.. */
-    (factory.call(root,root['ModelView']))&&('function'===typeof(define))&&define.amd&&define(function(){return root['ModelView'];} );
-}(  /* current root */          this,
-    /* module name */           "ModelViewjQuery",
-    /* module factory */        function( ModelView ) {
+    (factory.call(root, root['ModelView'])) && ('function' === typeof define) && define.amd && define(function() {return root['ModelView'];});
+}(  /* current root */          'undefined' !== typeof self ? self : this,
+    /* module name */           'ModelViewjQuery',
+    /* module factory */        function(ModelView) {
 "use strict";
 ModelView.jquery = function($) {
 "use strict";
@@ -31,13 +31,13 @@ if (!$.ModelView)
     $.fn.modelview = function(arg0, arg1, arg2) {
         var argslen = arguments.length,
             method = argslen ? arg0 : null, options = arg0,
-            isInit = true, optionsParsed = false,  map = []
+            isInit = true, optionsParsed = false, map = []
         ;
 
         // apply for each matched element (better use one element per time)
         this.each(function() {
 
-            var $dom = $(this), model, view, defaultModel, defaultOptions;
+            var $dom = $(this), model, view, defaultModel, defaultOptions, o;
 
             // modelview already set on element
             if ($dom.data('modelview'))
@@ -94,7 +94,6 @@ if (!$.ModelView)
                     ,dependencies: { }
                 };
                 defaultOptions = {
-
                     viewClass: View
                     ,modelClass: Model
 
@@ -103,6 +102,7 @@ if (!$.ModelView)
                     ,autobind: false
                     ,autovalidate: true
                     ,events: null
+                    ,precompile: false
                     ,autoSync: true
 
                     ,model: null
@@ -141,7 +141,7 @@ if (!$.ModelView)
                     )
                 ;
 
-            view = new options.viewClass(options.id, options.options)
+            view = new options.viewClass(options.id)
                 .model(model)
                 // custom view event handlers
                 .events(options.handlers)
@@ -153,16 +153,21 @@ if (!$.ModelView)
                 .context(options.context)
                 // custom view components
                 .components(options.components)
-                // init view
-                .livebind(options.livebind)
-                .autobind(options.autobind)
+            ;
+            for (o in options.options)
+                view.option(o, options.options[o]);
+            // init view
+            view
                 .autovalidate(options.autovalidate)
+                .option('view.autobind', options.autobind)
+                .option('view.livebind', options.livebind)
                 .option('view.attr', options.attribute || '')
                 .bind(options.events, $dom[0])
             ;
             // custom view template renderer
             if (null != options.template) view.template(options.template);
             $dom.data('modelview', view);
+            if (options.precompile) view.precompile();
             if (options.autoSync) view.sync();
         });
 
