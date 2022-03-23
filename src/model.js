@@ -1300,6 +1300,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     else pub = false;
                 }
 
+                setDirty(model, ks);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -1307,7 +1308,6 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     valuePrev: prevval,
                     $callData: callData
                 });
-                setDirty(model, ks);
 
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
@@ -1369,6 +1369,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 if (pub)
                 {
                     if (callData) callData.error = true;
+                    setDirty(model, ks);
                     model.publish('error', {
                         key: dottedKey,
                         value: o[k],
@@ -1388,13 +1389,13 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks);
                     pub && model.publish('change', {
                         key: dottedKey,
                         value: val,
                         action: 'set',
                         $callData: callData
                     });
-                    setDirty(model, ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -1422,6 +1423,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
+                setDirty(model, ks);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -1429,7 +1431,6 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     action: 'set',
                     $callData: callData
                 });
-                setDirty(model, ks);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -1511,6 +1512,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.data(val);
                 }
 
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -1518,7 +1520,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     index: index,
                     $callData: callData
                 });
-                setDirty(model, ks/*.concat(index)*/);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -1578,6 +1579,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 if (pub)
                 {
                     if (callData) callData.error = true;
+                    setDirty(model, ks);
                     model.publish('error', {
                         key: dottedKey,
                         value: /*val*/undef,
@@ -1598,6 +1600,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks);
                     if (pub)
                     {
                         if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
@@ -1612,7 +1615,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             $callData: callData
                         });
                     }
-                    setDirty(model, ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -1651,6 +1653,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks/*.concat(index)*/);
             pub && model.publish('change', {
                 key: dottedKey,
                 value: val,
@@ -1658,7 +1661,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 index: index,
                 $callData: callData
             });
-            setDirty(model, ks/*.concat(index)*/);
             // notify any dependencies as well
             if (HAS.call(ideps,dottedKey))
             {
@@ -1738,6 +1740,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.data(val);
                 }
 
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -1745,7 +1748,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     index: index,
                     $callData: callData
                 });
-                setDirty(model, ks/*.concat(index)*/);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -1803,6 +1805,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             if (!validated)
             {
                 if (callData) callData.error = true;
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('error', {
                     key: dottedKey,
                     value: /*val*/undef,
@@ -1822,6 +1825,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks/*.concat(index)*/);
                     pub && model.publish('change', {
                         key: dottedKey,
                         value: val,
@@ -1829,7 +1833,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: index,
                         $callData: callData
                     });
-                    setDirty(model, ks/*.concat(index)*/);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -1858,6 +1861,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks/*.concat(index)*/);
             pub && model.publish('change', {
                 key: dottedKey,
                 value: val,
@@ -1865,7 +1869,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 index: index,
                 $callData: callData
             });
-            setDirty(model, ks/*.concat(index)*/);
             // notify any dependencies as well
             if (HAS.call(ideps,dottedKey))
             {
@@ -1966,6 +1969,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks);
             pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -1975,7 +1979,6 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                     $callData: callData
                 });
 
-            setDirty(model, ks);
             k = ks.join('.');
             // notify any dependencies as well
             if (HAS.call(ideps,k))

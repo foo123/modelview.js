@@ -7,9 +7,9 @@
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
-function tpl2codesimple1(tpl)
+function tpl2codesimplek(tpl)
 {
-    var p1, p2, code = '';
+    var p1, p2, p, code = '';
     // parse simple keys
     while (tpl && tpl.length)
     {
@@ -26,37 +26,38 @@ function tpl2codesimple1(tpl)
             break;
         }
         code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-        code += "\n"+'_$$_ += (MODEL ? String(MODEL.get(\''+trim(tpl.slice(p1+1, p2))+'\')) : \'{'+trim(tpl.slice(p1+1, p2))+'}\');';
+        p = trim(tpl.slice(p1+1, p2));
+        code += "\n"+'_$$_ += (MODEL ? String(MODEL.get(\''+p+'\')) : \'{'+p+'}\');';
         tpl = tpl.slice(p2+1);
     }
     return code;
 }
-function tpl2codesimple2(tpl)
+function tpl2codesimplef(tpl)
 {
-    var p1, p2, start, end, f = 0, offset = 0, code = '';
+    var p1, p2, p, m, start, end, f = 0, offset = 0, code = '';
     // parse foreach (nested) loops
-    while (tpl.length && (-1 !== (p1 = tpl.indexOf('<!--', offset))))
+    while (-1 !== (p1=tpl.indexOf('<!--', offset)))
     {
         p2 = tpl.indexOf('-->', p1+4);
-        if (startsWith(tpl.slice(p1+4, p2), 'foreach'))
+        if (-1 === p2) break;
+        p = trim(tpl.slice(p1+4, p2));
+        if (startsWith(p, 'foreach') && (m=p.match(placeholder_re)))
         {
             if (0 === f)
             {
-                start = [p1, p2+3, tpl.slice(p1+4, p2).match(placeholder_re)[1]];
+                start = [p1, p2+3, m[1]];
             }
             f++;
             offset = p2+3;
         }
-        else if (startsWith(tpl.slice(p1+4, p2), '/foreach'))
+        else if ((0 < f) && startsWith(p, '/foreach'))
         {
             f--;
             if (0 === f)
             {
                 end = [p1, p2+3];
-                code += tpl2codesimple1(tpl.slice(0, start[0]));
-                code += "\n_$$_ += '<!--foreach {"+start[2]+"}-->';";
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimple2(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_=ITEM();}return _$$_;})(MODEL);"
-                code += "\n_$$_ += '<!--/foreach-->';";
+                code += tpl2codesimplek(tpl.slice(0, start[0]));
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -65,13 +66,17 @@ function tpl2codesimple2(tpl)
                 offset = p2+3;
             }
         }
+        else
+        {
+            offset = p2+3;
+        }
     }
-    code += tpl2codesimple1(tpl);
+    code += tpl2codesimplek(tpl);
     return code;
 }
 function tpl2codesimple(view, tpl, args, viewInstance)
 {
-    return newFunc('MODEL', '"use strict";'+"\n"+'var view='+(viewInstance||'this')+',_$$_=\'\';'+"\n"+tpl2codesimple2(trim(tpl))+"\nreturn _$$_;");
+    return newFunc('MODEL', '"use strict";'+"\n"+'var view='+(viewInstance||'this')+',_$$_=\'\';'+"\n"+tpl2codesimplef(trim(tpl))+"\nreturn _$$_;");
 }
 function insert_map(map, ks, v)
 {

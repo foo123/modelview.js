@@ -370,6 +370,111 @@ function do_auto_bind_action(view, evt, elements, fromModel)
         view.do_bind(evt, el, {name:name, key:key, value:value});
     }, 0, elements.length-1);
 }
+function add_nodes(el, nodes, index, move, isStatic)
+{
+    var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (0 < l)
+    {
+        if (null == index)
+        {
+            index = el.childNodes.length;
+            move = false;
+        }
+        if (0 <= index && index <= el.childNodes.length)
+        {
+            if (!move && _mvModifiedNodes)
+            {
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; ++i)
+                {
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
+                    {
+                        _mvModifiedNodes[i].from += l;
+                        _mvModifiedNodes[i].to += l;
+                    }
+                    else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
+                    {
+                        f = true;
+                        if (!isStatic || (index < _mvModifiedNodes[i].to))
+                        _mvModifiedNodes[i].to += l;
+                    }
+                }
+                if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
+                {
+                    _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
+                }
+            }
+            if (index === el.childNodes.length)
+            {
+                if (1 < l)
+                {
+                    frag = Fragment();
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
+                    el.appendChild(frag);
+                }
+                else
+                {
+                    el.appendChild(nodes[0]);
+                }
+            }
+            else
+            {
+                if (1 < l)
+                {
+                    frag = Fragment();
+                    n = el.childNodes[index];
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
+                    el.insertBefore(frag, n);
+                }
+                else
+                {
+                    el.insertBefore(nodes[0], el.childNodes[index]);
+                }
+            }
+        }
+    }
+    return el;
+}
+function remove_nodes(el, count, index, isStatic)
+{
+    var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (null == index) index = el.childNodes.length-1;
+    if (0 < count && 0 <= index && index < el.childNodes.length)
+    {
+        l = stdMath.min(count, el.childNodes.length-index);
+        if (0 < l)
+        {
+            if (_mvModifiedNodes)
+            {
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; ++i)
+                {
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
+                    {
+                        _mvModifiedNodes[i].from -= l;
+                        _mvModifiedNodes[i].to -= l;
+                    }
+                    else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
+                    {
+                        f = true;
+                        _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
+                    }
+                }
+            }
+            range = 1 < l ? Range() : null;
+            if (range)
+            {
+                range.setStart(el, index);
+                range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
+                range.deleteContents();
+            }
+            else
+            {
+                for (; 0 < l; --l) el.removeChild(el.childNodes[index]);
+            }
+        }
+    }
+}
 function getCtxScoped(view, viewvar)
 {
     var k, code = '';
@@ -640,11 +745,8 @@ view.dispose( );
         var view = this;
         // event triggered by view itself, ignore
         if (evt.data && (view === evt.data.trigger)) return;
-        // avoid "ghosting" events on other elements which may be inside a bind element
-        // Chrome issue on nested button clicked, when bind on original button
-        // add "bubble" option in modelview bind params
         var el = evt.target, tag = (el.tagName || '').toLowerCase(),
-            isAutoBind = ('change' == evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && (startsWith(el.name || '', view.$model.id+'[') || startsWith(el.name || '', ':model[')),
+            isAutoBind = ('change' === evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && ((view.$model && startsWith(el.name || '', view.$model.id+'[')) || startsWith(el.name || '', ':model[')),
             isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
         if (!isBind && !isAutoBind) isBind = !!(el = closestEvtEl(el.parentNode, evt, view));
         if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
@@ -816,7 +918,7 @@ view.components( Object components );
         {
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
             }
             if (c.out)
             {
@@ -1038,7 +1140,7 @@ view.keyed( nodes );
     }
 
     ,attr: function(attr) {
-        return (this.option('view.attr')||'') + Str(attr);
+        return (this.option('view.attr') || '') + Str(attr);
     }
 
 /**[DOC_MARKDOWN]
@@ -1058,14 +1160,14 @@ view.autovalidate( [Boolean enabled] );
 /**[DOC_MARKDOWN]
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [type=true|false|'text'] );
+view.livebind( [type=true|false|'simple'|'text'|'jsx'] );
 
 [/DOC_MARKDOWN]**/
     ,livebind: function(enable) {
         var view = this;
         if (arguments.length)
         {
-            view.option('view.livebind', 'text' === enable ? 'text' : !!enable);
+            view.option('view.livebind', 'simple' === enable || 'text' === enable ? 'text' : ('jsx' === enable ? true : !!enable));
             return view;
         }
         return view.option('view.livebind');
@@ -1118,7 +1220,7 @@ view.precompile();
                     c = view.$components[n];
                     if (c.tpl && !c.out)
                     {
-                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
                     }
                 }
             }
@@ -1363,7 +1465,12 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (model && (true !== livebind) && view.option('model.events')) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+
+            if (model && (true !== livebind) && view.option('model.events'))
+            {
+                do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            }
+
             if (model && autobind && ((true !== livebind) || (view.$dom !== view.$renderdom && view.option('view.autobindAll'))))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
@@ -1630,7 +1737,7 @@ view.sync_model();
             }
 
             // do view live DOM bindings update action
-            if (true === livebind) view.render();
+            if (livebind) view.render();
         }
     }
 

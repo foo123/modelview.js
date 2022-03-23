@@ -9,7 +9,7 @@ var view = new ModelView.View('view')
     .livebind(true)
 ;
 
-var viewText = new ModelView.View('view')
+var viewSimple = new ModelView.View('view')
     .model(new ModelView.Model('model', {msg:'Server-Side Rendering'}))
     .template(`<div title="Hello {msg}">Hello {msg}</div>`)
     .livebind('text')
@@ -29,10 +29,10 @@ var viewWithRouter = new ModelView.View('view')
         },
         fail: ()=>(<h1>404</h1>)
     })}`)
-    .livebind(true)
     .option('router.location', {path:'/', hash:'#/hello/Server-Side-Rendering'})
+    .livebind(true)
 ;
 
 console.log(view.render());
-console.log(viewText.render());
+console.log(viewSimple.render());
 console.log(viewWithRouter.render());

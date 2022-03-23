@@ -745,7 +745,7 @@ view.autovalidate( [Boolean enabled] );
 
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [type=true|false|'text'] );
+view.livebind( [type=true|false|'simple'|'text'|'jsx'] );
 
 
 

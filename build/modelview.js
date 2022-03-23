@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-22 21:18:59
+*   @built on 2022-03-23 12:05:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-22 21:18:59
+*   @built on 2022-03-23 12:05:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -669,7 +669,7 @@ function Text(val)
 {
     return document.createTextNode(val);
 }
-function tpl2code(view, tpl, args, scoped, type, opts, rootNodeType, viewInstance)
+function tpl2code(view, tpl, args, scoped, opts, rootNodeType, viewInstance)
 {
     var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
     args = (args || '') + '_$$_';
@@ -1442,8 +1442,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     if (!is_instance(v, Value))
                     {
                         node.uAtts = (function(u, i) {
-                            return function(view, r, v) {
-                                u && u(view, r, v);
+                            return u ? function(view, r, v) {
+                                u(view, r, v);
+                                u_att(r, v, v.attributes[i]);
+                            } : function(view, r, v) {
                                 u_att(r, v, v.attributes[i]);
                             };
                         })(node.uAtts, i);
@@ -1451,11 +1453,15 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     else if (v.changed())
                     {
                         node.uAtts = (function(u, i) {
-                            return function(view, r, v) {
-                                u && u(view, r, v);
+                            return u ? function(view, r, v) {
+                                u(view, r, v);
                                 var a = v.attributes[i];
-                                if (a.value.id())
-                                    view.$reset[a.value.id()] = a.value;
+                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
+                                a.value = a.value.val();
+                                u_att(r, v, a);
+                            } : function(view, r, v) {
+                                var a = v.attributes[i];
+                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
                                 a.value = a.value.val();
                                 u_att(r, v, a);
                             };
@@ -1522,22 +1528,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
                 // if dirty and not not from model.getVal() (ie has no key)
-                if (val.changed() && val.id())
-                    view.$reset[val.id()] = val;
-                n.changed = val.changed();
-                if (n.changed) n.uNodes = (function(t) {
-                    return function(view, r, v) {u_text(r, v, t);};
-                })(v);
+                if (val.changed())
+                {
+                    if (val.id()) view.$reset[val.id()] = val;
+                    n.changed = true;
+                    n.uNodes = (function(t) {
+                        return function(view, r, v) {
+                            if (r.nodeValue !== t)
+                                r.nodeValue = t;
+                        };
+                    })(v);
+                }
             }
             else if (!is_instance(n, VNode))
             {
                 v = Str(n);
                 n = VNode('t', v, v, null, 0);
-                n.changed = true;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                n.changed = true;
                 n.uNodes = (function(t) {
-                    return function(view, r, v) {u_text(r, v, t);};
+                    return function(view, r, v) {
+                        if (r.nodeValue !== t)
+                            r.nodeValue = t;
+                    };
                 })(v);
             }
             else if ('<mv-component>' === n.nodeType)
@@ -1559,10 +1573,15 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     if (node.simple && (nn.uAtts || nn.uNodes))
                     {
                         node.uNodes = (function(u, ua, un, index) {
-                            return function(view, r, v) {
-                                u && u(view, r, v);
-                                ua && ua(view, r.childNodes[index], v.childNodes[index]);
-                                un && un(view, r.childNodes[index], v.childNodes[index]);
+                            return u ? function(view, r, v) {
+                                u(view, r, v);
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
+                            } : function(view, r, v) {
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
                             };
                         })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
                     }
@@ -1651,10 +1670,15 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             if (node.simple && (n.uAtts || n.uNodes))
             {
                 node.uNodes = (function(u, ua, un, index) {
-                    return function(view, r, v) {
-                        u && u(view, r, v);
-                        ua && ua(view, r.childNodes[index], v.childNodes[index]);
-                        un && un(view, r.childNodes[index], v.childNodes[index]);
+                    return u ? function(view, r, v) {
+                        u(view, r, v);
+                        var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                        ua && ua(view, rnode, vnode);
+                        un && un(view, rnode, vnode);
+                    } : function(view, r, v) {
+                        var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                        ua && ua(view, rnode, vnode);
+                        un && un(view, rnode, vnode);
                     };
                 })(node.uNodes, n.uAtts, n.uNodes, n.index);
             }
@@ -1663,9 +1687,9 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     }
     return node;
 }
-function to_code(vnode, with_modified)
+function to_code(vnode/*, with_modified*/)
 {
-    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType;
+    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType/*, mod = 0*/;
     //with_modified = '"with_modified"' === with_modified;
     if (is_instance(vnode, VCode))
     {
@@ -1720,6 +1744,10 @@ function to_string(view, vnode)
         {
             out = to_string(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()));
         }
+        else if ('<mv-component>' === T)
+        {
+            out = to_string_all(view, vnode.childNodes);
+        }
         else
         {
             selfclosed = /*HAS.call(autoclosedTags, T)*/autoclosedTags[T];
@@ -1760,9 +1788,9 @@ function to_node(view, vnode, with_meta)
     }
     else if ('collection' === T)
     {
-        rnode = to_node(view, htmlNode(view, '', null, null, [], vnode.nodeValue.mapped()), with_meta);
+        rnode = to_node(view, {nodeType:'',childNodes:mergeChildNodes(vnode.nodeValue.mapped())}, with_meta);
     }
-    else if (!T || !T.length)
+    else if ('<mv-component>' === T || !T || !T.length)
     {
         rnode = Fragment();
         for (i=0,l=vnode.childNodes.length; i<l; ++i)
@@ -1780,8 +1808,7 @@ function to_node(view, vnode, with_meta)
             n = a.name; v = a.value;
             if (is_instance(v, Value))
             {
-                if (v.changed() && v.id())
-                    view.$reset[v.id()] = v;
+                if (v.changed() && v.id()) view.$reset[v.id()] = v;
                 v = v.val();
             }
             if (false === v) continue;
@@ -2047,11 +2074,6 @@ function u_att(r, v, a)
     if (false === v) del_att(r, n, v.nodeType/*, lower(v[TYPE]||'')*/);
     else set_att(r, n, v, v.nodeType/*, lower(v[TYPE]||'')*/);
 }
-function u_text(r, v, t)
-{
-    if (r.nodeValue !== t)
-        r.nodeValue = t;
-}
 function morphAtts(view, r, v)
 {
     var count, mi, mc, m, mp, match, matched,
@@ -2131,8 +2153,8 @@ function morphSingle(view, r, rnode, vnode)
     }
     else if (vnode.simple)
     {
-        if (vnode.uAtts) vnode.uAtts(view, rnode, vnode);
-        if (vnode.uNodes) vnode.uNodes(view, rnode, vnode);
+        if (vnode.achanged && vnode.uAtts) vnode.uAtts(view, rnode, vnode);
+        if (changed && vnode.uNodes) vnode.uNodes(view, rnode, vnode);
     }
     else if ('<textarea>' === T)
     {
@@ -2284,7 +2306,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
 }
 function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
 {
-    var index, indexv, vnode, rnode, T,
+    var index, indexv, vnode, rnode, rnode2, T,
         hasKeyed = v.hasKeyedNodes, keyed,
         i, j, k, l, frag;
 
@@ -2343,8 +2365,9 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
         }
         else if (0 === count)
         {
+            rnode2 = rnode[NEXT];
             r.replaceChild(frag=to_node(view, vnode, true), rnode);
-            rnode = frag[NEXT];
+            rnode = rnode2;
         }
         else if (0 > count)
         {
@@ -2384,8 +2407,9 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
                 }
                 else
                 {
+                    rnode2 = rnode[NEXT];
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    rnode = frag[NEXT];
+                    rnode = rnode2;
                 }
             }
         }
@@ -2403,7 +2427,7 @@ function morphAll(view, r, v, alreadyInited)
     // morph unconditionally r (real) DOM to match v (virtual) DOM
     var vc = v.childNodes.length, rc,
         count, i, j, index, hasKeyed = v.hasKeyedNodes, keyed,
-        vnode, rnode, T, frag,
+        vnode, rnode, rnode2, T, frag,
         rmv, rComp, vComp;
 
     if (!alreadyInited)
@@ -2473,8 +2497,9 @@ function morphAll(view, r, v, alreadyInited)
         }
         else if (0 === count)
         {
+            rnode2 = rnode[NEXT];
             r.replaceChild(frag=to_node(view, vnode, true), rnode);
-            rnode = frag[NEXT];
+            rnode = rnode2;
         }
         else if (0 > count)
         {
@@ -2514,8 +2539,9 @@ function morphAll(view, r, v, alreadyInited)
                 }
                 else
                 {
+                    rnode2 = rnode[NEXT];
                     r.replaceChild(frag=to_node(view, vnode, true), rnode);
-                    rnode = frag[NEXT];
+                    rnode = rnode2;
                 }
             }
         }
@@ -2607,111 +2633,6 @@ function morph(view, r, v)
         }
     }
 }
-function add_nodes(el, nodes, index, move, isStatic)
-{
-    var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
-    if (0 < l)
-    {
-        if (null == index)
-        {
-            index = el.childNodes.length;
-            move = false;
-        }
-        if (0 <= index && index <= el.childNodes.length)
-        {
-            if (!move && _mvModifiedNodes)
-            {
-                f = false;
-                for (i=0; i<_mvModifiedNodes.length; ++i)
-                {
-                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
-                    {
-                        _mvModifiedNodes[i].from += l;
-                        _mvModifiedNodes[i].to += l;
-                    }
-                    else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
-                    {
-                        f = true;
-                        if (!isStatic || (index < _mvModifiedNodes[i].to))
-                        _mvModifiedNodes[i].to += l;
-                    }
-                }
-                if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
-                {
-                    _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
-                }
-            }
-            if (index === el.childNodes.length)
-            {
-                if (1 < l)
-                {
-                    frag = Fragment();
-                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
-                    el.appendChild(frag);
-                }
-                else
-                {
-                    el.appendChild(nodes[0]);
-                }
-            }
-            else
-            {
-                if (1 < l)
-                {
-                    frag = Fragment();
-                    n = el.childNodes[index];
-                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
-                    el.insertBefore(frag, n);
-                }
-                else
-                {
-                    el.insertBefore(nodes[0], el.childNodes[index]);
-                }
-            }
-        }
-    }
-    return el;
-}
-function remove_nodes(el, count, index, isStatic)
-{
-    var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
-    if (null == index) index = el.childNodes.length-1;
-    if (0 < count && 0 <= index && index < el.childNodes.length)
-    {
-        l = stdMath.min(count, el.childNodes.length-index);
-        if (0 < l)
-        {
-            if (_mvModifiedNodes)
-            {
-                f = false;
-                for (i=0; i<_mvModifiedNodes.length; ++i)
-                {
-                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
-                    {
-                        _mvModifiedNodes[i].from -= l;
-                        _mvModifiedNodes[i].to -= l;
-                    }
-                    else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
-                    {
-                        f = true;
-                        _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
-                    }
-                }
-            }
-            range = 1 < l ? Range() : null;
-            if (range)
-            {
-                range.setStart(el, index);
-                range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
-                range.deleteContents();
-            }
-            else
-            {
-                for (; 0 < l; --l) el.removeChild(el.childNodes[index]);
-            }
-        }
-    }
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //
@@ -2721,9 +2642,9 @@ function remove_nodes(el, count, index, isStatic)
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
-function tpl2codesimple1(tpl)
+function tpl2codesimplek(tpl)
 {
-    var p1, p2, code = '';
+    var p1, p2, p, code = '';
     // parse simple keys
     while (tpl && tpl.length)
     {
@@ -2740,37 +2661,38 @@ function tpl2codesimple1(tpl)
             break;
         }
         code += "\n"+'_$$_ += \''+tpl.slice(0, p1).replace('\\', '\\\\').replace('\'','\\\'').replace(NL, '\'+"\\n"+\'')+'\';';
-        code += "\n"+'_$$_ += (MODEL ? String(MODEL.get(\''+trim(tpl.slice(p1+1, p2))+'\')) : \'{'+trim(tpl.slice(p1+1, p2))+'}\');';
+        p = trim(tpl.slice(p1+1, p2));
+        code += "\n"+'_$$_ += (MODEL ? String(MODEL.get(\''+p+'\')) : \'{'+p+'}\');';
         tpl = tpl.slice(p2+1);
     }
     return code;
 }
-function tpl2codesimple2(tpl)
+function tpl2codesimplef(tpl)
 {
-    var p1, p2, start, end, f = 0, offset = 0, code = '';
+    var p1, p2, p, m, start, end, f = 0, offset = 0, code = '';
     // parse foreach (nested) loops
-    while (tpl.length && (-1 !== (p1 = tpl.indexOf('<!--', offset))))
+    while (-1 !== (p1=tpl.indexOf('<!--', offset)))
     {
         p2 = tpl.indexOf('-->', p1+4);
-        if (startsWith(tpl.slice(p1+4, p2), 'foreach'))
+        if (-1 === p2) break;
+        p = trim(tpl.slice(p1+4, p2));
+        if (startsWith(p, 'foreach') && (m=p.match(placeholder_re)))
         {
             if (0 === f)
             {
-                start = [p1, p2+3, tpl.slice(p1+4, p2).match(placeholder_re)[1]];
+                start = [p1, p2+3, m[1]];
             }
             f++;
             offset = p2+3;
         }
-        else if (startsWith(tpl.slice(p1+4, p2), '/foreach'))
+        else if ((0 < f) && startsWith(p, '/foreach'))
         {
             f--;
             if (0 === f)
             {
                 end = [p1, p2+3];
-                code += tpl2codesimple1(tpl.slice(0, start[0]));
-                code += "\n_$$_ += '<!--foreach {"+start[2]+"}-->';";
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimple2(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_=ITEM();}return _$$_;})(MODEL);"
-                code += "\n_$$_ += '<!--/foreach-->';";
+                code += tpl2codesimplek(tpl.slice(0, start[0]));
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -2779,13 +2701,17 @@ function tpl2codesimple2(tpl)
                 offset = p2+3;
             }
         }
+        else
+        {
+            offset = p2+3;
+        }
     }
-    code += tpl2codesimple1(tpl);
+    code += tpl2codesimplek(tpl);
     return code;
 }
 function tpl2codesimple(view, tpl, args, viewInstance)
 {
-    return newFunc('MODEL', '"use strict";'+"\n"+'var view='+(viewInstance||'this')+',_$$_=\'\';'+"\n"+tpl2codesimple2(trim(tpl))+"\nreturn _$$_;");
+    return newFunc('MODEL', '"use strict";'+"\n"+'var view='+(viewInstance||'this')+',_$$_=\'\';'+"\n"+tpl2codesimplef(trim(tpl))+"\nreturn _$$_;");
 }
 function insert_map(map, ks, v)
 {
@@ -5370,6 +5296,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     else pub = false;
                 }
 
+                setDirty(model, ks);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -5377,7 +5304,6 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     valuePrev: prevval,
                     $callData: callData
                 });
-                setDirty(model, ks);
 
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
@@ -5439,6 +5365,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 if (pub)
                 {
                     if (callData) callData.error = true;
+                    setDirty(model, ks);
                     model.publish('error', {
                         key: dottedKey,
                         value: o[k],
@@ -5458,13 +5385,13 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks);
                     pub && model.publish('change', {
                         key: dottedKey,
                         value: val,
                         action: 'set',
                         $callData: callData
                     });
-                    setDirty(model, ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -5492,6 +5419,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 else if (is_instance(o[k], Value)) o[k].set(val);
                 else o[ k ] = val;
 
+                setDirty(model, ks);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -5499,7 +5427,6 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     action: 'set',
                     $callData: callData
                 });
-                setDirty(model, ks);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -5581,6 +5508,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.data(val);
                 }
 
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -5588,7 +5516,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     index: index,
                     $callData: callData
                 });
-                setDirty(model, ks/*.concat(index)*/);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -5648,6 +5575,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 if (pub)
                 {
                     if (callData) callData.error = true;
+                    setDirty(model, ks);
                     model.publish('error', {
                         key: dottedKey,
                         value: /*val*/undef,
@@ -5668,6 +5596,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks);
                     if (pub)
                     {
                         if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
@@ -5682,7 +5611,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                             $callData: callData
                         });
                     }
-                    setDirty(model, ks);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -5721,6 +5649,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks/*.concat(index)*/);
             pub && model.publish('change', {
                 key: dottedKey,
                 value: val,
@@ -5728,7 +5657,6 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 index: index,
                 $callData: callData
             });
-            setDirty(model, ks/*.concat(index)*/);
             // notify any dependencies as well
             if (HAS.call(ideps,dottedKey))
             {
@@ -5808,6 +5736,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.data(val);
                 }
 
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -5815,7 +5744,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     index: index,
                     $callData: callData
                 });
-                setDirty(model, ks/*.concat(index)*/);
                 // notify any dependencies as well
                 if (HAS.call(ideps,dottedKey))
                 {
@@ -5873,6 +5801,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             if (!validated)
             {
                 if (callData) callData.error = true;
+                setDirty(model, ks/*.concat(index)*/);
                 pub && model.publish('error', {
                     key: dottedKey,
                     value: /*val*/undef,
@@ -5892,6 +5821,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         collection[0]._upd('change', collection[1], collection[1]);
                         setDirty(model, collection[2]);
                     });
+                    setDirty(model, ks/*.concat(index)*/);
                     pub && model.publish('change', {
                         key: dottedKey,
                         value: val,
@@ -5899,7 +5829,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         index: index,
                         $callData: callData
                     });
-                    setDirty(model, ks/*.concat(index)*/);
                     // notify any dependencies as well
                     if (HAS.call(ideps,dottedKey))
                     {
@@ -5928,6 +5857,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks/*.concat(index)*/);
             pub && model.publish('change', {
                 key: dottedKey,
                 value: val,
@@ -5935,7 +5865,6 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 index: index,
                 $callData: callData
             });
-            setDirty(model, ks/*.concat(index)*/);
             // notify any dependencies as well
             if (HAS.call(ideps,dottedKey))
             {
@@ -6036,6 +5965,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 setDirty(model, collection[2]);
             });
 
+            setDirty(model, ks);
             pub && model.publish('change', {
                     key: dottedKey,
                     value: val,
@@ -6045,7 +5975,6 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                     $callData: callData
                 });
 
-            setDirty(model, ks);
             k = ks.join('.');
             // notify any dependencies as well
             if (HAS.call(ideps,k))
@@ -7189,6 +7118,111 @@ function do_auto_bind_action(view, evt, elements, fromModel)
         view.do_bind(evt, el, {name:name, key:key, value:value});
     }, 0, elements.length-1);
 }
+function add_nodes(el, nodes, index, move, isStatic)
+{
+    var f, i, n, l = nodes.length, frag, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (0 < l)
+    {
+        if (null == index)
+        {
+            index = el.childNodes.length;
+            move = false;
+        }
+        if (0 <= index && index <= el.childNodes.length)
+        {
+            if (!move && _mvModifiedNodes)
+            {
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; ++i)
+                {
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
+                    {
+                        _mvModifiedNodes[i].from += l;
+                        _mvModifiedNodes[i].to += l;
+                    }
+                    else if ((index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to) || (index === _mvModifiedNodes[i].from && _mvModifiedNodes[i].to < _mvModifiedNodes[i].from))
+                    {
+                        f = true;
+                        if (!isStatic || (index < _mvModifiedNodes[i].to))
+                        _mvModifiedNodes[i].to += l;
+                    }
+                }
+                if (!f && !isStatic && _mvModifiedNodes.length && (index === el.childNodes.length) && (el.childNodes.length-1 === _mvModifiedNodes[_mvModifiedNodes.length-1].to))
+                {
+                    _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
+                }
+            }
+            if (index === el.childNodes.length)
+            {
+                if (1 < l)
+                {
+                    frag = Fragment();
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
+                    el.appendChild(frag);
+                }
+                else
+                {
+                    el.appendChild(nodes[0]);
+                }
+            }
+            else
+            {
+                if (1 < l)
+                {
+                    frag = Fragment();
+                    n = el.childNodes[index];
+                    for (i=0; i<l; ++i) frag.appendChild(nodes[i]);
+                    el.insertBefore(frag, n);
+                }
+                else
+                {
+                    el.insertBefore(nodes[0], el.childNodes[index]);
+                }
+            }
+        }
+    }
+    return el;
+}
+function remove_nodes(el, count, index, isStatic)
+{
+    var f, i, l, range, _mvModifiedNodes = el[MV] ? el[MV].mod : null;
+    if (null == index) index = el.childNodes.length-1;
+    if (0 < count && 0 <= index && index < el.childNodes.length)
+    {
+        l = stdMath.min(count, el.childNodes.length-index);
+        if (0 < l)
+        {
+            if (_mvModifiedNodes)
+            {
+                f = false;
+                for (i=0; i<_mvModifiedNodes.length; ++i)
+                {
+                    if (index < stdMath.max(_mvModifiedNodes[i].from, _mvModifiedNodes[i].to))
+                    {
+                        _mvModifiedNodes[i].from -= l;
+                        _mvModifiedNodes[i].to -= l;
+                    }
+                    else if (index >= _mvModifiedNodes[i].from && index <= _mvModifiedNodes[i].to)
+                    {
+                        f = true;
+                        _mvModifiedNodes[i].to = stdMath.max(_mvModifiedNodes[i].from-1, _mvModifiedNodes[i].to-l);
+                    }
+                }
+            }
+            range = 1 < l ? Range() : null;
+            if (range)
+            {
+                range.setStart(el, index);
+                range.setEnd(el, stdMath.min(el.childNodes.length, index+l));
+                range.deleteContents();
+            }
+            else
+            {
+                for (; 0 < l; --l) el.removeChild(el.childNodes[index]);
+            }
+        }
+    }
+}
 function getCtxScoped(view, viewvar)
 {
     var k, code = '';
@@ -7459,11 +7493,8 @@ view.dispose( );
         var view = this;
         // event triggered by view itself, ignore
         if (evt.data && (view === evt.data.trigger)) return;
-        // avoid "ghosting" events on other elements which may be inside a bind element
-        // Chrome issue on nested button clicked, when bind on original button
-        // add "bubble" option in modelview bind params
         var el = evt.target, tag = (el.tagName || '').toLowerCase(),
-            isAutoBind = ('change' == evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && (startsWith(el.name || '', view.$model.id+'[') || startsWith(el.name || '', ':model[')),
+            isAutoBind = ('change' === evt.type) && view.option('view.autobind') && ('input' === tag || 'textarea' === tag || 'select' === tag) && ((view.$model && startsWith(el.name || '', view.$model.id+'[')) || startsWith(el.name || '', ':model[')),
             isBind = el[HAS_ATTR](view.attr('mv-evt')) && el[ATTR](view.attr('mv-on-'+evt.type));
         if (!isBind && !isAutoBind) isBind = !!(el = closestEvtEl(el.parentNode, evt, view));
         if (isBind || isAutoBind) view.on_view_change(evt, {el:el, isBind:isBind, isAutoBind:isAutoBind});
@@ -7635,7 +7666,7 @@ view.components( Object components );
         {
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
             }
             if (c.out)
             {
@@ -7857,7 +7888,7 @@ view.keyed( nodes );
     }
 
     ,attr: function(attr) {
-        return (this.option('view.attr')||'') + Str(attr);
+        return (this.option('view.attr') || '') + Str(attr);
     }
 
 /**[DOC_MARKDOWN]
@@ -7877,14 +7908,14 @@ view.autovalidate( [Boolean enabled] );
 /**[DOC_MARKDOWN]
 // get / set livebind,
 // livebind automatically updates dom when model changes, DEFAULT TRUE
-view.livebind( [type=true|false|'text'] );
+view.livebind( [type=true|false|'simple'|'text'|'jsx'] );
 
 [/DOC_MARKDOWN]**/
     ,livebind: function(enable) {
         var view = this;
         if (arguments.length)
         {
-            view.option('view.livebind', 'text' === enable ? 'text' : !!enable);
+            view.option('view.livebind', 'simple' === enable || 'text' === enable ? 'text' : ('jsx' === enable ? true : !!enable));
             return view;
         }
         return view.option('view.livebind');
@@ -7937,7 +7968,7 @@ view.precompile();
                     c = view.$components[n];
                     if (c.tpl && !c.out)
                     {
-                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), true, {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
                     }
                 }
             }
@@ -8182,7 +8213,12 @@ view.sync();
         if (HASDOC && view.$dom)
         {
             view.render('sync');
-            if (model && (true !== livebind) && view.option('model.events')) do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+
+            if (model && (true !== livebind) && view.option('model.events'))
+            {
+                do_bind_action(view, {type:'sync'}, $sel('['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']', view.$dom), {});
+            }
+
             if (model && autobind && ((true !== livebind) || (view.$dom !== view.$renderdom && view.option('view.autobindAll'))))
             {
                 els = $sel('input[name^="' + model.id+'[' + '"],textarea[name^="' + model.id+'[' + '"],select[name^="' + model.id+'[' + '"]', view.$dom);
@@ -8449,7 +8485,7 @@ view.sync_model();
             }
 
             // do view live DOM bindings update action
-            if (true === livebind) view.render();
+            if (livebind) view.render();
         }
     }
 
