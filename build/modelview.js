@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-23 12:05:22
+*   @built on 2022-03-23 18:38:28
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-23 12:05:22
+*   @built on 2022-03-23 18:38:28
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -450,7 +450,7 @@ function $closest(selector, el)
             var found = el.closest(selector);
             return found ? [found] : [];
         }
-        else if (el[MATCHES])
+        else if (MATCHES)
         {
             while (el)
             {
@@ -2692,7 +2692,7 @@ function tpl2codesimplef(tpl)
             {
                 end = [p1, p2+3];
                 code += tpl2codesimplek(tpl.slice(0, start[0]));
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -3154,6 +3154,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
                 break;
             case 'add':
+                x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
+                list.map.splice.apply(list.map, x);
                 frag = Fragment();
                 iterate(function(index) {
                     var node = clone(list);
@@ -4785,8 +4787,8 @@ model.data( [Object data] );
         if (!is_array(ks)) ks = Str(ks).split('.');
         for (c=0,i=0,l=ks.length; i<l; ++i)
         {
-            if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
-            u = u.k[ks[i]]; //c++;
+            if (!u || !u.k || (!HAS.call(u.k, ks[i]) && !HAS.call(u.k, WILDCARD))) break;
+            u = (u.k[ks[i]] || u.k[WILDCARD]); //c++;
             if (u.f) return true;
         }
         return false;//(0 < l) && (c === l);
@@ -8111,8 +8113,8 @@ view.render( [Boolean immediate=false] );
                 //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
                 callback = function() {
                     view.$reset = {}; view.$cache = null;
-                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
-                    nextTick(function(){
+                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? false : true);
+                    nextTick(function() {
                         clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
@@ -8150,7 +8152,7 @@ view.render( [Boolean immediate=false] );
                     view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                     morph(view, view.$renderdom, view.$out.call(view, htmlNode));
                     view.$cache['#'] = null;
-                    nextTick(function(){
+                    nextTick(function() {
                         clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});

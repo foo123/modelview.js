@@ -402,7 +402,7 @@ function $closest(selector, el)
             var found = el.closest(selector);
             return found ? [found] : [];
         }
-        else if (el[MATCHES])
+        else if (MATCHES)
         {
             while (el)
             {

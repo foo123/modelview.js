@@ -57,7 +57,7 @@ function tpl2codesimplef(tpl)
             {
                 end = [p1, p2+3];
                 code += tpl2codesimplek(tpl.slice(0, start[0]));
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"return _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -519,6 +519,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
                 break;
             case 'add':
+                x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
+                list.map.splice.apply(list.map, x);
                 frag = Fragment();
                 iterate(function(index) {
                     var node = clone(list);

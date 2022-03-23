@@ -1363,8 +1363,8 @@ view.render( [Boolean immediate=false] );
                 //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
                 callback = function() {
                     view.$reset = {}; view.$cache = null;
-                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? null : true/*model.getDirty()*/);
-                    nextTick(function(){
+                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? false : true);
+                    nextTick(function() {
                         clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});
@@ -1402,7 +1402,7 @@ view.render( [Boolean immediate=false] );
                     view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                     morph(view, view.$renderdom, view.$out.call(view, htmlNode));
                     view.$cache['#'] = null;
-                    nextTick(function(){
+                    nextTick(function() {
                         clearInvalid(view);
                         // notify any 3rd-party also if needed
                         view.publish('render', {});

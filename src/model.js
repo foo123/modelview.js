@@ -789,8 +789,8 @@ model.data( [Object data] );
         if (!is_array(ks)) ks = Str(ks).split('.');
         for (c=0,i=0,l=ks.length; i<l; ++i)
         {
-            if (!u || !u.k || !HAS.call(u.k, ks[i])) break;
-            u = u.k[ks[i]]; //c++;
+            if (!u || !u.k || (!HAS.call(u.k, ks[i]) && !HAS.call(u.k, WILDCARD))) break;
+            u = (u.k[ks[i]] || u.k[WILDCARD]); //c++;
             if (u.f) return true;
         }
         return false;//(0 < l) && (c === l);
