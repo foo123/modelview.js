@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-23 18:38:28
+*   @built on 2022-03-24 18:28:12
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-23 18:38:28
+*   @built on 2022-03-24 18:28:12
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -450,7 +450,7 @@ function $closest(selector, el)
             var found = el.closest(selector);
             return found ? [found] : [];
         }
-        else if (MATCHES)
+        else if (MATCHES && el[MATCHES])
         {
             while (el)
             {
@@ -1421,7 +1421,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     {
         return children[0];
     }
-    var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
+    var node = new VNode(nodeType, '', '', null, 0), index = 0,
+        new_mod = false, new_diff = false, ch, c, l;
     id = id || null; type = type || null;
     if (is_instance(id, Value)) id = id.val();
     if (is_instance(type, Value)) type = type.val();
@@ -1507,6 +1508,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (nn.changed) view.$reset[n.id()] = n;
                 node.changed = node.changed || nn.changed;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (is_array(n))
@@ -1517,6 +1519,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                 node.changed = true;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (is_instance(n, Value))
@@ -1527,7 +1530,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
-                // if dirty and not not from model.getVal() (ie has no key)
+                // if dirty and not from model.getVal() (ie has no key)
                 if (val.changed())
                 {
                     if (val.id()) view.$reset[val.id()] = val;
@@ -1563,13 +1566,23 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                 /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
                 node.changed = node.changed || n.changed;
-                if (!n.simple) node.simple = false;
+                if (!n.simple)
+                {
+                    node.simple = false;
+                    node.uNodes = null;
+                }
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
                     nn.component = nn.component || n.component;
                     nn.unit = nn.unit || n.unit;
+                    if (nn.unit)
+                    {
+                        node.changed = true;
+                        node.simple = false;
+                        node.uNodes = null;
+                    }
                     if (node.simple && (nn.uAtts || nn.uNodes))
                     {
                         node.uNodes = (function(u, ua, un, index) {
@@ -1606,6 +1619,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 childNodes.push(n);
                 node.changed = node.changed || n.changed;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if ('dyn' === n.nodeType)
@@ -1626,6 +1640,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 AP.push.apply(childNodes, a);
                 node.changed = true;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (!n.nodeType || !n.nodeType.length)
@@ -1648,11 +1663,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     nn.parentNode = node;
                     nn.index = index++;
                     nn.unit = nn.unit || n.unit;
-                    //node.changed = node.changed || nn.changed || nn.achanged;
+                    node.changed = node.changed || nn.changed || nn.achanged;
+                    if (nn.unit)
+                    {
+                        node.changed = true;
+                        node.simple = false;
+                        node.uNodes = null;
+                    }
+                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    {
+                        node.uNodes = (function(u, ua, un, index) {
+                            return u ? function(view, r, v) {
+                                u(view, r, v);
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
+                            } : function(view, r, v) {
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
+                            };
+                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                    }
                     return nn;
                 }));
-                node.changed = true;
-                node.simple = false;
                 return childNodes;
             }
             if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
@@ -1666,7 +1700,17 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             n.index = index++;
             childNodes.push(n);
             node.changed = node.changed || n.changed || n.achanged;
-            if (!n.simple) node.simple = false;
+            if (!n.simple)
+            {
+                node.simple = false;
+                node.uNodes = null;
+            }
+            if (n.unit)
+            {
+                node.changed = true;
+                node.simple = false;
+                node.uNodes = null;
+            }
             if (node.simple && (n.uAtts || n.uNodes))
             {
                 node.uNodes = (function(u, ua, un, index) {
@@ -4570,6 +4614,14 @@ function setDirty(model, key, many)
     if (many) each(key, function(k){model.setDirty(k.split('.'));});
     else model.setDirty(key);
 }
+function isDirty(u, ks, i)
+{
+    if (!u) return false;
+    if (u.f) return true;
+    i = i || 0;
+    if (!u.k || (i >= ks.length)) return false;
+    return (HAS.call(u.k, ks[i]) ? isDirty(u.k[ks[i]], ks, i+1) : false) || isDirty(u.k[WILDCARD], ks, i+1);
+}
 
 // Array multi - sorter utility
 // returns a sorter that can (sub-)sort by multiple (nested) fields
@@ -4782,16 +4834,10 @@ model.data( [Object data] );
         return model.$upds ? getDirty(model.$upds, ks) : [];
     }
     ,isDirty: function(ks) {
-        var model = this, i, l, c, u = model.$upds;
+        var model = this, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
         if (!is_array(ks)) ks = Str(ks).split('.');
-        for (c=0,i=0,l=ks.length; i<l; ++i)
-        {
-            if (!u || !u.k || (!HAS.call(u.k, ks[i]) && !HAS.call(u.k, WILDCARD))) break;
-            u = (u.k[ks[i]] || u.k[WILDCARD]); //c++;
-            if (u.f) return true;
-        }
-        return false;//(0 < l) && (c === l);
+        return isDirty(u, ks, 0);
     }
     ,resetDirty: function() {
         this.$upds = null;
@@ -6506,15 +6552,18 @@ collection.reset();
         return self;
     }
 /**[DOC_MARKDOWN]
-// clone this collection (optionally with any Array.map functions as well)
-collection.clone(Boolean with_data_mapper = false);
+// clone this collection and/or the data (optionally with any Array.map functions as well)
+collection.clone(Boolean type = undefined);
+collection.clone(true) // new instance with **cloned** array **and** Array.map function
+collection.clone(false) // new instance with **original** array, without Array.map function
+collection.clone() // new instance with **original** array **and** Array.map function
 
 [/DOC_MARKDOWN]**/
-    ,clone: function(with_mapper) {
+    ,clone: function(type) {
         var self = this, cloned = new Collection();
-        cloned._items = self._items.slice();
+        cloned._items = true === type ? self._items.slice() : self._items;
         cloned.diff = self.diff.slice();
-        if (true === with_mapper)
+        if (false !== type)
         {
             cloned.mapper = self.mapper;
             cloned.mappedItem = self.mappedItem;
@@ -6614,10 +6663,10 @@ collection.sort(Function compare);
 [/DOC_MARKDOWN]**/
     ,sort: function(compare) {
         var self = this, items = self._items.map(function(it, i){return [it, i];});
-        compare = compare || function(a, b){return a < b ? -1 : (a > b ? 1 : 0);};
-        items.sort(function(a, b){return compare(a[0], b[0]);});
-        self._items = items.map(function(it){return it[0];});
-        self._upd('reorder', items.map(function(it){return it[1];}), null);
+        compare = compare || function(a, b) {return a < b ? -1 : (a > b ? 1 : 0);};
+        items.sort(function(a, b) {return compare(a[0], b[0]);});
+        self._items = items.map(function(it) {return it[0];});
+        self._upd('reorder', items.map(function(it) {return it[1];}), null);
         return self;
     }
 /**[DOC_MARKDOWN]
@@ -7154,7 +7203,7 @@ function add_nodes(el, nodes, index, move, isStatic)
                     _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
                 }
             }
-            if (index === el.childNodes.length)
+            if (index >= el.childNodes.length)
             {
                 if (1 < l)
                 {
@@ -7333,7 +7382,7 @@ function as_unit(node)
         node.unit = true;
         return node;
     }
-    return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
+    return is_array(node) ? node.map(as_unit) : node;
 }
 function debounce(callback, instance)
 {
@@ -7859,7 +7908,7 @@ view.widget( ..args );
 [/DOC_MARKDOWN]**/
     ,widget: function(/*args*/) {
         var HtmlWidget = View.HtmlWidget;
-        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
+        return HtmlWidget && ("function" === typeof HtmlWidget.widget) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
     }
 
 
@@ -8177,9 +8226,14 @@ view.addNode( parentNode, nodeToAdd, atIndex );
 
 [/DOC_MARKDOWN]**/
     ,addNode: function(el, node, index, isStatic) {
+        var view = this;
         if (el && node)
+        {
+            if ((true!==isStatic) && ('text' === view.livebind()) && view.$map)
+                updateMap(node, 'add', view.$map, view.$dom);
             add_nodes(el, [node], index, true===isStatic);
-        return this;
+        }
+        return view;
     }
 /**[DOC_MARKDOWN]
 // directly move node at index position of same parentNode (this method is compatible with general morphing routines)
@@ -8187,8 +8241,7 @@ view.moveNode( parentNode, nodeToMove, atIndex );
 
 [/DOC_MARKDOWN]**/
     ,moveNode: function(el, node, index) {
-        if (el && node)
-            add_nodes(el, [node], index, true);
+        if (el && node) add_nodes(el, [node], index, true);
         return this;
     }
 /**[DOC_MARKDOWN]
@@ -8197,9 +8250,14 @@ view.removeNode( nodeToRemove );
 
 [/DOC_MARKDOWN]**/
     ,removeNode: function(node) {
+        var view = this;
         if (node && node.parentNode)
-            remove_nodes(node.parentNode, 1, AP.indexOf.call(node.parentNode.childNodes, node));
-        return this;
+        {
+            remove_nodes(node.parentNode, 1, get_index(node));
+            if (('text' === view.livebind()) && view.$map)
+                updateMap(node, 'remove', view.$map, view.$dom);
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]

@@ -404,7 +404,7 @@ function add_nodes(el, nodes, index, move, isStatic)
                     _mvModifiedNodes[_mvModifiedNodes.length-1].to += l;
                 }
             }
-            if (index === el.childNodes.length)
+            if (index >= el.childNodes.length)
             {
                 if (1 < l)
                 {
@@ -583,7 +583,7 @@ function as_unit(node)
         node.unit = true;
         return node;
     }
-    return is_type(node, T_ARRAY) ? node.map(as_unit) : node;
+    return is_array(node) ? node.map(as_unit) : node;
 }
 function debounce(callback, instance)
 {
@@ -1109,7 +1109,7 @@ view.widget( ..args );
 [/DOC_MARKDOWN]**/
     ,widget: function(/*args*/) {
         var HtmlWidget = View.HtmlWidget;
-        return HtmlWidget && ("function" === typeof(HtmlWidget.widget)) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
+        return HtmlWidget && ("function" === typeof HtmlWidget.widget) ? this.html(HtmlWidget.widget.apply(HtmlWidget, arguments)) : '';
     }
 
 
@@ -1427,9 +1427,14 @@ view.addNode( parentNode, nodeToAdd, atIndex );
 
 [/DOC_MARKDOWN]**/
     ,addNode: function(el, node, index, isStatic) {
+        var view = this;
         if (el && node)
+        {
+            if ((true!==isStatic) && ('text' === view.livebind()) && view.$map)
+                updateMap(node, 'add', view.$map, view.$dom);
             add_nodes(el, [node], index, true===isStatic);
-        return this;
+        }
+        return view;
     }
 /**[DOC_MARKDOWN]
 // directly move node at index position of same parentNode (this method is compatible with general morphing routines)
@@ -1437,8 +1442,7 @@ view.moveNode( parentNode, nodeToMove, atIndex );
 
 [/DOC_MARKDOWN]**/
     ,moveNode: function(el, node, index) {
-        if (el && node)
-            add_nodes(el, [node], index, true);
+        if (el && node) add_nodes(el, [node], index, true);
         return this;
     }
 /**[DOC_MARKDOWN]
@@ -1447,9 +1451,14 @@ view.removeNode( nodeToRemove );
 
 [/DOC_MARKDOWN]**/
     ,removeNode: function(node) {
+        var view = this;
         if (node && node.parentNode)
-            remove_nodes(node.parentNode, 1, AP.indexOf.call(node.parentNode.childNodes, node));
-        return this;
+        {
+            remove_nodes(node.parentNode, 1, get_index(node));
+            if (('text' === view.livebind()) && view.$map)
+                updateMap(node, 'remove', view.$map, view.$dom);
+        }
+        return view;
     }
 
 /**[DOC_MARKDOWN]

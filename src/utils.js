@@ -402,7 +402,7 @@ function $closest(selector, el)
             var found = el.closest(selector);
             return found ? [found] : [];
         }
-        else if (MATCHES)
+        else if (MATCHES && el[MATCHES])
         {
             while (el)
             {
@@ -1373,7 +1373,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
     {
         return children[0];
     }
-    var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false, new_diff = false, ch, c, l;
+    var node = new VNode(nodeType, '', '', null, 0), index = 0,
+        new_mod = false, new_diff = false, ch, c, l;
     id = id || null; type = type || null;
     if (is_instance(id, Value)) id = id.val();
     if (is_instance(type, Value)) type = type.val();
@@ -1459,6 +1460,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (nn.changed) view.$reset[n.id()] = n;
                 node.changed = node.changed || nn.changed;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (is_array(n))
@@ -1469,6 +1471,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                 node.changed = true;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (is_instance(n, Value))
@@ -1479,7 +1482,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 // reset Value after current render session
-                // if dirty and not not from model.getVal() (ie has no key)
+                // if dirty and not from model.getVal() (ie has no key)
                 if (val.changed())
                 {
                     if (val.id()) view.$reset[val.id()] = val;
@@ -1515,13 +1518,23 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
                 /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
                 node.changed = node.changed || n.changed;
-                if (!n.simple) node.simple = false;
+                if (!n.simple)
+                {
+                    node.simple = false;
+                    node.uNodes = null;
+                }
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
                     nn.component = nn.component || n.component;
                     nn.unit = nn.unit || n.unit;
+                    if (nn.unit)
+                    {
+                        node.changed = true;
+                        node.simple = false;
+                        node.uNodes = null;
+                    }
                     if (node.simple && (nn.uAtts || nn.uNodes))
                     {
                         node.uNodes = (function(u, ua, un, index) {
@@ -1558,6 +1571,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 childNodes.push(n);
                 node.changed = node.changed || n.changed;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if ('dyn' === n.nodeType)
@@ -1578,6 +1592,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 AP.push.apply(childNodes, a);
                 node.changed = true;
                 node.simple = false;
+                node.uNodes = null;
                 return childNodes;
             }
             else if (!n.nodeType || !n.nodeType.length)
@@ -1600,11 +1615,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     nn.parentNode = node;
                     nn.index = index++;
                     nn.unit = nn.unit || n.unit;
-                    //node.changed = node.changed || nn.changed || nn.achanged;
+                    node.changed = node.changed || nn.changed || nn.achanged;
+                    if (nn.unit)
+                    {
+                        node.changed = true;
+                        node.simple = false;
+                        node.uNodes = null;
+                    }
+                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    {
+                        node.uNodes = (function(u, ua, un, index) {
+                            return u ? function(view, r, v) {
+                                u(view, r, v);
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
+                            } : function(view, r, v) {
+                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                ua && ua(view, rnode, vnode);
+                                un && un(view, rnode, vnode);
+                            };
+                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                    }
                     return nn;
                 }));
-                node.changed = true;
-                node.simple = false;
                 return childNodes;
             }
             if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
@@ -1618,7 +1652,17 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
             n.index = index++;
             childNodes.push(n);
             node.changed = node.changed || n.changed || n.achanged;
-            if (!n.simple) node.simple = false;
+            if (!n.simple)
+            {
+                node.simple = false;
+                node.uNodes = null;
+            }
+            if (n.unit)
+            {
+                node.changed = true;
+                node.simple = false;
+                node.uNodes = null;
+            }
             if (node.simple && (n.uAtts || n.uNodes))
             {
                 node.uNodes = (function(u, ua, un, index) {

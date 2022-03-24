@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 5.0.0** (90 kB minified, 28 kB gzipped)
+**Version 5.0.0** (91 kB minified, 28 kB gzipped)
 
 
 **see also:**
@@ -152,20 +152,21 @@ var foo = view.model().get('some.key');
 view.model().set('some.key', bar, true);
 ```
 
-Model supports many other functions as well, like: a) having models within models, b) data dependency graph (which data depend on others), c) data typecasting, d) data validation, data e) serialization and f) dynamic computed properties and custom getters and setters.
+Model supports many other functions as well, like: a) having models within models, b) data dependency graph (which data depend on others), c) data typecasting, d) data validation, e) data serialization and f) computed properties and custom getters and setters.
 
-Model also supports a dynamic (scalar) **Value** data structure which represents a single value which keeps note of when value has changed, and dynamic **Collection** data structure which represents an array of items where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed.
+Model also supports a scalar **Value** data structure which represents a single value which keeps note of when value has changed, and a **Collection** data structure which represents an array of items, where each array manipulation can be reflected as DOM manipulation, so that DOM changes faster only what needs to be changed.
 
 Global (View) Model can also play the role that redux or vuex play in some other popular frameworks. See manual and examples to understand how flexible and powerful Model is. Components (see below) can have their own local Model as well to manage internal local state.
 
 
-**Simple/Text Mode**
+**Simple / Text Mode**
 
 ModelView has a simpler and faster livebind mode called **text** (`view.livebind('text')`) which supports very fast morphing of text nodes and element attributes marked with the values of specific data model keys and a list of child nodes that reference a model collection of items and use a template (see [Hello World Simple version](/examples/hello-world-simple.html) example and [Collection Simple version](/examples/collection-simple.html) example).
 
 For example, let's render a list of items in simple mode:
 
 ```html
+There are {items.length} items:
 <ul><!--foreach {items}-->
 <li id="{.id}">{.text}</li>
 <!--/foreach--></ul>
@@ -174,25 +175,28 @@ For example, let's render a list of items in simple mode:
 Where `items` model key must be a Model.Collection.
 
 
-**General/JSX Mode**
+**General / JSX Mode**
 
 This is the general livebind mode of ModelView (`view.livebind(true)`) (see [Hello World](/examples/hello-world.html) example and [Collection](/examples/collection.html) example). It all starts at the top level with HTML. If only HTML exists, then once the template is rendered there is nothing to update anymore. To introduce dynamic JavaScript code you wrap it in `{` and `}` template separators, which separate JavaScript expressions from static HTML code. ModelView understands this and takes note of where the code is and what the result of the code is (eg modify node attribute, modify child nodes, etc..). Thus it acquires an understanding of how the DOM will change. But that is not over. You can also write HTML inside JavaScript by wrapping the HTML in parentheses (JSX syntax), ie `(<span>some text</span>)`. This is not the end of the story either, you can again run dynamic JavaScript inside HTML, which is inside JavaScript, by wrapping the inner JavaScript expression in `{` and `}` and so on..
 
 For example, see all the above in action:
 
 ```html
+There are {view.model().get('items.length')} items:
 <ul>{
-this.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
+view.model().get('items').map(item => (<li id={item.id}>{item.text}</li>))
 }</ul>
 ```
+
+HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed (both general and simple modes). Simple as that! So to dynamically remove attributes you simply make sure the code (or key in simple mode) that is attached to that attribute evaluates to literally `false`.
+
 
 For those like me, who like to test code by commenting and uncommenting certain parts, block comments ie `/*` and `*/` are supported in dynamic JavaScript Expressions (**note** single line comments ie `// ..` will break the compiled code).
 
 `view` reference is always available in main template or component template. `this` references main view in main template (thus identical to `view`) whereas it references current component instance in component template.
 
-HTML attributes are very simple as well. If the value of an attribute is different than `true/false`, it is rendered with that value cast as string. If the value is literally `true`, it is rendered as turned on. Else if the value is literally `false`, it is removed (both general and simple modes). Simple as that! So to dynamically remove attributes you simply make sure the code (or key in simple mode) that is attached to that attribute evaluates to literally `false`.
 
-ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called **components**. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props and state of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see below) and/or passed props to manage state as needed if needed. **Important:** ModelView components must return a single html element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them within another html element. Also trivial "wrapper" components which simply return another component should not be used, **instead use the inner component directly**.
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called **components**. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props and state of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see above) and/or passed props to manage state as needed if needed. **Important:** ModelView components must return a single html element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them within another html element. Also trivial "wrapper" components which simply return another component should not be used, **instead use the inner component directly**.
 
 The previous example using components:
 
@@ -204,8 +208,9 @@ new ModelView.View(
 });
 ```
 ```html
+There are {view.model().get('items.length')} items:
 <ul>{
-this.model().get('items').map(item => (<ListItem props={item}/>))
+view.model().get('items').map(item => (<ListItem props={item}/>))
 }</ul>
 ```
 
@@ -254,7 +259,7 @@ someCondition ? view.unit(<ul><li>{text}</li><li>some static text</li></ul>) : v
 In this case we mark the html nodes to be morphed completely as a single unit (ie `view.unit(..)`), instead of applying heuristics, so we have our expected result. Note that this solution is the more general, but might also be slightly slower in some cases.
 
 
-ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue or Inferno), other actors can manipulate the DOM and ModelView will still work (at least in most cases of interest). This is because ModelView relies on the **actual DOM** (and not any virtual DOM) which is the **only reliable source of truth**. In fact ModelView itself provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.
+ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue or Inferno), other actors can manipulate the DOM and ModelView will still work (at least in most cases of interest). This is because ModelView relies on the **actual DOM** which is the **only reliable source of truth**. Additionally ModelView provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.
 
 Take a look at the examples and manual to see how easy and intuitive is to make applications with ModelView.
 

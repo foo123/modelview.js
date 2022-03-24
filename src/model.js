@@ -572,6 +572,14 @@ function setDirty(model, key, many)
     if (many) each(key, function(k){model.setDirty(k.split('.'));});
     else model.setDirty(key);
 }
+function isDirty(u, ks, i)
+{
+    if (!u) return false;
+    if (u.f) return true;
+    i = i || 0;
+    if (!u.k || (i >= ks.length)) return false;
+    return (HAS.call(u.k, ks[i]) ? isDirty(u.k[ks[i]], ks, i+1) : false) || isDirty(u.k[WILDCARD], ks, i+1);
+}
 
 // Array multi - sorter utility
 // returns a sorter that can (sub-)sort by multiple (nested) fields
@@ -784,16 +792,10 @@ model.data( [Object data] );
         return model.$upds ? getDirty(model.$upds, ks) : [];
     }
     ,isDirty: function(ks) {
-        var model = this, i, l, c, u = model.$upds;
+        var model = this, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
         if (!is_array(ks)) ks = Str(ks).split('.');
-        for (c=0,i=0,l=ks.length; i<l; ++i)
-        {
-            if (!u || !u.k || (!HAS.call(u.k, ks[i]) && !HAS.call(u.k, WILDCARD))) break;
-            u = (u.k[ks[i]] || u.k[WILDCARD]); //c++;
-            if (u.f) return true;
-        }
-        return false;//(0 < l) && (c === l);
+        return isDirty(u, ks, 0);
     }
     ,resetDirty: function() {
         this.$upds = null;
@@ -2508,15 +2510,18 @@ collection.reset();
         return self;
     }
 /**[DOC_MARKDOWN]
-// clone this collection (optionally with any Array.map functions as well)
-collection.clone(Boolean with_data_mapper = false);
+// clone this collection and/or the data (optionally with any Array.map functions as well)
+collection.clone(Boolean type = undefined);
+collection.clone(true) // new instance with **cloned** array **and** Array.map function
+collection.clone(false) // new instance with **original** array, without Array.map function
+collection.clone() // new instance with **original** array **and** Array.map function
 
 [/DOC_MARKDOWN]**/
-    ,clone: function(with_mapper) {
+    ,clone: function(type) {
         var self = this, cloned = new Collection();
-        cloned._items = self._items.slice();
+        cloned._items = true === type ? self._items.slice() : self._items;
         cloned.diff = self.diff.slice();
-        if (true === with_mapper)
+        if (false !== type)
         {
             cloned.mapper = self.mapper;
             cloned.mappedItem = self.mappedItem;
@@ -2616,10 +2621,10 @@ collection.sort(Function compare);
 [/DOC_MARKDOWN]**/
     ,sort: function(compare) {
         var self = this, items = self._items.map(function(it, i){return [it, i];});
-        compare = compare || function(a, b){return a < b ? -1 : (a > b ? 1 : 0);};
-        items.sort(function(a, b){return compare(a[0], b[0]);});
-        self._items = items.map(function(it){return it[0];});
-        self._upd('reorder', items.map(function(it){return it[1];}), null);
+        compare = compare || function(a, b) {return a < b ? -1 : (a > b ? 1 : 0);};
+        items.sort(function(a, b) {return compare(a[0], b[0]);});
+        self._items = items.map(function(it) {return it[0];});
+        self._upd('reorder', items.map(function(it) {return it[1];}), null);
         return self;
     }
 /**[DOC_MARKDOWN]

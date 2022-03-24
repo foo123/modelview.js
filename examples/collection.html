@@ -39,7 +39,7 @@
 <ul>
 {this.model().get('items').mapTo(item => (<Item props={item}/>))}
 <li id="notchanged">not changed</li>
-{this.model().get('items').clone().mapTo(item => (<Item props={{label:item.label,tags:item.tags.clone()}}/>))}
+{this.model().get('items').clone().mapTo(item => (<Item props={item}/>))}
 </ul>
 </script>
 <div id="app"></div>

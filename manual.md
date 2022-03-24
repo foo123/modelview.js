@@ -528,8 +528,11 @@ collection.reset();
 
 
 
-// clone this collection (optionally with any Array.map functions as well)
-collection.clone(Boolean with_data_mapper = false);
+// clone this collection and/or the data (optionally with any Array.map functions as well)
+collection.clone(Boolean type = undefined);
+collection.clone(true) // new instance with **cloned** array **and** Array.map function
+collection.clone(false) // new instance with **original** array, without Array.map function
+collection.clone() // new instance with **original** array **and** Array.map function
 
 
 

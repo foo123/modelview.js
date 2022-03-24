@@ -76,7 +76,7 @@ this.keyed(this.model().get('todoList.display').map(todo => (
         <a id="completed" href="#/completed" class={'tab' + ('completed'===this.model().get('displayMode')?' selected':'')}>Completed ({this.model().get('todoList.completed')})</a>
     </li>
 </ul>
-{this.model().get('todoList.completed') ? (<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>) : []}
+{this.model().get('todoList.completed') ? [(<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>)] : []}
 </footer>
 </script>
 
