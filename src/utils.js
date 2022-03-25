@@ -1493,10 +1493,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 {
                     if (val.id()) view.$reset[val.id()] = val;
                     n.changed = true;
-                    n.uNodes = (function(t) {
+                    n.uNodes = (function(val) {
                         return function(view, r, v) {
-                            if (r.nodeValue !== t)
-                                r.nodeValue = t;
+                            if (r.nodeValue !== val)
+                                r.nodeValue = val;
                         };
                     })(v);
                 }
@@ -1508,10 +1508,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 n.changed = true;
-                n.uNodes = (function(t) {
+                n.uNodes = (function(val) {
                     return function(view, r, v) {
-                        if (r.nodeValue !== t)
-                            r.nodeValue = t;
+                        if (r.nodeValue !== val)
+                            r.nodeValue = val;
                     };
                 })(v);
             }
@@ -2208,7 +2208,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'replace':
-                len = collection.items().length*m;
+                /*len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',childNodes:mergeChildNodes(items)};
                 x = r.childNodes[start];
@@ -2229,7 +2229,12 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 {
                     //delete excess nodes
                     delNodes(view, r, start+len, count);
-                }
+                }*/
+                // delete all and add new
+                len = collection.items().length*m;
+                delNodes(view, r, start, stdMath.min(len, len+count));
+                items = collection.mapped();
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}, 0, len, r.childNodes[start]);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;

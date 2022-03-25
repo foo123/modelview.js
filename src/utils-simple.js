@@ -455,7 +455,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 }
                 return;
             case 'replace':
-                count = items.length - list.map.length;
+                /*count = items.length - list.map.length;
                 // replace common nodes
                 n = parentNode.childNodes[startIndex + 1];
                 iterate(function(index) {
@@ -486,7 +486,19 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     // remove excess nodes
                     list.map.splice(items.length, -count);
                     delNodes(null, parentNode, startIndex+1+m*items.length, -m*count);
-                }
+                }*/
+                // delete all and add new
+                delNodes(null, parentNode, startIndex+1, m*list.map.length);
+                list.map = new Array(items.length);
+                frag = Fragment();
+                iterate(function(index) {
+                    var node = clone(list);
+                    list.map[index] = node.map;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    frag.appendChild(node.dom);
+                }, 0, items.length-1);
+                if (end) parentNode.insertBefore(frag, end);
+                else parentNode.appendChild(frag);
                 return;
             case 'reorder':
                 count = items.length;

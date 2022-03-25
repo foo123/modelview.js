@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-25 10:21:59
+*   @built on 2022-03-25 15:11:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-25 10:21:59
+*   @built on 2022-03-25 15:11:46
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1541,10 +1541,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 {
                     if (val.id()) view.$reset[val.id()] = val;
                     n.changed = true;
-                    n.uNodes = (function(t) {
+                    n.uNodes = (function(val) {
                         return function(view, r, v) {
-                            if (r.nodeValue !== t)
-                                r.nodeValue = t;
+                            if (r.nodeValue !== val)
+                                r.nodeValue = val;
                         };
                     })(v);
                 }
@@ -1556,10 +1556,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index, new_mod);
                 n.changed = true;
-                n.uNodes = (function(t) {
+                n.uNodes = (function(val) {
                     return function(view, r, v) {
-                        if (r.nodeValue !== t)
-                            r.nodeValue = t;
+                        if (r.nodeValue !== val)
+                            r.nodeValue = val;
                     };
                 })(v);
             }
@@ -2256,7 +2256,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'replace':
-                len = collection.items().length*m;
+                /*len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',childNodes:mergeChildNodes(items)};
                 x = r.childNodes[start];
@@ -2277,7 +2277,12 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 {
                     //delete excess nodes
                     delNodes(view, r, start+len, count);
-                }
+                }*/
+                // delete all and add new
+                len = collection.items().length*m;
+                delNodes(view, r, start, stdMath.min(len, len+count));
+                items = collection.mapped();
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}, 0, len, r.childNodes[start]);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -3134,7 +3139,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 }
                 return;
             case 'replace':
-                count = items.length - list.map.length;
+                /*count = items.length - list.map.length;
                 // replace common nodes
                 n = parentNode.childNodes[startIndex + 1];
                 iterate(function(index) {
@@ -3165,7 +3170,19 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     // remove excess nodes
                     list.map.splice(items.length, -count);
                     delNodes(null, parentNode, startIndex+1+m*items.length, -m*count);
-                }
+                }*/
+                // delete all and add new
+                delNodes(null, parentNode, startIndex+1, m*list.map.length);
+                list.map = new Array(items.length);
+                frag = Fragment();
+                iterate(function(index) {
+                    var node = clone(list);
+                    list.map[index] = node.map;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    frag.appendChild(node.dom);
+                }, 0, items.length-1);
+                if (end) parentNode.insertBefore(frag, end);
+                else parentNode.appendChild(frag);
                 return;
             case 'reorder':
                 count = items.length;
