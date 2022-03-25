@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-24 18:28:12
+*   @built on 2022-03-25 10:21:59
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-24 18:28:12
+*   @built on 2022-03-25 10:21:59
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1442,31 +1442,37 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified)
                     v = a[i].value;
                     if (!is_instance(v, Value))
                     {
-                        node.uAtts = (function(u, i) {
+                        node.uAtts = (function(u, a) {
                             return u ? function(view, r, v) {
                                 u(view, r, v);
-                                u_att(r, v, v.attributes[i]);
+                                var att = a.name, val = a.value;
+                                if (false === val) del_att(r, att, v.nodeType);
+                                else set_att(r, att, val, v.nodeType);
                             } : function(view, r, v) {
-                                u_att(r, v, v.attributes[i]);
+                                var att = a.name, val = a.value;
+                                if (false === val) del_att(r, att, v.nodeType);
+                                else set_att(r, att, val, v.nodeType);
                             };
-                        })(node.uAtts, i);
+                        })(node.uAtts, a[i]);
                     }
                     else if (v.changed())
                     {
-                        node.uAtts = (function(u, i) {
+                        node.uAtts = (function(u, a) {
                             return u ? function(view, r, v) {
                                 u(view, r, v);
-                                var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
-                                a.value = a.value.val();
-                                u_att(r, v, a);
+                                var att = a.name, val = a.value;
+                                if (val.id()) view.$reset[val.id()] = val;
+                                val = val.val();
+                                if (false === val) del_att(r, att, v.nodeType);
+                                else set_att(r, att, val, v.nodeType);
                             } : function(view, r, v) {
-                                var a = v.attributes[i];
-                                if (a.value.id()) view.$reset[a.value.id()] = a.value;
-                                a.value = a.value.val();
-                                u_att(r, v, a);
+                                var att = a.name, val = a.value;
+                                if (val.id()) view.$reset[val.id()] = val;
+                                val = val.val();
+                                if (false === val) del_att(r, att, v.nodeType);
+                                else set_att(r, att, val, v.nodeType);
                             };
-                        })(node.uAtts, i);
+                        })(node.uAtts, a[i]);
                     }
                 }
             });
@@ -2111,12 +2117,6 @@ function morphAttsAll(view, r, v)
         else set_att(r, n, av, T, TT, true);
     }
     return r;
-}
-function u_att(r, v, a)
-{
-    var n = a.name, v = a.value;
-    if (false === v) del_att(r, n, v.nodeType/*, lower(v[TYPE]||'')*/);
-    else set_att(r, n, v, v.nodeType/*, lower(v[TYPE]||'')*/);
 }
 function morphAtts(view, r, v)
 {
