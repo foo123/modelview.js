@@ -20,10 +20,10 @@
     </header>
 
 <script id="Tag" type="text/x-template">
-<i>{props}</i>
+<i>{data}</i>
 </script>
 <script id="Item" type="text/x-template">
-<li>{props.label} &nbsp;&nbsp;{props.tags.mapTo(tag => (<Tag props={tag}/>,), 2)}</li>
+<li>{data.label} &nbsp;&nbsp;{data.tags.mapTo(tag => (<Tag data={tag}/>,), 2)}</li>
 </script>
 <!--
 -->
@@ -37,9 +37,9 @@
 <button mv-evt mv-on-click="empty">Empty</button>
 <button mv-evt mv-on-click="notchanged">Not Changed</button>
 <ul>
-{this.model().get('items').mapTo(item => (<Item props={item}/>))}
+{this.model().get('items').mapTo(item => (<Item data={item}/>))}
 <li id="notchanged">not changed</li>
-{this.model().get('items').clone().mapTo(item => (<Item props={item}/>))}
+{this.model().get('items').clone().mapTo(item => (<Item data={{label:item.label,tags:item.tags.clone()}}/>))}
 </ul>
 </script>
 <div id="app"></div>

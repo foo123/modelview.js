@@ -70,7 +70,7 @@
                         this.view.model().set('msg', 'World', true);
                     }
                 },
-                changed: (oldProps, newProps) => false,
+                changed: (oldData, newData) => false,
                 attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
                 detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
             }
@@ -80,7 +80,7 @@
             document.getElementById('InputControlComponent').innerHTML,
             {
                 model: () => ({mylocalvar:0}),
-                changed: (oldProps, newProps) => false
+                changed: (oldData, newData) => false
             }
         )
     })

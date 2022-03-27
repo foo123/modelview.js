@@ -47,7 +47,7 @@ new ModelView.View('view')
                     this.view.model().set('msg', 'World', true);
                 }
             },
-            changed: (oldProps, newProps) => false,
+            changed: (oldData, newdata) => false,
             attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
             detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
         }

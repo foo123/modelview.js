@@ -556,6 +556,12 @@ collection.set(newData);
 
 
 
+// mark entry at index as changed
+collection.upd(index);
+
+
+
+
 // replace data with completely new data, return same collection
 collection.replace(newData);
 
@@ -700,8 +706,8 @@ view.router({
     prefix: "/prefix/", // default no prefix ""
     routes: {
         "/": () => (<IndexPage/>),
-        "/user/:id": (match) => (<UserPage props={{id:match.id}}/>),
-        "/msg/:id/:line?": (match) => (<MsgPage props={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
+        "/user/:id": (match) => (<UserPage data={{id:match.id}}/>),
+        "/msg/:id/:line?": (match) => (<MsgPage data={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
     },
     fail: () => (<ErrorPage/>) // default empty
 });
@@ -832,7 +838,7 @@ var MyComponent = ModelView.View.Component(
     Object options = {
          attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
         ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
-        ,changed: (oldProps, newProps, componentInstance) => false // whether component has changed given new props
+        ,changed: (oldData, newData, componentInstance) => false // whether component has changed given new data
         ,model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,actions: {
             // custom component actions here, if any, eg referenced as <.. mv-evt mv-on-click=":click"></..>
@@ -853,9 +859,9 @@ var MyComponent = ModelView.View.Component(
 MyComponentInstance {
     view // the main view this component instance is attached to
     model // component state model, if any, else null
-    props // current component instance props
+    data // current component instance data
     dom // domElement this component instance is attached to
-    data // property to attach user-defined data, if needed
+    d // property to attach user-defined data, if needed
 }
 
 ```
@@ -910,7 +916,7 @@ new ModelView.View('view')
                     this.view.model().set('msg', 'World', true);
                 }
             },
-            changed: (oldProps, newProps) => false,
+            changed: (oldData, newdata) => false,
             attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
             detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
         }

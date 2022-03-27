@@ -1,7 +1,7 @@
 modelview.js
 ============
 
-A simple, light-weight, versatile and fast isomorphic MVVM framework for JavaScript (Browser and Server)
+A simple, versatile and fast isomorphic MVVM framework for JavaScript (Browser and Server)
 
 
 It knows **where**, **when** and **what** needs to be rendered.
@@ -86,7 +86,7 @@ new ModelView.View('view')
                     this.view.model().set('msg', 'World', true);
                 }
             },
-            changed: (oldProps, newProps) => false,
+            changed: (oldData, newData) => false,
             attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
             detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
         }
@@ -196,7 +196,7 @@ For those like me, who like to test code by commenting and uncommenting certain 
 `view` reference is always available in main template or component template. `this` references main view in main template (thus identical to `view`) whereas it references current component instance in component template.
 
 
-ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called **components**. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, props={..} />` or `<ComponentName id={..} props={..}>.. childs ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the props and state of this component, so it can test them against previous props of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see above) and/or passed props to manage state as needed if needed. **Important:** ModelView components must return a single html element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them within another html element. Also trivial "wrapper" components which simply return another component should not be used, **instead use the inner component directly**.
+ModelView enables to encapsulate reusable layout/functionality in separate blocks of code. These are called **components**. Components are simply templates on their own (with some extra functionality) and are attached to a main View. A component is rendered by calling the syntactic sugar `<ComponentName id={..}, data={..} />` or `<ComponentName id={..} data={..}>.. children ..</ComponentName>`. `id` in component is simply a unique identifier (not necessarily globally unique, unique among same components is all that is needed) that makes ModelView remember the data and state of this component, so it can test them against previous data of the component with same `id` and determine if component has changed (components implement their own `changed` method, see examples). If no `id` is given, ModelView constructs an `id` based on the order of rendering. ModelView components can have their own separate state model similar to the built-in View.Model (see above) and/or passed data to manage state as needed if needed. **Important:** ModelView components must return a single html element (similar to React), so if you need multiple nodes to be rendered by a component, wrap them within another html element. Also trivial "wrapper" components which simply return another component should not be used, **instead use the inner component directly**.
 
 The previous example using components:
 
@@ -204,13 +204,13 @@ The previous example using components:
 new ModelView.View(
 //..
 ).components({
-    'ListItem': ModelView.View.Component('ListItem', `<li id={props.id}>{props.text}</li>`, {changed: (oldProps, newProps) => oldProps.id !== newProps.id})
+    'ListItem': ModelView.View.Component('ListItem', `<li id={data.id}>{data.text}</li>`, {changed: (oldData, newData) => oldData.id !== newData.id})
 });
 ```
 ```html
 There are {view.model().get('items.length')} items:
 <ul>{
-view.model().get('items').map(item => (<ListItem props={item}/>))
+view.model().get('items').map(item => (<ListItem data={item}/>))
 }</ul>
 ```
 

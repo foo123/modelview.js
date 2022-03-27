@@ -31,7 +31,7 @@
 </script>
 <script id="HelloComponent" type="text/x-template">
 <div>
-<h1>Hello {props.msg || '..'}</h1>
+<h1>Hello {data.msg || '..'}</h1>
 </div>
 </script>
 <script id="ErrorComponent" type="text/x-template">
@@ -51,7 +51,7 @@
     caseSensitive: false,
     routes:{
         "/": ()=>(<Index/>),
-        "/HELLO/:msg?": (match)=>(<Hello props={match}/>)
+        "/HELLO/:msg?": (match)=>(<Hello data={match}/>)
     },
     fail: ()=>(<Error/>)
 })}

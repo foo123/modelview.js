@@ -455,38 +455,6 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 }
                 return;
             case 'replace':
-                /*count = items.length - list.map.length;
-                // replace common nodes
-                n = parentNode.childNodes[startIndex + 1];
-                iterate(function(index) {
-                    var node = clone(list);
-                    list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
-                    each(node.dom.childNodes, function(nn){
-                        x = n[NEXT];
-                        parentNode.replaceChild(nn, n);
-                        n = x;
-                    });
-                }, 0, stdMath.min(list.map.length, items.length)-1);
-                if (0 < count)
-                {
-                    // add missing nodes
-                    frag = Fragment();
-                    iterate(function(index) {
-                        var node = clone(list);
-                        list.map.push(node.map);
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
-                        frag.appendChild(node.dom);
-                    }, items.length-count, items.length-1);
-                    if (end) parentNode.insertBefore(frag, end);
-                    else parentNode.appendChild(frag);
-                }
-                else if (0 > count)
-                {
-                    // remove excess nodes
-                    list.map.splice(items.length, -count);
-                    delNodes(null, parentNode, startIndex+1+m*items.length, -m*count);
-                }*/
                 // delete all and add new
                 delNodes(null, parentNode, startIndex+1, m*list.map.length);
                 list.map = new Array(items.length);
@@ -503,17 +471,9 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'reorder':
                 count = items.length;
                 k = count*m;
-                frag = Fragment();
-                n = slice.call(parentNode.childNodes, startIndex+1, startIndex+1+k);
                 l = list.map.slice();
-                for (i=0; i<count; ++i)
-                {
-                    list.map[i] = l[d.from[i]];
-                    for (j=0; j<m; ++j)
-                        frag.appendChild(n[d.from[i]*m+j]);
-                }
-                if (end) parentNode.insertBefore(frag, end);
-                else parentNode.appendChild(frag);
+                for (i=0; i<count; ++i) list.map[i] = l[d.from[i]];
+                reOrderNodes(parentNode, startIndex+1, d.from, m);
                 return;
             case 'swap':
                 x = list.map[d.from];

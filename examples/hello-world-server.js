@@ -18,14 +18,14 @@ var viewSimple = new ModelView.View('view')
 var viewWithRouter = new ModelView.View('view')
     .model(new ModelView.Model('model', {}))
     .components({
-        'Hello': ModelView.View.Component('Hello', `<div title={'Hello ' + props.msg}>Hello {props.msg}</div>`)
+        'Hello': ModelView.View.Component('Hello', `<div title={'Hello ' + data.msg}>Hello {data.msg}</div>`)
     })
     .template(`{view.router({
         type:"hash",
         caseSensitive: false,
         routes:{
             "/": ()=>(<h1>Index</h1>),
-            "/HELLO/:msg": (match)=>(<Hello props={match}/>)
+            "/HELLO/:msg": (match)=>(<Hello data={match}/>)
         },
         fail: ()=>(<h1>404</h1>)
     })}`)

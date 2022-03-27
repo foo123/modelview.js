@@ -912,13 +912,13 @@ view.components( Object components );
         }
         return view;
     }
-    ,component: function(name, id, props, childs) {
+    ,component: function(name, id, data, children) {
         var view = this, out, c, compId, nk, component, changed;
         if (name && (c=view.$components[nk='#'+name]))
         {
             if (c.tpl && !c.out)
             {
-                c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                c.out = tpl2code(view, c.tpl, 'data,children,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
             }
             if (c.out)
             {
@@ -939,16 +939,16 @@ view.components( Object components );
                 {
                     component = new MVComponentInstance(view, compId, name, null, c.opts && c.opts.model ? c.opts.model() : null);
                     view.$cache[compId] = component;
-                    if (component.model) component.model.on('change', function(){view.render();});
+                    if (component.model) component.model.on('change', function() {view.render();});
                     changed = true;
                 }
                 else
                 {
                     changed = component.model ? component.model.isDirty() : false;
-                    changed = (c.opts && 'function' === typeof(c.opts.changed) ? c.opts.changed(component.props, props, component) : false) || changed;
+                    changed = (c.opts && ('function' === typeof c.opts.changed) ? c.opts.changed(component.data, data, component) : false) || changed;
                 }
-                component.props = props;
-                out = c.out.call(component, props, childs||[], htmlNode);
+                component.data = data;
+                out = c.out.call(component, data, children||[], htmlNode);
                 out.component = component;
                 out.changed = changed;
                 return out;
@@ -965,8 +965,8 @@ view.router({
     prefix: "/prefix/", // default no prefix ""
     routes: {
         "/": () => (<IndexPage/>),
-        "/user/:id": (match) => (<UserPage props={{id:match.id}}/>),
-        "/msg/:id/:line?": (match) => (<MsgPage props={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
+        "/user/:id": (match) => (<UserPage data={{id:match.id}}/>),
+        "/msg/:id/:line?": (match) => (<MsgPage data={{id:match.id,line:match.line}}/>) // if there is no :line, match.line will be null
     },
     fail: () => (<ErrorPage/>) // default empty
 });
@@ -1220,7 +1220,7 @@ view.precompile();
                     c = view.$components[n];
                     if (c.tpl && !c.out)
                     {
-                        c.out = tpl2code(view, c.tpl, 'props,childs,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
+                        c.out = tpl2code(view, c.tpl, 'data,children,', getCtxScoped(view, 'view'), {trim:true, id:view.attr('mv-id')}, '<mv-component>', 'this.view');
                     }
                 }
             }
@@ -1985,7 +1985,7 @@ var MyComponent = ModelView.View.Component(
     Object options = {
          attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
         ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
-        ,changed: (oldProps, newProps, componentInstance) => false // whether component has changed given new props
+        ,changed: (oldData, newData, componentInstance) => false // whether component has changed given new data
         ,model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,actions: {
             // custom component actions here, if any, eg referenced as <.. mv-evt mv-on-click=":click"></..>
@@ -2003,7 +2003,6 @@ View.Component = function Component(name, tpl, opts) {
   if (!is_instance(self, Component)) return new Component(name, tpl, opts);
   self.name = trim(name);
   self.tpl = trim(tpl);
-  self.htpl = null;
   self.out = null;
   self.opts = opts || {};
 };
@@ -2012,13 +2011,11 @@ View.Component[proto] = {
     ,name: ''
     ,opts: null
     ,tpl: ''
-    ,htpl: null
     ,out: null
     ,dispose: function() {
         var self = this;
         self.opts = null;
         self.tpl = null;
-        self.htpl = null;
         self.out = null;
         return self;
     }
@@ -2030,25 +2027,25 @@ View.Component[proto] = {
 MyComponentInstance {
     view // the main view this component instance is attached to
     model // component state model, if any, else null
-    props // current component instance props
+    data // current component instance data
     dom // domElement this component instance is attached to
-    data // property to attach user-defined data, if needed
+    d // property to attach user-defined data, if needed
 }
 
 ```
 [/DOC_MARKDOWN]**/
-function MVComponentInstance(view, id, name, props, state, dom)
+function MVComponentInstance(view, id, name, data, state, dom)
 {
     var self = this;
-    if (!is_instance(self, MVComponentInstance)) return new MVComponentInstance(view, id, name, props, state, dom);
+    if (!is_instance(self, MVComponentInstance)) return new MVComponentInstance(view, id, name, data, state, dom);
     self.status = 0;
     self.id = id;
     self.name = name;
-    self.props = props || null;
+    self.data = null == data ? null : data;
     self.model = state ? (is_instance(state, Model) ? state : new Model(self.name, state)) : null;
     self.view = view;
     self.dom = dom || null;
-    self.data = {};
+    self.d = {};
 }
 View.Component.Instance = MVComponentInstance;
 MVComponentInstance[proto] = {
@@ -2056,16 +2053,16 @@ MVComponentInstance[proto] = {
     ,status: 0
     ,id: null
     ,name: null
-    ,props: null
+    ,data: null
     ,model: null
     ,view: null
     ,dom: null
-    ,data: null
+    ,d: null
     ,dispose: function() {
         var self = this;
         self.status = 2;
         self.data = null;
-        self.props = null;
+        self.data = null;
         if (self.model) self.model.dispose();
         self.model = null;
         self.view = null;

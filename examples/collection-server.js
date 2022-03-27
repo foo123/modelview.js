@@ -8,10 +8,10 @@ var view = new ModelView.View('view')
             {label: 'item4', tags: new ModelView.Model.Collection(['tag6', 'tag1'])}
         ])}))
     .components({
-        'Tag': ModelView.View.Component('Tag', `<span>{props},</span>`),
-        'Item': ModelView.View.Component('Item', `<li title={props.label}>{props.label} &nbsp; {props.tags.mapTo(tag => (<Tag props={tag}/>))}</li>`)
+        'Tag': ModelView.View.Component('Tag', `<span>{data},</span>`),
+        'Item': ModelView.View.Component('Item', `<li title={data.label}>{data.label} &nbsp; {data.tags.mapTo(tag => (<Tag data={tag}/>))}</li>`)
     })
-    .template(`<ul>{view.model().get('items').mapTo(item => (<Item props={item}/>))}</ul>`)
+    .template(`<ul>{view.model().get('items').mapTo(item => (<Item data={item}/>))}</ul>`)
     .livebind(true)
 ;
 

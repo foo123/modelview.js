@@ -1289,7 +1289,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     {
                         o.set(k, val, pub, callData);
                         each(collections, function(collection){
-                            collection[0]._upd('change', collection[1], collection[1]);
+                            collection[0].upd(collection[1]);
                             setDirty(model, collection[2]);
                         });
                     }
@@ -1388,7 +1388,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
                     each(collections, function(collection){
-                        collection[0]._upd('change', collection[1], collection[1]);
+                        collection[0].upd(collection[1]);
                         setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
@@ -1415,7 +1415,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             if (prevval !== val)
             {
                 each(collections, function(collection){
-                    collection[0]._upd('change', collection[1], collection[1]);
+                    collection[0].upd(collection[1]);
                     setDirty(model, collection[2]);
                 });
 
@@ -1504,7 +1504,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     k = k.join('.');
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection){
-                        collection[0]._upd('change', collection[1], collection[1]);
+                        collection[0].upd(collection[1]);
                         setDirty(model, collection[2]);
                     });
                 }
@@ -1599,7 +1599,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
                     each(collections, function(collection){
-                        collection[0]._upd('change', collection[1], collection[1]);
+                        collection[0].upd(collection[1]);
                         setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
@@ -1651,7 +1651,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
 
             each(collections, function(collection){
-                collection[0]._upd('change', collection[1], collection[1]);
+                collection[0].upd(collection[1]);
                 setDirty(model, collection[2]);
             });
 
@@ -1732,7 +1732,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     k = k.join('.');
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection){
-                        collection[0]._upd('change', collection[1], collection[1]);
+                        collection[0].upd(collection[1]);
                         setDirty(model, collection[2]);
                     });
                 }
@@ -1824,7 +1824,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
                     each(collections, function(collection){
-                        collection[0]._upd('change', collection[1], collection[1]);
+                        collection[0].upd(collection[1]);
                         setDirty(model, collection[2]);
                     });
                     setDirty(model, ks/*.concat(index)*/);
@@ -1859,7 +1859,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             }
 
             each(collections, function(collection){
-                collection[0]._upd('change', collection[1], collection[1]);
+                collection[0].upd(collection[1]);
                 setDirty(model, collection[2]);
             });
 
@@ -1918,7 +1918,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection){
-                    collection[0]._upd('change', collection[1], collection[1]);
+                    collection[0].upd(collection[1]);
                     setDirty(model, collection[2]);
                 });
                 pub && model.publish('change', {
@@ -1967,7 +1967,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
             }
 
             each(collections, function(collection){
-                collection[0]._upd('change', collection[1], collection[1]);
+                collection[0].upd(collection[1]);
                 setDirty(model, collection[2]);
             });
 
@@ -2123,7 +2123,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
             }
         }
         each(collections, function(collection){
-            collection[0]._upd('change', collection[1], collection[1]);
+            collection[0].upd(collection[1]);
             setDirty(model, collection[2]);
         });
         return model;
@@ -2494,7 +2494,15 @@ Collection[proto] = {
         return self;
     }
     ,_upd: function(action, start, end) {
-        this.diff.push({action:action, from:start, to:end});
+        var diff = this.diff/*, last = diff.length ? diff[diff.length-1] : null*/;
+        /*if (!last || (last.action !== action) || (last.to < start-1) || (last.from >= end))
+        {*/
+            diff.push({action:action, from:start, to:end});
+        /*}
+        else
+        {
+            last.to = stdMath.max(last.to, end);
+        }*/
         return this;
     }
 /**[DOC_MARKDOWN]
@@ -2583,6 +2591,14 @@ collection.set(newData);
             }
         }
         return self;
+    }
+/**[DOC_MARKDOWN]
+// mark entry at index as changed
+collection.upd(index);
+
+[/DOC_MARKDOWN]**/
+    ,upd: function(index) {
+        return this._upd('change', index, index);
     }
 /**[DOC_MARKDOWN]
 // replace data with completely new data, return same collection
