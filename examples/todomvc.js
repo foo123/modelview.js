@@ -162,7 +162,7 @@ View = new ModelView.View('todoview')
     timeSince: function(time) {
         if (null == time) return '';
         var t = timeSince(time);
-        return Value(t.join(' ')).dirty(-1 !== [undefined, 'seconds','minute','minutes','hour'].indexOf(t[1]));
+        return Value(t.join(' '), null, true).dirty(-1 !== [undefined, 'seconds','minute','minutes','hour'].indexOf(t[1]));
     }
 })
 .actions({
@@ -195,7 +195,7 @@ View = new ModelView.View('todoview')
             // if all completed on current filter, uncomplete them
             completed.forEach(todo => {
                 todo.completed.set(false);
-                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+                todo.className = Value('todo' + (todo.completed.val() ? ' completed' : '')).dirty(todo.completed.dirty());
             });
             Model.$data.todoList.completed -= completed.length;
             Model.$data.todoList.active += completed.length;
@@ -208,7 +208,7 @@ View = new ModelView.View('todoview')
                 if (!todo.completed.val())
                 {
                     todo.completed.set(true);
-                    todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+                    todo.className = Value('todo' + (todo.completed.val() ? ' completed' : '')).dirty( todo.completed.dirty());
                     Model.$data.todoList.completed++;
                     Model.$data.todoList.active--;
                 }
@@ -268,7 +268,7 @@ View = new ModelView.View('todoview')
         if (!todo.completed.val() && el.checked)
         {
             todo.completed.set(true);
-            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : '')).dirty(todo.completed.dirty());
             Model.$data.todoList.completed++;
             Model.$data.todoList.active--;
             Model.notify('todoList');
@@ -276,7 +276,7 @@ View = new ModelView.View('todoview')
         else if (todo.completed.val() && !el.checked)
         {
             todo.completed.set(false);
-            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : ''), null, todo.completed.dirty());
+            todo.className = Value('todo' + (todo.completed.val() ? ' completed' : '')).dirty(todo.completed.dirty());
             Model.$data.todoList.completed--;
             Model.$data.todoList.active++;
             Model.notify('todoList');

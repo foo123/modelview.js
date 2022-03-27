@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 5.0.0** (91 kB minified, 28 kB gzipped)
+**Version 5.0.0** (93 kB minified, 29 kB gzipped)
 
 
 **see also:**
@@ -220,7 +220,7 @@ ModelView uses some heuristics in order to morph the real DOM as fast as posible
 
 An example:
 
-```javascript
+```html
 <div>{
 someCondition ? (<ul><li>{text}</li><li>some static text</li></ul>) : (<ul><li>{text2}</li><li>some other static text</li></ul>)
 }</div>
@@ -230,7 +230,7 @@ If you run above example and change the value of `someCondition` you will see th
 
 **1st way: make code manifestly dynamic**
 
-```javascript
+```html
 <div>{
 someCondition ? (<ul><li>{text}</li><li>{'some static text'}</li></ul>) : (<ul><li>{text2}</li><li>{'some other static text'}</li></ul>)
 }</div>
@@ -240,7 +240,7 @@ In this case we make the different implicitly dynamic but manifestly static part
 
 **2nd way: associate different modelview keys**
 
-```javascript
+```html
 <div>{
 someCondition ? (<ul mv-id="foo"><li>{text}</li><li>some static text</li></ul>) : (<ul mv-id="bar"><li>{text2}</li><li>some other static text</li></ul>)
 }</div>
@@ -250,13 +250,63 @@ In this case we associate different modelview keys (`mv-id="foo"`, `mv-id="bar"`
 
 **3rd way: mark html nodes as single unit to be morphed completely**
 
-```javascript
+```html
 <div>{
 someCondition ? view.unit(<ul><li>{text}</li><li>some static text</li></ul>) : view.unit(<ul><li>{text2}</li><li>some other static text</li></ul>)
 }</div>
 ```
 
 In this case we mark the html nodes to be morphed completely as a single unit (ie `view.unit(..)`), instead of applying heuristics, so we have our expected result. Note that this solution is the more general, but might also be slightly slower in some cases.
+
+ModelView is marking when nodes have actually changed. ModelView will apply changes if it sees some explicit changes in the new DOM. That means that if one simply changes the order of items (eg in an array) without actually changing the items or somehow mark them as changed, ModelView will not update the DOM to the new order. To do otherwise by default would be slow(er) and would slow down even in cases where this is not an issue. ModelView takes another route and lets user specify explicitly where more detailed (and slower) morphing should be applied.
+
+An example:
+
+```html
+<ul>{
+view.model().get('list').map(item => (<li>{item.text}</li>))
+}</ul>
+```
+```javascript
+view.model.get('list').sort((a,b) => 0.5 - Math.random()); // create a random order
+view.model().notify('list'); // it will not update the order if actual nodes haven't changed
+```
+
+
+However there are two very simple ways to remedy the situation:
+
+
+**1st way: use keyed nodes**
+
+```html
+<ul>{
+view.keyed(view.model().get('list').map(item => (<li mv-id={item.id}>{item.text}</li>)))
+}</ul>
+```
+```javascript
+view.model.get('list').sort((a,b) => 0.5 - Math.random()); // create a random order
+view.model().notify('list'); // updates correctly
+```
+
+In this case we use keyed nodes (`mv-id` special property) plus we mark `ul` as having keyed nodes via `view.keyed(..)` method. Having done this, another morphing routine handles changes, which will update to the correct order of items, even if no other changes are made to the individual items. In general it is good practice to use keyed nodes unless having specific reasons not to. In fact many popular frameworks work only with keyed nodes.
+
+
+**2nd way: use a Model.Collection (with or without keys)**
+
+```javascript
+view.model().set('list', new ModelView.Model.Collection(itemsArray));
+```
+```html
+<ul>{
+view.model().get('list').mapTo(item => (<li>{item.text}</li>))
+}</ul>
+```
+```javascript
+view.model.get('list').sort((a,b) => 0.5 - Math.random()); // create a random order
+view.model().notify('list'); // updates correctly
+```
+
+In this case `list` is a **Model.Collection**. Collection keeps note of what array operations are performed and mirrors those as DOM operations resulting in very efficient update code in general. So now order will update correctly even if no other changes are made to the individual items (see documentation for details).
 
 
 ModelView idea and implementation was based on some requirements. One of those is the ability of other actors to manipulate the DOM except ModelView itself. This was a desired feature. **ModelView does not claim exclusive manipulation of the DOM** (unlike frameworks like React or Vue or Inferno), other actors can manipulate the DOM and ModelView will still work (at least in most cases of interest). This is because ModelView relies on the **actual DOM** which is the **only reliable source of truth**. Additionally ModelView provides some necessary direct DOM-level manipulation methods (eg to handle some things even faster, like add/move/remove nodes directly) which can be used along with ModelView's general DOM morphing functionality.

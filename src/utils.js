@@ -1385,7 +1385,7 @@ function insMod(nodes, start, end, new_mod)
     }
     return new_mod;
 }
-function insDiff(node, start, end, new_diff)
+/*function insDiff(node, start, end, new_diff)
 {
     if (end.map)
     {
@@ -1423,7 +1423,7 @@ function insDiff(node, start, end, new_diff)
             node.diff[node.diff.length-1][1] = end;
     }
     return new_diff;
-}
+}*/
 function htmlNode(view, nodeType, id, type, atts, children, value2, modified, create)
 {
     if (
@@ -1585,7 +1585,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
                 //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
-                /*else*/ if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);
+                /*else*/ /*if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);*/
                 node.changed = node.changed || n.changed;
                 if (!n.simple)
                 {
@@ -1752,49 +1752,43 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
     }
     return node;
 }
-function create_att(name, value, isSVG)
+function create_att(name, value, isSVG, isCode)
 {
     var out = 'val='+value+';'
-    if ('false' === value)
+    if (isCode)
     {
-        if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
-        {
-            out += 'r.'+name+'=false;';
-        }
+        out += 'if(val instanceof Value){if(val.changed()&&val.id()){view.$reset[val.id()]=val;}val=val.val();}'
+    }
+
+    out += 'if(false!==val){';
+
+    if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
+    {
+        out += 'r.'+name+'=!!val;';
+    }
+    else if ('class' === name)
+    {
+        out += isSVG ? 'r.setAttribute("class",String(val));' : 'r.className=String(val);';
+    }
+    else if ('style' === name)
+    {
+        out += 'r.style.cssText=String(val);';
+    }
+    else if ('id' === name)
+    {
+        out += 'r.id=String(val);';
+    }
+    else if ('value' === name)
+    {
+        out += 'r.value=val;';
     }
     else
     {
-        out += 'if(false!==val){';
-        if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
-        {
-            out += 'r.'+name+'=!!val;';
-        }
-        else if ('class' === name)
-        {
-            out += isSVG ? 'r.setAttribute("class",String(val));' : 'r.className=String(val);';
-        }
-        else if ('style' === name)
-        {
-            out += 'r.style.cssText=String(val);';
-        }
-        else if ('id' === name)
-        {
-            out += 'r.id=String(val);';
-        }
-        else if ('value' === name)
-        {
-            out += 'r.value=val;';
-        }
-        else
-        {
-            out += 'r.setAttribute("'+name+'",true===val?"'+name+'":String(val));';
-        }
-        out += '}';
-        if (-1 !== ['selected','disabled','required','checked','autoFocus','allowfullscreen','autoplay','capture','controls','default','hidden','indeterminate','loop','muted','novalidate','open','readOnly','reversed','scoped','seamless'].indexOf(name))
-        {
-            out += 'else{r.'+name+'=false;}';
-        }
+        out += 'r.setAttribute("'+name+'",true===val?"'+name+'":String(val));';
     }
+
+    out += '}';
+
     return out;
 }
 function to_code(vnode/*, with_modified*/)
@@ -1827,12 +1821,12 @@ function to_code(vnode/*, with_modified*/)
                         modifiedAtts.push({from:i, to:i});
                     else
                         modifiedAtts[modifiedAtts.length-1].to = i;
-                    createNode += create_att(a.name, 'v.attributes['+i+'].value', isSVG);
+                    createNode += create_att(a.name, 'v.attributes['+i+'].value', isSVG, true);
                     return '{name:"'+a.name+'",value:('+val.code+')}';
                 }
-                createNode += create_att(a.name, val = toJSON(val), isSVG);
+                createNode += create_att(a.name, val = toJSON(val), isSVG, false);
                 return '{name:"'+a.name+'",value:'+val+'}';
-            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modifiedAtts)+'},function(view,v,with_meta,MV0){var r,val,rmv;'+createNode+'return r;})';
+            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modifiedAtts)+'},function(view,v,with_meta,Value,MV0){var r,val,rmv;'+createNode+'return r;})';
         }
     }
     else if (vnode.childNodes.length)
@@ -1914,7 +1908,7 @@ function to_node(view, vnode, with_meta)
     {
         if (vnode.create)
         {
-            rnode = vnode.create(view, vnode, with_meta, MV0);
+            rnode = vnode.create(view, vnode, with_meta, Value, MV0);
         }
         else
         {
@@ -2321,11 +2315,12 @@ function reOrderNodes(dom, start, order, m)
 }
 function morphCollection(view, r, v, start, end, end2, startv, count)
 {
-    var vnode, rnode, collection,
+    var vNodes = v.childNodes, rNodes = r.childNodes,
+        vnode, rnode, collection,
         diff, di, dc, d, items, hasKeyed = v.hasKeyedNodes,
         i, j, k, l, m, n, w, x, z, len, frag;
 
-    collection = v.childNodes[startv].nodeValue;
+    collection = vNodes[startv].nodeValue;
     diff = collection.diff;
     m = collection.mappedItem;
     for (di=0,dc=diff.length; di<dc; ++di)
@@ -2346,7 +2341,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 len = collection.items().length*m;
                 delNodes(view, r, start, stdMath.min(len, len+count));
                 items = collection.mapped();
-                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}, 0, len, r.childNodes[start]);
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}, 0, len, rNodes[start]);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -2358,7 +2353,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
             case 'add':
                 len = (d.to-d.from+1)*m;
                 items = collection.mapped(d.from, d.to);
-                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, r.childNodes[start+d.from*m]);
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
                 break;
             case 'del':
@@ -2367,8 +2362,8 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 if (0 < count) count -= len;
                 break;
             case 'swap':
-                i = slice.call(r.childNodes, start+d.from*m, start+d.from*m+m);
-                j = slice.call(r.childNodes, start+d.to*m, start+d.to*m+m);
+                i = slice.call(rNodes, start+d.from*m, start+d.from*m+m);
+                j = slice.call(rNodes, start+d.to*m, start+d.to*m+m);
                 k = j[j.length-1][NEXT];
                 for (l=0; l<m; ++l) r.replaceChild(j[l], i[l]);
                 if (k) for (l=0; l<m; ++l) r.insertBefore(i[l], k);
@@ -2377,7 +2372,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
             case 'change':
                 len = (d.to-d.from+1)*m;
                 z = new Array(len);
-                for (w=start+d.from*m,j=0,i=0,rnode=r.childNodes[w]; i<len; ++i)
+                for (w=start+d.from*m,j=0,i=0,rnode=rNodes[w]; i<len; ++i)
                 {
                     //rnode = r.childNodes[w+i];
                     x = rnode[MV] ? rnode[MV].comp : null;
@@ -2391,7 +2386,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 view.$cache['#'] = z = null;
                 for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=r.childNodes[w]; i<j; ++i)
                 {
-                    vnode = n[i]; //rnode = r.childNodes[w+i];
+                    vnode = n[i]; //rnode = rNodes[w+i];
                     if (eqNodes(rnode, vnode))
                     {
                         morphSingle(view, r, rnode, vnode);
@@ -2411,84 +2406,65 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
 }
 function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
 {
-    // standard algorithm to morph DOM tree with as few DOM operations as possible
+    // standard algorithm to morph DOM tree using minimum DOM operations
     var vNodes = v.childNodes, rNodes = r.childNodes, cNodes,
-        vnode, vnodef, rnode, rnodef, rnode2, x, z,
-        i1, j1, i2, j2, k, d, l, c, i, j, rLeft, vLeft,
-        places, lis, needsReorder, pos, morphed, keyed, loop = true;
+        vnode, vnodef, rnode, rnodef, rnode2, vLeft, rLeft,
+        i1, j1, i2, j2, i, j, x, z, cnt, del, matched, pos,
+        keyed, places, lis, needsReorder, loop = true;
 
-    k = stdMath.min(end+count, rNodes.length-1);
-    l = startv + end - start;
-    i1 = start; j1 = startv;
-    i2 = k; j2 = l;
-    rnode = rNodes[i1];
-    rnodef = rNodes[i2];
+    j1 = startv; j2 = startv + end - start;
+    i1 = start; i2 = stdMath.max(start, stdMath.min(end+count, rNodes.length-1));
+    vnode = vNodes[j1]; vnodef = vNodes[j2];
+    rnode = rNodes[i1]; rnodef = rNodes[i2];
     x = rnodef[NEXT];
-    vnode = vNodes[j1];
-    vnodef = vNodes[j2];
 
     while (loop)
     {
         loop = false;
-
-        if (i1 <= i2 && j1 <= j2)
+        // start
+        while ((i1 <= i2) && (j1 <= j2) && eqNodes(rnode, vnode))
         {
-            // start
-            while (eqNodes(rnode, vnode))
-            {
-                rnode2 = rnode[NEXT];
-                morphSingle(view, r, rnode, vnode);
-                ++i1; ++j1;
-                if (i2 < i1 || j2 < j1) {loop = false; break;}
-                rnode = rnode2;
-                vnode = vNodes[j1];
-            }
+            morphSingle(view, r, rnode, vnode);
+            ++i1; ++j1;
+            if (i1 > i2 || j1 > j2) {loop = false; break;}
+            rnode = rnode[NEXT];
+            vnode = vNodes[j1];
         }
-        if (i1 <= i2 && j1 <= j2)
+        // end
+        while ((i1 <= i2) && (j1 <= j2) && eqNodes(rnodef, vnodef))
         {
-            // end
-            while (eqNodes(rnodef, vnodef))
-            {
-                rnode2 = rnodef[PREV];
-                x = rnodef;
-                morphSingle(view, r, rnode, vnodef);
-                --i2; --j2;
-                if (i2 < i1 || j2 < j1) {loop = false; break;}
-                rnodef = rnode2;
-                vnodef = vNodes[j2];
-            }
+            morphSingle(view, r, rnodef, vnodef);
+            x = rnodef;
+            --i2; --j2;
+            if (i1 > i2 || j1 > j2) {loop = false; break;}
+            rnodef = rnodef[PREV];
+            vnodef = vNodes[j2];
         }
-        if (i1 <= i2 && j1 <= j2)
+        // reverse end start
+        while ((i1 <= i2) && (j1 <= j2) && eqNodes(rnodef, vnode))
         {
-            // reverse end start
-            while (eqNodes(rnodef, vnode))
-            {
-                loop = true;
-                rnode2 = rnodef[PREV];
-                r.insertBefore(rnodef, rnode);
-                morphSingle(view, r, rnode, vnode);
-                --i2; ++j1;
-                if (i2 < i1 || j2 < j1) {loop = false; break;}
-                rnodef = rnode2;
-                vnode = vNodes[j1];
-            }
+            loop = true;
+            rnode2 = rnodef[PREV];
+            r.insertBefore(rnodef, rnode);
+            morphSingle(view, r, rnodef, vnode);
+            --i2; ++j1;
+            if (i1 > i2 || j1 > j2) {loop = false; break;}
+            rnodef = rnode2;
+            vnode = vNodes[j1];
         }
-        if (i1 <= i2 && j1 <= j2)
+        // reverse start end
+        while ((i1 <= i2) && (j1 <= j2) && eqNodes(rnode, vnodef))
         {
-            // reverse start end
-            while (eqNodes(rnode, vnodef))
-            {
-                loop = true;
-                rnode2 = rnode[NEXT];
-                if (x) r.insertBefore(rnode, x);
-                else r.appendChild(rnode);
-                morphSingle(view, r, rnode, vnodef);
-                x = rnode;
-                ++i1; --j2;
-                if (i2 < i1 || j2 < j1) {loop = false; break;}
-                rnode = rnode2;
-                vnodef = vNodes[j2];
-            }
+            loop = true;
+            rnode2 = rnode[NEXT];
+            if (x) r.insertBefore(rnode, x);
+            else r.appendChild(rnode);
+            morphSingle(view, r, rnode, vnodef);
+            x = rnode;
+            ++i1; --j2;
+            if (i1 > i2 || j1 > j2) {loop = false; break;}
+            rnode = rnode2;
+            vnodef = vNodes[j2];
         }
     }
 
@@ -2513,74 +2489,73 @@ function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
     else
     {
         places = new A32I(vLeft);
-        needsReorder = false; pos = 0; morphed = 0;
+        needsReorder = false;
+        pos = 0;
+        matched = 0;
+        del = 0;
+        keyed = {};
         // create lookup dictionary
-        for (keyed={},j=j1; j<=j2; ++j)
+        for (j=j1; j<=j2; ++j)
         {
             // assume vnode has key id, since they are marked as keyed
             vnode = vNodes[j];
             keyed['#'+vnode.id] = j;
         }
-        for (d=0,i=i1; rnode && (i<=i2); ++i)
+        for (i=i1,rnode=rNodes[i]; rnode && (i<=i2); ++i)
         {
             rnode2 = rnode[NEXT];
-            if (morphed < vLeft)
+            if (matched < vLeft)
             {
                 j = rnode[MV] && rnode[MV].id && keyed['#'+rnode[MV].id];
                 if ((null != j) && eqNodes(rnode, vnode=vNodes[j]))
                 {
-                    if (0 < d)
+                    if (0 < del)
                     {
-                        i2 -= d;
-                        i -= d;
-                        delNodes(view, r, i, d);
-                        count -= d;
-                        d = 0;
+                        i2 -= del;
+                        i -= del;
+                        delNodes(view, r, i, del);
+                        count -= del;
+                        del = 0;
                     }
                     places[j - j1] = i + 1;
-                    if (pos > j)
-                    {
-                        needsReorder = true;
-                    }
-                    else
-                    {
-                        pos = j;
-                    }
+                    if (pos > j) needsReorder = true;
+                    else pos = j;
                     morphSingle(view, r, rnode, vnode);
-                    ++morphed;
+                    ++matched;
                 }
                 else
                 {
-                    ++d;
+                    ++del;
                 }
             }
             else
             {
-                d += i2 - i + 1;
+                del += i2 - i + 1;
+                i = i2+1;
                 break;
             }
             rnode = rnode2;
         }
-        if (0 < d)
+        if (0 < del)
         {
-            i2 -= d;
-            i -= d;
-            delNodes(view, r, i, d);
-            count -= d;
-            d = 0;
+            i2 -= del;
+            i -= del;
+            delNodes(view, r, i, del);
+            count -= del;
+            del = 0;
         }
-        if (!morphed)
+        if (!matched)
         {
             // nothing matched, replace all
             if (i2 >= i1)
             {
-                delNodes(view, r, i1, c=i2-i1+1);
-                count -= c;
+                delNodes(view, r, i1, cnt=i2-i1+1);
+                count -= cnt;
             }
             if (j2 >= j1)
             {
-                insNodes(view, r, v, j1, c=j2-j1+1, x);
-                count += c;
+                insNodes(view, r, v, j1, cnt=j2-j1+1, x);
+                count += cnt;
             }
         }
         else if (needsReorder)
@@ -2595,7 +2570,7 @@ function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
                 pos = places[i];
                 if (!pos)
                 {
-                    // insert new entry
+                    // insert new entry in correct place
                     z = to_node(view, vNodes[i+j1], true);
                     if (x) r.insertBefore(z, x);
                     else r.appendChild(z);
@@ -2604,28 +2579,29 @@ function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
                 }
                 else if ((0 > j) || (i !== lis[j]))
                 {
-                    // move existing entry
-                    z = cNodes[pos-1];
+                    // move existing entry in correct place
+                    z = cNodes[pos-1-i1];
                     if (x) r.insertBefore(z, x);
                     else r.appendChild(z);
                     x = z;
                 }
                 else
                 {
-                    x = cNodes[pos-1];
+                    // new place for entry
+                    x = cNodes[pos-1-i1];
                     --j;
                 }
             }
         }
-        else if (morphed < vLeft)
+        else if (matched < vLeft)
         {
-            // all matched entries are in increasing order
+            // matched entries are in increasing order
             for (i=vLeft-1; i>=0; --i)
             {
                 pos = places[i];
                 if (!pos)
                 {
-                    // insert new entry
+                    // insert new entry in correct place
                     z = to_node(view, vNodes[i+j1], true);
                     if (x) r.insertBefore(z, x);
                     else r.appendChild(z);
@@ -2634,6 +2610,7 @@ function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
                 }
                 else
                 {
+                    // new place for entry
                     x = rNodes[pos-1];
                 }
             }
@@ -2646,7 +2623,7 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
     // linear general algorithm to morph DOM tree but DOM operations may not be minimum
     var rNodes = r.childNodes, vNodes = v.childNodes,
         index, indexv, vnode, rnode, rnode2,
-        T, i, j, k, l, frag;
+        i, j, k, l, frag;
 
     for (indexv=startv,index=start,rnode=rNodes[index],l=vNodes.length,k=rNodes.length; index<=end; ++index,++indexv)
     {
@@ -2667,9 +2644,8 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
 
         vnode = vNodes[indexv];
         //rnode = rNodes[index];
-        T = nodeType(rnode);
 
-        if (eqNodes(rnode, vnode, T))
+        if (eqNodes(rnode, vnode))
         {
             morphSingle(view, r, rnode, vnode);
             rnode = rnode[NEXT];
@@ -2683,14 +2659,14 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
         else if (0 > count)
         {
             r.insertBefore(frag=to_node(view, vnode, true), rnode);
-            k++;
-            count++;
+            ++k;
+            ++count;
         }
         else
         {
             for (i=index,j=0; 0 < count && j < count; )
             {
-                j++;
+                ++j;
                 if (index+j >= k/*rNodes.length*/) break;
                 rnode = rnode[NEXT]/*rNodes[index+j]*/;
                 if (eqNodes(rnode, vnode)) break;
@@ -2710,8 +2686,7 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
             else
             {
                 rnode = rNodes[index];
-                T = nodeType(rnode);
-                if (eqNodes(rnode, vnode, T))
+                if (eqNodes(rnode, vnode))
                 {
                     morphSingle(view, r, rnode, vnode);
                     rnode = rnode[NEXT];
@@ -2746,7 +2721,7 @@ function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
 function morphAll(view, r, v, alreadyInited)
 {
     // morph unconditionally r (real) DOM to match v (virtual) DOM
-    var vc = v.childNodes.length, rc,
+    var vNodes = v.childNodes, rNodes = r.childNodes, vc = vNodes.length, rc,
         count, i, j, index, hasKeyed = v.hasKeyedNodes, keyed,
         vnode, rnode, rnode2, T, frag,
         rmv, rComp, vComp;
@@ -2774,17 +2749,17 @@ function morphAll(view, r, v, alreadyInited)
     // need to flatten first any existent collections
     for (index=vc-1; index>=0; --index)
     {
-        if ('collection' === v.childNodes[index].nodeType)
-            v.childNodes.splice.apply(v.childNodes, [index, 1].concat(htmlNode(view, '', null, null, [], v.childNodes[index].nodeValue.mapped()).childNodes));
+        if ('collection' === vNodes[index].nodeType)
+            vNodes.splice.apply(vNodes, [index, 1].concat(mergeChildNodes(vNodes[index].nodeValue.mapped())));
     }
-    vc = v.childNodes.length;
-    rc = r.childNodes.length;
+    vc = vNodes.length;
+    rc = rNodes.length;
     if (hasKeyed)
     {
         // there are keyed nodes, associate them in a map for reuse
         for (keyed={},index=0,rnode=r.firstChild; rnode; /*index<rc; ++index*/)
         {
-            //rnode = r.childNodes[index];
+            //rnode = rNodes[index];
             //rnode[MV] = rnode[MV] || DEFAULT_MV;
             // store the keyed nodes in a map
             // to be retrieved and reused easily
@@ -2798,12 +2773,12 @@ function morphAll(view, r, v, alreadyInited)
     {
         if (index >= rc)
         {
-            insNodes(view, r, v, index, vc-r.childNodes.length, null);
+            insNodes(view, r, v, index, vc-rNodes.length, null);
             if (0 > count) count = 0;
             break;
         }
-        vnode = v.childNodes[index];
-        //rnode = r.childNodes[index];
+        vnode = vNodes[index];
+        //rnode = rNodes[index];
         T = nodeType(rnode);
 
         if (eqNodes(rnode, vnode, T))
@@ -2833,8 +2808,8 @@ function morphAll(view, r, v, alreadyInited)
             for (i=index,j=0; 0 < count && j < count; )
             {
                 j++;
-                if (index+j >= rc/*r.childNodes.length*/) break;
-                rnode = rnode[NEXT]/*r.childNodes[index+j]*/;
+                if (index+j >= rc/*rNodes.length*/) break;
+                rnode = rnode[NEXT]/*rNodes[index+j]*/;
                 if (eqNodes(rnode, vnode)) break;
             }
             if (0 < j)
@@ -2851,7 +2826,7 @@ function morphAll(view, r, v, alreadyInited)
             }
             else
             {
-                rnode = r.childNodes[index];
+                rnode = rNodes[index];
                 T = nodeType(rnode);
                 if (eqNodes(rnode, vnode, T))
                 {
@@ -2867,12 +2842,13 @@ function morphAll(view, r, v, alreadyInited)
             }
         }
     }
-    if (r.childNodes.length > vc) delNodes(view, r, vc, r.childNodes.length-vc);
+    if (rNodes.length > vc) delNodes(view, r, vc, rNodes.length-vc);
 }
 function morph(view, r, v)
 {
     // morph r (real) DOM to match v (virtual) DOM
-    var vc = v.childNodes.length, vpc = v.potentialChildNodes,
+    var vNodes = v.childNodes, rNodes = r.childNodes,
+        vc = vNodes.length, vpc = v.potentialChildNodes,
         count = 0, offset = 0, matched, match,
         mi, m, mc, di, dc, i, j, index, keyed,
         vnode, rnode, T, frag, rmv = r[MV] || MV0(),
@@ -2894,7 +2870,7 @@ function morph(view, r, v)
     else if (rmv.mod)
         rmv.mod = null;
 
-    if (!r.childNodes.length)
+    if (!rNodes.length)
     {
         if (0 < vc) insNodes(view, r, v, 0, vc, null);
     }
@@ -2913,7 +2889,7 @@ function morph(view, r, v)
                 offset += (m.to - m.from + 1) - (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1);
                 count += match;
             }
-            matched = (modifiedNodes.length === count) && (offset+r.childNodes.length === vpc);
+            matched = (modifiedNodes.length === count) && (offset+rNodes.length === vpc);
         }
         if (matched)
         {
@@ -2928,12 +2904,12 @@ function morph(view, r, v)
                 else if (modifiedNodesPrev[mi].to < modifiedNodesPrev[mi].from)
                 {
                     count = (m.to - m.from + 1);
-                    if (0 < count) insNodes(view, r, v, m.from-offset, 'collection' === v.childNodes[m.from-offset].nodeType ? 1 : count, r.childNodes[m.from]);
+                    if (0 < count) insNodes(view, r, v, m.from-offset, 'collection' === vNodes[m.from-offset].nodeType ? 1 : count, rNodes[m.from]);
                 }
                 else
                 {
                     count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                    if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
+                    /*if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
                     {
                         for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); ++di)
                         {
@@ -2941,11 +2917,11 @@ function morph(view, r, v)
                         }
                     }
                     else
-                    {
+                    {*/
                         morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count);
-                    }
+                    /*}*/
                 }
-                offset += (vc !== vpc && 'collection' === v.childNodes[m.from-offset].nodeType ? m.to-m.from : 0);
+                offset += (vc !== vpc && 'collection' === vNodes[m.from-offset].nodeType ? m.to-m.from : 0);
             }
         }
         else

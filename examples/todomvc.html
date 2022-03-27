@@ -34,16 +34,16 @@
 
 
 <script id="TodoComponent" type="text/x-template">
-<li mv-id={props.uuid} id={props.uuid} class={props.className}>
+<li mv-id={data.uuid} id={data.uuid} class={data.className}>
     <div class="view">
-        <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" checked={props.completed}/>
+        <input class="toggle" mv-evt mv-on-change="complete" type="checkbox" value="completed" checked={data.completed}/>
         <button class="drag" title="Drag to Re-Order"></button>
-        <label mv-evt mv-on-dblclick="edit">{props.title}</label>
-        <span class="time-added">{timeSince(props.time)}</span>
+        <label mv-evt mv-on-dblclick="edit">{data.title}</label>
+        <span class="time-added">{timeSince(data.time)}</span>
         <button class="process" mv-evt mv-on-click="edit" title="Edit"></button>
         <button class="destroy" mv-evt mv-on-click="remove" title="Remove"></button>
     </div>
-    <input class="edit" type="text" mv-evt mv-on-change="stopEditing" mv-on-blur="stopEditing" mv-on-keyup="stopEditing" value={props.title} />
+    <input class="edit" type="text" mv-evt mv-on-change="stopEditing" mv-on-blur="stopEditing" mv-on-keyup="stopEditing" value={data.title} />
 </li>
 </script>
 
@@ -54,29 +54,29 @@
 </header>
 
 <section id="main">
-<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" checked={this.model().get('todoList.allCompleted')} />
+<input id="toggle-all" mv-evt mv-on-change="allCompleted" type="checkbox" value="all-completed" checked={view.model().get('todoList.allCompleted')} />
 <label for="toggle-all">Mark all as complete</label>
 <ul id="todo-list" class="show-all">{
-this.keyed(this.model().get('todoList.display').map(todo => (
-    <Todo id={todo.uuid.val()} props={todo}/>
+view.keyed(view.model().get('todoList.display').map(todo => (
+    <Todo id={todo.uuid} data={todo}/>
 )))
 }</ul>
 </section>
 
 <footer id="footer">
-<span id="todo-count"><strong>{this.model().get('todoList.active')}</strong>{1 == this.model().get('todoList.active') ? ' item' : ' items'} left</span>
+<span id="todo-count"><strong>{view.model().get('todoList.active')}</strong>{1 == view.model().get('todoList.active') ? ' item' : ' items'} left</span>
 <ul id="filters">
     <li>
-        <a id="all" href="#/all" class={'tab' + ('all'===this.model().get('displayMode')?' selected':'')}> All ({this.model().get('todoList.all')})</a>
+        <a id="all" href="#/all" class={'tab' + ('all'===view.model().get('displayMode')?' selected':'')}> All ({view.model().get('todoList.all')})</a>
     </li>
     <li>
-        <a id="active" href="#/active" class={'tab' + ('active'===this.model().get('displayMode')?' selected':'')}>Active ({this.model().get('todoList.active')})</a>
+        <a id="active" href="#/active" class={'tab' + ('active'===view.model().get('displayMode')?' selected':'')}>Active ({view.model().get('todoList.active')})</a>
     </li>
     <li>
-        <a id="completed" href="#/completed" class={'tab' + ('completed'===this.model().get('displayMode')?' selected':'')}>Completed ({this.model().get('todoList.completed')})</a>
+        <a id="completed" href="#/completed" class={'tab' + ('completed'===view.model().get('displayMode')?' selected':'')}>Completed ({view.model().get('todoList.completed')})</a>
     </li>
 </ul>
-{this.model().get('todoList.completed') ? [(<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>)] : []}
+{view.model().get('todoList.completed') ? [(<button id="clear-completed" mv-evt mv-on-click="removeCompleted">Clear completed</button>)] : []}
 </footer>
 </script>
 
