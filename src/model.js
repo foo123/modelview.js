@@ -2563,11 +2563,8 @@ collection.set(newData);
         var self = this;
         if (1 === arguments.length)
         {
-            if (self._items !== index)
-            {
-                self._items = index;
-                self.reset()._upd('set', 0, self._items.length-1);
-            }
+            self._items = index;
+            self.reset()._upd('set', 0, self._items.length-1);
         }
         else if (2 === arguments.length)
         {

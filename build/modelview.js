@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-28 13:18:57
+*   @built on 2022-03-28 20:00:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-28 13:18:57
+*   @built on 2022-03-28 20:00:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1492,7 +1492,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                             return function(view, r, v) {
                                 u && u(view, r, v);
                                 if (false === val) del_att(r, att, v.nodeType);
-                                else set_att(r, att, val, v.nodeType);
+                                else set_att(r, att, val, v.nodeType, true);
                             };
                         })(node.uAtts, a[i].name, v);
                     }
@@ -1514,7 +1514,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                             return function(view, r, v, forced) {
                                 u && u(view, r, v, forced);
                                 if (false === val) del_att(r, att, v.nodeType);
-                                else set_att(r, att, val, v.nodeType);
+                                else set_att(r, att, val, v.nodeType, forced);
                             };
                         })(node.uFAtts, a[i].name, v.val());
                     }
@@ -1554,6 +1554,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.changed = node.changed || nn.changed;
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
                 return childNodes;
             }
             else if (is_array(n))
@@ -1562,6 +1563,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.changed = true;
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 childNodes = flatten(n).reduce(process, childNodes);
                 insMod(node.modified.nodes, i, index-1, true, 'array');
@@ -1581,8 +1583,9 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 if (n.changed)
                 {
                     n.uNodes = (function(val) {
-                        return function(view, r, v, forced) {
-                            r.nodeValue = val;
+                        return function(view, r, v) {
+                            //if (r.nodeValue !== val)
+                                r.nodeValue = val;
                         };
                     })(v);
                 }
@@ -1617,48 +1620,16 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod, '');
                 node.changed = node.changed || n.changed;
-                if (!n.simple)
-                {
-                    node.simple = false;
-                    node.uNodes = null;
-                }
+                node.simple = false;
+                node.uNodes = null;
+                node.uFNodes = null;
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     nn.parentNode = node;
                     nn.index = index++;
                     //nn.changed = nn.changed || n.changed;
                     nn.component = nn.component || n.component;
                     nn.unit = nn.unit || n.unit;
-                    if (nn.unit)
-                    {
-                        node.changed = true;
-                        node.simple = false;
-                        node.uNodes = null;
-                    }
-                    if (node.simple)
-                    {
-                        if (nn.uAtts || nn.uNodes)
-                        {
-                            node.uNodes = (function(u, ua, un, index) {
-                                return function(view, r, v) {
-                                    u && u(view, r, v);
-                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                    ua && ua(view, rnode, vnode);
-                                    un && un(view, rnode, vnode);
-                                };
-                            })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
-                        }
-                        if (nn.uFAtts || nn.uFNodes)
-                        {
-                            node.uFNodes = (function(u, ua, un, index) {
-                                return function(view, r, v, forced) {
-                                    u && u(view, r, v, forced);
-                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                    ua && ua(view, rnode, vnode, forced);
-                                    un && un(view, rnode, vnode, forced);
-                                };
-                            })(node.uFNodes, nn.uFAtts, nn.uFNodes, nn.index);
-                        }
-                    }
+                    if (nn.unit) node.changed = true;
                     return nn;
                 }));
                 return childNodes;
@@ -1676,6 +1647,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.changed = node.changed || n.changed;
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
                 return childNodes;
             }
             else if ('dyn' === n.nodeType)
@@ -1696,6 +1668,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.changed = true;
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
                 return childNodes;
             }
             else if (!n.nodeType || !n.nodeType.length)
@@ -1718,6 +1691,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                         node.changed = true;
                         node.simple = false;
                         node.uNodes = null;
+                        node.uFNodes = null;
                     }
                     if (node.simple)
                     {
@@ -1762,12 +1736,14 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
             {
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
             }
             if (n.unit)
             {
                 node.changed = true;
                 node.simple = false;
                 node.uNodes = null;
+                node.uFNodes = null;
             }
             if (node.simple)
             {
@@ -2111,7 +2087,7 @@ function del_att(r, n, T/*, TT*/)
     }
     return r;
 }
-function set_att(r, n, s, T, TT, forced)
+function set_att(r, n, s, T/*, TT*/, forced)
 {
     var t;
     if ('id' === n)
@@ -2133,7 +2109,7 @@ function set_att(r, n, s, T, TT, forced)
         'indeterminate' === n || 'loop' === n || 'muted' === n || 'novalidate' === n ||
         'open' === n || 'readOnly' === n || 'reversed' === n || 'scoped' === n || 'seamless' === n)
     {
-        r[n] = true;
+        r[n] = !!s;
     }
     else if ('value' === n)
     {
@@ -2225,7 +2201,7 @@ function morphAttsAll(view, r, v)
             av = av.val();
         }
         if (false === av) del_att(r, n, T/*, TT*/);
-        else set_att(r, n, av, T, TT, true);
+        else set_att(r, n, av, T/*, TT*/, true);
     }
     return r;
 }
@@ -2313,9 +2289,12 @@ function morphSingle(view, r, rnode, vnode, forced)
     {
         // skips further modifiedNodes matched tests, assumes matched
         vnode.uAtts && vnode.uAtts(view, rnode, vnode);
-        forced && vnode.uFAtts && vnode.uFAtts(view, rnode, vnode, forced);
         changed && vnode.uNodes && vnode.uNodes(view, rnode, vnode);
-        forced && vnode.uFNodes && vnode.uFNodes(view, rnode, vnode, forced);
+        if (forced)
+        {
+            vnode.uFAtts && vnode.uFAtts(view, rnode, vnode, forced);
+            vnode.uFNodes && vnode.uFNodes(view, rnode, vnode, forced);
+        }
     }
     else if ('<textarea>' === T)
     {
@@ -2943,7 +2922,7 @@ function morph(view, r, v, forced)
                 else
                 {
                     count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                    morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count, ('array' === m.type) || forced);
+                    morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count, 'array' === m.type ? true : forced);
                 }
                 offset += (vc !== vpc && 'collection' === vNodes[m.from-offset].nodeType ? m.to-m.from : 0);
             }
@@ -6864,11 +6843,8 @@ collection.set(newData);
         var self = this;
         if (1 === arguments.length)
         {
-            if (self._items !== index)
-            {
-                self._items = index;
-                self.reset()._upd('set', 0, self._items.length-1);
-            }
+            self._items = index;
+            self.reset()._upd('set', 0, self._items.length-1);
         }
         else if (2 === arguments.length)
         {
