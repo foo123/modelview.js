@@ -3,6 +3,19 @@
 // PublishSubscribe (Interface)
 var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
 
+function getNS(evt)
+{
+    var ns = evt.split('.'), e = ns[0];
+    ns = filter(ns.slice(1), notEmpty);
+    return [e, ns.sort()];
+}
+function getNSMatcher(givenNamespaces)
+{
+    return givenNamespaces.length
+        ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
+        : false;
+}
+
 function PBEvent(evt, target, ns)
 {
     var self = this;

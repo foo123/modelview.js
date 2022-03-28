@@ -469,11 +469,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 else parentNode.appendChild(frag);
                 return;
             case 'reorder':
-                count = items.length;
-                k = count*m;
-                l = list.map.slice();
-                for (i=0; i<count; ++i) list.map[i] = l[d.from[i]];
-                reOrderNodes(parentNode, startIndex+1, d.from, m);
+                permuteNodes(parentNode, startIndex+1, d.from, m);
+                permute(list.map, d.from);
                 return;
             case 'swap':
                 x = list.map[d.from];

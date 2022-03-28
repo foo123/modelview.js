@@ -1400,7 +1400,7 @@ view.render( [Boolean immediate=false] );
                 //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
                 callback = function() {
                     view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                    morph(view, view.$renderdom, view.$out.call(view, htmlNode));
+                    morph(view, view.$renderdom, view.$out.call(view, htmlNode), false);
                     view.$cache['#'] = null;
                     nextTick(function() {
                         clearInvalid(view);

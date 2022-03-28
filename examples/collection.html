@@ -86,7 +86,7 @@
             this.model().del('items.1', true);
         },
         reorder: function() {
-            this.model().data().items.sort(function(a,b){return 0.5-Math.random();});
+            this.model().data().items.sort(function(a,b){return a.label<b.label ? 1 : (a.label>b.label ? -1 : 0);});
             this.model().notify('items');
         },
         empty: function() {

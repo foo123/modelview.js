@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-27 20:36:45
+*   @built on 2022-03-28 13:18:57
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-27 20:36:45
+*   @built on 2022-03-28 13:18:57
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -120,110 +120,7 @@ var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "
         ? function(el) {return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
     // UUID counter for ModelViews
-    _uuid = 0, _cnt = 0,
-    SPACE = /\s/,
-    NUM = /^\d+$/,
-    HEXNUM = /^[0-9a-fA-F]+$/,
-    TAGCHAR = /[a-zA-Z0-9\-_:]/,
-    ATTCHAR = TAGCHAR,
-    htmlEntities = {
-    "amp": "\u0026",
-    "lt": "\u003C",
-    "gt": "\u003E",
-    "quot": "\u0022",
-    "apos": "\u0027",
-    "nbsp": "\u00A0"
-    },
-    autoclosedTags = {
-    '<area>':1,
-    '<base>':1,
-    '<br>':1,
-    '<col>':1,
-    '<embed>':1,
-    '<hr>':1,
-    '<img>':1,
-    '<input>':1,
-    '<keygen>':1,
-    '<link>':1,
-    '<meta>':1,
-    '<param>':1,
-    '<source>':1,
-    '<track>':1,
-    '<wbr>':1
-    },
-    svgElements = {
-    //'<a>'
-    '<animate>':1,
-    '<animateMotion>':1,
-    '<animateTransform>':1,
-    '<circle>':1,
-    '<clipPath>':1,
-    '<defs>':1,
-    '<desc>':1,
-    '<discard>':1,
-    '<ellipse>':1,
-    '<feBlend>':1,
-    '<feColorMatrix>':1,
-    '<feComponentTransfer>':1,
-    '<feComposite>':1,
-    '<feConvolveMatrix>':1,
-    '<feDiffuseLighting>':1,
-    '<feDisplacementMap>':1,
-    '<feDistantLight>':1,
-    '<feDropShadow>':1,
-    '<feFlood>':1,
-    '<feFuncA>':1,
-    '<feFuncB>':1,
-    '<feFuncG>':1,
-    '<feFuncR>':1,
-    '<feGaussianBlur>':1,
-    '<feImage>':1,
-    '<feMerge>':1,
-    '<feMergeNode>':1,
-    '<feMorphology>':1,
-    '<feOffset>':1,
-    '<fePointLight>':1,
-    '<feSpecularLighting>':1,
-    '<feSpotLight>':1,
-    '<feTile>':1,
-    '<feTurbulence>':1,
-    '<filter>':1,
-    '<foreignObject>':1,
-    '<g>':1,
-    '<hatch>':1,
-    '<hatchpath>':1,
-    '<image>':1,
-    '<line>':1,
-    '<linearGradient>':1,
-    '<marker>':1,
-    '<mask>':1,
-    '<mesh>':1,
-    '<meshgradient>':1,
-    '<meshpatch>':1,
-    '<meshrow>':1,
-    '<metadata>':1,
-    '<mpath>':1,
-    '<path>':1,
-    '<pattern>':1,
-    '<polygon>':1,
-    '<polyline>':1,
-    '<radialGradient>':1,
-    '<rect>':1,
-    //'<script>'
-    '<set>':1,
-    '<stop>':1,
-    //'<style>'
-    '<svg>':1,
-    '<switch>':1,
-    '<symbol>':1,
-    '<text>':1,
-    '<textPath>':1,
-    //'<title>'
-    '<tspan>':1,
-    '<unknown>':1,
-    '<use>':1,
-    '<view>':1
-    }
+    _uuid = 0, _cnt = 0
 ;
 
 if (HASDOC && window.Node)
@@ -244,66 +141,6 @@ Node[proto] = {
     ,v: null
     ,n: null
 };
-function KeyedNode(node)
-{
-    // idempotent
-    if (is_instance(node, KeyedNode)) node = node.node;
-    this.node = node;
-}
-KeyedNode[proto] = {
-    constructor: KeyedNode
-    ,node: null
-};
-function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
-{
-    var self = this;
-    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
-    self.nodeType = nodeType || '';
-    self.cnodeType = nodeType || '';
-    self.nodeValue = nodeValue || '';
-    self.nodeValue2 = nodeValue2 || '';
-    self.parentNode = parentNode || null;
-    self.index = index || 0;
-    self.attributes = [];
-    self.childNodes = [];
-}
-VNode[proto] = {
-    constructor: VNode
-    ,nodeType: ''
-    ,cnodeType: ''
-    ,nodeValue: ''
-    ,nodeValue2: ''
-    ,parentNode: null
-    ,index: 0
-    ,component: null
-    ,id: null
-    ,type: null
-    ,attributes: null
-    ,atts: null
-    ,childNodes: null
-    ,componentNodes: 0
-    ,potentialChildNodes: 0
-    ,hasKeyedNodes: false
-    ,modified: null
-    ,diff: null
-    ,changed: false
-    ,achanged: false
-    ,unit: false
-    ,simple: true
-    ,uAtts: null
-    ,uNodes: null
-    ,create: null
-};
-function VCode(code)
-{
-    var self = this;
-    if (!is_instance(self, VCode)) return new VCode(code);
-    self.code = code;
-}
-VCode[proto] = {
-    constructor: VCode
-    ,code: ''
-};
 
 function NOOP() {}
 function newFunc(args, code) {return new Func(args, code);}
@@ -313,6 +150,7 @@ function tostr(s) {return Str(s);}
 function lower(s) {return s.toLowerCase();}
 function upper(s) {return s.toUpperCase();}
 function esc_re(s) {return s.replace(ESCAPED_RE, "\\$&");}
+function notEmpty(s) {return 0 < s.length;}
 function err(msg, data)
 {
     var e = new Error(msg);
@@ -357,6 +195,32 @@ function is_array_index(n)
             return true;
     }
     return false
+}
+function permute(list, perm)
+{
+    for (var copy=slice.call(list),i=0,l=list.length; i<l; ++i) list[i] = copy[perm[i]];
+    return list;
+}
+function permuteNodes(dom, start, perm, m)
+{
+    var i, j, len = perm.length, tlen = len*m,
+        frag = Fragment(),
+        edge = dom.childNodes[start+tlen],
+        nodes = slice.call(dom.childNodes, start, start+tlen)
+    ;
+    for (i=0; i<len; ++i)
+        for (j=0; j<m; ++j)
+            frag.appendChild(nodes[perm[i]*m+j]);
+    if (edge) dom.insertBefore(frag, edge);
+    else dom.appendChild(frag);
+}
+function flatten(array)
+{
+    return array.reduce(function(array, item) {
+        if (is_array(item)) AP.push.apply(array, flatten(item));
+        else array.push(item);
+        return array;
+    }, []);
 }
 function filter(a, f)
 {
@@ -403,22 +267,6 @@ function Merge(/* var args here.. */)
         }
     }
     return o1;
-}
-function notEmpty(s)
-{
-    return 0 < s.length;
-}
-function getNS(evt)
-{
-    var ns = evt.split('.'), e = ns[0];
-    ns = filter(ns.slice(1), notEmpty);
-    return [e, ns.sort()];
-}
-function getNSMatcher(givenNamespaces)
-{
-    return givenNamespaces.length
-        ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
-        : false;
 }
 // get a Universal Unique Identifier (UUID)
 function uuid(namespace)
@@ -731,6 +579,180 @@ function Text(val)
 {
     return document.createTextNode(val);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+//
+// utilities for jsx mode
+//
+///////////////////////////////////////////////////////////////////////////////////////
+var SPACE = /\s/,
+    NUM = /^\d+$/,
+    HEXNUM = /^[0-9a-fA-F]+$/,
+    TAGCHAR = /[a-zA-Z0-9\-_:]/,
+    ATTCHAR = TAGCHAR,
+    htmlEntities = {
+    "amp": "\u0026",
+    "lt": "\u003C",
+    "gt": "\u003E",
+    "quot": "\u0022",
+    "apos": "\u0027",
+    "nbsp": "\u00A0"
+    },
+    autoclosedTags = {
+    '<area>':1,
+    '<base>':1,
+    '<br>':1,
+    '<col>':1,
+    '<embed>':1,
+    '<hr>':1,
+    '<img>':1,
+    '<input>':1,
+    '<keygen>':1,
+    '<link>':1,
+    '<meta>':1,
+    '<param>':1,
+    '<source>':1,
+    '<track>':1,
+    '<wbr>':1
+    },
+    svgElements = {
+    //'<a>'
+    '<animate>':1,
+    '<animateMotion>':1,
+    '<animateTransform>':1,
+    '<circle>':1,
+    '<clipPath>':1,
+    '<defs>':1,
+    '<desc>':1,
+    '<discard>':1,
+    '<ellipse>':1,
+    '<feBlend>':1,
+    '<feColorMatrix>':1,
+    '<feComponentTransfer>':1,
+    '<feComposite>':1,
+    '<feConvolveMatrix>':1,
+    '<feDiffuseLighting>':1,
+    '<feDisplacementMap>':1,
+    '<feDistantLight>':1,
+    '<feDropShadow>':1,
+    '<feFlood>':1,
+    '<feFuncA>':1,
+    '<feFuncB>':1,
+    '<feFuncG>':1,
+    '<feFuncR>':1,
+    '<feGaussianBlur>':1,
+    '<feImage>':1,
+    '<feMerge>':1,
+    '<feMergeNode>':1,
+    '<feMorphology>':1,
+    '<feOffset>':1,
+    '<fePointLight>':1,
+    '<feSpecularLighting>':1,
+    '<feSpotLight>':1,
+    '<feTile>':1,
+    '<feTurbulence>':1,
+    '<filter>':1,
+    '<foreignObject>':1,
+    '<g>':1,
+    '<hatch>':1,
+    '<hatchpath>':1,
+    '<image>':1,
+    '<line>':1,
+    '<linearGradient>':1,
+    '<marker>':1,
+    '<mask>':1,
+    '<mesh>':1,
+    '<meshgradient>':1,
+    '<meshpatch>':1,
+    '<meshrow>':1,
+    '<metadata>':1,
+    '<mpath>':1,
+    '<path>':1,
+    '<pattern>':1,
+    '<polygon>':1,
+    '<polyline>':1,
+    '<radialGradient>':1,
+    '<rect>':1,
+    //'<script>'
+    '<set>':1,
+    '<stop>':1,
+    //'<style>'
+    '<svg>':1,
+    '<switch>':1,
+    '<symbol>':1,
+    '<text>':1,
+    '<textPath>':1,
+    //'<title>'
+    '<tspan>':1,
+    '<unknown>':1,
+    '<use>':1,
+    '<view>':1
+    }
+;
+
+function KeyedNode(node)
+{
+    // idempotent
+    if (is_instance(node, KeyedNode)) node = node.node;
+    this.node = node;
+}
+KeyedNode[proto] = {
+    constructor: KeyedNode
+    ,node: null
+};
+function VNode(nodeType, nodeValue, nodeValue2, parentNode, index)
+{
+    var self = this;
+    if (!is_instance(self, VNode)) return new VNode(nodeType, nodeValue, nodeValue2, parentNode, index);
+    self.nodeType = nodeType || '';
+    self.cnodeType = nodeType || '';
+    self.nodeValue = nodeValue || '';
+    self.nodeValue2 = nodeValue2 || '';
+    self.parentNode = parentNode || null;
+    self.index = index || 0;
+    self.attributes = [];
+    self.childNodes = [];
+}
+VNode[proto] = {
+    constructor: VNode
+    ,nodeType: ''
+    ,cnodeType: ''
+    ,nodeValue: ''
+    ,nodeValue2: ''
+    ,parentNode: null
+    ,index: 0
+    ,component: null
+    ,id: null
+    ,type: null
+    ,attributes: null
+    ,atts: null
+    ,childNodes: null
+    ,componentNodes: 0
+    ,potentialChildNodes: 0
+    ,hasKeyedNodes: false
+    ,modified: null
+    ,diff: null
+    ,changed: false
+    ,achanged: false
+    ,unit: false
+    ,simple: true
+    ,create: null
+    ,uAtts: null
+    ,uFAtts: null
+    ,uNodes: null
+    ,uFNodes: null
+};
+function VCode(code)
+{
+    var self = this;
+    if (!is_instance(self, VCode)) return new VCode(code);
+    self.code = code;
+}
+VCode[proto] = {
+    constructor: VCode
+    ,code: ''
+};
+
 function tpl2code(view, tpl, args, scoped, opts, rootNodeType, viewInstance)
 {
     var p1, p2, c, code = '"use strict";'+"\n"+'var view = '+(viewInstance||'this')+';', state;
@@ -1359,7 +1381,7 @@ function html2ast(view, html, state, jscode)
     }
     return state;
 }
-function insMod(nodes, start, end, new_mod)
+function insMod(nodes, start, end, new_mod, type)
 {
     var to, last = nodes.length ? nodes[nodes.length-1] : null;
     if (end.map)
@@ -1374,7 +1396,7 @@ function insMod(nodes, start, end, new_mod)
             AP.push.apply(nodes, end.slice(1).map(function(m){return {from:start+m.from, to:start+m.to};}));
         }
     }
-    else if (last && last.from === start && last.to === end)
+    else if (last && last.from === start && last.to === end && last.type === type)
     {
         if (new_mod) new_mod = false;
     }
@@ -1389,39 +1411,40 @@ function insMod(nodes, start, end, new_mod)
                 if (last.from < start)
                 {
                     last.to = start-1;
-                    nodes.push({from:start, to:end});
-                    if (to > end) nodes.push({from:end+1, to:to});
+                    nodes.push({from:start, to:end, type:type});
+                    if (to > end) nodes.push({from:end+1, to:to, type:last.type});
                 }
                 else if (last.from > start)
                 {
-                    nodes[nodes.length-1] = {from:start, to:end};
+                    nodes[nodes.length-1] = {from:start, to:end, type:type};
                     last.from = stdMath.max(last.from, end+1);
                     nodes.push(last);
                 }
                 else
                 {
+                    if (to > end) nodes.push({from:end+1, to:to, type:last.type});
                     last.to = end;
-                    if (to > end) nodes.push({from:end+1, to:to});
+                    last.type = type;
                 }
             }
             else if (to >= start)
             {
                 last.to = start-1;
-                nodes.push({from:start, to:end});
+                nodes.push({from:start, to:end, type:type});
             }
             else
             {
-                nodes.push({from:start, to:end});
+                nodes.push({from:start, to:end, type:type});
             }
         }
         else
         {
-            nodes.push({from:start, to:end});
+            nodes.push({from:start, to:end, type:type});
         }
     }
     else if (!last || last.to < start-1)
     {
-        nodes.push({from:start, to:end});
+        nodes.push({from:start, to:end, type:type});
     }
     /*else if (last.from >= end)
     {
@@ -1433,45 +1456,6 @@ function insMod(nodes, start, end, new_mod)
     }
     return new_mod;
 }
-/*function insDiff(node, start, end, new_diff)
-{
-    if (end.map)
-    {
-        if (!node.diff)
-        {
-            if (new_diff) new_diff = false;
-            node.diff = end.map(function(m){return [start+m[0], start+m[1]];});
-        }
-        else if (new_diff || node.diff[node.diff.length-1][1] < start+end[0][0]-1)
-        {
-            if (new_diff) new_diff = false;
-            AP.push.apply(node.diff, end.map(function(m){return [start+m[0], start+m[1]];}));
-        }
-        else
-        {
-            node.diff[node.diff.length-1][1] = start+end[0][1];
-            AP.push.apply(node.diff, end.slice(1).map(function(m){return [start+m[0], start+m[1]];}));
-        }
-    }
-    else if (new_diff)
-    {
-        new_diff = false;
-        if (!node.diff)
-            node.diff = [[start, end]];
-        else
-            node.diff.push([start, end]);
-    }
-    else
-    {
-        if (!node.diff)
-            node.diff = [[start, end]];
-        else if (node.diff[node.diff.length-1][1] < start-1)
-            node.diff.push([start, end]);
-        else
-            node.diff[node.diff.length-1][1] = end;
-    }
-    return new_diff;
-}*/
 function htmlNode(view, nodeType, id, type, atts, children, value2, modified, create)
 {
     if (
@@ -1483,15 +1467,14 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
     {
         return children[0];
     }
-    var node = new VNode(nodeType, '', '', null, 0), index = 0,
-        new_mod = false, new_diff = false, ch, c, l;
+    var node = new VNode(nodeType, '', '', null, 0), index = 0, new_mod = false;
     id = id || null; type = type || null;
     if (is_instance(id, Value)) id = id.val();
     if (is_instance(type, Value)) type = type.val();
     node.id = null == id ? null : Str(id);
     node.type = null == type ? null : Str(type);
-    node.create = create || null;
     node.attributes = atts || [];
+    node.create = create || null;
     if (modified)
     {
         node.modified = {atts: [], nodes: []};
@@ -1505,37 +1488,35 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                     v = a[i].value;
                     if (!is_instance(v, Value))
                     {
-                        node.uAtts = (function(u, a) {
-                            return u ? function(view, r, v) {
-                                u(view, r, v);
-                                var att = a.name, val = a.value;
-                                if (false === val) del_att(r, att, v.nodeType);
-                                else set_att(r, att, val, v.nodeType);
-                            } : function(view, r, v) {
-                                var att = a.name, val = a.value;
+                        node.uAtts = (function(u, att, val) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 if (false === val) del_att(r, att, v.nodeType);
                                 else set_att(r, att, val, v.nodeType);
                             };
-                        })(node.uAtts, a[i]);
+                        })(node.uAtts, a[i].name, v);
                     }
                     else if (v.changed())
                     {
-                        node.uAtts = (function(u, a) {
-                            return u ? function(view, r, v) {
-                                u(view, r, v);
-                                var att = a.name, val = a.value;
-                                if (val.id()) view.$reset[val.id()] = val;
-                                val = val.val();
-                                if (false === val) del_att(r, att, v.nodeType);
-                                else set_att(r, att, val, v.nodeType);
-                            } : function(view, r, v) {
-                                var att = a.name, val = a.value;
+                        node.uAtts = (function(u, att, val) {
+                            return function(view, r, v) {
+                                u && u(view, r, v);
                                 if (val.id()) view.$reset[val.id()] = val;
                                 val = val.val();
                                 if (false === val) del_att(r, att, v.nodeType);
                                 else set_att(r, att, val, v.nodeType);
                             };
-                        })(node.uAtts, a[i]);
+                        })(node.uAtts, a[i].name, v);
+                    }
+                    else
+                    {
+                        node.uFAtts = (function(u, att, val) {
+                            return function(view, r, v, forced) {
+                                u && u(view, r, v, forced);
+                                if (false === val) del_att(r, att, v.nodeType);
+                                else set_att(r, att, val, v.nodeType);
+                            };
+                        })(node.uFAtts, a[i].name, v.val());
                     }
                 }
             });
@@ -1563,13 +1544,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 nn.potentialChildNodes = len;
                 nn.changed = 0 < n.diff.length;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                insMod(node.modified.nodes, index, index+len-1, true);
+                insMod(node.modified.nodes, index, index+len-1, true, 'collection');
                 new_mod = true;
-                /*if (nn.changed)
-                {
-                    insDiff(node, index, index, true);
-                    new_diff = true;
-                }*/
                 childNodes.push(nn);
                 node.potentialChildNodes += len;
                 index += len;
@@ -1582,13 +1558,14 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
             }
             else if (is_array(n))
             {
-                if (!node.modified) node.modified = {atts: [], nodes: []};
                 i = index;
-                childNodes = n.reduce(process, childNodes);
-                new_mod = insMod(node.modified.nodes, i, index-1, new_mod);
                 node.changed = true;
                 node.simple = false;
                 node.uNodes = null;
+                if (!node.modified) node.modified = {atts: [], nodes: []};
+                childNodes = flatten(n).reduce(process, childNodes);
+                insMod(node.modified.nodes, i, index-1, true, 'array');
+                new_mod = true;
                 return childNodes;
             }
             else if (is_instance(n, Value))
@@ -1597,15 +1574,22 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 v = Str(val.val());
                 n = VNode('t', v, v, null, 0);
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                new_mod = insMod(node.modified.nodes, index, index, new_mod, '');
+                n.changed = val.changed();
                 // reset Value after current render session
-                // if dirty and not from model.getVal() (ie has no key)
-                if (val.changed())
+                if (val.changed() && val.id()) view.$reset[val.id()] = val;
+                if (n.changed)
                 {
-                    if (val.id()) view.$reset[val.id()] = val;
-                    n.changed = true;
                     n.uNodes = (function(val) {
-                        return function(view, r, v) {
+                        return function(view, r, v, forced) {
+                            r.nodeValue = val;
+                        };
+                    })(v);
+                }
+                else
+                {
+                    n.uFNodes = (function(val) {
+                        return function(view, r, v, forced) {
                             if (r.nodeValue !== val)
                                 r.nodeValue = val;
                         };
@@ -1617,10 +1601,10 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 v = Str(n);
                 n = VNode('t', v, v, null, 0);
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                new_mod = insMod(node.modified.nodes, index, index, new_mod, '');
                 n.changed = true;
                 n.uNodes = (function(val) {
-                    return function(view, r, v) {
+                    return function(view, r, v, forced) {
                         if (r.nodeValue !== val)
                             r.nodeValue = val;
                     };
@@ -1631,9 +1615,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.potentialChildNodes += n.potentialChildNodes;
                 node.componentNodes += n.childNodes.length;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
-                //if (n.diff) new_diff = insDiff(node, index, n.diff, new_diff);
-                /*else*/ /*if (n.changed) new_diff = insDiff(node, index, index+n.childNodes.length-1, new_diff);*/
+                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod, '');
                 node.changed = node.changed || n.changed;
                 if (!n.simple)
                 {
@@ -1652,20 +1634,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                         node.simple = false;
                         node.uNodes = null;
                     }
-                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    if (node.simple)
                     {
-                        node.uNodes = (function(u, ua, un, index) {
-                            return u ? function(view, r, v) {
-                                u(view, r, v);
-                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                ua && ua(view, rnode, vnode);
-                                un && un(view, rnode, vnode);
-                            } : function(view, r, v) {
-                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                ua && ua(view, rnode, vnode);
-                                un && un(view, rnode, vnode);
-                            };
-                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                        if (nn.uAtts || nn.uNodes)
+                        {
+                            node.uNodes = (function(u, ua, un, index) {
+                                return function(view, r, v) {
+                                    u && u(view, r, v);
+                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                    ua && ua(view, rnode, vnode);
+                                    un && un(view, rnode, vnode);
+                                };
+                            })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                        }
+                        if (nn.uFAtts || nn.uFNodes)
+                        {
+                            node.uFNodes = (function(u, ua, un, index) {
+                                return function(view, r, v, forced) {
+                                    u && u(view, r, v, forced);
+                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                    ua && ua(view, rnode, vnode, forced);
+                                    un && un(view, rnode, vnode, forced);
+                                };
+                            })(node.uFNodes, nn.uFAtts, nn.uFNodes, nn.index);
+                        }
                     }
                     return nn;
                 }));
@@ -1674,13 +1666,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
             else if ('collection' === n.nodeType)
             {
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                insMod(node.modified.nodes, index, index+n.potentialChildNodes-1, true);
+                insMod(node.modified.nodes, index, index+n.potentialChildNodes-1, true, 'collection');
                 new_mod = true;
-                /*if (n.changed)
-                {
-                    insDiff(node, index, index, true);
-                    new_diff = true;
-                }*/
                 node.potentialChildNodes += n.potentialChildNodes;
                 n.index = index;
                 n.parentNode = node;
@@ -1704,8 +1691,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                     return nn;
                 });
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, i, i+a.length-1, new_mod);
-                //new_diff = insDiff(node, i, i+a.length-1, new_diff);
+                new_mod = insMod(node.modified.nodes, i, i+a.length-1, new_mod, '');
                 AP.push.apply(childNodes, a);
                 node.changed = true;
                 node.simple = false;
@@ -1716,19 +1702,13 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
             {
                 node.potentialChildNodes += n.potentialChildNodes;
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod);
-                /*if (n.modified && n.modified.nodes.length)
-                {
-                    if (!node.modified) node.modified = {atts: [], nodes: []};
-                    insMod(node.modified.nodes, index, n.modified.nodes);
-                }*/
+                new_mod = insMod(node.modified.nodes, index, index+n.childNodes.length-1, new_mod, '');
                 AP.push.apply(childNodes, n.childNodes.map(function(nn) {
                     if (is_instance(nn, KeyedNode))
                     {
                         node.hasKeyedNodes = true;
                         nn = nn.node;
                     }
-                    //if (nn.changed || nn.achanged) new_diff = insDiff(node, index, index, new_diff);
                     nn.parentNode = node;
                     nn.index = index++;
                     nn.unit = nn.unit || n.unit;
@@ -1739,20 +1719,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                         node.simple = false;
                         node.uNodes = null;
                     }
-                    if (node.simple && (nn.uAtts || nn.uNodes))
+                    if (node.simple)
                     {
-                        node.uNodes = (function(u, ua, un, index) {
-                            return u ? function(view, r, v) {
-                                u(view, r, v);
-                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                ua && ua(view, rnode, vnode);
-                                un && un(view, rnode, vnode);
-                            } : function(view, r, v) {
-                                var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                                ua && ua(view, rnode, vnode);
-                                un && un(view, rnode, vnode);
-                            };
-                        })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                        if (nn.uAtts || nn.uNodes)
+                        {
+                            node.uNodes = (function(u, ua, un, index) {
+                                return function(view, r, v) {
+                                    u && u(view, r, v);
+                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                    ua && ua(view, rnode, vnode);
+                                    un && un(view, rnode, vnode);
+                                };
+                            })(node.uNodes, nn.uAtts, nn.uNodes, nn.index);
+                        }
+                        if (nn.uFAtts || nn.uFNodes)
+                        {
+                            node.uFNodes = (function(u, ua, un, index) {
+                                return function(view, r, v, forced) {
+                                    u && u(view, r, v, forced);
+                                    var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                                    ua && ua(view, rnode, vnode, forced);
+                                    un && un(view, rnode, vnode, forced);
+                                };
+                            })(node.uFNodes, nn.uFAtts, nn.uFNodes, nn.index);
+                        }
                     }
                     return nn;
                 }));
@@ -1761,9 +1751,8 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
             if (n.modified && (n.modified.atts.length || n.modified.nodes.length))
             {
                 if (!node.modified) node.modified = {atts: [], nodes: []};
-                new_mod = insMod(node.modified.nodes, index, index, new_mod);
+                new_mod = insMod(node.modified.nodes, index, index, new_mod, '');
             }
-            //if (n.changed || n.achanged) new_diff = insDiff(node, index, index, new_diff);
             node.potentialChildNodes++;
             n.parentNode = node;
             n.index = index++;
@@ -1780,20 +1769,30 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 node.simple = false;
                 node.uNodes = null;
             }
-            if (node.simple && (n.uAtts || n.uNodes))
+            if (node.simple)
             {
-                node.uNodes = (function(u, ua, un, index) {
-                    return u ? function(view, r, v) {
-                        u(view, r, v);
-                        var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                        ua && ua(view, rnode, vnode);
-                        un && un(view, rnode, vnode);
-                    } : function(view, r, v) {
-                        var rnode = r.childNodes[index], vnode = v.childNodes[index];
-                        ua && ua(view, rnode, vnode);
-                        un && un(view, rnode, vnode);
-                    };
-                })(node.uNodes, n.uAtts, n.uNodes, n.index);
+                if (n.uAtts || n.uNodes)
+                {
+                    node.uNodes = (function(u, ua, un, index) {
+                        return function(view, r, v) {
+                            u && u(view, r, v);
+                            var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                            ua && ua(view, rnode, vnode);
+                            un && un(view, rnode, vnode);
+                        };
+                    })(node.uNodes, n.uAtts, n.uNodes, n.index);
+                }
+                if (n.uFAtts || n.uFNodes)
+                {
+                    node.uFNodes = (function(u, ua, un, index) {
+                        return function(view, r, v, forced) {
+                            u && u(view, r, v, forced);
+                            var rnode = r.childNodes[index], vnode = v.childNodes[index];
+                            ua && ua(view, rnode, vnode, forced);
+                            un && un(view, rnode, vnode, forced);
+                        };
+                    })(node.uFNodes, n.uFAtts, n.uFNodes, n.index);
+                }
             }
             return childNodes;
         }, []);
@@ -1839,10 +1838,9 @@ function create_att(name, value, isSVG, isCode)
 
     return out;
 }
-function to_code(vnode/*, with_modified*/)
+function to_code(vnode)
 {
-    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType/*, mod = 0*/;
-    //with_modified = '"with_modified"' === with_modified;
+    var out = '_$$_(view, "", null, null, [], [])', T = vnode.nodeType;
     if (is_instance(vnode, VCode))
     {
         out = vnode.code;
@@ -1869,12 +1867,12 @@ function to_code(vnode/*, with_modified*/)
                         modifiedAtts.push({from:i, to:i});
                     else
                         modifiedAtts[modifiedAtts.length-1].to = i;
-                    createNode += create_att(a.name, 'v.attributes['+i+'].value', isSVG, true);
+                    createNode += create_att(a.name, 'atts['+i+'].value', isSVG, true);
                     return '{name:"'+a.name+'",value:('+val.code+')}';
                 }
                 createNode += create_att(a.name, val = toJSON(val), isSVG, false);
                 return '{name:"'+a.name+'",value:'+val+'}';
-            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modifiedAtts)+'},function(view,v,with_meta,Value,MV0){var r,val,rmv;'+createNode+'return r;})';
+            }).join(',')+'], ['+vnode.childNodes.map(to_code).join(',')+'], null, {atts:'+toJSON(modifiedAtts)+'},function(view,v,with_meta,Value,MV0){var r,atts=v.attributes,val,rmv;'+createNode+'return r;})';
         }
     }
     else if (vnode.childNodes.length)
@@ -1996,7 +1994,7 @@ function to_node(view, vnode, with_meta)
                 }
                 else if ('value' === n)
                 {
-                    rnode[n] = Str(v);
+                    rnode[n] = v;
                 }
                 else
                 {
@@ -2081,7 +2079,7 @@ function attr(vnode, name)
     }
     return vnode.atts['@'+name];
 }
-function del_att(r, n, T, TT)
+function del_att(r, n, T/*, TT*/)
 {
     if ('id' === n)
     {
@@ -2215,7 +2213,7 @@ function morphAttsAll(view, r, v)
     for (i=rAtts.length-1; i>=0; --i)
     {
         a = rAtts[i]; n = a.name;
-        if (null == attr(v, n)) del_att(r, n, T, TT);
+        if (null == attr(v, n)) del_att(r, n, T/*, TT*/);
     }
     // update new attributes
     for (i=vAtts.length-1; i>=0; --i)
@@ -2226,12 +2224,12 @@ function morphAttsAll(view, r, v)
             if (av.changed() && av.id()) view.$reset[av.id()] = av;
             av = av.val();
         }
-        if (false === av) del_att(r, n, T, TT);
+        if (false === av) del_att(r, n, T/*, TT*/);
         else set_att(r, n, av, T, TT, true);
     }
     return r;
 }
-function morphAtts(view, r, v)
+function morphAtts(view, r, v, forced)
 {
     var count, mi, mc, m, mp, match, matched,
         modifiedAttsPrev = (r[MV] && r[MV].att) || [],
@@ -2251,8 +2249,11 @@ function morphAtts(view, r, v)
     }*/
     if (matched)
     {
-        if (modifiedAtts.length && v.uAtts)
-            v.uAtts(view, r, v);
+        if (modifiedAtts.length)
+        {
+            v.uAtts && v.uAtts(view, r, v);
+            forced && v.uFAtts && v.uFAtts(view, r, v, forced);
+        }
     }
     else
     {
@@ -2291,17 +2292,17 @@ function morphSingleAll(view, r, rnode, vnode)
         morphAll(view, rnode, vnode);
     }
 }
-function morphSingle(view, r, rnode, vnode)
+function morphSingle(view, r, rnode, vnode, forced)
 {
     var T = vnode.nodeType, changed = vnode.changed, val;
     if ('t' === T)
     {
-        if (changed && (rnode.nodeValue !== vnode.nodeValue2))
+        if ((forced || changed) && (rnode.nodeValue !== vnode.nodeValue2))
             rnode.nodeValue = vnode.nodeValue2;
     }
     else if ('c' === T)
     {
-        if (changed) rnode.nodeValue = vnode.nodeValue;
+        if (forced || changed) rnode.nodeValue = vnode.nodeValue;
     }
     else if (vnode.unit)
     {
@@ -2311,13 +2312,15 @@ function morphSingle(view, r, rnode, vnode)
     else if (vnode.simple)
     {
         // skips further modifiedNodes matched tests, assumes matched
-        if (vnode.achanged && vnode.uAtts) vnode.uAtts(view, rnode, vnode);
-        if (changed && vnode.uNodes) vnode.uNodes(view, rnode, vnode);
+        vnode.uAtts && vnode.uAtts(view, rnode, vnode);
+        forced && vnode.uFAtts && vnode.uFAtts(view, rnode, vnode, forced);
+        changed && vnode.uNodes && vnode.uNodes(view, rnode, vnode);
+        forced && vnode.uFNodes && vnode.uFNodes(view, rnode, vnode, forced);
     }
     else if ('<textarea>' === T)
     {
-        morphAtts(view, rnode, vnode);
-        if (changed)
+        morphAtts(view, rnode, vnode, forced);
+        if (forced || changed)
         {
             val = to_string_all(view, vnode.childNodes);
             /*if (rnode[VAL] !== val)
@@ -2329,13 +2332,13 @@ function morphSingle(view, r, rnode, vnode)
     }
     else if ('<style>' === T || '<script>' === T)
     {
-        morphAtts(view, rnode, vnode);
-        if (changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
+        morphAtts(view, rnode, vnode, forced);
+        if (forced || changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
     }
     else
     {
-        morphAtts(view, rnode, vnode);
-        if (changed) morph(view, rnode, vnode);
+        morphAtts(view, rnode, vnode, forced);
+        if (forced || changed) morph(view, rnode, vnode, forced);
     }
 }
 function mergeChildNodes(nodes)
@@ -2343,29 +2346,15 @@ function mergeChildNodes(nodes)
     return 1 === nodes.length
         ? nodes[0].childNodes
         : nodes.reduce(function(nodes, node){
-            nodes.push.apply(nodes, node.childNodes);
+            AP.push.apply(nodes, node.childNodes);
             return nodes;
         }, []);
 }
-function reOrderNodes(dom, start, order, m)
-{
-    // TODO: with fewer dom changes..
-    var i, j, len = order.length, tlen = len*m,
-        frag = Fragment(),
-        edge = dom.childNodes[start+tlen],
-        nodes = slice.call(dom.childNodes, start, start+tlen)
-    ;
-    for (i=0; i<len; ++i)
-        for (j=0; j<m; ++j)
-            frag.appendChild(nodes[order[i]*m+j]);
-    if (edge) dom.insertBefore(frag, edge);
-    else dom.appendChild(frag);
-}
-function morphCollection(view, r, v, start, end, end2, startv, count)
+function morphCollection(view, r, v, start, end, end2, startv, count, forced)
 {
     var vNodes = v.childNodes, rNodes = r.childNodes,
         vnode, rnode, collection,
-        diff, di, dc, d, items, hasKeyed = v.hasKeyedNodes,
+        diff, di, dc, d, items,
         i, j, k, l, m, n, w, x, z, len, frag;
 
     collection = vNodes[startv].nodeValue;
@@ -2379,8 +2368,8 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
             case 'set':
                 len = collection.items().length*m;
                 items = collection.mapped();
-                frag = {nodeType:'',hasKeyedNodes:hasKeyed,childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/;
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count);
+                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/;
+                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count, true);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -2394,7 +2383,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'reorder':
-                reOrderNodes(r, start, d.from, m);
+                permuteNodes(r, start, d.from, m);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -2422,8 +2411,8 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 z = new Array(len);
                 for (w=start+d.from*m,j=0,i=0,rnode=rNodes[w]; i<len; ++i)
                 {
-                    //rnode = r.childNodes[w+i];
-                    x = rnode[MV] ? rnode[MV].comp : null;
+                    //rnode = rNodes[w+i];
+                    x = rnode[MV] && rnode[MV].comp;
                     if (x) z[j++] = x;
                     rnode = rnode[NEXT];
                 }
@@ -2432,12 +2421,12 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                 items = collection.mapped(d.from, d.to);
                 frag = mergeChildNodes(items)/*htmlNode(view, '', null, null, [], items)*/;
                 view.$cache['#'] = z = null;
-                for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=r.childNodes[w]; i<j; ++i)
+                for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=rNodes[w]; i<j; ++i)
                 {
                     vnode = n[i]; //rnode = rNodes[w+i];
                     if (eqNodes(rnode, vnode))
                     {
-                        morphSingle(view, r, rnode, vnode);
+                        morphSingle(view, r, rnode, vnode, forced);
                         rnode = rnode[NEXT];
                     }
                     else
@@ -2446,13 +2435,13 @@ function morphCollection(view, r, v, start, end, end2, startv, count)
                         rnode = x[NEXT];
                     }
                 }
-                //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0);
+                //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0, forced);
                 break;
         }
     }
     return count;
 }
-function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
+function morphKeyedNodes(view, r, v, start, end, end2, startv, count, forced)
 {
     // standard algorithm to morph DOM tree using minimum DOM operations
     var vNodes = v.childNodes, rNodes = r.childNodes, cNodes,
@@ -2666,7 +2655,7 @@ function morphKeyedNodes(view, r, v, start, end, end2, startv, count)
     }
     return count;
 }
-function morphNodes(view, r, v, start, end, end2, startv, count)
+function morphNodes(view, r, v, start, end, end2, startv, count, forced)
 {
     // linear general algorithm to morph DOM tree but DOM operations may not be minimum
     var rNodes = r.childNodes, vNodes = v.childNodes,
@@ -2695,7 +2684,7 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
 
         if (eqNodes(rnode, vnode))
         {
-            morphSingle(view, r, rnode, vnode);
+            morphSingle(view, r, rnode, vnode, forced);
             rnode = rnode[NEXT];
         }
         else if (0 === count)
@@ -2736,7 +2725,7 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
                 rnode = rNodes[index];
                 if (eqNodes(rnode, vnode))
                 {
-                    morphSingle(view, r, rnode, vnode);
+                    morphSingle(view, r, rnode, vnode, forced);
                     rnode = rnode[NEXT];
                 }
                 else
@@ -2756,23 +2745,22 @@ function morphNodes(view, r, v, start, end, end2, startv, count)
     }
     return count;
 }
-function morphSelectedNodes(view, r, v, start, end, end2, startv, count)
+function morphSelectedNodes(view, r, v, start, end, end2, startv, count, forced)
 {
     if ('collection' === v.childNodes[startv].nodeType)
         // collection is supposed to cover whole current modification range
-        return morphCollection(view, r, v, start, end, end2, startv, count);
+        return morphCollection(view, r, v, start, end, end2, startv, count, forced);
     else if (v.hasKeyedNodes)
-        return morphKeyedNodes(view, r, v, start, end, end2, startv, count);
+        return morphKeyedNodes(view, r, v, start, end, end2, startv, count, forced);
     else
-        return morphNodes(view, r, v, start, end, end2, startv, count);
+        return morphNodes(view, r, v, start, end, end2, startv, count, forced);
 }
 function morphAll(view, r, v, alreadyInited)
 {
     // morph unconditionally r (real) DOM to match v (virtual) DOM
     var vNodes = v.childNodes, rNodes = r.childNodes, vc = vNodes.length, rc,
         count, i, j, index, hasKeyed = v.hasKeyedNodes, keyed,
-        vnode, rnode, rnode2, T, frag,
-        rmv, rComp, vComp;
+        vnode, rnode, rnode2, frag, rmv, rComp, vComp;
 
     if (!alreadyInited)
     {
@@ -2821,15 +2809,14 @@ function morphAll(view, r, v, alreadyInited)
     {
         if (index >= rc)
         {
-            insNodes(view, r, v, index, vc-rNodes.length, null);
+            insNodes(view, r, v, index, vc-rc, null);
             if (0 > count) count = 0;
             break;
         }
         vnode = vNodes[index];
         //rnode = rNodes[index];
-        T = nodeType(rnode);
 
-        if (eqNodes(rnode, vnode, T))
+        if (eqNodes(rnode, vnode))
         {
             morphSingleAll(view, r, rnode, vnode);
             rnode = rnode[NEXT];
@@ -2848,14 +2835,14 @@ function morphAll(view, r, v, alreadyInited)
         else if (0 > count)
         {
             r.insertBefore(frag=to_node(view, vnode, true), rnode);
-            rc++;
-            count++;
+            ++rc;
+            ++count;
         }
         else
         {
             for (i=index,j=0; 0 < count && j < count; )
             {
-                j++;
+                ++j;
                 if (index+j >= rc/*rNodes.length*/) break;
                 rnode = rnode[NEXT]/*rNodes[index+j]*/;
                 if (eqNodes(rnode, vnode)) break;
@@ -2875,8 +2862,7 @@ function morphAll(view, r, v, alreadyInited)
             else
             {
                 rnode = rNodes[index];
-                T = nodeType(rnode);
-                if (eqNodes(rnode, vnode, T))
+                if (eqNodes(rnode, vnode))
                 {
                     morphSingleAll(view, r, rnode, vnode);
                     rnode = rnode[NEXT];
@@ -2892,7 +2878,7 @@ function morphAll(view, r, v, alreadyInited)
     }
     if (rNodes.length > vc) delNodes(view, r, vc, rNodes.length-vc);
 }
-function morph(view, r, v)
+function morph(view, r, v, forced)
 {
     // morph r (real) DOM to match v (virtual) DOM
     var vNodes = v.childNodes, rNodes = r.childNodes,
@@ -2957,17 +2943,7 @@ function morph(view, r, v)
                 else
                 {
                     count = (modifiedNodesPrev[mi].to - modifiedNodesPrev[mi].from + 1) - (m.to - m.from + 1);
-                    /*if (v.diff && (0 >= count) && (di < v.diff.length) && (v.componentNodes === v.potentialChildNodes) && (v.diff[di][0] >= m.from) && (v.diff[di][1] <= m.to))
-                    {
-                        for (dc=v.diff.length; (di<dc) && (v.diff[di][1]<=m.to); ++di)
-                        {
-                            count = morphSelectedNodes(view, r, v, v.diff[di][0], v.diff[di][1], m.to, v.diff[di][0]-offset, count);
-                        }
-                    }
-                    else
-                    {*/
-                        morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count);
-                    /*}*/
+                    morphSelectedNodes(view, r, v, m.from, m.to, m.to, m.from-offset, count, ('array' === m.type) || forced);
                 }
                 offset += (vc !== vpc && 'collection' === vNodes[m.from-offset].nodeType ? m.to-m.from : 0);
             }
@@ -3449,11 +3425,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 else parentNode.appendChild(frag);
                 return;
             case 'reorder':
-                count = items.length;
-                k = count*m;
-                l = list.map.slice();
-                for (i=0; i<count; ++i) list.map[i] = l[d.from[i]];
-                reOrderNodes(parentNode, startIndex+1, d.from, m);
+                permuteNodes(parentNode, startIndex+1, d.from, m);
+                permute(list.map, d.from);
                 return;
             case 'swap':
                 x = list.map[d.from];
@@ -3519,6 +3492,19 @@ function morphSimple(view, map, model, onlyIfDirty)
 //
 // PublishSubscribe (Interface)
 var CAPTURING_PHASE = 1, AT_TARGET = 2, BUBBLING_PHASE = 3;
+
+function getNS(evt)
+{
+    var ns = evt.split('.'), e = ns[0];
+    ns = filter(ns.slice(1), notEmpty);
+    return [e, ns.sort()];
+}
+function getNSMatcher(givenNamespaces)
+{
+    return givenNamespaces.length
+        ? new Regex( "(^|\\.)" + givenNamespaces.join("\\.(?:.*\\.|)") + "(\\.|$)" )
+        : false;
+}
 
 function PBEvent(evt, target, ns)
 {
@@ -8488,7 +8474,7 @@ view.render( [Boolean immediate=false] );
                 //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
                 callback = function() {
                     view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
-                    morph(view, view.$renderdom, view.$out.call(view, htmlNode));
+                    morph(view, view.$renderdom, view.$out.call(view, htmlNode), false);
                     view.$cache['#'] = null;
                     nextTick(function() {
                         clearInvalid(view);
