@@ -473,15 +473,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 permute(list.map, d.from);
                 return;
             case 'swap':
-                x = list.map[d.from];
-                list.map[d.from] = list.map[d.to];
-                list.map[d.to] = x;
-                i = slice.call(parentNode.childNodes, startIndex+1+d.from*m, startIndex+1+d.from*m+m);
-                j = slice.call(parentNode.childNodes, startIndex+1+d.to*m, startIndex+1+d.to*m+m);
-                k = j[j.length-1][NEXT];
-                for (l=0; l<m; ++l) parentNode.replaceChild(j[l], i[l]);
-                if (k) for (l=0; l<m; ++l) parentNode.insertBefore(i[l], k);
-                else for (l=0; l<m; ++l) parentNode.appendChild(i[l]);
+                swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
+                swap(list.map, d.from, d.to);
                 break;
             case 'del':
                 list.map.splice(d.from, d.to-d.from+1);

@@ -25,6 +25,7 @@
 <button mv-evt mv-on-click="splice_items">Splice Item 1</button>
 <button mv-evt mv-on-click="append_tag_item1">Append Tag Item 1</button>
 <button mv-evt mv-on-click="splice_tags_item1">Splice Tags Item 1</button>
+<button mv-evt mv-on-click="reverse">Reverse</button>
 <button mv-evt mv-on-click="reorder">Reorder</button>
 <button mv-evt mv-on-click="empty">Empty</button>
 <button mv-evt mv-on-click="notchanged">Not Changed</button>
@@ -73,9 +74,17 @@
         splice_items: function() {
             this.model().del('items.1', true);
         },
-        reorder: function() {
+        reverse: function() {
             this.model().data().items.sort(function(a,b){return a.label<b.label ? 1 : (a.label>b.label ? -1 : 0);});
             this.model().notify('items');
+        },
+        reorder: function() {
+            this.model().set('items', [
+                {label: 'item2', tags: new ModelView.Model.Collection(['tag3', 'tag2'])},
+                {label: 'item1', tags: new ModelView.Model.Collection(['tag1', 'tag2'])},
+                {label: 'item4', tags: new ModelView.Model.Collection(['tag6', 'tag1'])},
+                {label: 'item3', tags: new ModelView.Model.Collection(['tag4', 'tag5'])}
+            ], true);
         },
         empty: function() {
             this.model().set('items', [], true);

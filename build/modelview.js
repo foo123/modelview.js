@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-28 20:00:42
+*   @built on 2022-03-30 11:03:44
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.0
-*   @built on 2022-03-28 20:00:42
+*   @built on 2022-03-30 11:03:44
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -196,6 +196,45 @@ function is_array_index(n)
     }
     return false
 }
+function nextNode(node, m, NEXT)
+{
+    for (var i=0; node && (i<m); ++i)
+        node = node[NEXT];
+    return node;
+}
+function moveNodes(dom, node, m, edge)
+{
+    var i, next;
+    if (edge)
+    {
+        for (next=node[NEXT],i=0; node && (i<m); ++i)
+        {
+            dom.insertBefore(node, edge);
+            node = next; next = node ? node[NEXT] : null;
+        }
+    }
+    else
+    {
+        for (next=node[NEXT],i=0; node && (i<m); ++i)
+        {
+            dom.appendChild(node);
+            node = next; next = node ? node[NEXT] : null;
+        }
+    }
+}
+function swap(array, i1, i2)
+{
+    var t = array[i1];
+    array[i1] = array[i2];
+    array[i2] = t;
+    return array;
+}
+function swapNodes(dom, node1, node2, m)
+{
+    var last = nextNode(node2, m, NEXT);
+    moveNodes(dom, node2, m, node1);
+    moveNodes(dom, node1, m, last);
+}
 function permute(list, perm)
 {
     for (var copy=slice.call(list),i=0,l=list.length; i<l; ++i) list[i] = copy[perm[i]];
@@ -203,6 +242,7 @@ function permute(list, perm)
 }
 function permuteNodes(dom, start, perm, m)
 {
+    // not necessarily min DOM ops
     var i, j, len = perm.length, tlen = len*m,
         frag = Fragment(),
         edge = dom.childNodes[start+tlen],
@@ -213,6 +253,92 @@ function permuteNodes(dom, start, perm, m)
             frag.appendChild(nodes[perm[i]*m+j]);
     if (edge) dom.insertBefore(frag, edge);
     else dom.appendChild(frag);
+    /*
+    // permute DOM tree using minimum DOM operations
+    var rNodes = dom.childNodes, cNodes,
+        rnode, rnodef, rnode2, left,
+        i1, i2, i, j, x, z, pos,
+        places, lis, needsReorder, loop = true;
+
+    i1 = 0; i2 = perm.length-1;
+    rnode = rNodes[start+m*i1];
+    rnodef = rNodes[start+m*i2];
+    x = nextNode(rnodef, m, NEXT);
+
+    while (loop)
+    {
+        loop = false;
+        // start
+        while ((i1 <= i2) && (i1 === perm[i1]))
+        {
+            ++i1;
+            if (i1 > i2) {loop = false; break;}
+            rnode = nextNode(rnode, m, NEXT);
+        }
+        // end
+        while ((i1 <= i2) && (i2 === perm[i2]))
+        {
+            x = rnodef;
+            --i2;
+            if (i1 > i2) {loop = false; break;}
+            rnodef = nextNode(rnodef, m, PREV);
+        }
+        // swap
+        while ((i1 <= i2) && (i1 === perm[i2]) && (i2 === perm[i1]))
+        {
+            loop = true;
+            rnode2 = nextNode(rnodef, m, PREV);
+            moveNodes(dom, rnodef, m, rnode);
+            rnodef = rnode2;
+            rnode2 = nextNode(rnode, m, NEXT);
+            moveNodes(dom, rnode, m, x);
+            x = rnode;
+            rnode = rnode2;
+            ++i1; --i2;
+            if (i1 > i2) {loop = false; break;}
+        }
+    }
+
+    if (i1 <= i2)
+    {
+        left = i2-i1+1;
+        places = new A32I(left);
+        needsReorder = false;
+        pos = 0;
+        for (i=i1; i<=i2; ++i)
+        {
+            j = perm[i];
+            places[j - i1] = i + 1;
+            if (pos > j) needsReorder = true;
+            else pos = j;
+        }
+        if (needsReorder)
+        {
+            // matched entries are not in increasing order
+            // compute longest increasing subsequence
+            lis = longest_incr_subseq(places); // O(n log n) !!
+            j = lis.length - 1;
+            cNodes = slice.call(rNodes, start+m*i1, start+m*i2+1); // store as immutable
+            for (i=left-1; i>=0; --i)
+            {
+                pos = places[i];
+                if ((0 > j) || (i !== lis[j]))
+                {
+                    // move existing entry in correct place
+                    z = cNodes[m*(pos-1-i1)];
+                    moveNodes(dom, z, m, x);
+                    x = z;
+                }
+                else
+                {
+                    // new place for entry
+                    x = cNodes[m*(pos-1-i1)];
+                    --j;
+                }
+            }
+        }
+    }
+    */
 }
 function flatten(array)
 {
@@ -2366,6 +2492,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
+            case 'swap':
+                swapNodes(r, rNodes[start+d.from*m], rNodes[start+d.to*m], m);
+                break;
             case 'add':
                 len = (d.to-d.from+1)*m;
                 items = collection.mapped(d.from, d.to);
@@ -2376,14 +2505,6 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                break;
-            case 'swap':
-                i = slice.call(rNodes, start+d.from*m, start+d.from*m+m);
-                j = slice.call(rNodes, start+d.to*m, start+d.to*m+m);
-                k = j[j.length-1][NEXT];
-                for (l=0; l<m; ++l) r.replaceChild(j[l], i[l]);
-                if (k) for (l=0; l<m; ++l) r.insertBefore(i[l], k);
-                else for (l=0; l<m; ++l) r.appendChild(i[l]);
                 break;
             case 'change':
                 len = (d.to-d.from+1)*m;
@@ -3408,15 +3529,8 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 permute(list.map, d.from);
                 return;
             case 'swap':
-                x = list.map[d.from];
-                list.map[d.from] = list.map[d.to];
-                list.map[d.to] = x;
-                i = slice.call(parentNode.childNodes, startIndex+1+d.from*m, startIndex+1+d.from*m+m);
-                j = slice.call(parentNode.childNodes, startIndex+1+d.to*m, startIndex+1+d.to*m+m);
-                k = j[j.length-1][NEXT];
-                for (l=0; l<m; ++l) parentNode.replaceChild(j[l], i[l]);
-                if (k) for (l=0; l<m; ++l) parentNode.insertBefore(i[l], k);
-                else for (l=0; l<m; ++l) parentNode.appendChild(i[l]);
+                swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
+                swap(list.map, d.from, d.to);
                 break;
             case 'del':
                 list.map.splice(d.from, d.to-d.from+1);
@@ -8001,6 +8115,7 @@ view.components( Object components );
                 out = c.out.call(component, data, children||[], htmlNode);
                 out.component = component;
                 out.changed = changed;
+                out.simple = false; // components are not simple nodes
                 return out;
             }
         }

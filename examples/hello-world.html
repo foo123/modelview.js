@@ -24,7 +24,7 @@
     <button class="button" mv-evt mv-on-click=":hello_world">Hello World ({this.model.getVal('clicks')})</button>
 </script>
 <script id="InputControlComponent" type="text/x-template">
-    The local component value "{this.model.getVal('mylocalvar')}" can be updated here: <input type="text" name=":model[mylocalvar]" size="5" value={this.model.getVal('mylocalvar')} />
+    <span>The local component value "{this.model.getVal('mylocalvar')}" can be updated here: <input type="text" name=":model[mylocalvar]" size="5" value={this.model.getVal('mylocalvar')} /></span>
 </script>
 <script id="content" type="text/x-template">
     <b>Note:</b> Arbitrary JavaScript Expressions can be run inside &#123; and &#125; template placeholders

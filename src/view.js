@@ -951,6 +951,7 @@ view.components( Object components );
                 out = c.out.call(component, data, children||[], htmlNode);
                 out.component = component;
                 out.changed = changed;
+                out.simple = false; // components are not simple nodes
                 return out;
             }
         }

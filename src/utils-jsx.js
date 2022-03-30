@@ -1785,6 +1785,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
+            case 'swap':
+                swapNodes(r, rNodes[start+d.from*m], rNodes[start+d.to*m], m);
+                break;
             case 'add':
                 len = (d.to-d.from+1)*m;
                 items = collection.mapped(d.from, d.to);
@@ -1795,14 +1798,6 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                break;
-            case 'swap':
-                i = slice.call(rNodes, start+d.from*m, start+d.from*m+m);
-                j = slice.call(rNodes, start+d.to*m, start+d.to*m+m);
-                k = j[j.length-1][NEXT];
-                for (l=0; l<m; ++l) r.replaceChild(j[l], i[l]);
-                if (k) for (l=0; l<m; ++l) r.insertBefore(i[l], k);
-                else for (l=0; l<m; ++l) r.appendChild(i[l]);
                 break;
             case 'change':
                 len = (d.to-d.from+1)*m;
