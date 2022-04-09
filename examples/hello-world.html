@@ -72,6 +72,7 @@
                 },
                 changed: (oldData, newData) => false,
                 attached: (comp) => {console.log('HelloButton attached to DOM <'+comp.dom.tagName+'>')},
+                updated: (comp) => {console.log('HelloButton updated with '+comp.model.get('clicks')+' clicks')},
                 detached: (comp) => {console.log('HelloButton detached from DOM <'+comp.dom.tagName+'>')}
             }
         ),

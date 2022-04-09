@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 5.0.0
-*   @built on 2022-03-30 11:03:44
+*   @version: 5.0.1
+*   @built on 2022-04-09 14:29:23
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -10,8 +10,8 @@
 **//**
 *
 *   ModelView.js
-*   @version: 5.0.0
-*   @built on 2022-03-30 11:03:44
+*   @version: 5.0.1
+*   @built on 2022-04-09 14:29:23
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -36,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 5.0.0**
+**Version 5.0.1**
 
 ### Contents
 
@@ -7663,9 +7663,9 @@ function clearInvalid(view)
         if (is_instance(comp, MVComponentInstance))
         {
             COMP = view.$components['#'+comp.name];
-            if (2 === comp.status || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
+            if ((2 === comp.status) || !is_child_of(comp.dom, view.$renderdom, view.$renderdom))
             {
-                if (1 === comp.status)
+                if (1 === comp.status || 10 === comp.status)
                 {
                     comp.status = 2;
                     if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.detached)
@@ -7682,6 +7682,12 @@ function clearInvalid(view)
                     comp.status = 1;
                     if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.attached)
                         COMP.opts.attached.call(comp, comp);
+                }
+                else if (10 === comp.status)
+                {
+                    comp.status = 1;
+                    if (comp.dom && COMP && COMP.opts && 'function' === typeof COMP.opts.updated)
+                        COMP.opts.updated.call(comp, comp);
                 }
             }
         }
@@ -8116,6 +8122,9 @@ view.components( Object components );
                 out.component = component;
                 out.changed = changed;
                 out.simple = false; // components are not simple nodes
+                // set component.status to updated
+                if (changed && (1 === component.status)) component.status = 10;
+                else if (!changed && (10 === component.status)) component.status = 1;
                 return out;
             }
         }
@@ -9148,8 +9157,9 @@ var MyComponent = ModelView.View.Component(
     String name,
     String htmlTpl [,
     Object options = {
-         attached: (componentInstance) => {} // component attached to DOM, for componentInstance see below
-        ,detached: (componentInstance) => {} // component detached from DOM, for componentInstance see below
+         attached: (componentInstance) => {} // component has been attached to DOM, for componentInstance see below
+        ,updated: (componentInstance) => {} // component has been updated, for componentInstance see below
+        ,detached: (componentInstance) => {} // component has been detached from DOM, for componentInstance see below
         ,changed: (oldData, newData, componentInstance) => false // whether component has changed given new data
         ,model: () => ({clicks:0}) // initial state model data, if state model is to be used, else null
         ,actions: {
@@ -9342,7 +9352,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "5.0.0"
+    VERSION: "5.0.1"
     
     ,UUID: uuid
     
