@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.2
-*   @built on 2022-05-07 11:07:48
+*   @built on 2022-05-07 11:27:16
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.2
-*   @built on 2022-05-07 11:07:48
+*   @built on 2022-05-07 11:27:16
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -5126,6 +5126,11 @@ function do_bind_action(view, evt, elements, fromModel)
             do_action = trim(do_action);
             if (!do_action.length) return;
             data = {};
+            if (fromModel)
+            {
+                data.key = fromModel.key;
+                data.value = fromModel.value;
+            }
             if (':' === do_action.charAt(0))
             {
                 // local component action

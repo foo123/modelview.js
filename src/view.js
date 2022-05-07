@@ -309,6 +309,11 @@ function do_bind_action(view, evt, elements, fromModel)
             do_action = trim(do_action);
             if (!do_action.length) return;
             data = {};
+            if (fromModel)
+            {
+                data.key = fromModel.key;
+                data.value = fromModel.value;
+            }
             if (':' === do_action.charAt(0))
             {
                 // local component action
