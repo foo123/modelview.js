@@ -4,6 +4,7 @@
 // utilities for simple mode
 //
 ///////////////////////////////////////////////////////////////////////////////////////
+HAS_SIMPLE = true;
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
     foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 

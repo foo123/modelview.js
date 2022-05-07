@@ -72,7 +72,8 @@ var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "
         ? function(el) {return window.getComputedStyle(el, null);}
         : function(el) {return el.currentStyle;},
     // UUID counter for ModelViews
-    _uuid = 0, _cnt = 0
+    _uuid = 0, _cnt = 0,
+    HAS_JSX = false, HAS_SIMPLE = false
 ;
 
 if (HASDOC && window.Node)

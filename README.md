@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 5.0.1** (93 kB minified, 29 kB gzipped)
+**Version 5.0.2** (85 kB or 64 kB minified, 26 kB gzipped)
 
 
 **see also:**

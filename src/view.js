@@ -920,7 +920,7 @@ view.components( Object components );
     }
     ,component: function(name, id, data, children) {
         var view = this, out, c, compId, nk, component, changed;
-        if (name && (c=view.$components[nk='#'+name]))
+        if (HAS_JSX && name && (c=view.$components[nk='#'+name]))
         {
             if (c.tpl && !c.out)
             {
@@ -1129,7 +1129,7 @@ view.html( String htmlString );
 
 [/DOC_MARKDOWN]**/
     ,html: function(str) {
-        return parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn');
+        return HAS_JSX ? parse(this, str, {trim:true, id:this.attr('mv-id')}, 'dyn') : str;
     }
 /**[DOC_MARKDOWN]
 // mark html virtual node(s) to be morphed completely as a single unit
@@ -1138,7 +1138,7 @@ view.unit( nodes );
 
 [/DOC_MARKDOWN]**/
     ,unit: function(nodes) {
-        return as_unit(nodes);
+        return HAS_JSX ? as_unit(nodes) : nodes;
     }
 /**[DOC_MARKDOWN]
 // declare that html virtual node(s) are keyed nodes
@@ -1146,7 +1146,7 @@ view.keyed( nodes );
 
 [/DOC_MARKDOWN]**/
     ,keyed: function(nodes) {
-        return new KeyedNode(nodes);
+        return HAS_JSX ? new KeyedNode(nodes) : nodes;
     }
 
     ,attr: function(attr) {
@@ -1207,7 +1207,7 @@ view.precompile();
 [/DOC_MARKDOWN]**/
     ,precompile: function() {
         var view = this, n, c, livebind = view.option('view.livebind');
-        if ('text' === livebind)
+        if (HAS_SIMPLE && ('text' === livebind))
         {
             if (!view.$out && view.$tpl)
                 view.$out = tpl2codesimple(view, view.$tpl, '');
@@ -1218,7 +1218,7 @@ view.precompile();
                 updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
             }
         }
-        else if (true === livebind)
+        else if (HAS_JSX && (true === livebind))
         {
             if (!view.$out && view.$tpl)
                 view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
@@ -1348,7 +1348,7 @@ view.render( [Boolean immediate=false] );
     ,render: function(immediate) {
         var view = this, model = view.$model, out = '', callback,
             livebind = view.option('view.livebind');
-        if ('text' === livebind)
+        if (HAS_SIMPLE && ('text' === livebind))
         {
             if (!view.$out && view.$tpl)
                 view.$out = tpl2codesimple(view, view.$tpl, '');
@@ -1370,10 +1370,9 @@ view.render( [Boolean immediate=false] );
                     if (view.$out) view.$renderdom.innerHTML = view.$out.call(view);
                     updateMap(view.$renderdom, 'add', view.$map={}, view.$dom);
                 }
-                //if ('function' !== typeof morphSimple) throw err('Simple Mode is not included in this build');
                 callback = function() {
                     view.$reset = {}; view.$cache = null;
-                    morphSimple(view, view.$map, view.$model, !model || ('sync' === immediate) ? false : true);
+                    morphSimple(view, view.$map, model, !model || ('sync' === immediate) ? false : true);
                     nextTick(function() {
                         clearInvalid(view);
                         // notify any 3rd-party also if needed
@@ -1390,7 +1389,7 @@ view.render( [Boolean immediate=false] );
                 }
             }
         }
-        else
+        else if (HAS_JSX && (true === livebind))
         {
             if (!view.$out && view.$tpl)
                 view.$out = tpl2code(view, view.$tpl, '', getCtxScoped(view, 'this'), {trim:true, id:view.attr('mv-id')});
@@ -1407,7 +1406,6 @@ view.render( [Boolean immediate=false] );
                     view.publish('render', {});
                     return out;
                 }
-                //if ('function' !== typeof morph) throw err('General Mode is not included in this build');
                 callback = function() {
                     view.$cnt = {}; view.$reset = {}; view.$cache['#'] = null;
                     morph(view, view.$renderdom, view.$out.call(view, htmlNode), false);
@@ -1741,7 +1739,7 @@ view.sync_model();
         {
             if ((true !== livebind) && view.option('model.events'))
             {
-                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-change')+']';
+                bindSelector = '['+view.attr('mv-model-evt')+']['+view.attr('mv-on-model-error')+']';
                 bindElements = $sel(bindSelector, view.$dom);
                 // do view action first
                 if (bindElements.length) do_bind_action(view, evt, bindElements, data);
