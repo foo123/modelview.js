@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.2
-*   @built on 2022-05-07 10:44:46
+*   @built on 2022-05-07 11:07:45
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.0.2
-*   @built on 2022-05-07 10:44:46
+*   @built on 2022-05-07 11:07:45
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -7864,6 +7864,7 @@ var View = function View(id) {
 // STATIC
 View.serialize = serialize_fields;
 View.nextTick = nextTick;
+View.getDomRef = get_dom_ref;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 

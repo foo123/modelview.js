@@ -697,6 +697,7 @@ var View = function View(id) {
 // STATIC
 View.serialize = serialize_fields;
 View.nextTick = nextTick;
+View.getDomRef = get_dom_ref;
 // View implements PublishSubscribe pattern
 View[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 
