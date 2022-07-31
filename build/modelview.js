@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 5.0.2
-*   @built on 2022-05-07 11:27:12
+*   @version: 5.0.3
+*   @built on 2022-07-31 18:58:34
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -10,8 +10,8 @@
 **//**
 *
 *   ModelView.js
-*   @version: 5.0.2
-*   @built on 2022-05-07 11:27:12
+*   @version: 5.0.3
+*   @built on 2022-07-31 18:58:34
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -36,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 5.0.2**
+**Version 5.0.3**
 
 ### Contents
 
@@ -9036,7 +9036,7 @@ view.sync_model();
             var modelkey = model.get(key);
             // show if data[key] is value, else hide
             // show if data[key] is true, else hide
-            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            var enabled = (key === data.key) && HAS.call(data, 'value') ? data.value === modelkey : !!modelkey;
             each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) show(el);
@@ -9066,7 +9066,7 @@ view.sync_model();
             var modelkey = model.get(key);
             // hide if data[key] is value, else show
             // hide if data[key] is true, else show
-            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            var enabled = (key === data.key) && HAS.call(data, 'value') ? data.value === modelkey : !!modelkey;
             each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) hide(el);
@@ -9359,7 +9359,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "5.0.2"
+    VERSION: "5.0.3"
     
     ,UUID: uuid
     

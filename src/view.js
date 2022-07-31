@@ -1869,7 +1869,7 @@ view.sync_model();
             var modelkey = model.get(key);
             // show if data[key] is value, else hide
             // show if data[key] is true, else hide
-            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            var enabled = (key === data.key) && HAS.call(data, 'value') ? data.value === modelkey : !!modelkey;
             each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) show(el);
@@ -1899,7 +1899,7 @@ view.sync_model();
             var modelkey = model.get(key);
             // hide if data[key] is value, else show
             // hide if data[key] is true, else show
-            var enabled = HAS.call(data,'value') ? data.value === modelkey : !!modelkey;
+            var enabled = (key === data.key) && HAS.call(data, 'value') ? data.value === modelkey : !!modelkey;
             each(el, function(el) {
                 if (!el || !is_child_of(el, view.$dom)) return;
                 if (enabled) hide(el);
