@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 18:22:25
+*   @built on 2022-08-15 20:01:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 18:22:25
+*   @built on 2022-08-15 20:01:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -714,7 +714,7 @@ function Text(val)
 ///////////////////////////////////////////////////////////////////////////////////////
 HAS_SIMPLE = true;
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
-    foreach_re = /^foreach\s+([a-zA-Z_\$][0-9a-zA-Z_\$]*)\s+in\s+\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
+    foreach_re = /^foreach\s+([a-zA-Z_\$][0-9a-zA-Z_\$]*,)?([a-zA-Z_\$][0-9a-zA-Z_\$]*)\s+in\s+\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
 function tpl2codesimplek(tpl)
 {
@@ -750,23 +750,23 @@ function tpl2codesimplef(tpl)
         p2 = tpl.indexOf('-->', p1+4);
         if (-1 === p2) break;
         p = trim(tpl.slice(p1+4, p2));
-        if (startsWith(p, 'foreach') && (m=p.match(foreach_re)))
+        if (m=p.match(foreach_re))
         {
             if (0 === f)
             {
-                start = [p1, p2+3, m[2], m[1]];
+                start = [p1, p2+3, m[3], m[2], m[1] ? m[1].slice(0, -1) : null];
             }
-            f++;
+            ++f;
             offset = p2+3;
         }
         else if ((0 < f) && startsWith(p, '/foreach'))
         {
-            f--;
+            --f;
             if (0 === f)
             {
                 end = [p1, p2+3];
                 code += tpl2codesimplek(tpl.slice(0, start[0]));
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '"+start[3]+"'));}}else{_$$_='<!--foreach "+start[3]+" in {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I,'"+start[3]+"')._setIndex("+(start[4]?"'"+start[4]+"'":'null')+",I));}}else{_$$_='<!--foreach "+(start[4]?start[4]+',':'')+start[3]+" in {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -937,9 +937,9 @@ function get_placeholders(node, map, path)
             }
             else if (8 === n.nodeType)
             {
-                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[2])) && k.length)
+                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[3])) && k.length)
                 {
-                    list = {type:'list', tpl:Fragment(), tplmap:{}, 'var':trim(m[1]), start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
+                    list = {type:'list', tpl:Fragment(), tplmap:{}, 'index':m[1]?m[1].slice(0, -1):null, 'var':trim(m[2]), start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
                     nn = n[NEXT];
                     f = 1;
                     while (nn)
@@ -1112,6 +1112,7 @@ function clone(list)
                     type: t.type,
                     tpl: t.tpl,
                     tplmap: t.tplmap,
+                    'index': t['index'],
                     'var': t['var'],
                     start: startend[0],
                     end: startend[1],
@@ -1142,7 +1143,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 count = items.length - list.map.length;
                 // morph common nodes
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }, 0, stdMath.min(list.map.length, items.length)-1);
                 if (0 < count)
                 {
@@ -1152,7 +1153,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     iterate(function(index) {
                         var node = clone(list);
                         list.map[index] = node.map;
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                         frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
@@ -1173,7 +1174,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                     frag.appendChild(node.dom);
                 }, 0, items.length-1);
                 if (end) parentNode.insertBefore(frag, end);
@@ -1198,7 +1199,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                     frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
@@ -1207,7 +1208,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 break;
             case 'change':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }, d.from, d.to);
                 break;
         }
@@ -3130,15 +3131,15 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
     }
 
 /**[DOC_MARKDOWN]
-// get data proxy for a branch of model data specified by given key
+// get data proxy for a branch of model data specified by given key refernced as relVar
 // model.Proxy is used to get/set values of the object (and nested objects)
 // at given branch of the model data as autonomous entity
 // proxy takes care to notify central model of any changes made
-model.getProxy( String dottedKey );
+model.getProxy( String dottedKey, String relVar );
 
 [/DOC_MARKDOWN]**/
     ,getProxy: function(dottedKey, rel) {
-        return 2 < arguments.length ? (new Proxy(this, dottedKey, rel, arguments[2])) : (new Proxy(this, dottedKey, rel));
+        return new Proxy(this, dottedKey, rel);
     }
 
 /**[DOC_MARKDOWN]
@@ -4358,8 +4359,8 @@ Model[proto].resetChanged = Model[proto].resetDirty;
 
 function Proxy(model, key, rel)
 {
-    var self = this, getKey, prefix, data, getData;
-    if (!is_instance(self, Proxy)) return 3 < arguments.length ? (new Proxy(model, key, rel, arguments[3])) : (new Proxy(model, key, rel));
+    var self = this, getKey, prefix, data = NOOP, indexKey = null, index = 0, getData;
+    if (!is_instance(self, Proxy)) return new Proxy(model, key, rel);
 
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
@@ -4367,9 +4368,14 @@ function Proxy(model, key, rel)
         var ret;
         if (rel && rel.length)
         {
-            if (rel === dottedKey)
+            if ('' === dottedKey || rel === dottedKey)
             {
                 ret = key;
+            }
+            else if (indexKey && (indexKey === dottedKey))
+            {
+                ret = new String(indexKey);
+                ret.$mvIndex = true;
             }
             else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
             {
@@ -4392,11 +4398,11 @@ function Proxy(model, key, rel)
         }
         return ret;
     };
-    data = 3 < arguments.length ? arguments[3] : NOOP;
     getData = function(dottedKey, isReal) {
         if (!rel || !rel.length) return NOOP;
         var realKey = isReal ? dottedKey : getKey(dottedKey);
         if (realKey.$mvTop) return NOOP;
+        if (realKey.$mvIndex) return index;
         if (NOOP === data) data = model.get(key);
         if ('' === realKey || key === realKey) return data;
         realKey = realKey.split('.');
@@ -4407,22 +4413,37 @@ function Proxy(model, key, rel)
         }
         return o;
     };
+    self._setData = function(d) {
+        data = d;
+        return self;
+    };
+    self._setIndex = function(k, i) {
+        if (k && k.length)
+        {
+            indexKey = k;
+            index = i;
+        }
+        return self;
+    };
     self.get = function(dottedKey, RAW) {
         var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
         return NOOP === ret ? model.get(fullKey, RAW) : ret;
     };
     self.getVal = function(dottedKey, RAW) {
         var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
-        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(model.isDirty(fullKey));
+        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(fullKey.$mvIndex ? true : model.isDirty(fullKey));
     };
     self.getProxy = function(dottedKey, rel) {
-        return 2 < arguments.length ? (new Proxy(model, getKey(dottedKey), rel, arguments[2])) : (new Proxy(model, getKey(dottedKey), rel));
+        return new Proxy(model, getKey(dottedKey), rel);
     };
     self.getChanged = self.getDirty = function() {
-        return model.getDirty(key && key.length ? key.split('.') : null);
+        var d = model.getDirty(key && key.length ? key.split('.') : null);
+        if (indexKey) d.push(indexKey);
+        return d;
     };
     self.isChanged = self.isDirty = function(dottedKey) {
-        return model.isDirty(getKey(dottedKey));
+        var realKey = getKey(dottedKey);
+        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : model.isDirty(realKey);
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -4444,6 +4465,8 @@ function Proxy(model, key, rel)
 Model.Proxy = Proxy;
 Proxy[proto] = {
     constructor: Proxy
+    ,_setData: null
+    ,_setIndex: null
     ,get: null
     ,getVal: null
     ,getProxy: null
@@ -4829,16 +4852,20 @@ collection.mapped([start [, end]]);
         var items = this._items, f = this.mapper, i, j, l, ret;
         start = null == start ? 0 : start;
         end = null == end ? items.length-1 : end;
-        if (f)
+        if (end >= start)
         {
-            for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; ++i,++j)
-                ret[i] = f(items[j], j, items);
+            if (f)
+            {
+                for (l=end-start+1,ret=new Array(l),i=0,j=start; i<l; ++i,++j)
+                    ret[i] = f(items[j], j, items);
+            }
+            else
+            {
+                ret = items.slice(start, end+1);
+            }
+            return ret;
         }
-        else
-        {
-            ret = items.slice(start, end+1);
-        }
-        return ret;
+        return [];
     }
 };
 /**[DOC_MARKDOWN]

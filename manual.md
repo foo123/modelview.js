@@ -436,11 +436,11 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
 
 
 
-// get data proxy for a branch of model data specified by given key
+// get data proxy for a branch of model data specified by given key refernced as relVar
 // model.Proxy is used to get/set values of the object (and nested objects)
 // at given branch of the model data as autonomous entity
 // proxy takes care to notify central model of any changes made
-model.getProxy( String dottedKey );
+model.getProxy( String dottedKey, String relVar );
 
 
 

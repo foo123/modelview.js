@@ -177,6 +177,15 @@ There are {items.length} items:
 <!--/foreach--></ul>
 ```
 
+One can capture the `index` as well:
+
+```html
+There are {items.length} items:
+<ul><!--foreach index,item in {items}-->
+<li id="{item.id}">{index} {item.text}</li>
+<!--/foreach--></ul>
+```
+
 Where `items` model key must be a Model.Collection.
 
 

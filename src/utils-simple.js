@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 HAS_SIMPLE = true;
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
-    foreach_re = /^foreach\s+([a-zA-Z_\$][0-9a-zA-Z_\$]*)\s+in\s+\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
+    foreach_re = /^foreach\s+([a-zA-Z_\$][0-9a-zA-Z_\$]*,)?([a-zA-Z_\$][0-9a-zA-Z_\$]*)\s+in\s+\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
 function tpl2codesimplek(tpl)
 {
@@ -42,23 +42,23 @@ function tpl2codesimplef(tpl)
         p2 = tpl.indexOf('-->', p1+4);
         if (-1 === p2) break;
         p = trim(tpl.slice(p1+4, p2));
-        if (startsWith(p, 'foreach') && (m=p.match(foreach_re)))
+        if (m=p.match(foreach_re))
         {
             if (0 === f)
             {
-                start = [p1, p2+3, m[2], m[1]];
+                start = [p1, p2+3, m[3], m[2], m[1] ? m[1].slice(0, -1) : null];
             }
-            f++;
+            ++f;
             offset = p2+3;
         }
         else if ((0 < f) && startsWith(p, '/foreach'))
         {
-            f--;
+            --f;
             if (0 === f)
             {
                 end = [p1, p2+3];
                 code += tpl2codesimplek(tpl.slice(0, start[0]));
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '"+start[3]+"'));}}else{_$$_='<!--foreach "+start[3]+" in {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I,'"+start[3]+"')._setIndex("+(start[4]?"'"+start[4]+"'":'null')+",I));}}else{_$$_='<!--foreach "+(start[4]?start[4]+',':'')+start[3]+" in {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -229,9 +229,9 @@ function get_placeholders(node, map, path)
             }
             else if (8 === n.nodeType)
             {
-                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[2])) && k.length)
+                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[3])) && k.length)
                 {
-                    list = {type:'list', tpl:Fragment(), tplmap:{}, 'var':trim(m[1]), start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
+                    list = {type:'list', tpl:Fragment(), tplmap:{}, 'index':m[1]?m[1].slice(0, -1):null, 'var':trim(m[2]), start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
                     nn = n[NEXT];
                     f = 1;
                     while (nn)
@@ -404,6 +404,7 @@ function clone(list)
                     type: t.type,
                     tpl: t.tpl,
                     tplmap: t.tplmap,
+                    'index': t['index'],
                     'var': t['var'],
                     start: startend[0],
                     end: startend[1],
@@ -434,7 +435,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 count = items.length - list.map.length;
                 // morph common nodes
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }, 0, stdMath.min(list.map.length, items.length)-1);
                 if (0 < count)
                 {
@@ -444,7 +445,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     iterate(function(index) {
                         var node = clone(list);
                         list.map[index] = node.map;
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                         frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
@@ -465,7 +466,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                     frag.appendChild(node.dom);
                 }, 0, items.length-1);
                 if (end) parentNode.insertBefore(frag, end);
@@ -490,7 +491,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
                     frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
@@ -499,7 +500,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 break;
             case 'change':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }, d.from, d.to);
                 break;
         }
