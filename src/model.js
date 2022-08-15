@@ -2315,28 +2315,55 @@ function Proxy(model, key, rel)
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
-        return rel ? (rel === dottedKey ? key : (rel === dottedKey.charAt(0) ? prefix + dottedKey.slice(1) : dottedKey)) : (dottedKey && dottedKey.length ? prefix + dottedKey : key);
+        var ret;
+        if (rel && rel.length)
+        {
+            if (rel === dottedKey)
+            {
+                ret = key;
+            }
+            else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
+            {
+                ret = prefix + dottedKey.slice(1);
+            }
+            else if (startsWith(dottedKey, rel+'.'))
+            {
+                ret = prefix + dottedKey.slice(rel.length+1);
+            }
+            else
+            {
+                ret = new String(dottedKey);
+                ret.$mvTop = true;
+            }
+        }
+        else
+        {
+            ret = new String(dottedKey);
+            ret.$mvTop = true;
+        }
+        return ret;
     };
     data = 3 < arguments.length ? arguments[3] : NOOP;
-    getData = function(dottedKey) {
-        if (!rel || (rel !== dottedKey.charAt(0))) return NOOP;
+    getData = function(dottedKey, isReal) {
+        if (!rel || !rel.length) return NOOP;
+        var realKey = isReal ? dottedKey : getKey(dottedKey);
+        if (realKey.$mvTop) return NOOP;
         if (NOOP === data) data = model.get(key);
-        dottedKey = dottedKey.slice(1);
-        if ('' === dottedKey) return data;
-        dottedKey = dottedKey.split('.');
-        for (var i=0,l=dottedKey.length,o=data; i<l; ++i)
+        if ('' === realKey || key === realKey) return data;
+        realKey = realKey.split('.');
+        for (var i=0,l=realKey.length,o=data; i<l; ++i)
         {
-            if (HAS.call(o, dottedKey[i])) o = o[dottedKey[i]];
+            if (HAS.call(o, realKey[i])) o = o[realKey[i]];
             else return NOOP;
         }
         return o;
     };
     self.get = function(dottedKey, RAW) {
-        var ret = getData(dottedKey);
-        return NOOP === ret ? model.get(getKey(dottedKey), RAW) : ret;
+        var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
+        return NOOP === ret ? model.get(fullKey, RAW) : ret;
     };
     self.getVal = function(dottedKey, RAW) {
-        var ret = getData(dottedKey), fullKey = getKey(dottedKey);
+        var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
         return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(model.isDirty(fullKey));
     };
     self.getProxy = function(dottedKey, rel) {

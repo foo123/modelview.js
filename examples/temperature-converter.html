@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width">
 <meta name="description" content="modelview.js • Temperature Converter" />
 
-    
+
 <style type="text/css">
 #forkongithub a{background:#aa0000;color:#fff;text-decoration:none;font-family:arial, sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:0.9rem;line-height:1.4rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#aa0000;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;z-index:100;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;z-index:100;top:0;right:0;width:200px;overflow:hidden;height:200px;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}
 </style>
@@ -20,16 +20,15 @@
 <header id="header">
     <h1>ModelView.js Temperature Converter</h1>
 </header>
-        
+
 <div id="html-snippet" data-snippet="HTML Code" data-snippet-type="htmlmixed" data-snippet-escape="1">
-<template id="content">
-    <p class="temperature-converter">
-        <label class="celsius-wrap"><input type="number" class="celsius" id="celsius" name="model[celsius]" step="0.5" value="">°C</label>
-        <span class="arrows">⇄</span>
-        <label class="fahrenheit-wrap"><input type="number" class="fahrenheit" id="fahrenheit" name="model[fahrenheit]" step="0.5" value="" >°F</label>
-    </p>
-</template>
-<div id="app"></div>
+<div id="app">
+<p class="temperature-converter">
+    <label class="celsius-wrap"><input type="number" class="celsius" id="celsius" name="model[celsius]" step="0.5" value="">°C</label>
+    <span class="arrows">⇄</span>
+    <label class="fahrenheit-wrap"><input type="number" class="fahrenheit" id="fahrenheit" name="model[fahrenheit]" step="0.5" value="" >°F</label>
+</p>
+</div>
 </div>
 
 <script src="../build/modelview.js"></script>
@@ -40,7 +39,7 @@ function round2(num){return Math.round((num + Number.EPSILON) * 100) / 100;}
 new ModelView.View('view')
     .model(
         new ModelView.Model(
-            'model', 
+            'model',
             // model data here ..
             {celsius: 0}
         )
@@ -63,7 +62,6 @@ new ModelView.View('view')
             }
         })
     )
-    .template(document.getElementById('content').innerHTML)
     .autovalidate(false)
     .autobind(true)
     .livebind(false)

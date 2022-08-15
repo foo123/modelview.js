@@ -22,7 +22,7 @@ var viewSimple = new ModelView.View('view')
             {label: 'item3', tags: new ModelView.Model.Collection(['tag4', 'tag5'])},
             {label: 'item4', tags: new ModelView.Model.Collection(['tag6', 'tag1'])}
         ])}))
-    .template(`<ul><!--foreach {items}--><li title="{.label}">{.label} &nbsp; <!--foreach {.tags}--><span>{.},</span><!--/foreach--></li><!--/foreach--></ul>`)
+    .template(`<ul><!--foreach item in {items}--><li title="{item.label}">{item.label} &nbsp; <!--foreach tag in {item.tags}--><span>{tag},</span><!--/foreach--></li><!--/foreach--></ul>`)
     .livebind('text')
 ;
 

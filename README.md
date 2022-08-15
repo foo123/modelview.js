@@ -9,7 +9,7 @@ It knows **where**, **when** and **what** needs to be rendered.
 
 ![ModelView](/modelview.jpg)
 
-**Version 5.0.3** (85 kB or 64 kB minified, 26 kB gzipped)
+**Version 5.1.0** (85 kB or 64 kB minified, 26 kB gzipped)
 
 
 **see also:**
@@ -172,8 +172,8 @@ For example, let's render a list of items in simple mode:
 
 ```html
 There are {items.length} items:
-<ul><!--foreach {items}-->
-<li id="{.id}">{.text}</li>
+<ul><!--foreach item in {items}-->
+<li id="{item.id}">{item.text}</li>
 <!--/foreach--></ul>
 ```
 

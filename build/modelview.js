@@ -1,8 +1,8 @@
 /**
 *
 *   ModelView.js
-*   @version: 5.0.3
-*   @built on 2022-07-31 18:58:34
+*   @version: 5.1.0
+*   @built on 2022-08-15 18:22:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -10,8 +10,8 @@
 **//**
 *
 *   ModelView.js
-*   @version: 5.0.3
-*   @built on 2022-07-31 18:58:34
+*   @version: 5.1.0
+*   @built on 2022-08-15 18:22:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -36,7 +36,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 /**[DOC_MARKDOWN]
 ### ModelView API
 
-**Version 5.0.3**
+**Version 5.1.0**
 
 ### Contents
 
@@ -3064,7 +3064,7 @@ function morph(view, r, v, forced)
 ///////////////////////////////////////////////////////////////////////////////////////
 HAS_SIMPLE = true;
 var placeholder_re = /\{([0-9a-zA-Z\.\-_\$]+)\}/,
-    foreach_re = /^foreach\s*\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
+    foreach_re = /^foreach\s+([a-zA-Z_\$][0-9a-zA-Z_\$]*)\s+in\s+\{([0-9a-zA-Z\.\-_\$]+)\}\s*$/;
 
 function tpl2codesimplek(tpl)
 {
@@ -3100,11 +3100,11 @@ function tpl2codesimplef(tpl)
         p2 = tpl.indexOf('-->', p1+4);
         if (-1 === p2) break;
         p = trim(tpl.slice(p1+4, p2));
-        if (startsWith(p, 'foreach') && (m=p.match(placeholder_re)))
+        if (startsWith(p, 'foreach') && (m=p.match(foreach_re)))
         {
             if (0 === f)
             {
-                start = [p1, p2+3, m[1]];
+                start = [p1, p2+3, m[2], m[1]];
             }
             f++;
             offset = p2+3;
@@ -3116,7 +3116,7 @@ function tpl2codesimplef(tpl)
             {
                 end = [p1, p2+3];
                 code += tpl2codesimplek(tpl.slice(0, start[0]));
-                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '.'));}}else{_$$_='<!--foreach {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
+                code += "\n_$$_ += (function(MODEL){var _$$_='',ITEM=function(MODEL){var _$$_='';"+tpl2codesimplef(tpl.slice(start[1], end[0]))+"\nreturn _$$_;};if(MODEL){for(var I=0,N=MODEL.get('"+start[2]+".length');I<N;++I){_$$_ += ITEM(MODEL.getProxy('"+start[2]+".'+I, '"+start[3]+"'));}}else{_$$_='<!--foreach "+start[3]+" in {"+start[2]+"}-->'+ITEM()+'<!--/foreach-->';}return _$$_;})(MODEL);"
                 tpl = tpl.slice(end[1]);
                 offset = 0;
             }
@@ -3213,12 +3213,12 @@ function walk_clone_map(m, cm, f)
 }
 function split_key(key, rel)
 {
-    if (rel === key.charAt(0))
+    /*if (rel+'.' === key.slice(0, rel.length+1))
     {
-        var ks = key.slice(1).split('.');
+        var ks = key.slice(rel.length+1).split('.');
         ks[0] = rel + ks[0];
         return ks;
-    }
+    }*/
     return key.split('.');
 }
 function get_placeholders(node, map, path)
@@ -3287,9 +3287,9 @@ function get_placeholders(node, map, path)
             }
             else if (8 === n.nodeType)
             {
-                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[1])) && k.length)
+                if ((m = n.nodeValue.match(foreach_re)) && (k = trim(m[2])) && k.length)
                 {
-                    list = {type:'list', tpl:Fragment(), tplmap:{}, start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
+                    list = {type:'list', tpl:Fragment(), tplmap:{}, 'var':trim(m[1]), start:n, end:null, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(n)+']'+';}catch(e){c=null;}return [c, c ? c.nextSibling : null];')};
                     nn = n[NEXT];
                     f = 1;
                     while (nn)
@@ -3462,6 +3462,7 @@ function clone(list)
                     type: t.type,
                     tpl: t.tpl,
                     tplmap: t.tplmap,
+                    'var': t['var'],
                     start: startend[0],
                     end: startend[1],
                     clone: t.clone
@@ -3491,16 +3492,17 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 count = items.length - list.map.length;
                 // morph common nodes
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
                 }, 0, stdMath.min(list.map.length, items.length)-1);
                 if (0 < count)
                 {
                     // add missing nodes
                     frag = Fragment();
+                    list.map.push.apply(new Array(count));
                     iterate(function(index) {
                         var node = clone(list);
-                        list.map.push(node.map);
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                        list.map[index] = node.map;
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
                         frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
@@ -3521,7 +3523,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
                     frag.appendChild(node.dom);
                 }, 0, items.length-1);
                 if (end) parentNode.insertBefore(frag, end);
@@ -3546,7 +3548,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), false);
                     frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
@@ -3555,7 +3557,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 break;
             case 'change':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, '.', items[index]), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'], items[index]), true);
                 }, d.from, d.to);
                 break;
         }
@@ -6712,28 +6714,55 @@ function Proxy(model, key, rel)
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
-        return rel ? (rel === dottedKey ? key : (rel === dottedKey.charAt(0) ? prefix + dottedKey.slice(1) : dottedKey)) : (dottedKey && dottedKey.length ? prefix + dottedKey : key);
+        var ret;
+        if (rel && rel.length)
+        {
+            if (rel === dottedKey)
+            {
+                ret = key;
+            }
+            else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
+            {
+                ret = prefix + dottedKey.slice(1);
+            }
+            else if (startsWith(dottedKey, rel+'.'))
+            {
+                ret = prefix + dottedKey.slice(rel.length+1);
+            }
+            else
+            {
+                ret = new String(dottedKey);
+                ret.$mvTop = true;
+            }
+        }
+        else
+        {
+            ret = new String(dottedKey);
+            ret.$mvTop = true;
+        }
+        return ret;
     };
     data = 3 < arguments.length ? arguments[3] : NOOP;
-    getData = function(dottedKey) {
-        if (!rel || (rel !== dottedKey.charAt(0))) return NOOP;
+    getData = function(dottedKey, isReal) {
+        if (!rel || !rel.length) return NOOP;
+        var realKey = isReal ? dottedKey : getKey(dottedKey);
+        if (realKey.$mvTop) return NOOP;
         if (NOOP === data) data = model.get(key);
-        dottedKey = dottedKey.slice(1);
-        if ('' === dottedKey) return data;
-        dottedKey = dottedKey.split('.');
-        for (var i=0,l=dottedKey.length,o=data; i<l; ++i)
+        if ('' === realKey || key === realKey) return data;
+        realKey = realKey.split('.');
+        for (var i=0,l=realKey.length,o=data; i<l; ++i)
         {
-            if (HAS.call(o, dottedKey[i])) o = o[dottedKey[i]];
+            if (HAS.call(o, realKey[i])) o = o[realKey[i]];
             else return NOOP;
         }
         return o;
     };
     self.get = function(dottedKey, RAW) {
-        var ret = getData(dottedKey);
-        return NOOP === ret ? model.get(getKey(dottedKey), RAW) : ret;
+        var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
+        return NOOP === ret ? model.get(fullKey, RAW) : ret;
     };
     self.getVal = function(dottedKey, RAW) {
-        var ret = getData(dottedKey), fullKey = getKey(dottedKey);
+        var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
         return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(model.isDirty(fullKey));
     };
     self.getProxy = function(dottedKey, rel) {
@@ -9359,7 +9388,7 @@ console.log(viewText.render());
 // export it
 var ModelView = {
 
-    VERSION: "5.0.3"
+    VERSION: "5.1.0"
     
     ,UUID: uuid
     
