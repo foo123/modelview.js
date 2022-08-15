@@ -25,6 +25,9 @@
 <script id="Item" type="text/x-template">
 <li>{data.label} &nbsp;&nbsp;{data.tags.mapTo(tag => (<Tag data={tag}/>,), 2)}</li>
 </script>
+<script id="ItemIndex" type="text/x-template">
+<li>#{data.index}&nbsp;{data.item.label} &nbsp;&nbsp;{data.item.tags.mapTo(tag => (<Tag data={tag}/>,), 2)}</li>
+</script>
 <!--
 -->
 <script id="content" type="text/x-template">
@@ -38,7 +41,7 @@
 <button mv-evt mv-on-click="empty">Empty</button>
 <button mv-evt mv-on-click="notchanged">Not Changed</button>
 <ul>
-{this.model().get('items').mapTo(item => (<Item data={item}/>))}
+{this.model().get('items').mapTo((item, index) => (<ItemIndex data={{index:index,item:item}}/>))}
 <li id="notchanged">not changed</li>
 {this.model().get('items').clone().mapTo(item => (<Item data={{label:item.label,tags:item.tags.clone()}}/>))}
 </ul>
@@ -63,7 +66,8 @@
     .template(document.getElementById('content').innerHTML)
     .components({
         'Tag': new ModelView.View.Component('Tag', document.getElementById('Tag').innerHTML, {changed: (o, n) => true}),
-        'Item': new ModelView.View.Component('Item', document.getElementById('Item').innerHTML, {changed: (o, n) => o !== n || 0 < n.tags.diff.length})
+        'Item': new ModelView.View.Component('Item', document.getElementById('Item').innerHTML, {changed: (o, n) => o !== n || 0 < n.tags.diff.length}),
+        'ItemIndex': new ModelView.View.Component('ItemIndex', document.getElementById('ItemIndex').innerHTML, {changed: (o, n) => o.item !== n.item || o.index !== n.index || 0 < n.item.tags.diff.length})
     })
     .actions({
         reset: function() {

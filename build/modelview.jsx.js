@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 20:01:44
+*   @built on 2022-08-15 20:48:50
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 20:01:44
+*   @built on 2022-08-15 20:48:50
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -2461,12 +2461,43 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
 {
     var vNodes = v.childNodes, rNodes = r.childNodes,
         vnode, rnode, collection,
-        diff, di, dc, d, items,
+        diff, di, dc, d, items, change,
         i, j, k, l, m, n, w, x, z, len, frag;
 
     collection = vNodes[startv].nodeValue;
     diff = collection.diff;
     m = collection.mappedItem;
+    change = function change(d, forced) {
+        len = (d.to-d.from+1)*m;
+        z = new Array(len);
+        for (w=start+d.from*m,j=0,i=0,rnode=rNodes[w]; i<len; ++i)
+        {
+            //rnode = rNodes[w+i];
+            x = rnode[MV] && rnode[MV].comp;
+            if (x) z[j++] = x;
+            rnode = rnode[NEXT];
+        }
+        //z.length = j;
+        view.$cache['#'] = z;
+        items = collection.mapped(d.from, d.to);
+        frag = mergeChildNodes(items)/*htmlNode(view, '', null, null, [], items)*/;
+        view.$cache['#'] = z = null;
+        for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=rNodes[w]; i<j; ++i)
+        {
+            vnode = n[i]; //rnode = rNodes[w+i];
+            if (eqNodes(rnode, vnode))
+            {
+                morphSingle(view, r, rnode, vnode, forced);
+                rnode = rnode[NEXT];
+            }
+            else
+            {
+                r.replaceChild(x=to_node(view, vnode, true), rnode);
+                rnode = x[NEXT];
+            }
+        }
+        //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0, forced);
+    };
     for (di=0,dc=diff.length; di<dc; ++di)
     {
         d = diff[di];
@@ -2492,10 +2523,16 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
             case 'reorder':
                 permuteNodes(r, start, d.from, m);
                 count = 0;
+                len = collection.items().length*m;
+                items = collection.mapped();
+                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count, false);
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'swap':
                 swapNodes(r, rNodes[start+d.from*m], rNodes[start+d.to*m], m);
+                change({from:d.from,to:d.from}, false);
+                change({from:d.to,to:d.to}, false);
                 break;
             case 'add':
                 len = (d.to-d.from+1)*m;
@@ -2509,35 +2546,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 if (0 < count) count -= len;
                 break;
             case 'change':
-                len = (d.to-d.from+1)*m;
-                z = new Array(len);
-                for (w=start+d.from*m,j=0,i=0,rnode=rNodes[w]; i<len; ++i)
-                {
-                    //rnode = rNodes[w+i];
-                    x = rnode[MV] && rnode[MV].comp;
-                    if (x) z[j++] = x;
-                    rnode = rnode[NEXT];
-                }
-                //z.length = j;
-                view.$cache['#'] = z;
-                items = collection.mapped(d.from, d.to);
-                frag = mergeChildNodes(items)/*htmlNode(view, '', null, null, [], items)*/;
-                view.$cache['#'] = z = null;
-                for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=rNodes[w]; i<j; ++i)
-                {
-                    vnode = n[i]; //rnode = rNodes[w+i];
-                    if (eqNodes(rnode, vnode))
-                    {
-                        morphSingle(view, r, rnode, vnode, forced);
-                        rnode = rnode[NEXT];
-                    }
-                    else
-                    {
-                        r.replaceChild(x=to_node(view, vnode, true), rnode);
-                        rnode = x[NEXT];
-                    }
-                }
-                //morphSelectedNodes(view, r, frag, start+d.from*m, start+d.from*m+len-1, start+d.from*m+len-1, 0, 0, forced);
+                change(d, forced);
                 break;
         }
     }

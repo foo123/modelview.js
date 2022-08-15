@@ -475,10 +475,17 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'reorder':
                 permuteNodes(parentNode, startIndex+1, d.from, m);
                 permute(list.map, d.from);
+                iterate(function(index) {
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                }, 0, items.length-1);
                 return;
             case 'swap':
                 swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
                 swap(list.map, d.from, d.to);
+                index = d.from;
+                morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                index = d.to;
+                morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 break;
             case 'del':
                 list.map.splice(d.from, d.to-d.from+1);
