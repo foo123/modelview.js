@@ -1698,7 +1698,8 @@ function morphSingle(view, r, rnode, vnode, forced)
     }
     else if ('c' === T)
     {
-        if (forced || changed) rnode.nodeValue = vnode.nodeValue;
+        if (forced || changed)
+            rnode.nodeValue = vnode.nodeValue;
     }
     else if (vnode.unit)
     {
@@ -1732,20 +1733,25 @@ function morphSingle(view, r, rnode, vnode, forced)
     else if ('<style>' === T || '<script>' === T)
     {
         morphAtts(view, rnode, vnode, forced);
-        if (forced || changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
+        if (forced || changed)
+            rnode[TEXTC] = to_string_all(view, vnode.childNodes);
     }
     else
     {
         morphAtts(view, rnode, vnode, forced);
-        if (forced || changed) morph(view, rnode, vnode, forced);
+        if (forced || changed)
+            morph(view, rnode, vnode, forced);
     }
 }
-function mergeChildNodes(nodes)
+function mergeChildNodes(nodes/*, collection*/)
 {
     return 1 === nodes.length
         ? nodes[0].childNodes
-        : nodes.reduce(function(nodes, node){
-            AP.push.apply(nodes, node.childNodes);
+        : nodes.reduce(function(nodes, node, index){
+            AP.push.apply(nodes, /*collection ? node.childNodes.map(function(n) {
+                n.changed = n.changed || collection.changed(index);
+                return n;
+            }) :*/ node.childNodes);
             return nodes;
         }, []);
 }
@@ -1818,17 +1824,26 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                if (collection.mappedIndex)
+                {
+                    // re-morph items if index is used in map function
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                }
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'swap':
                 swapNodes(r, rNodes[start+d.from*m], rNodes[start+d.to*m], m);
-                change({from:d.from,to:d.from}, false);
-                change({from:d.to,to:d.to}, false);
+                if (collection.mappedIndex)
+                {
+                    // re-morph items if index is used in map function
+                    change({from:d.from,to:d.from}, false);
+                    change({from:d.to,to:d.to}, false);
+                }
                 break;
             case 'add':
-                if (di+1 === dc && 0 < d.from)
+                if (collection.mappedIndex && (di+1 === dc) && (0 < d.from))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped(0, d.from-1);
                     len = (d.from)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
@@ -1838,8 +1853,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
-                if (di+1 === dc && d.to+1 < collection.items().length)
+                if (collection.mappedIndex && (di+1 === dc) && (d.to+1 < collection.items().length))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped(d.to+1, collection.items().length-1);
                     len = (collection.items().length-d.to-1)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
@@ -1850,8 +1866,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                if (di+1 === dc)
+                if (collection.mappedIndex && (di+1 === dc))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped();
                     len = (collection.items().length)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};

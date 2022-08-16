@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 12:27:22
+*   @built on 2022-08-16 20:49:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 12:27:22
+*   @built on 2022-08-16 20:49:42
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -52,7 +52,7 @@ var HASDOC = ('undefined' !== typeof window) && ('undefined' !== typeof document
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "*",
+var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', SEPARATOR = ".", WILDCARD = "*",
     MV0 = function(att,mod,id,comp,key) {return {att:att||null,mod:mod||null,id:id||null,comp:comp||null,key:key||null};},
     DEFAULT_MV = MV0(),
     undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
@@ -196,6 +196,24 @@ function is_array_index(n)
             return true;
     }
     return false
+}
+function clone_var(o)
+{
+    if (is_array(o))
+    {
+        return o.map(clone_var);
+    }
+    else if (is_object(o))
+    {
+        return Object.keys(o).reduce(function(oo, k) {
+            oo[k] = clone_var(o[k]);
+            return oo;
+        }, {});
+    }
+    else
+    {
+        return o;
+    }
 }
 function nextNode(node, m, NEXT)
 {
@@ -2406,7 +2424,8 @@ function morphSingle(view, r, rnode, vnode, forced)
     }
     else if ('c' === T)
     {
-        if (forced || changed) rnode.nodeValue = vnode.nodeValue;
+        if (forced || changed)
+            rnode.nodeValue = vnode.nodeValue;
     }
     else if (vnode.unit)
     {
@@ -2440,20 +2459,25 @@ function morphSingle(view, r, rnode, vnode, forced)
     else if ('<style>' === T || '<script>' === T)
     {
         morphAtts(view, rnode, vnode, forced);
-        if (forced || changed) rnode[TEXTC] = to_string_all(view, vnode.childNodes);
+        if (forced || changed)
+            rnode[TEXTC] = to_string_all(view, vnode.childNodes);
     }
     else
     {
         morphAtts(view, rnode, vnode, forced);
-        if (forced || changed) morph(view, rnode, vnode, forced);
+        if (forced || changed)
+            morph(view, rnode, vnode, forced);
     }
 }
-function mergeChildNodes(nodes)
+function mergeChildNodes(nodes/*, collection*/)
 {
     return 1 === nodes.length
         ? nodes[0].childNodes
-        : nodes.reduce(function(nodes, node){
-            AP.push.apply(nodes, node.childNodes);
+        : nodes.reduce(function(nodes, node, index){
+            AP.push.apply(nodes, /*collection ? node.childNodes.map(function(n) {
+                n.changed = n.changed || collection.changed(index);
+                return n;
+            }) :*/ node.childNodes);
             return nodes;
         }, []);
 }
@@ -2526,17 +2550,26 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                if (collection.mappedIndex)
+                {
+                    // re-morph items if index is used in map function
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                }
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'swap':
                 swapNodes(r, rNodes[start+d.from*m], rNodes[start+d.to*m], m);
-                change({from:d.from,to:d.from}, false);
-                change({from:d.to,to:d.to}, false);
+                if (collection.mappedIndex)
+                {
+                    // re-morph items if index is used in map function
+                    change({from:d.from,to:d.from}, false);
+                    change({from:d.to,to:d.to}, false);
+                }
                 break;
             case 'add':
-                if (di+1 === dc && 0 < d.from)
+                if (collection.mappedIndex && (di+1 === dc) && (0 < d.from))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped(0, d.from-1);
                     len = (d.from)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
@@ -2546,8 +2579,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
-                if (di+1 === dc && d.to+1 < collection.items().length)
+                if (collection.mappedIndex && (di+1 === dc) && (d.to+1 < collection.items().length))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped(d.to+1, collection.items().length-1);
                     len = (collection.items().length-d.to-1)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
@@ -2558,8 +2592,9 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                if (di+1 === dc)
+                if (collection.mappedIndex && (di+1 === dc))
                 {
+                    // re-morph items if index is used in map function
                     items = collection.mapped();
                     len = (collection.items().length)*m;
                     frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
@@ -3906,12 +3941,12 @@ var index_to_prop_re = /\[([^\]]*)\]/g,
 function get_next(a, k)
 {
     if (!a) return null;
-    var b = iterate(function(i, b){
-        var ai = a[ i ];
+    var b = iterate(function(i, b) {
+        var ai = a[i];
         if (ai)
         {
-            if (HAS.call(ai, k)) b.push( ai[ k ].n );
-            if (HAS.call(ai, WILDCARD)) b.push( ai[ WILDCARD ].n );
+            if (HAS.call(ai, k)) b.push(ai[k].n);
+            if (HAS.call(ai, WILDCARD)) b.push(ai[WILDCARD].n);
         }
     }, 0, a.length-1, []);
     return b.length ? b : null;
@@ -3920,15 +3955,15 @@ function get_value(a, k)
 {
     if (!a) return null;
     var i, ai, l = a.length;
-    if (undef !== k)
+    if (null != k)
     {
         for (i=0; i<l; ++i)
         {
-            ai = a[ i ];
+            ai = a[i];
             if (ai)
             {
-                if (HAS.call(ai, k) && ai[ k ].v) return ai[ k ].v;
-                if (HAS.call(ai, WILDCARD) && ai[ WILDCARD ].v) return ai[ WILDCARD ].v;
+                if (HAS.call(ai, k) && ai[k].v) return ai[k].v;
+                if (HAS.call(ai, WILDCARD) && ai[WILDCARD].v) return ai[WILDCARD].v;
             }
         }
     }
@@ -3936,7 +3971,7 @@ function get_value(a, k)
     {
         for (i=0; i<l; ++i)
         {
-            ai = a[ i ];
+            ai = a[i];
             if (ai && ai.v) return ai.v;
         }
     }
@@ -3948,8 +3983,8 @@ function walk_and_add(v, p, obj, isCollectionEach)
     while (i < l)
     {
         k = p[i++];
-        if (!HAS.call(o,k)) o[ k ] = new Node( );
-        o = o[ k ];
+        if (!HAS.call(o, k)) o[k] = new Node();
+        o = o[k];
         if (i < l)
         {
             o = o.n;
@@ -3958,8 +3993,8 @@ function walk_and_add(v, p, obj, isCollectionEach)
         {
             if (isCollectionEach)
             {
-                if (!HAS.call(o.n,WILDCARD) ) o.n[ WILDCARD ] = new Node( );
-                o.n[ WILDCARD ].v = v;
+                if (!HAS.call(o.n, WILDCARD) ) o.n[WILDCARD] = new Node();
+                o.n[WILDCARD].v = v;
             }
             else
             {
@@ -3976,26 +4011,26 @@ function walk_and_check(p, obj, aux, C)
     {
         k = p[i++];
         if (is_instance(o, Collection)) o = o.items();
-        to = get_type( o );
+        to = get_type(o);
         if (i < l)
         {
-            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k))
             {
-                o = o[ k ];
+                o = o[k];
                 // nested sub-composite class
                 if (o instanceof C) return [C, o, p.slice(i)];
-                a && (a = get_next( a, k ));
+                a && (a = get_next(a, k));
             }
-            else if (!a || !(a = get_next( a, k )))
+            else if (!a || !(a = get_next(a, k)))
             {
                 return false;
             }
         }
         else
         {
-            if (a && get_value( a, k )) return true;
-            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return true;
-            else if (T_OBJ === to && 'length' == k) return true;
+            if (a && get_value(a, k)) return true;
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k)) return true;
+            else if (T_OBJ === to && 'length' === k) return true;
             return false;
         }
     }
@@ -4008,26 +4043,26 @@ function walk_and_get2(p, obj, aux, C)
     {
         k = p[i++];
         if (is_instance(o, Collection)) o = o.items();
-        to = get_type( o );
+        to = get_type(o);
         if (i < l)
         {
-            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k))
             {
-                o = o[ k ];
+                o = o[k];
                 // nested sub-composite class
                 if (is_instance(o, C)) return [C, o, p.slice(i)];
-                a && (a = get_next( a, k ));
+                a && (a = get_next(a, k));
             }
-            else if (!a || !(a = get_next( a, k )))
+            else if (!a || !(a = get_next(a, k)))
             {
                 return false;
             }
         }
         else
         {
-            if (a && (a = get_value( a, k ))) return [false, a];
-            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k)) return [true, o[k]];
-            else if (T_OBJ === to && 'length' == k) return [true, Keys(o).length];
+            if (a && (a = get_value(a, k))) return [false, a];
+            else if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k)) return [true, o[k]];
+            else if (T_OBJ === to && 'length' === k) return [true, Keys(o).length];
             return false;
         }
     }
@@ -4040,15 +4075,15 @@ function walk_and_get_value2(p, obj, aux, C)
     {
         k = p[i++];
         if (is_instance(o, Collection) && i < l) o = o.items();
-        to = get_type( o );
+        to = get_type(o);
         if (i < l)
         {
-            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k))
             {
-                o = o[ k ];
+                o = o[k];
                 // nested sub-composite class
                 if (is_instance(o, C)) return [C, o, p.slice(i)];
-                else if (!a || !(a = get_next( a, k ))) return false;
+                else if (!a || !(a = get_next(a, k))) return false;
             }
             else
             {
@@ -4059,7 +4094,7 @@ function walk_and_get_value2(p, obj, aux, C)
         {
             // nested sub-composite class
             if (is_instance(o[k], C)) return [C, o[k], p.slice(i)];
-            else if (a /*&& get_value( a, k )*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o,k)))) return [true, o, k, a];
+            else if (a /*&& get_value(a, k)*/ && (is_instance(o, Collection) || ((to&T_ARRAY_OR_OBJ) && HAS.call(o, k)))) return [true, o, k, a];
             return false;
         }
     }
@@ -4071,7 +4106,7 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
         k, to, i = 0, l = p.length
     ;
     all3 = false !== all3;
-    if (all3) { a1 = [aux1]; a2 = [aux2]; a3 = [aux3]; }
+    if (all3) {a1 = [aux1]; a2 = [aux2]; a3 = [aux3];}
 
     while (i < l)
     {
@@ -4081,26 +4116,26 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
             if (collections) collections.push([o, +k, p.slice(0, i-1)]);
             o = o.items();
         }
-        to = get_type( o );
+        to = get_type(o);
         if (i < l)
         {
-            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o,k))
+            if ((to & T_ARRAY_OR_OBJ) && HAS.call(o, k))
             {
-                o = o[ k ];
+                o = o[k];
                 // nested sub-composite class
                 if (is_instance(o, C)) return [C, o, p.slice(i), 0, null, null, null];
                 if (all3)
                 {
-                    a1 = get_next( a1, k );
-                    a2 = get_next( a2, k );
-                    a3 = get_next( a3, k );
+                    a1 = get_next(a1, k);
+                    a2 = get_next(a2, k);
+                    a3 = get_next(a3, k);
                 }
             }
             // fixed, it bypassed setters which had multiple virtual levels
-            else if (all3 && a3 && (a3 = get_next( a3, k )))
+            else if (all3 && a3 && (a3 = get_next(a3, k)))
             {
-                a1 = get_next( a1, k );
-                a2 = get_next( a2, k );
+                a1 = get_next(a1, k);
+                a2 = get_next(a2, k);
             }
             else
             {
@@ -4115,9 +4150,9 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
         {
 
             // nested sub-composite class
-            if (is_instance(o[ k ], C))
+            if (is_instance(o[k], C))
                 return [C, o[k], p.slice(i), 0, null, null, null];
-            else if (HAS.call(o,k) /*|| (to === T_OBJ && "length" === k)*/)
+            else if (HAS.call(o, k) /*|| (to === T_OBJ && "length" === k)*/)
                 return [true, o, k, p.slice(i), a1, a2, a3];
             return [false, o, k, p.slice(i), a1, a2, a3];
         }
@@ -4152,13 +4187,13 @@ function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesVali
     if (isCollectionEach=is_instance(typeOrValidator, CollectionEach))
     {
         // each wrapper
-        typeOrValidator = typeOrValidator.f; //bindF( typeOrValidator.f, model );
+        typeOrValidator = typeOrValidator.f; //bindF(typeOrValidator.f, model);
         // bind the typeOrValidator handler to 'this model'
         walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
     }
     else
     {
-        t = get_type( typeOrValidator );
+        t = get_type(typeOrValidator);
         if (T_FUNC & t)
         {
             // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
@@ -4171,8 +4206,8 @@ function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesVali
             // nested keys given, recurse
             for (k in typeOrValidator)
             {
-                if (HAS.call(typeOrValidator,k))
-                    addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[ k ], modelTypesValidators);
+                if (HAS.call(typeOrValidator, k))
+                    addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[k], modelTypesValidators);
             }
         }
     }
@@ -4185,35 +4220,112 @@ function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSett
     {
         // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
         // bind the getterOrSetter handler to 'this model'
-        walk_and_add(getterOrSetter /*bindF( getterOrSetter, model )*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+        walk_and_add(getterOrSetter /*bindF(getterOrSetter, model)*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
     }
     else if (T_ARRAY_OR_OBJ & t)
     {
         // nested keys given, recurse
         for (k in getterOrSetter)
         {
-            if (HAS.call(getterOrSetter,k))
-                addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[ k ], modelGettersSetters);
+            if (HAS.call(getterOrSetter, k))
+                addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[k], modelGettersSetters);
         }
     }
 }
+function mergeDefaultKeys(keys, def)
+{
+    var n = keys.length, defaults = def, i, o, k;
+    for (i=n-1; i>=0; --i)
+    {
+        o = {};
+        k = keys[i];
+        if (is_type(k, T_ARRAY))
+        {
+            each(k, function(kk) {
+                o[kk] = clone_var(defaults);
+            });
+        }
+        else
+        {
+            o[k] = defaults;
+        }
+        defaults = o;
+    }
+    return defaults;
+}
 function modelDefaults(model, data, defaults)
 {
-    var k, v;
-    for (k in defaults)
+    if (is_type(data, T_ARRAY_OR_OBJ) && is_type(defaults, T_ARRAY_OR_OBJ))
     {
-        if (HAS.call(defaults,k))
+        var keys, key, def, k, kk, n, o, doMerge, i, ok;
+        for (key in defaults)
         {
-            v = defaults[ k ];
-            if (!HAS.call(data, k ))
+            if (!HAS.call(defaults, key)) continue;
+            def = defaults[key];
+            kk = key.split(SEPARATOR);
+            n = kk.length;
+            if (1 < n)
             {
-                data[ k ] = v;
+                o = data;
+                keys = [];
+                doMerge = true;
+                for (i=0; i<n; ++i)
+                {
+                    k = kk[i];
+                    if (WILDCARD === k)
+                    {
+                        ok = Keys(o);
+                        if (!ok.length)
+                        {
+                            doMerge = false;
+                            break;
+                        }
+                        keys.push(ok);
+                        o = o[ok[0]];
+                    }
+                    else if (HAS.call(o, k))
+                    {
+                        keys.push(k);
+                        o = o[k];
+                    }
+                    else if (i === n-1)
+                    {
+                        keys.push(k);
+                    }
+                    else
+                    {
+                        doMerge = false;
+                        break;
+                    }
+                }
+                if (doMerge)
+                {
+                    data = modelDefaults(model, data, mergeDefaultKeys(keys, def));
+                }
             }
-            else if (is_type(data[k], T_ARRAY_OR_OBJ) && is_type(v, T_ARRAY_OR_OBJ))
+            else
             {
-                data[ k ] = modelDefaults(model, data[k], v);
+                if (HAS.call(data, key))
+                {
+                    if (is_type(data[key], T_ARRAY_OR_OBJ) && is_type(def, T_ARRAY_OR_OBJ))
+                    {
+                        data[key] = modelDefaults(model, data[key], def);
+                    }
+                    else if ((null == data[key]) || (is_type(data[key], T_STR) && !trim(data[key]).length))
+                    {
+                        data[key] = clone_var(def);
+                    }
+                }
+                else
+                {
+                    data[key] = clone_var(def);
+                }
             }
         }
+    }
+    else if ((null == data[key]) || (is_type(data, T_STR) && !trim(data).length))
+    {
+        data = clone_var(defaults);
     }
     return data;
 }
@@ -4223,27 +4335,27 @@ function serializeModel(model_instance, model_class, data, dataType)
     var key, type;
     if (arguments.length < 3) data = model_instance.$data;
 
-    while (is_instance(data, model_class)) { data = data.data( ); }
+    while (is_instance(data, model_class)) {data = data.data();}
 
     if (is_instance(data, Value)) data = data.val();
     if (is_instance(data, Collection)) data = data.items();
-    type = dataType || get_type( data );
+    type = dataType || get_type(data);
     data = T_OBJ & type ? Merge({}, data) : (T_ARRAY & type ? data.slice(0) : data);
 
     if (T_ARRAY_OR_OBJ & type)
     {
         for (key in data)
         {
-            if (HAS.call(data,key))
+            if (HAS.call(data, key))
             {
-                if (is_instance(data[ key ], Value))
-                    data[ key ] = data[ key ].val( );
-                if (is_instance(data[ key ], Collection))
-                    data[ key ] = serializeModel( model_instance, model_class, data[ key ].items(), type );
-                else if (is_instance(data[ key ], model_class))
-                    data[ key ] = serializeModel(data[ key ], model_class, Merge( {}, data[ key ].data( ) ));
-                else if (T_ARRAY_OR_OBJ & (type=get_type(data[ key ])))
-                    data[ key ] = serializeModel( model_instance, model_class, data[ key ], type );
+                if (is_instance(data[key], Value))
+                    data[key] = data[key].val();
+                if (is_instance(data[key], Collection))
+                    data[key] = serializeModel(model_instance, model_class, data[key].items(), type);
+                else if (is_instance(data[key], model_class))
+                    data[key] = serializeModel(data[key], model_class, Merge({}, data[key].data()));
+                else if (T_ARRAY_OR_OBJ & (type=get_type(data[key])))
+                    data[key] = serializeModel(model_instance, model_class, data[key], type);
             }
         }
     }
@@ -4254,7 +4366,7 @@ function serializeModel(model_instance, model_class, data, dataType)
 function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey)
 {
     var o, key, val, typecaster, r, res, nestedKey, splitKey;
-    prefixKey = !!prefixKey ? (prefixKey+'.') : '';
+    prefixKey = !!prefixKey ? (prefixKey + '.') : '';
     data = data || model.$data;
     if (is_instance(data, Collection)) data = data.items();
     typecasters = typecasters || [model.$types];
@@ -4265,9 +4377,9 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
         {
             if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
             {
-                o = r[ 1 ]; key = r[ 2 ];
+                o = r[1]; key = r[2];
 
-                if (modelClass === r[ 0 ])
+                if (modelClass === r[0])
                 {
                     nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
                     // nested sub-model
@@ -4277,21 +4389,21 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
                 {
                     if (is_instance(o, Collection)) o = o.items();
                     nestedKey = splitKey.slice(0, -1).join('.');
-                    val = o[ key ]; typecaster = get_value( r[3], key );
+                    val = o[key]; typecaster = get_value(r[3], key);
                     if (typecaster)
                     {
                         if (is_instance(val, Value))
-                            o[ key ].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
+                            o[key].set(typecaster.call(model, val.val(), prefixKey+dottedKey), true);
                         else
-                            o[ key ] = typecaster.call(model, val, prefixKey+dottedKey);
+                            o[key] = typecaster.call(model, val, prefixKey+dottedKey);
                     }
-                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (typecasters=get_next( r[3], key )) && typecasters.length)
+                    if ((T_ARRAY_OR_OBJ & get_type(val)) && (typecasters=get_next(r[3], key)) && typecasters.length)
                     {
                         nestedKey += !!nestedKey ? ('.' + key) : key;
-                        nestedKey = prefixKey+nestedKey;
+                        nestedKey = prefixKey + nestedKey;
                         for (key in val)
                         {
-                            if (HAS.call(val,key))
+                            if (HAS.call(val, key))
                             {
                                 typecastModel(model, modelClass, key, val, typecasters, nestedKey);
                             }
@@ -4304,7 +4416,7 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
         {
             for (key in data)
             {
-                if (HAS.call(data,key))
+                if (HAS.call(data, key))
                 {
                     typecastModel(model, modelClass, key, data, typecasters);
                 }
@@ -4316,7 +4428,7 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
 function validateModel(model, modelClass, breakOnError, dottedKey, data, validators)
 {
     var o, key, val, validator, r, res, nestedKey, splitKey, fixKey,
-        result = {isValid: true, errors: [ ]}
+        result = {isValid: true, errors: []}
     ;
     //breakOnError = !!breakOnError;
     data = data || model.$data;
@@ -4329,11 +4441,11 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
         {
             fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
 
-            if ((r = walk_and_get_value2( splitKey=dottedKey.split('.'), o=data, validators, modelClass )))
+            if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, validators, modelClass)))
             {
-                o = r[ 1 ]; key = r[ 2 ];
+                o = r[1]; key = r[2];
 
-                if (modelClass === r[ 0 ])
+                if (modelClass === r[0])
                 {
                     nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
 
@@ -4341,7 +4453,7 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
                     res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
                     if (!res.isValid)
                     {
-                        result.errors = result.errors.concat(res.errors.map(fixKey));
+                        result.errors.push.apply(result.errors, res.errors.map(fixKey));
                         result.isValid = false;
                     }
                     if (!result.isValid && breakOnError) return result;
@@ -4351,26 +4463,26 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
                     if (is_instance(o, Collection)) o = o.items();
                     nestedKey = splitKey.slice(0, -1).join('.');
 
-                    val = o[ key ]; validator = get_value( r[3], key );
+                    val = o[key]; validator = get_value(r[3], key);
                     if (is_instance(val, Value)) val = val.val();
                     if (validator && !validator.call(model, val, dottedKey))
                     {
-                        result.errors.push(dottedKey/*fixKey( key )*/);
+                        result.errors.push(dottedKey/*fixKey(key)*/);
                         result.isValid = false;
                         if (breakOnError) return result;
                     }
-                    if ((T_ARRAY_OR_OBJ & get_type( val )) && (validators=get_next( r[3], key )) && validators.length)
+                    if ((T_ARRAY_OR_OBJ & get_type(val)) && (validators=get_next(r[3], key)) && validators.length)
                     {
                         nestedKey += !!nestedKey ? ('.' + key) : key;
 
                         for (key in val)
                         {
-                            if (HAS.call(val,key))
+                            if (HAS.call(val, key))
                             {
                                 res = validateModel(model, modelClass, breakOnError, key, val, validators);
                                 if (!res.isValid)
                                 {
-                                    result.errors = result.errors.concat(res.errors.map(fixKey));
+                                    result.errors.push.apply(result.errors, res.errors.map(fixKey));
                                     result.isValid = false;
                                 }
                                 if (breakOnError && !result.isValid) return result;
@@ -4384,12 +4496,12 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
         {
             for (key in data)
             {
-                if (HAS.call(data,key))
+                if (HAS.call(data, key))
                 {
                     res = validateModel(model, modelClass, breakOnError, key, data, validators);
                     if (!res.isValid)
                     {
-                        result.errors = result.errors.concat(res.errors);
+                        result.errors.push.apply(result.errors, res.errors);
                         result.isValid = false;
                     }
                     if (breakOnError && !result.isValid) return result;
@@ -4416,15 +4528,15 @@ function syncHandler(evt, data)
         //val = HAS.call(data,'value') ? data.value : model.get( key );
         for (k=0; k<allKeyslen; ++k)
         {
-            skey = allKeys[ k ];
+            skey = allKeys[k];
             if (skey === key || startsWith(skey, keyDot))
             {
-                syncedKeys = $syncTo[skey]; val = model.get( skey );
+                syncedKeys = $syncTo[skey]; val = model.get(skey);
                 for (i=0,l=syncedKeys.length; i<l; ++i)
                 {
                     othermodel = syncedKeys[i][0]; otherkey = syncedKeys[i][1];
                     // fixed, too much recursion, when keys notified other keys, which then were re-synced
-                    model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [ ];
+                    model.__syncing[othermodel.$id] = model.__syncing[othermodel.$id] || [];
                     __syncing = model.__syncing[othermodel.$id];
                     if (0 > __syncing.indexOf(otherkey))
                     {
@@ -4468,7 +4580,7 @@ function getDirty(u, ks)
 }
 function setDirty(model, key, many)
 {
-    if (many) each(key, function(k){model.setDirty(k.split('.'));});
+    if (many) each(key, function(k) {model.setDirty(k.split('.'));});
     else model.setDirty(key);
 }
 function isDirty(u, ks, i)
@@ -4503,8 +4615,8 @@ function sorter()
         {
             field = args[i];
             // if is array, it contains a filter function as well
-            filter_args.unshift('f'+i);
-            if ( field.push )
+            filter_args.unshift('f' + i);
+            if (field.push)
             {
                 sorter_args.unshift(field[1]);
                 field = field[0];
@@ -4582,14 +4694,15 @@ var Model = function Model(id, data, types, validators, getters, setters, depend
     model.key = removePrefix(model.id);
 
     model.atomic = false;  model.$atom = null;
+    model.$opts = {};
     model.$autovalidate = true;
-    model.$types = { }; model.$validators = { }; model.$getters = { }; model.$setters = { };
-    model.$idependencies = { }; model.$syncTo = { };
-    model.data(data || { })
+    model.$types = {}; model.$validators = {}; model.$getters = {}; model.$setters = {};
+    model.$idependencies = {}; model.$syncTo = {};
+    model.data(data || {})
     .types(types).validators(validators)
     .getters(getters).setters(setters)
     .dependencies(dependencies)
-    .initPubSub( )
+    .initPubSub()
     ;
 };
 // STATIC
@@ -4599,8 +4712,8 @@ Model.count = function(o) {
     if (is_instance(o, Collection)) o = o.items();
     var T = get_type(o);
 
-    if (T_OBJ === T) return Keys(o).length;
-    else if (T_ARRAY === T) return o.length;
+    if (T_ARRAY === T) return o.length;
+    else if (T_OBJ === T) return Keys(o).length;
     else if (T_UNDEF !== T) return 1; //  is scalar value, set count to 1
     return 0;
 };
@@ -4616,6 +4729,7 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
     ,id: null
     ,namespace: null
     ,$id: null
+    ,$opts: null
     ,$data: null
     ,$types: null
     ,$idependencies: null
@@ -4635,9 +4749,10 @@ Model[proto] = Merge(Create(Obj[proto]), PublishSubscribe, {
 model.dispose( );
 
 [/DOC_MARKDOWN]**/
-    ,dispose: function( ) {
+    ,dispose: function() {
         var model = this;
         model.disposePubSub();
+        model.$opts = null;
         model.$data = null;
         model.$types = null;
         model.$idependencies = null;
@@ -4656,6 +4771,19 @@ model.dispose( );
     }
 
     ,key: null
+
+    ,option: function(key) {
+        var model = this;
+        if (1 < arguments.length)
+        {
+            model.$opts[key] = arguments[1];
+        }
+        else if (key)
+        {
+            return HAS.call(model.$opts, key) ? model.$opts[key] : undef;
+        }
+        return model;
+    }
 
 /**[DOC_MARKDOWN]
 // get / set model data
@@ -4714,22 +4842,22 @@ model.dependencies( Object dependencies );
         {
             for (k in deps)
             {
-                if (HAS.call(deps,k))
+                if (HAS.call(deps, k))
                 {
                     // inverse dependencies, used by model
-                    d = deps[ k ] ? [].concat( deps[ k ] ) : [];
+                    d = deps[k] ? [].concat(deps[k]) : [];
                     for (i=0; i<d.length; ++i)
                     {
                         // add hierarchical/dotted key, all levels
                         kk = d[i].split('.');
                         dk = kk[0];
-                        if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
-                        if (0 > dependencies[ dk ].indexOf( k )) dependencies[ dk ].push( k );
+                        if (!HAS.call(dependencies, dk)) dependencies[dk] = [];
+                        if (0 > dependencies[dk].indexOf(k)) dependencies[dk].push(k);
                         for (j=1; j<kk.length; ++j)
                         {
                             dk += '.' + kk[j];
-                            if (!HAS.call(dependencies,dk)) dependencies[ dk ] = [ ];
-                            if (0 > dependencies[ dk ].indexOf( k )) dependencies[ dk ].push( k );
+                            if (!HAS.call(dependencies, dk)) dependencies[dk] = [];
+                            if (0 > dependencies[dk].indexOf(k)) dependencies[dk].push(k);
                         }
                     }
                 }
@@ -4744,25 +4872,8 @@ model.defaults( Object defaults );
 
 [/DOC_MARKDOWN]**/
     ,defaults: function(defaults) {
-        var model = this, k, v, data = model.$data;
-        if (is_type(defaults, T_OBJ))
-        {
-            for (k in defaults)
-            {
-                if (HAS.call(defaults,k))
-                {
-                    v = defaults[ k ];
-                    if (!HAS.call(data, k))
-                    {
-                        data[ k ] = v;
-                    }
-                    else if (is_type( data[k], T_ARRAY_OR_OBJ ) && is_type( v, T_ARRAY_OR_OBJ ))
-                    {
-                        data[ k ] = modelDefaults(model, data[k], v);
-                    }
-                }
-            }
-        }
+        var model = this;
+        model.$data = modelDefaults(model, model.$data, defaults);
         return model;
     }
 
@@ -4777,8 +4888,8 @@ model.types( Object typeCasters );
         {
             for (k in types)
             {
-                if (HAS.call(types,k))
-                    addModelTypeValidator(model, k, types[ k ], model.$types);
+                if (HAS.call(types, k))
+                    addModelTypeValidator(model, k, types[k], model.$types);
             }
         }
         return model;
@@ -4795,8 +4906,8 @@ model.validators( Object validators );
         {
             for (k in validators)
             {
-                if (HAS.call(validators,k))
-                    addModelTypeValidator(model, k, validators[ k ], model.$validators);
+                if (HAS.call(validators, k))
+                    addModelTypeValidator(model, k, validators[k], model.$validators);
             }
         }
         return model;
@@ -4813,8 +4924,8 @@ model.getters( Object getters );
         {
             for (k in getters)
             {
-                if (HAS.call(getters,k))
-                    addModelGetterSetter(model, k, getters[ k ], model.$getters);
+                if (HAS.call(getters, k))
+                    addModelGetterSetter(model, k, getters[k], model.$getters);
             }
         }
         return model;
@@ -4831,8 +4942,8 @@ model.setters( Object setters );
         {
             for (k in setters)
             {
-                if (HAS.call(setters,k))
-                    addModelGetterSetter(model, k, setters[ k ], model.$setters);
+                if (HAS.call(setters, k))
+                    addModelGetterSetter(model, k, setters[k], model.$setters);
             }
         }
         return model;
@@ -4900,7 +5011,7 @@ model.has( String dottedKey [, Boolean RAW=false ] );
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.') && (HAS.call(data,dottedKey) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)))
+        if (0 > dottedKey.indexOf('.') && (HAS.call(data, dottedKey) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)))
         {
             // handle single key fast
             return true;
@@ -4927,16 +5038,16 @@ model.get( String dottedKey [, Boolean RAW=false ] );
         {
             // handle single key fast
             if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return r.v.call(model, dottedKey);
-            return data[ dottedKey ];
+            return data[dottedKey];
         }
-        else if ((r = walk_and_get2( dottedKey.split('.'), data, RAW ? null : getters, Model )))
+        else if ((r = walk_and_get2(dottedKey.split('.'), data, RAW ? null : getters, Model)))
         {
             // nested sub-model
-            if (Model === r[ 0 ]) return r[ 1 ].get(r[ 2 ].join('.'), RAW);
+            if (Model === r[0]) return r[1].get(r[2].join('.'), RAW);
             // custom getter
-            else if (false === r[ 0 ]) return r[ 1 ].call(model, dottedKey);
+            else if (false === r[0]) return r[1].call(model, dottedKey);
             // model field
-            return r[ 1 ];
+            return r[1];
         }
         return undef;
     }
@@ -4960,21 +5071,21 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             }
             return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, true).changed(model.isDirty([dottedKey]));
         }
-        else if ((r = walk_and_get2( ks=dottedKey.split('.'), data, RAW ? null : getters, Model )))
+        else if ((r = walk_and_get2(ks=dottedKey.split('.'), data, RAW ? null : getters, Model)))
         {
             // nested sub-model
-            if (Model === r[ 0 ])
+            if (Model === r[0])
             {
-                return r[ 1 ].getVal(r[ 2 ].join('.'), RAW);
+                return r[1].getVal(r[2].join('.'), RAW);
             }
             // custom getter
-            else if (false === r[ 0 ])
+            else if (false === r[0])
             {
-                ret = r[ 1 ].call(model, dottedKey);
+                ret = r[1].call(model, dottedKey);
                 return is_instance(ret, Value) ? ret : Value(ret, dottedKey, true).changed(model.isDirty(ks));
             }
             // model field
-            return is_instance(r[ 1 ], Value) ? r[ 1 ] : Value(r[ 1 ], dottedKey, true).changed(model.isDirty(ks));
+            return is_instance(r[1], Value) ? r[1] : Value(r[1], dottedKey, true).changed(model.isDirty(ks));
         }
         return undef;
     }
@@ -5149,7 +5260,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
         validators = model.$validators;
         setters = model.$setters;
         ideps = model.$idependencies;
-        is_collection = T_ARRAY & get_type( val );
+        is_collection = T_ARRAY & get_type(val);
 
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -5171,11 +5282,11 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3( ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections )))
+        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
-            o = r[ 1 ]; k = r[ 2 ];
+            o = r[1]; k = r[2];
 
-            if (Model === r[ 0 ])
+            if (Model === r[0])
             {
                 // nested sub-model
                 if (k.length)
@@ -5187,7 +5298,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     if (prevval !== val)
                     {
                         o.set(k, val, pub, callData);
-                        each(collections, function(collection){
+                        each(collections, function(collection) {
                             collection[0].upd(collection[1]);
                             //setDirty(model, collection[2]);
                         });
@@ -5196,7 +5307,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 }
                 else
                 {
-                    prevval = o.data( );
+                    prevval = o.data();
                     if (prevval !== val) o.data(val);
                     else pub = false;
                 }
@@ -5211,7 +5322,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 });
 
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
+                if (HAS.call(ideps, dottedKey))
                 {
                     //setDirty(model, ideps[dottedKey], true);
                     pub && model.notify(ideps[dottedKey]);
@@ -5231,9 +5342,9 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             if (is_collection)
             {
                 if (!type)
-                    collection_type = get_value(get_next( r[4], k ), WILDCARD);
+                    collection_type = get_value(get_next(r[4], k), WILDCARD);
                 if (autovalidate && !validator)
-                    collection_validator = get_value(get_next( r[5], k ), WILDCARD);
+                    collection_validator = get_value(get_next(r[5], k), WILDCARD);
             }
             canSet = true;
         }
@@ -5259,7 +5370,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             else if (collection_validator)
             {
                 for (i=0,l=val.length; i<l; ++i)
-                    if (!collection_validator.call( model, val[i], dottedKey ))
+                    if (!collection_validator.call(model, val[i], dottedKey))
                     {
                         validated = false;
                         break;
@@ -5286,7 +5397,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    each(collections, function(collection){
+                    each(collections, function(collection) {
                         collection[0].upd(collection[1]);
                         //setDirty(model, collection[2]);
                     });
@@ -5298,7 +5409,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         $callData: callData
                     });
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
+                    if (HAS.call(ideps, dottedKey))
                     {
                         //setDirty(model, ideps[dottedKey], true);
                         pub && model.notify(ideps[dottedKey]);
@@ -5308,12 +5419,12 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 return model;
             }
 
-            prevval = is_instance(o, Collection) ? o.get(k) : (is_instance(o[k], Collection) ? o[k].items() : o[ k ]);
+            prevval = is_instance(o, Collection) ? o.get(k) : (is_instance(o[k], Collection) ? o[k].items() : o[k]);
             if (is_instance(prevval, Value)) prevval = prevval.val();
             // update/set only if different
             if (prevval !== val)
             {
-                each(collections, function(collection){
+                each(collections, function(collection) {
                     collection[0].upd(collection[1]);
                     //setDirty(model, collection[2]);
                 });
@@ -5322,7 +5433,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 if (is_instance(o, Collection)) o.set(k, val);
                 else if (is_instance(o[k], Collection)) o[k].set(val);
                 else if (is_instance(o[k], Value)) o[k].set(val);
-                else o[ k ] = val;
+                else o[k] = val;
 
                 setDirty(model, ks);
                 pub && model.publish('change', {
@@ -5333,7 +5444,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                     $callData: callData
                 });
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
+                if (HAS.call(ideps, dottedKey))
                 {
                     //setDirty(model, ideps[dottedKey], true);
                     pub && model.notify(ideps[dottedKey]);
@@ -5369,7 +5480,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
         validators = model.$validators;
         setters = model.$setters;
         ideps = model.$idependencies;
-        is_collection = T_ARRAY & get_type( val );
+        is_collection = T_ARRAY & get_type(val);
 
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -5393,16 +5504,16 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
         }
         else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
-            o = r[ 1 ]; k = r[ 2 ];
+            o = r[1]; k = r[2];
 
-            if (Model === r[ 0 ])
+            if (Model === r[0])
             {
                 // nested sub-model
                 if (k.length)
                 {
                     k = k.join('.');
                     o.add(k, val, prepend, pub, callData);
-                    each(collections, function(collection){
+                    each(collections, function(collection) {
                         collection[0].upd(collection[1]);
                         //setDirty(model, collection[2]);
                     });
@@ -5422,7 +5533,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     $callData: callData
                 });
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
+                if (HAS.call(ideps, dottedKey))
                 {
                     //setDirty(model, ideps[dottedKey], true);
                     pub && model.notify(ideps[dottedKey]);
@@ -5430,21 +5541,21 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 return model;
             }
 
-            setter = get_value(get_next( r[6], k ), WILDCARD);
+            setter = get_value(get_next(r[6], k), WILDCARD);
             if (!setter && (false === r[0] && r[3].length))
             {
                 // cannot add intermediate values or not array
                 return model;
             }
 
-            type = get_value(get_next( r[4], k ), WILDCARD);
-            validator = get_value(get_next( r[5], k ), WILDCARD);
+            type = get_value(get_next(r[4], k), WILDCARD);
+            validator = get_value(get_next(r[5], k), WILDCARD);
             if (is_collection)
             {
                 if (!type)
-                    collection_type = get_value(get_next(get_next( r[4], k ), WILDCARD), WILDCARD);
+                    collection_type = get_value(get_next(get_next(r[4], k), WILDCARD), WILDCARD);
                 if (autovalidate && !validator)
-                    collection_validator = get_value(get_next(get_next( r[5], k ), WILDCARD), WILDCARD);
+                    collection_validator = get_value(get_next(get_next(r[5], k), WILDCARD), WILDCARD);
             }
             canSet = true;
         }
@@ -5466,7 +5577,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             {
                 validated = validator.call(model, val, dottedKey);
             }
-            else if ( collection_validator )
+            else if (collection_validator)
             {
                 for (i=0,l=val.length; i<l; ++i)
                     if (!collection_validator.call(model, val[i], dottedKey))
@@ -5497,14 +5608,14 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    each(collections, function(collection){
+                    each(collections, function(collection) {
                         collection[0].upd(collection[1]);
                         //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
                     if (pub)
                     {
-                        if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
+                        if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[k])))
                         {
                             index = prepend ? 0 : (is_instance(o[k], Collection) ? o[k].items().length : o[k].length);
                         }
@@ -5517,7 +5628,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                         });
                     }
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
+                    if (HAS.call(ideps, dottedKey))
                     {
                         //setDirty(model, ideps[dottedKey], true);
                         pub && model.notify(ideps[dottedKey]);
@@ -5527,29 +5638,29 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 return model;
             }
 
-            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[k])))
             {
                 if (prepend)
                 {
                     // prepend node here
                     index = 0;
-                    o[ k ].unshift(val);
+                    o[k].unshift(val);
                 }
                 else
                 {
                     // append node here
-                    index = is_instance(o[k], Collection) ? o[k].items().length : o[ k ].length;
-                    o[ k ].push(val);
+                    index = is_instance(o[k], Collection) ? o[k].items().length : o[k].length;
+                    o[k].push(val);
                 }
             }
             else
             {
                 // not array-like, do a set operation, in case
                 index = -1;
-                o[ k ] = val;
+                o[k] = val;
             }
 
-            each(collections, function(collection){
+            each(collections, function(collection) {
                 collection[0].upd(collection[1]);
                 //setDirty(model, collection[2]);
             });
@@ -5563,7 +5674,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 $callData: callData
             });
             // notify any dependencies as well
-            if (HAS.call(ideps,dottedKey))
+            if (HAS.call(ideps, dottedKey))
             {
                 //setDirty(model, ideps[dottedKey], true);
                 pub && model.notify(ideps[dottedKey]);
@@ -5597,7 +5708,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
         validators = model.$validators;
         setters = model.$setters;
         ideps = model.$idependencies;
-        is_collection = T_ARRAY & get_type( val );
+        is_collection = T_ARRAY & get_type(val);
 
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
@@ -5621,16 +5732,16 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
         }
         else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
-            o = r[ 1 ]; k = r[ 2 ];
+            o = r[1]; k = r[2];
 
-            if (Model === r[ 0 ])
+            if (Model === r[0])
             {
                 // nested sub-model
                 if (k.length)
                 {
                     k = k.join('.');
                     o.ins(k, val, index, pub, callData);
-                    each(collections, function(collection){
+                    each(collections, function(collection) {
                         collection[0].upd(collection[1]);
                         //setDirty(model, collection[2]);
                     });
@@ -5650,7 +5761,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     $callData: callData
                 });
                 // notify any dependencies as well
-                if (HAS.call(ideps,dottedKey))
+                if (HAS.call(ideps, dottedKey))
                 {
                     //setDirty(model, ideps[dottedKey], true);
                     pub && model.notify(ideps[dottedKey]);
@@ -5658,21 +5769,21 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 return model;
             }
 
-            setter = get_value(get_next( r[6], k ), WILDCARD);
+            setter = get_value(get_next(r[6], k), WILDCARD);
             if (!setter && (false === r[0] && r[3].length))
             {
                 // cannot add intermediate values or not array
                 return model;
             }
 
-            type = get_value(get_next( r[4], k ), WILDCARD);
-            validator = get_value(get_next( r[5], k ), WILDCARD);
+            type = get_value(get_next(r[4], k), WILDCARD);
+            validator = get_value(get_next(r[5], k), WILDCARD);
             if (is_collection)
             {
                 if (!type)
-                    collection_type = get_value(get_next(get_next( r[4], k ), WILDCARD), WILDCARD);
+                    collection_type = get_value(get_next(get_next(r[4], k), WILDCARD), WILDCARD);
                 if (autovalidate && !validator)
-                    collection_validator = get_value(get_next(get_next( r[5], k ), WILDCARD), WILDCARD);
+                    collection_validator = get_value(get_next(get_next(r[5], k), WILDCARD), WILDCARD);
             }
             canSet = true;
         }
@@ -5722,7 +5833,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
             {
                 if (false !== setter.call(model, dottedKey, val, pub))
                 {
-                    each(collections, function(collection){
+                    each(collections, function(collection) {
                         collection[0].upd(collection[1]);
                         //setDirty(model, collection[2]);
                     });
@@ -5735,7 +5846,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                         $callData: callData
                     });
                     // notify any dependencies as well
-                    if (HAS.call(ideps,dottedKey))
+                    if (HAS.call(ideps, dottedKey))
                     {
                         //setDirty(model, ideps[dottedKey], true);
                         pub && model.notify(ideps[dottedKey]);
@@ -5745,19 +5856,19 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 return model;
             }
 
-            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[ k ])))
+            if (is_instance(o[k], Collection) || (T_ARRAY === get_type(o[k])))
             {
                 // insert node here
-                o[ k ].splice(index, 0, val);
+                o[k].splice(index, 0, val);
             }
             else
             {
                 // not array-like, do a set operation, in case
                 index = -1;
-                o[ k ] = val;
+                o[k] = val;
             }
 
-            each(collections, function(collection){
+            each(collections, function(collection) {
                 collection[0].upd(collection[1]);
                 //setDirty(model, collection[2]);
             });
@@ -5771,7 +5882,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 $callData: callData
             });
             // notify any dependencies as well
-            if (HAS.call(ideps,dottedKey))
+            if (HAS.call(ideps, dottedKey))
             {
                 //setDirty(model, ideps[dottedKey], true);
                 pub && model.notify(ideps[dottedKey]);
@@ -5807,16 +5918,16 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
         }
         else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, null, null, null, Model, false, collections)))
         {
-            o = r[ 1 ]; k = r[ 2 ];
+            o = r[1]; k = r[2];
             ks.length = ks.length-1; // not include removed key/index
 
-            if (Model === r[ 0 ] && k.length)
+            if (Model === r[0] && k.length)
             {
                 // nested sub-model
                 k = k.join('.');
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
-                each(collections, function(collection){
+                each(collections, function(collection) {
                     collection[0].upd(collection[1]);
                     //setDirty(model, collection[2]);
                 });
@@ -5832,7 +5943,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 if (model.$atom && dottedKey === model.$atom) model.atomic = true;
                 return model;
             }
-            else if (r[ 3 ].length)
+            else if (r[3].length)
             {
                 // cannot remove intermediate values
                 return model;
@@ -5851,21 +5962,21 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
             }
             else
             {
-                val = o[ k ]; o[ k ] = undef;
+                val = o[k]; o[k] = undef;
                 if (reArrangeIndexes)
                 {
-                    T = get_type( o );
+                    T = get_type(o);
                      // re-arrange indexes
-                    if ((T_ARRAY == T) && is_array_index( k )) {index = +k; o.splice(index, 1);}
-                    else if (T_OBJ == T) delete o[ k ];
+                    if ((T_ARRAY == T) && is_array_index(k)) {index = +k; o.splice(index, 1);}
+                    else if (T_OBJ == T) delete o[k];
                 }
                 else
                 {
-                    delete o[ k ]; // not re-arrange indexes
+                    delete o[k]; // not re-arrange indexes
                 }
             }
 
-            each(collections, function(collection){
+            each(collections, function(collection) {
                 collection[0].upd(collection[1]);
                 //setDirty(model, collection[2]);
             });
@@ -5882,7 +5993,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
             k = ks.join('.');
             // notify any dependencies as well
-            if (HAS.call(ideps,k))
+            if (HAS.call(ideps, k))
             {
                 //setDirty(model, ideps[k], true);
                 pub && model.notify(ideps[k]);
@@ -5913,7 +6024,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
             stack = [[data, dottedKey]];
             while (stack.length)
             {
-                to_remove = stack.pop( );
+                to_remove = stack.pop();
                 o = to_remove[0];
                 dottedKey = to_remove[1];
                 p = dottedKey.split('.');
@@ -5928,7 +6039,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                     }
                     if (i < l)
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
@@ -5939,7 +6050,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                                     stack.push([o, keys[kk] + '.' + k]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                             }
@@ -5953,7 +6064,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                                     stack.push([o, '' + kk + '.' + k]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                             }
@@ -5962,7 +6073,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                     }
                     else
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (is_instance(o, Collection))
                         {
                             if (WILDCARD === k)
@@ -5982,7 +6093,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                                 for (kk=0; kk<keys.length; ++kk)
                                     delete o[keys[kk]];
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 delete o[k];
                             }
@@ -6004,7 +6115,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                                     }
                                 }
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 if (reArrangeIndexes && is_array_index(k))
                                 {
@@ -6021,9 +6132,9 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 }
             }
         }
-        each(collections, function(collection){
+        each(collections, function(collection) {
             collection[0].upd(collection[1]);
-            setDirty(model, collection[2]);
+            //setDirty(model, collection[2]);
         });
         return model;
     }
@@ -6038,7 +6149,7 @@ model.sync( Model otherModel, Object fieldsMap );
         var model = this, key, otherKey, callback, list, i, l, addIt;
         for (key in fieldsMap)
         {
-            if (HAS.call(fieldsMap,key))
+            if (HAS.call(fieldsMap, key))
             {
                 otherKey = fieldsMap[key]; model.$syncTo[key] = model.$syncTo[key] || [];
                 callback = null;
@@ -6064,8 +6175,8 @@ model.sync( Model otherModel, Object fieldsMap );
         if (!model.$syncHandler) // lazy, only if needed
         {
             // fixed, too much recursion, when keys notified other keys, which then were re-synced
-            model.__syncing = model.__syncing || { };
-            model.on('change', model.$syncHandler = syncHandler/*.bind( model )*/);
+            model.__syncing = model.__syncing || {};
+            model.on('change', model.$syncHandler = syncHandler/*.bind(model)*/);
         }
         return model;
     }
@@ -6080,9 +6191,9 @@ model.unsync( Model otherModel );
         var model = this, key, syncTo = model.$syncTo, list, i;
         for (key in syncTo)
         {
-            if (HAS.call(syncTo,key))
+            if (HAS.call(syncTo, key))
             {
-                if (!(list=syncTo[ key ]) || !list.length) continue;
+                if (!(list=syncTo[key]) || !list.length) continue;
                 for (i=list.length-1; i>=0; --i)
                 {
                     if (otherModel === list[i][0])
@@ -6134,7 +6245,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 l = dottedKey.length;
                 for (k=0; k<l; ++k)
                 {
-                    d.key = dk = dottedKey[ k ];
+                    d.key = dk = dottedKey[k];
                     if (HAS.call(keys,'_'+dk)) continue;
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
@@ -6151,9 +6262,9 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 d = {key: '', action: 'set'};
                 for (k=0; k<l; ++k)
                 {
-                    dk = deps[ k ];
+                    dk = deps[k];
                     // avoid already notified keys previously
-                    if (HAS.call(keys,'_'+dk)) continue;
+                    if (HAS.call(keys, '_'+dk)) continue;
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps, dk)) deps2.push.apply(deps2, ideps[dk]);
                     d.key = dk;
@@ -6174,7 +6285,7 @@ model.atom( String dottedKey | Boolean false );
     // atomic (update) operation(s) by key
     ,atom: function(dottedKey) {
         var model = this;
-        if (undef !== dottedKey)
+        if (null != dottedKey)
         {
             if (false === dottedKey)
             {
@@ -6439,6 +6550,7 @@ Collection[proto] = {
     ,diff: null
     ,mapper: null
     ,mappedItem: 1
+    ,mappedIndex: false
     ,id: null
     ,dispose: function() {
         var self = this;
@@ -6447,7 +6559,19 @@ Collection[proto] = {
         self.mapper = null;
         return self;
     }
-    ,dirty: function(index) {
+    ,_upd: function(action, start, end) {
+        var diff = this.diff/*, last = diff.length ? diff[diff.length-1] : null*/;
+        /*if (!last || (last.action !== action) || (last.to < start-1) || (last.from >= end))
+        {*/
+            diff.push({action:action, from:start, to:end});
+        /*}
+        else
+        {
+            last.to = stdMath.max(last.to, end);
+        }*/
+        return this;
+    }
+    ,changed: function(index) {
         if (arguments.length)
         {
             for (var diff,d=this.diff,i=0,dl=d.length; i<dl; ++i)
@@ -6467,18 +6591,6 @@ Collection[proto] = {
             return 0 < this.diff.length;
         }
     }
-    ,_upd: function(action, start, end) {
-        var diff = this.diff/*, last = diff.length ? diff[diff.length-1] : null*/;
-        /*if (!last || (last.action !== action) || (last.to < start-1) || (last.from >= end))
-        {*/
-            diff.push({action:action, from:start, to:end});
-        /*}
-        else
-        {
-            last.to = stdMath.max(last.to, end);
-        }*/
-        return this;
-    }
 /**[DOC_MARKDOWN]
 // reset all manipulations so far, data are kept intact, return same collection
 collection.reset();
@@ -6492,23 +6604,12 @@ collection.reset();
         return self;
     }
 /**[DOC_MARKDOWN]
-// clone this collection and/or the data (optionally with any Array.map functions as well)
-collection.clone(Boolean type = undefined);
-collection.clone(true) // new instance with **cloned** array **and** Array.map function
-collection.clone(false) // new instance with **original** array, without Array.map function
-collection.clone() // new instance with **original** array **and** Array.map function
+// mark entry at index as changed
+collection.upd(index);
 
 [/DOC_MARKDOWN]**/
-    ,clone: function(type) {
-        var self = this, cloned = new Collection();
-        cloned._items = true === type ? self._items.slice() : self._items;
-        cloned.diff = self.diff.slice();
-        if (false !== type)
-        {
-            cloned.mapper = self.mapper;
-            cloned.mappedItem = self.mappedItem;
-        }
-        return cloned;
+    ,upd: function(index) {
+        return this._upd('change', index, index);
     }
 /**[DOC_MARKDOWN]
 // get the (array) items of this collection (optionally between start and end index, like Array.slice)
@@ -6564,14 +6665,6 @@ collection.set(newData);
         return self;
     }
 /**[DOC_MARKDOWN]
-// mark entry at index as changed
-collection.upd(index);
-
-[/DOC_MARKDOWN]**/
-    ,upd: function(index) {
-        return this._upd('change', index, index);
-    }
-/**[DOC_MARKDOWN]
 // replace data with completely new data, return same collection
 collection.replace(newData);
 
@@ -6583,6 +6676,19 @@ collection.replace(newData);
             self._items = data;
             self.reset()._upd('replace', 0, self._items.length-1);
         }
+        return self;
+    }
+/**[DOC_MARKDOWN]
+// sort items given a `compare` function (same as Array.sort), return same collection
+collection.sort(Function compare);
+
+[/DOC_MARKDOWN]**/
+    ,sort: function(compare) {
+        var self = this, items = self._items.map(function(it, i){return [it, i];});
+        compare = compare || function(a, b) {return a < b ? -1 : (a > b ? 1 : 0);};
+        items.sort(function(a, b) {return compare(a[0], b[0]);});
+        self._items = items.map(function(it) {return it[0];});
+        self.reset()._upd('reorder', items.map(function(it) {return it[1];}), null);
         return self;
     }
 /**[DOC_MARKDOWN]
@@ -6599,19 +6705,6 @@ collection.swap(index1, index2);
             self._items[index2] = t;
             self._upd('swap', stdMath.min(index1, index2), stdMath.max(index1, index2));
         }
-        return self;
-    }
-/**[DOC_MARKDOWN]
-// sort items given a `compare` function (same as Array.sort), return same collection
-collection.sort(Function compare);
-
-[/DOC_MARKDOWN]**/
-    ,sort: function(compare) {
-        var self = this, items = self._items.map(function(it, i){return [it, i];});
-        compare = compare || function(a, b) {return a < b ? -1 : (a > b ? 1 : 0);};
-        items.sort(function(a, b) {return compare(a[0], b[0]);});
-        self._items = items.map(function(it) {return it[0];});
-        self._upd('reorder', items.map(function(it) {return it[1];}), null);
         return self;
     }
 /**[DOC_MARKDOWN]
@@ -6706,6 +6799,26 @@ collection.concat(array);
         return self;
     }
 /**[DOC_MARKDOWN]
+// clone this collection and/or the data (optionally with any Array.map functions as well)
+collection.clone(Boolean type = undefined);
+collection.clone(true) // new instance with **cloned** array **and** Array.map function
+collection.clone(false) // new instance with **original** array, without Array.map function
+collection.clone() // new instance with **original** array **and** Array.map function
+
+[/DOC_MARKDOWN]**/
+    ,clone: function(type) {
+        var self = this, cloned = new Collection();
+        cloned._items = true === type ? self._items.slice() : self._items;
+        cloned.diff = self.diff.slice();
+        if (false !== type)
+        {
+            cloned.mapper = self.mapper;
+            cloned.mappedItem = self.mappedItem;
+            cloned.mappedIndex = self.mappedIndex;
+        }
+        return cloned;
+    }
+/**[DOC_MARKDOWN]
 // map collection items given a map function, return same collection
 // actual mapping is executed lazily when actually requested (see below),
 // else func is stored to be used later, items remain intact
@@ -6714,9 +6827,20 @@ collection.mapTo(func [, Number itemsReturned = 1]);
 
 [/DOC_MARKDOWN]**/
     ,mapTo: function(f, itemsReturned) {
-        this.mapper = f;
-        this.mappedItem = +(itemsReturned || 1);
-        return this;
+        var self = this;
+        if ('function' === typeof f)
+        {
+            self.mapper = f;
+            self.mappedItem = +(itemsReturned || 1);
+            self.mappedIndex = 1 < f.length;
+        }
+        else
+        {
+            self.mapper = null;
+            self.mappedItem = 1;
+            self.mappedIndex = false;
+        }
+        return self;
     }
 /**[DOC_MARKDOWN]
 // perform actual mapping (see above), return mapped collection items array
@@ -6743,7 +6867,7 @@ collection.mapped([start [, end]]);
         return [];
     }
 };
-Collection[proto].changed = Collection[proto].dirty;
+Collection[proto].dirty = Collection[proto].changed;
 /**[DOC_MARKDOWN]
 ```
 [/DOC_MARKDOWN]**/

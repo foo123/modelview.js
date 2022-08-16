@@ -4,7 +4,7 @@
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', WILDCARD = "*",
+var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', SEPARATOR = ".", WILDCARD = "*",
     MV0 = function(att,mod,id,comp,key) {return {att:att||null,mod:mod||null,id:id||null,comp:comp||null,key:key||null};},
     DEFAULT_MV = MV0(),
     undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
@@ -148,6 +148,24 @@ function is_array_index(n)
             return true;
     }
     return false
+}
+function clone_var(o)
+{
+    if (is_array(o))
+    {
+        return o.map(clone_var);
+    }
+    else if (is_object(o))
+    {
+        return Object.keys(o).reduce(function(oo, k) {
+            oo[k] = clone_var(o[k]);
+            return oo;
+        }, {});
+    }
+    else
+    {
+        return o;
+    }
 }
 function nextNode(node, m, NEXT)
 {

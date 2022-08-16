@@ -528,11 +528,8 @@ collection.reset();
 
 
 
-// clone this collection and/or the data (optionally with any Array.map functions as well)
-collection.clone(Boolean type = undefined);
-collection.clone(true) // new instance with **cloned** array **and** Array.map function
-collection.clone(false) // new instance with **original** array, without Array.map function
-collection.clone() // new instance with **original** array **and** Array.map function
+// mark entry at index as changed
+collection.upd(index);
 
 
 
@@ -556,26 +553,20 @@ collection.set(newData);
 
 
 
-// mark entry at index as changed
-collection.upd(index);
-
-
-
-
 // replace data with completely new data, return same collection
 collection.replace(newData);
 
 
 
 
-// swap data item at index1 with data item at index2, return same collection
-collection.swap(index1, index2);
-
-
-
-
 // sort items given a `compare` function (same as Array.sort), return same collection
 collection.sort(Function compare);
+
+
+
+
+// swap data item at index1 with data item at index2, return same collection
+collection.swap(index1, index2);
 
 
 
@@ -612,6 +603,15 @@ collection.splice(index, numRemoved, ..);
 
 // concat array, in place, return same collection
 collection.concat(array);
+
+
+
+
+// clone this collection and/or the data (optionally with any Array.map functions as well)
+collection.clone(Boolean type = undefined);
+collection.clone(true) // new instance with **cloned** array **and** Array.map function
+collection.clone(false) // new instance with **original** array, without Array.map function
+collection.clone() // new instance with **original** array **and** Array.map function
 
 
 

@@ -287,7 +287,8 @@ function get_placeholders(node, map, path)
 function morphTextSimple(view, t, key, val, isDirty, model, onlyIfDirty)
 {
     if (onlyIfDirty && !isDirty) return;
-    if (t.node.nodeValue !== val) t.node.nodeValue = val;
+    if (t.node.nodeValue !== val)
+        t.node.nodeValue = val;
 }
 function morphAtt1Simple(view, a, key, val, isDirty, model, onlyIfDirty)
 {
@@ -474,21 +475,30 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'reorder':
                 permuteNodes(parentNode, startIndex+1, d.from, m);
                 permute(list.map, d.from);
-                iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
-                }, 0, items.length-1);
+                if (list['index'])
+                {
+                    // re-morph items if index is used in foreach
+                    iterate(function(index) {
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    }, 0, items.length-1);
+                }
                 return;
             case 'swap':
                 swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
                 swap(list.map, d.from, d.to);
-                index = d.from;
-                morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
-                index = d.to;
-                morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                if (list['index'])
+                {
+                    // re-morph items if index is used in foreach
+                    index = d.from;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    index = d.to;
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                }
                 break;
             case 'add':
-                if (di+1 === dc && 0 < d.from)
+                if (list['index'] && (di+1 === dc) && (0 < d.from))
                 {
+                    // re-morph items if index is used in foreach
                     iterate(function(index) {
                         morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, 0, d.from);
@@ -505,8 +515,9 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 n = parentNode.childNodes[startIndex+1+m*d.from];
                 if (n) parentNode.insertBefore(frag, n);
                 else parentNode.appendChild(frag);
-                if (di+1 === dc && d.to+1 < items.length)
+                if (list['index'] && (di+1 === dc) && (d.to+1 < items.length))
                 {
+                    // re-morph items if index is used in foreach
                     iterate(function(index) {
                         morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, d.to+1, items.length-1);
@@ -515,8 +526,9 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'del':
                 list.map.splice(d.from, d.to-d.from+1);
                 delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
-                if (di+1 === dc)
+                if (list['index'] && (di+1 === dc))
                 {
+                    // re-morph items if index is used in foreach
                     iterate(function(index) {
                         morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, 0, items.length-1);
