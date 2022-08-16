@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:03:16
+*   @built on 2022-08-16 11:49:29
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:03:16
+*   @built on 2022-08-16 11:49:29
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -3529,7 +3529,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     iterate(function(index) {
                         var node = clone(list);
                         list.map[index] = node.map;
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                         frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
@@ -3550,7 +3550,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                     frag.appendChild(node.dom);
                 }, 0, items.length-1);
                 if (end) parentNode.insertBefore(frag, end);
@@ -3578,12 +3578,12 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
 
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                 }, 0, items.length-1);
                 break;
             case 'add':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                 }, 0, d.from);
 
                 x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
@@ -3592,7 +3592,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                     frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
@@ -3600,12 +3600,12 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 else parentNode.appendChild(frag);
 
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                 }, d.to+1, items.length-1);
                 break;
             case 'change':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), true);
                 }, d.from, d.to);
                 break;
         }
@@ -5737,7 +5737,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         o.set(k, val, pub, callData);
                         each(collections, function(collection){
                             collection[0].upd(collection[1]);
-                            setDirty(model, collection[2]);
+                            //setDirty(model, collection[2]);
                         });
                     }
                     else pub = false;
@@ -5836,7 +5836,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
                     pub && model.publish('change', {
@@ -5863,7 +5863,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 each(collections, function(collection){
                     collection[0].upd(collection[1]);
-                    setDirty(model, collection[2]);
+                    //setDirty(model, collection[2]);
                 });
 
                 // modify or add final node here
@@ -5952,7 +5952,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -6047,7 +6047,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
                     if (pub)
@@ -6099,7 +6099,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks/*.concat(index)*/);
@@ -6180,7 +6180,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -6272,7 +6272,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks/*.concat(index)*/);
                     pub && model.publish('change', {
@@ -6307,7 +6307,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks/*.concat(index)*/);
@@ -6366,7 +6366,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection){
                     collection[0].upd(collection[1]);
-                    setDirty(model, collection[2]);
+                    //setDirty(model, collection[2]);
                 });
                 pub && model.publish('change', {
                         key: dottedKey,
@@ -6415,7 +6415,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks);
@@ -6756,7 +6756,8 @@ Model[proto].resetChanged = Model[proto].resetDirty;
 
 function Proxy(model, key, rel)
 {
-    var self = this, getKey, prefix, data = NOOP, indexKey = null, index = 0, getData;
+    var self = this, getKey, prefix, data = NOOP, getData,
+        isDirty = NOOP, indexKey = null, index = 0;
     if (!is_instance(self, Proxy)) return new Proxy(model, key, rel);
 
     key = null == key ? '' : key;
@@ -6822,6 +6823,10 @@ function Proxy(model, key, rel)
         }
         return self;
     };
+    self._setDirty = function(dirty) {
+        isDirty = !!dirty;
+        return self;
+    };
     self.get = function(dottedKey, RAW) {
         var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
         return NOOP === ret ? model.get(fullKey, RAW) : ret;
@@ -6840,7 +6845,7 @@ function Proxy(model, key, rel)
     };
     self.isChanged = self.isDirty = function(dottedKey) {
         var realKey = getKey(dottedKey);
-        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : model.isDirty(realKey);
+        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : (isDirty !== NOOP ? isDirty : model.isDirty(realKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -6864,6 +6869,7 @@ Proxy[proto] = {
     constructor: Proxy
     ,_setData: null
     ,_setIndex: null
+    ,_setDirty: null
     ,get: null
     ,getVal: null
     ,getProxy: null

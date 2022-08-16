@@ -1290,7 +1290,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                         o.set(k, val, pub, callData);
                         each(collections, function(collection){
                             collection[0].upd(collection[1]);
-                            setDirty(model, collection[2]);
+                            //setDirty(model, collection[2]);
                         });
                     }
                     else pub = false;
@@ -1389,7 +1389,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
                     pub && model.publish('change', {
@@ -1416,7 +1416,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             {
                 each(collections, function(collection){
                     collection[0].upd(collection[1]);
-                    setDirty(model, collection[2]);
+                    //setDirty(model, collection[2]);
                 });
 
                 // modify or add final node here
@@ -1505,7 +1505,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -1600,7 +1600,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks);
                     if (pub)
@@ -1652,7 +1652,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks/*.concat(index)*/);
@@ -1733,7 +1733,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                 }
                 else
@@ -1825,7 +1825,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 {
                     each(collections, function(collection){
                         collection[0].upd(collection[1]);
-                        setDirty(model, collection[2]);
+                        //setDirty(model, collection[2]);
                     });
                     setDirty(model, ks/*.concat(index)*/);
                     pub && model.publish('change', {
@@ -1860,7 +1860,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks/*.concat(index)*/);
@@ -1919,7 +1919,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection){
                     collection[0].upd(collection[1]);
-                    setDirty(model, collection[2]);
+                    //setDirty(model, collection[2]);
                 });
                 pub && model.publish('change', {
                         key: dottedKey,
@@ -1968,7 +1968,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
 
             each(collections, function(collection){
                 collection[0].upd(collection[1]);
-                setDirty(model, collection[2]);
+                //setDirty(model, collection[2]);
             });
 
             setDirty(model, ks);
@@ -2309,7 +2309,8 @@ Model[proto].resetChanged = Model[proto].resetDirty;
 
 function Proxy(model, key, rel)
 {
-    var self = this, getKey, prefix, data = NOOP, indexKey = null, index = 0, getData;
+    var self = this, getKey, prefix, data = NOOP, getData,
+        isDirty = NOOP, indexKey = null, index = 0;
     if (!is_instance(self, Proxy)) return new Proxy(model, key, rel);
 
     key = null == key ? '' : key;
@@ -2375,6 +2376,10 @@ function Proxy(model, key, rel)
         }
         return self;
     };
+    self._setDirty = function(dirty) {
+        isDirty = !!dirty;
+        return self;
+    };
     self.get = function(dottedKey, RAW) {
         var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
         return NOOP === ret ? model.get(fullKey, RAW) : ret;
@@ -2393,7 +2398,7 @@ function Proxy(model, key, rel)
     };
     self.isChanged = self.isDirty = function(dottedKey) {
         var realKey = getKey(dottedKey);
-        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : model.isDirty(realKey);
+        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : (isDirty !== NOOP ? isDirty : model.isDirty(realKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -2417,6 +2422,7 @@ Proxy[proto] = {
     constructor: Proxy
     ,_setData: null
     ,_setIndex: null
+    ,_setDirty: null
     ,get: null
     ,getVal: null
     ,getProxy: null
