@@ -2392,22 +2392,22 @@ function Proxy(model, key, rel)
     key = null == key ? '' : key;
     prefix = !key || !key.length ? '' : (key + '.');
     getKey = function(dottedKey) {
-        var ret;
+        var ret, i;
         if (rel && rel.length)
         {
             if ('' === dottedKey || rel === dottedKey)
             {
                 ret = key;
             }
-            else if (indexKey && (indexKey === dottedKey))
+            else if (null != (i=self._getIndex(dottedKey)))
             {
-                ret = new String(indexKey);
-                ret.$mvIndex = true;
+                ret = new String(dottedKey);
+                ret.$mvIndex = i;
             }
-            else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
+            /*else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
             {
                 ret = prefix + dottedKey.slice(1);
-            }
+            }*/
             else if (startsWith(dottedKey, rel+'.'))
             {
                 ret = prefix + dottedKey.slice(rel.length+1);
@@ -2429,7 +2429,7 @@ function Proxy(model, key, rel)
         if (!rel || !rel.length) return NOOP;
         var realKey = isReal ? dottedKey : getKey(dottedKey);
         if (realKey.$mvTop) return NOOP;
-        if (realKey.$mvIndex) return index;
+        if (null != realKey.$mvIndex) return realKey.$mvIndex;
         if (NOOP === data) data = model.get(key);
         if ('' === realKey || key === realKey) return data;
         realKey = realKey.split('.');
@@ -2440,9 +2440,8 @@ function Proxy(model, key, rel)
         }
         return o;
     };
-    self._setData = function(d) {
-        data = d;
-        return self;
+    self._getIndex = function(k) {
+        return indexKey && (k === indexKey) ? index : (is_instance(model, Proxy) ? model._getIndex(k) : null);
     };
     self._setIndex = function(k, i) {
         if (k && k.length)
@@ -2450,6 +2449,10 @@ function Proxy(model, key, rel)
             indexKey = k;
             index = i;
         }
+        return self;
+    };
+    self._setData = function(d) {
+        data = d;
         return self;
     };
     self._setDirty = function(dirty) {
@@ -2462,10 +2465,10 @@ function Proxy(model, key, rel)
     };
     self.getVal = function(dottedKey, RAW) {
         var fullKey = getKey(dottedKey), ret = getData(fullKey, true);
-        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(fullKey.$mvIndex ? true : model.isDirty(fullKey));
+        return NOOP === ret ? model.getVal(fullKey, RAW) : Value(ret, fullKey, true).dirty(null != fullKey.$mvIndex ? true : model.isDirty(fullKey));
     };
     self.getProxy = function(dottedKey, rel) {
-        return new Proxy(model, getKey(dottedKey), rel);
+        return new Proxy(self, dottedKey, rel);
     };
     self.getChanged = self.getDirty = function() {
         var d = model.getDirty(key && key.length ? key.split('.') : null);
@@ -2474,7 +2477,7 @@ function Proxy(model, key, rel)
     };
     self.isChanged = self.isDirty = function(dottedKey) {
         var realKey = getKey(dottedKey);
-        return realKey.$mvIndex ? true/*model.isDirty(key)*/ : (isDirty !== NOOP ? isDirty : model.isDirty(realKey));
+        return null != realKey.$mvIndex ? true/*model.isDirty(key)*/ : (isDirty !== NOOP ? isDirty : model.isDirty(realKey));
     };
     self.set = function(dottedKey, val, pub, callData) {
         model.set(getKey(dottedKey), val, pub, callData);
@@ -2496,8 +2499,9 @@ function Proxy(model, key, rel)
 Model.Proxy = Proxy;
 Proxy[proto] = {
     constructor: Proxy
-    ,_setData: null
+    ,_getIndex: null
     ,_setIndex: null
+    ,_setData: null
     ,_setDirty: null
     ,get: null
     ,getVal: null
