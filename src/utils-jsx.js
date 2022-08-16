@@ -962,7 +962,7 @@ function htmlNode(view, nodeType, id, type, atts, children, value2, modified, cr
                 nn = new VNode('collection', n, null, node, index);
                 len = n.items().length*n.mappedItem;
                 nn.potentialChildNodes = len;
-                nn.changed = 0 < n.diff.length;
+                nn.changed = n.changed();
                 if (!node.modified) node.modified = {atts: [], nodes: []};
                 insMod(node.modified.nodes, index, index+len-1, true, 'collection');
                 new_mod = true;
@@ -1818,7 +1818,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = collection.items().length*m;
                 items = collection.mapped();
                 frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count, false);
+                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
                 return count; // break from diff loop completely, this should be only diff
                 break;
             case 'swap':
@@ -1827,15 +1827,33 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 change({from:d.to,to:d.to}, false);
                 break;
             case 'add':
-                len = (d.to-d.from+1)*m;
+                if (0 < d.from)
+                {
+                    items = collection.mapped(0, d.from-1);
+                    len = (d.from)*m;
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                }
                 items = collection.mapped(d.from, d.to);
+                len = (d.to-d.from+1)*m;
                 insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
+                if (d.to+1 < collection.items().length)
+                {
+                    items = collection.mapped(d.to+1, collection.items().length-1);
+                    len = (collection.items().length-d.to-1)*m;
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    morphSelectedNodes(view, r, frag, start+(d.to+1)*m, start+(d.to+1)*m+len-1, start+(d.to+1)*m+len-1, 0, 0, false);
+                }
                 break;
             case 'del':
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
+                items = collection.mapped();
+                len = (collection.items().length)*m;
+                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
                 break;
             case 'change':
                 change(d, forced);

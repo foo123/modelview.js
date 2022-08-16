@@ -1113,7 +1113,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
             stack = [[data, dottedKey, getters]];
             while (stack.length)
             {
-                to_get = stack.pop( );
+                to_get = stack.pop();
                 o = to_get[0];
                 dottedKey = to_get[1];
                 g = to_get[2];
@@ -1125,7 +1125,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                     if (is_instance(o, Collection) && i < l) o = o.items();
                     if (i < l)
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
@@ -1136,7 +1136,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                                     stack.push([o, keys[kk] + '.' + k, get_next(g, keys[kk])]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                                 g = get_next(g, k);
@@ -1151,7 +1151,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                                     stack.push([o, '' + kk + '.' + k, get_next(g, ''+kk)]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                                 g = get_next(g, k);
@@ -1161,7 +1161,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                     }
                     else
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
@@ -2542,6 +2542,26 @@ Collection[proto] = {
         self.mapper = null;
         return self;
     }
+    ,dirty: function(index) {
+        if (arguments.length)
+        {
+            for (var diff,d=this.diff,i=0,dl=d.length; i<dl; ++i)
+            {
+                diff = d[i];
+                if (
+                    ('reorder' === diff.action || 'replace' === diff.action || 'set' === diff.action) ||
+                    ('swap' === diff.action && (diff.from === index || diff.to === index)) ||
+                    (diff.from <= index && index <= diff.to)
+                )
+                    return true;
+            }
+            return false;
+        }
+        else
+        {
+            return 0 < this.diff.length;
+        }
+    }
     ,_upd: function(action, start, end) {
         var diff = this.diff/*, last = diff.length ? diff[diff.length-1] : null*/;
         /*if (!last || (last.action !== action) || (last.to < start-1) || (last.from >= end))
@@ -2818,6 +2838,7 @@ collection.mapped([start [, end]]);
         return [];
     }
 };
+Collection[proto].changed = Collection[proto].dirty;
 /**[DOC_MARKDOWN]
 ```
 [/DOC_MARKDOWN]**/

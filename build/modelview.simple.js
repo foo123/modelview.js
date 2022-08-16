@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 20:48:48
+*   @built on 2022-08-16 11:03:19
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-15 20:48:48
+*   @built on 2022-08-16 11:03:19
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1125,11 +1125,10 @@ function clone(list)
 }
 function morphCollectionSimple(view, list, key, collection, isDirty, model, onlyIfDirty)
 {
-    if (!is_instance(collection, Collection)) return;
-    var diff = collection.diff;
-    if (!diff.length) return;
+    if (!is_instance(collection, Collection) || !collection.dirty()) return;
     view.$reset[collection.id()] = collection;
-    var items = collection.items(), start = list.start, end = list.end,
+    var diff = collection.diff, items = collection.items(),
+        start = list.start, end = list.end,
         parentNode = start.parentNode, startIndex = get_index(start),
         m = list.tpl.childNodes.length, di, dc, d,
         range, frag, n, count, i, j, k, l, x;
@@ -1190,16 +1189,26 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'swap':
                 swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
                 swap(list.map, d.from, d.to);
+
                 index = d.from;
                 morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+
                 index = d.to;
                 morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 break;
             case 'del':
                 list.map.splice(d.from, d.to-d.from+1);
                 delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
+
+                iterate(function(index) {
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                }, 0, items.length-1);
                 break;
             case 'add':
+                iterate(function(index) {
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                }, 0, d.from);
+
                 x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
                 list.map.splice.apply(list.map, x);
                 frag = Fragment();
@@ -1212,6 +1221,10 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 n = parentNode.childNodes[startIndex+1+m*d.from];
                 if (n) parentNode.insertBefore(frag, n);
                 else parentNode.appendChild(frag);
+
+                iterate(function(index) {
+                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                }, d.to+1, items.length-1);
                 break;
             case 'change':
                 iterate(function(index) {
@@ -3170,7 +3183,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
             stack = [[data, dottedKey, getters]];
             while (stack.length)
             {
-                to_get = stack.pop( );
+                to_get = stack.pop();
                 o = to_get[0];
                 dottedKey = to_get[1];
                 g = to_get[2];
@@ -3182,7 +3195,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                     if (is_instance(o, Collection) && i < l) o = o.items();
                     if (i < l)
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
@@ -3193,7 +3206,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                                     stack.push([o, keys[kk] + '.' + k, get_next(g, keys[kk])]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                                 g = get_next(g, k);
@@ -3208,7 +3221,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                                     stack.push([o, '' + kk + '.' + k, get_next(g, ''+kk)]);
                                 break;
                             }
-                            else if (HAS.call(o,k))
+                            else if (HAS.call(o, k))
                             {
                                 o = o[k];
                                 g = get_next(g, k);
@@ -3218,7 +3231,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                     }
                     else
                     {
-                        t = get_type( o );
+                        t = get_type(o);
                         if (t & T_OBJ)
                         {
                             if (WILDCARD === k)
@@ -4599,6 +4612,26 @@ Collection[proto] = {
         self.mapper = null;
         return self;
     }
+    ,dirty: function(index) {
+        if (arguments.length)
+        {
+            for (var diff,d=this.diff,i=0,dl=d.length; i<dl; ++i)
+            {
+                diff = d[i];
+                if (
+                    ('reorder' === diff.action || 'replace' === diff.action || 'set' === diff.action) ||
+                    ('swap' === diff.action && (diff.from === index || diff.to === index)) ||
+                    (diff.from <= index && index <= diff.to)
+                )
+                    return true;
+            }
+            return false;
+        }
+        else
+        {
+            return 0 < this.diff.length;
+        }
+    }
     ,_upd: function(action, start, end) {
         var diff = this.diff/*, last = diff.length ? diff[diff.length-1] : null*/;
         /*if (!last || (last.action !== action) || (last.to < start-1) || (last.from >= end))
@@ -4875,6 +4908,7 @@ collection.mapped([start [, end]]);
         return [];
     }
 };
+Collection[proto].changed = Collection[proto].dirty;
 /**[DOC_MARKDOWN]
 ```
 [/DOC_MARKDOWN]**/
