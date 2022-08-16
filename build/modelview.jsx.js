@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 20:49:42
+*   @built on 2022-08-16 21:48:03
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 20:49:42
+*   @built on 2022-08-16 21:48:03
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -2064,7 +2064,7 @@ function to_node(view, vnode, with_meta)
     }
     else if ('collection' === T)
     {
-        rnode = to_node(view, {nodeType:'',childNodes:mergeChildNodes(vnode.nodeValue.mapped())}, with_meta);
+        rnode = to_node(view, {nodeType:'',childNodes:mergeChildNodes(vnode.nodeValue.mapped(), vnode.nodeValue.mappedItem)}, with_meta);
     }
     else if ('<mv-component>' === T || !T || !T.length)
     {
@@ -2469,17 +2469,31 @@ function morphSingle(view, r, rnode, vnode, forced)
             morph(view, rnode, vnode, forced);
     }
 }
-function mergeChildNodes(nodes/*, collection*/)
+function mergeChildNodes(nodes, m/*, collection*/)
 {
-    return 1 === nodes.length
-        ? nodes[0].childNodes
-        : nodes.reduce(function(nodes, node, index){
-            AP.push.apply(nodes, /*collection ? node.childNodes.map(function(n) {
-                n.changed = n.changed || collection.changed(index);
-                return n;
-            }) :*/ node.childNodes);
-            return nodes;
-        }, []);
+    if (1 === nodes.length)
+    {
+        return nodes[0].childNodes;
+    }
+    var n = nodes.length, i, j, k, ret = new Array(n*m);
+    if (1 === m)
+    {
+        for (i=0; i<n; ++i)
+        {
+            ret[i] = nodes[i].childNodes[0];
+        }
+    }
+    else
+    {
+        for (i=0,j=0; i<n; ++i,j+=m)
+        {
+            for (k=0; k<m; ++k)
+            {
+                ret[j+k] = nodes[i].childNodes[k];
+            }
+        }
+    }
+    return ret;
 }
 function morphCollection(view, r, v, start, end, end2, startv, count, forced)
 {
@@ -2504,7 +2518,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
         //z.length = j;
         view.$cache['#'] = z;
         items = collection.mapped(d.from, d.to);
-        frag = mergeChildNodes(items)/*htmlNode(view, '', null, null, [], items)*/;
+        frag = mergeChildNodes(items, m)/*htmlNode(view, '', null, null, [], items)*/;
         view.$cache['#'] = z = null;
         for (n=frag/*.childNodes*/,w=start+d.from*m,i=0,j=n.length,rnode=rNodes[w]; i<j; ++i)
         {
@@ -2530,7 +2544,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
             case 'set':
                 len = collection.items().length*m;
                 items = collection.mapped();
-                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/;
+                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items, m)}/*htmlNode(view, '', null, null, [], items)*/;
                 morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, count, true);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
@@ -2540,7 +2554,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = collection.items().length*m;
                 delNodes(view, r, start, stdMath.min(len, len+count));
                 items = collection.mapped();
-                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}, 0, len, rNodes[start]);
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items, m)}, 0, len, rNodes[start]);
                 count = 0;
                 return count; // break from diff loop completely, this should be only diff
                 break;
@@ -2549,7 +2563,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 count = 0;
                 len = collection.items().length*m;
                 items = collection.mapped();
-                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items, m)};
                 if (collection.mappedIndex)
                 {
                     // re-morph items if index is used in map function
@@ -2572,19 +2586,19 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                     // re-morph items if index is used in map function
                     items = collection.mapped(0, d.from-1);
                     len = (d.from)*m;
-                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items, m)};
                     morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
                 }
                 items = collection.mapped(d.from, d.to);
                 len = (d.to-d.from+1)*m;
-                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
+                insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items, m)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
                 if (collection.mappedIndex && (di+1 === dc) && (d.to+1 < collection.items().length))
                 {
                     // re-morph items if index is used in map function
                     items = collection.mapped(d.to+1, collection.items().length-1);
                     len = (collection.items().length-d.to-1)*m;
-                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items, m)};
                     morphSelectedNodes(view, r, frag, start+(d.to+1)*m, start+(d.to+1)*m+len-1, start+(d.to+1)*m+len-1, 0, 0, false);
                 }
                 break;
@@ -2597,7 +2611,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                     // re-morph items if index is used in map function
                     items = collection.mapped();
                     len = (collection.items().length)*m;
-                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items, m)};
                     morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
                 }
                 break;
@@ -2953,7 +2967,7 @@ function morphAll(view, r, v, alreadyInited)
     for (index=vc-1; index>=0; --index)
     {
         if ('collection' === vNodes[index].nodeType)
-            vNodes.splice.apply(vNodes, [index, 1].concat(mergeChildNodes(vNodes[index].nodeValue.mapped())));
+            vNodes.splice.apply(vNodes, [index, 1].concat(mergeChildNodes(vNodes[index].nodeValue.mapped(), vNodes[index].nodeValue.mappedItem)));
     }
     vc = vNodes.length;
     rc = rNodes.length;
@@ -6641,7 +6655,7 @@ collection.set(newData);
             self._items = index;
             self.reset()._upd('set', 0, self._items.length-1);
         }
-        else if (2 === arguments.length)
+        else if (2 <= arguments.length)
         {
             if (0 > index) index += self._items.length;
             if (index >= self._items.length)

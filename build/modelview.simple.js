@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 20:49:39
+*   @built on 2022-08-16 21:48:01
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 20:49:39
+*   @built on 2022-08-16 21:48:01
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -4811,7 +4811,7 @@ collection.set(newData);
             self._items = index;
             self.reset()._upd('set', 0, self._items.length-1);
         }
-        else if (2 === arguments.length)
+        else if (2 <= arguments.length)
         {
             if (0 > index) index += self._items.length;
             if (index >= self._items.length)

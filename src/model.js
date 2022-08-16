@@ -2707,7 +2707,7 @@ collection.set(newData);
             self._items = index;
             self.reset()._upd('set', 0, self._items.length-1);
         }
-        else if (2 === arguments.length)
+        else if (2 <= arguments.length)
         {
             if (0 > index) index += self._items.length;
             if (index >= self._items.length)
