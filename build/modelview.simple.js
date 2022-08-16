@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:49:32
+*   @built on 2022-08-16 12:27:20
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:49:32
+*   @built on 2022-08-16 12:27:20
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1189,26 +1189,18 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
             case 'swap':
                 swapNodes(parentNode, parentNode.childNodes[startIndex+1+d.from*m], parentNode.childNodes[startIndex+1+d.to*m], m);
                 swap(list.map, d.from, d.to);
-
                 index = d.from;
                 morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
-
                 index = d.to;
                 morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 break;
-            case 'del':
-                list.map.splice(d.from, d.to-d.from+1);
-                delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
-
-                iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
-                }, 0, items.length-1);
-                break;
             case 'add':
-                iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
-                }, 0, d.from);
-
+                if (di+1 === dc && 0 < d.from)
+                {
+                    iterate(function(index) {
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                    }, 0, d.from);
+                }
                 x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
                 list.map.splice.apply(list.map, x);
                 frag = Fragment();
@@ -1221,10 +1213,22 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 n = parentNode.childNodes[startIndex+1+m*d.from];
                 if (n) parentNode.insertBefore(frag, n);
                 else parentNode.appendChild(frag);
-
-                iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
-                }, d.to+1, items.length-1);
+                if (di+1 === dc && d.to+1 < items.length)
+                {
+                    iterate(function(index) {
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                    }, d.to+1, items.length-1);
+                }
+                break;
+            case 'del':
+                list.map.splice(d.from, d.to-d.from+1);
+                delNodes(null, parentNode, startIndex+1+m*d.from, m*(d.to-d.from+1));
+                if (di+1 === dc)
+                {
+                    iterate(function(index) {
+                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                    }, 0, items.length-1);
+                }
                 break;
             case 'change':
                 iterate(function(index) {
@@ -4283,11 +4287,11 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             d = {key: '', action: 'set'};
             if (data)
             {
-                if (HAS.call(data,'value')) d.value = data.value;
-                if (HAS.call(data,'action')) d.action = data.action;
-                if (HAS.call(data,'index')) d.index = data.index;
-                if (HAS.call(data,'rearrange')) d.rearrange = data.rearrange;
-                if (HAS.call(data,'$callData')) d.$callData = data.$callData;
+                if (HAS.call(data, 'value')) d.value = data.value;
+                if (HAS.call(data, 'action')) d.action = data.action;
+                if (HAS.call(data, 'index')) d.index = data.index;
+                if (HAS.call(data, 'rearrange')) d.rearrange = data.rearrange;
+                if (HAS.call(data, '$callData')) d.$callData = data.$callData;
             }
 
             if (T_STR === t)
@@ -4295,7 +4299,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 d.key = dottedKey;
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
-                if (HAS.call(ideps,dottedKey)) deps = deps.concat(ideps[dottedKey]);
+                if (HAS.call(ideps, dottedKey)) deps.push.apply(deps, ideps[dottedKey]);
                 model.setDirty(dottedKey.split('.'));
                 model.publish(evt, d);
             }
@@ -4309,7 +4313,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     if (HAS.call(keys,'_'+dk)) continue;
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps = deps.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps.push.apply(deps, ideps[dk]);
                     model.setDirty(dk.split('.'));
                     model.publish(evt, d);
                 }
@@ -4326,7 +4330,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // avoid already notified keys previously
                     if (HAS.call(keys,'_'+dk)) continue;
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps2 = deps2.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps2.push.apply(deps2, ideps[dk]);
                     d.key = dk;
                     model.setDirty(dk.split('.'));
                     model.publish("change", d);

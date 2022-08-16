@@ -1827,7 +1827,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 change({from:d.to,to:d.to}, false);
                 break;
             case 'add':
-                if (0 < d.from)
+                if (di+1 === dc && 0 < d.from)
                 {
                     items = collection.mapped(0, d.from-1);
                     len = (d.from)*m;
@@ -1838,7 +1838,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
-                if (d.to+1 < collection.items().length)
+                if (di+1 === dc && d.to+1 < collection.items().length)
                 {
                     items = collection.mapped(d.to+1, collection.items().length-1);
                     len = (collection.items().length-d.to-1)*m;
@@ -1850,10 +1850,13 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                items = collection.mapped();
-                len = (collection.items().length)*m;
-                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                if (di+1 === dc)
+                {
+                    items = collection.mapped();
+                    len = (collection.items().length)*m;
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                }
                 break;
             case 'change':
                 change(d, forced);

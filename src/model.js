@@ -2213,11 +2213,11 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             d = {key: '', action: 'set'};
             if (data)
             {
-                if (HAS.call(data,'value')) d.value = data.value;
-                if (HAS.call(data,'action')) d.action = data.action;
-                if (HAS.call(data,'index')) d.index = data.index;
-                if (HAS.call(data,'rearrange')) d.rearrange = data.rearrange;
-                if (HAS.call(data,'$callData')) d.$callData = data.$callData;
+                if (HAS.call(data, 'value')) d.value = data.value;
+                if (HAS.call(data, 'action')) d.action = data.action;
+                if (HAS.call(data, 'index')) d.index = data.index;
+                if (HAS.call(data, 'rearrange')) d.rearrange = data.rearrange;
+                if (HAS.call(data, '$callData')) d.$callData = data.$callData;
             }
 
             if (T_STR === t)
@@ -2225,7 +2225,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 d.key = dottedKey;
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
-                if (HAS.call(ideps,dottedKey)) deps = deps.concat(ideps[dottedKey]);
+                if (HAS.call(ideps, dottedKey)) deps.push.apply(deps, ideps[dottedKey]);
                 model.setDirty(dottedKey.split('.'));
                 model.publish(evt, d);
             }
@@ -2239,7 +2239,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     if (HAS.call(keys,'_'+dk)) continue;
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps = deps.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps.push.apply(deps, ideps[dk]);
                     model.setDirty(dk.split('.'));
                     model.publish(evt, d);
                 }
@@ -2256,7 +2256,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // avoid already notified keys previously
                     if (HAS.call(keys,'_'+dk)) continue;
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps2 = deps2.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps2.push.apply(deps2, ideps[dk]);
                     d.key = dk;
                     model.setDirty(dk.split('.'));
                     model.publish("change", d);

@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:49:35
+*   @built on 2022-08-16 12:27:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 11:49:35
+*   @built on 2022-08-16 12:27:22
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -2535,7 +2535,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 change({from:d.to,to:d.to}, false);
                 break;
             case 'add':
-                if (0 < d.from)
+                if (di+1 === dc && 0 < d.from)
                 {
                     items = collection.mapped(0, d.from-1);
                     len = (d.from)*m;
@@ -2546,7 +2546,7 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 insNodes(view, r, {nodeType:'',childNodes:mergeChildNodes(items)}/*htmlNode(view, '', null, null, [], items)*/, 0, len, rNodes[start+d.from*m]);
                 if (0 > count) count += len;
-                if (d.to+1 < collection.items().length)
+                if (di+1 === dc && d.to+1 < collection.items().length)
                 {
                     items = collection.mapped(d.to+1, collection.items().length-1);
                     len = (collection.items().length-d.to-1)*m;
@@ -2558,10 +2558,13 @@ function morphCollection(view, r, v, start, end, end2, startv, count, forced)
                 len = (d.to-d.from+1)*m;
                 delNodes(view, r, start+d.from*m, len);
                 if (0 < count) count -= len;
-                items = collection.mapped();
-                len = (collection.items().length)*m;
-                frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
-                morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                if (di+1 === dc)
+                {
+                    items = collection.mapped();
+                    len = (collection.items().length)*m;
+                    frag = {nodeType:'',hasKeyedNodes:v.hasKeyedNodes,childNodes:mergeChildNodes(items)};
+                    morphSelectedNodes(view, r, frag, start, start+len-1, start+len-1, 0, 0, false);
+                }
                 break;
             case 'change':
                 change(d, forced);
@@ -6109,11 +6112,11 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
             d = {key: '', action: 'set'};
             if (data)
             {
-                if (HAS.call(data,'value')) d.value = data.value;
-                if (HAS.call(data,'action')) d.action = data.action;
-                if (HAS.call(data,'index')) d.index = data.index;
-                if (HAS.call(data,'rearrange')) d.rearrange = data.rearrange;
-                if (HAS.call(data,'$callData')) d.$callData = data.$callData;
+                if (HAS.call(data, 'value')) d.value = data.value;
+                if (HAS.call(data, 'action')) d.action = data.action;
+                if (HAS.call(data, 'index')) d.index = data.index;
+                if (HAS.call(data, 'rearrange')) d.rearrange = data.rearrange;
+                if (HAS.call(data, '$callData')) d.$callData = data.$callData;
             }
 
             if (T_STR === t)
@@ -6121,7 +6124,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 d.key = dottedKey;
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
-                if (HAS.call(ideps,dottedKey)) deps = deps.concat(ideps[dottedKey]);
+                if (HAS.call(ideps, dottedKey)) deps.push.apply(deps, ideps[dottedKey]);
                 model.setDirty(dottedKey.split('.'));
                 model.publish(evt, d);
             }
@@ -6135,7 +6138,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     if (HAS.call(keys,'_'+dk)) continue;
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps = deps.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps.push.apply(deps, ideps[dk]);
                     model.setDirty(dk.split('.'));
                     model.publish(evt, d);
                 }
@@ -6152,7 +6155,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // avoid already notified keys previously
                     if (HAS.call(keys,'_'+dk)) continue;
                     keys['_'+dk] = 1;
-                    if (HAS.call(ideps,dk)) deps2 = deps2.concat(ideps[dk]);
+                    if (HAS.call(ideps, dk)) deps2.push.apply(deps2, ideps[dk]);
                     d.key = dk;
                     model.setDirty(dk.split('.'));
                     model.publish("change", d);
