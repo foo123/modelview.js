@@ -130,7 +130,7 @@ function walk_map(m, f, key)
     if (m.c)
     {
         each(Keys(m.c), function(k) {
-            var kk = key + (key.length ? '.' : '') + k;
+            var kk = key + (key.length ? SEPARATOR : '') + k;
             if (m.c[k].c) walk_map(m.c[k], f, kk);
             else if (m.c[k].v) f(m.c[k].v, kk);
         });
@@ -153,15 +153,15 @@ function walk_clone_map(m, cm, f)
         });
     }
 }
-function split_key(key, rel)
+function split_key(key/*, rel*/)
 {
-    /*if (rel+'.' === key.slice(0, rel.length+1))
+    /*if (rel+SEPARATOR === key.slice(0, rel.length+SEPARATOR.length))
     {
-        var ks = key.slice(rel.length+1).split('.');
+        var ks = key.slice(rel.length+SEPARATOR.length).split(SEPARATOR);
         ks[0] = rel + ks[0];
         return ks;
     }*/
-    return key.split('.');
+    return key.split(SEPARATOR);
 }
 function get_placeholders(node, map, path)
 {
@@ -190,13 +190,13 @@ function get_placeholders(node, map, path)
             }
             if (1 === keys.length && 1 === txt.length)
             {
-                insert_map(map, split_key(keys[0], '.'), {type:'att1', node:node, att:a.name, clone:newFunc('n','var c=null; try{c='+path+';}catch(e){c=null;}return c;')});
+                insert_map(map, split_key(keys[0], SEPARATOR), {type:'att1', node:node, att:a.name, clone:newFunc('n','var c=null; try{c='+path+';}catch(e){c=null;}return c;')});
             }
             else if (keys.length)
             {
                 t = {type:'att', node:node, att:a.name, txt:txt, clone:newFunc('n','var c=null; try{c='+path+';}catch(e){c=null;}return c;')};
                 each(keys, function(k) {
-                    insert_map(map, split_key(k, '.'), t);
+                    insert_map(map, split_key(k, SEPARATOR), t);
                 });
             }
         });
@@ -217,7 +217,7 @@ function get_placeholders(node, map, path)
                         n = t.splitText(m[0].length);
                         s = n.nodeValue;
                         index = 0;
-                        insert_map(map, split_key(k, '.'), {type:'text', node:t, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(t)+']'+';}catch(e){c=null;}return c;')});
+                        insert_map(map, split_key(k, SEPARATOR), {type:'text', node:t, clone:newFunc('n','var c=null; try{c='+path+'.childNodes['+get_index(t)+']'+';}catch(e){c=null;}return c;')});
                     }
                     else
                     {
@@ -267,7 +267,7 @@ function get_placeholders(node, map, path)
                         }
                     }
                     get_placeholders(list.tpl, list.tplmap);
-                    insert_map(map, split_key(k, '.'), list);
+                    insert_map(map, split_key(k, SEPARATOR), list);
                     n = nn ? nn[NEXT] : null;
                 }
                 else
@@ -435,7 +435,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 count = items.length - list.map.length;
                 // morph common nodes
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }, 0, stdMath.min(list.map.length, items.length)-1);
                 if (0 < count)
                 {
@@ -445,7 +445,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                     iterate(function(index) {
                         var node = clone(list);
                         list.map[index] = node.map;
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
+                        morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                         frag.appendChild(node.dom);
                     }, items.length-count, items.length-1);
                     if (end) parentNode.insertBefore(frag, end);
@@ -466,7 +466,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                     frag.appendChild(node.dom);
                 }, 0, items.length-1);
                 if (end) parentNode.insertBefore(frag, end);
@@ -479,7 +479,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // re-morph items if index is used in foreach
                     iterate(function(index) {
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                        morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                     }, 0, items.length-1);
                 }
                 return;
@@ -490,9 +490,9 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // re-morph items if index is used in foreach
                     index = d.from;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                     index = d.to;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index), true);
                 }
                 break;
             case 'add':
@@ -500,7 +500,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // re-morph items if index is used in foreach
                     iterate(function(index) {
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                        morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, 0, d.from);
                 }
                 x = new Array(2+d.to-d.from+1); x[0] = d.from; x[1] = 0;
@@ -509,7 +509,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 iterate(function(index) {
                     var node = clone(list);
                     list.map[index] = node.map;
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), false);
                     frag.appendChild(node.dom);
                 }, d.from, d.to);
                 n = parentNode.childNodes[startIndex+1+m*d.from];
@@ -519,7 +519,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // re-morph items if index is used in foreach
                     iterate(function(index) {
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                        morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, d.to+1, items.length-1);
                 }
                 break;
@@ -530,13 +530,13 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
                 {
                     // re-morph items if index is used in foreach
                     iterate(function(index) {
-                        morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
+                        morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(collection.dirty(index)), true);
                     }, 0, items.length-1);
                 }
                 break;
             case 'change':
                 iterate(function(index) {
-                    morphSimple(view, list.map[index], model.getProxy(key+'.'+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), true);
+                    morphSimple(view, list.map[index], model.getProxy(key+SEPARATOR+index, list['var'])._setData(items[index])._setIndex(list['index'], index)._setDirty(true), true);
                 }, d.from, d.to);
                 break;
         }

@@ -92,8 +92,8 @@ function normalisePath(path)
 function fields2model(view, elements)
 {
     var model = view.$model,
-        model_prefix = model.id + '.',
-        checkboxes_done = { }
+        model_prefix = model.id + SEPARATOR,
+        checkboxes_done = {}
     ;
 
     iterate(function(i) {
@@ -102,20 +102,20 @@ function fields2model(view, elements)
         el = elements[i]; name = el[ATTR]("name");
         if (!name) return;
 
-        input_type = (el[TYPE]||'').toLowerCase( );
+        input_type = (el[TYPE]||'').toLowerCase();
 
         key = dotted(name);
         if (!startsWith(key, model_prefix)) return;
         key = key.slice(model_prefix.length);
 
-        k = key.split('.'); o = model.$data;
+        k = key.split(SEPARATOR); o = model.$data;
         while (k.length)
         {
-            j = k.shift( );
+            j = k.shift();
             if (k.length)
             {
-                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                o = o[ j ];
+                if (!HAS.call(o, j)) o[j] = numeric_re.test(k[0]) ? [] : {};
+                o = o[j];
             }
             else
             {
@@ -127,7 +127,7 @@ function fields2model(view, elements)
                         checkboxes = $sel('input[type="radio"][name="'+name+'"]', view.$dom);
                         if (checkboxes.length > 1)
                         {
-                            each(checkboxes, function(c){
+                            each(checkboxes, function(c) {
                                if (el[CHECKED]) val = el[VAL];
                             });
                         }
@@ -150,7 +150,7 @@ function fields2model(view, elements)
                         {
                             // multiple checkboxes [name="model[key][]"] dynamic array
                             // only checked items are in the list
-                            val = [ ];
+                            val = [];
                             each(checkboxes, function(c) {
                                 if (c[CHECKED]) val.push(c[VAL]);
                             });
@@ -159,9 +159,9 @@ function fields2model(view, elements)
                         {
                             // multiple checkboxes [name="model[key]"] static array
                             // all items are in the list either with values or defaults
-                            val = [ ];
+                            val = [];
                             each(checkboxes, function(c) {
-                                if (c[CHECKED]) val.push( c[VAL] );
+                                if (c[CHECKED]) val.push(c[VAL]);
                                 else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
                             });
                         }
@@ -192,8 +192,8 @@ function fields2model(view, elements)
 function serialize_fields(node, name_prefix)
 {
     var data = {},
-        model_prefix = name_prefix && name_prefix.length ? name_prefix + '.' : null,
-        elements = $sel('input,textarea,select', node), checkboxes_done = { }
+        model_prefix = name_prefix && name_prefix.length ? name_prefix + SEPARATOR : null,
+        elements = $sel('input,textarea,select', node), checkboxes_done = {}
     ;
 
     iterate(function(i) {
@@ -202,27 +202,27 @@ function serialize_fields(node, name_prefix)
         el = elements[i]; name = el[ATTR]("name");
         if (!name) return;
 
-        input_type = (el[TYPE]||'').toLowerCase( );
+        input_type = (el[TYPE]||'').toLowerCase();
 
-        key = dotted( name );
+        key = dotted(name);
         if (model_prefix)
         {
             if (!startsWith(key, model_prefix)) return;
             key = key.slice(model_prefix.length);
         }
 
-        k = key.split('.'); o = data;
+        k = key.split(SEPARATOR); o = data;
         while (k.length)
         {
-            j = k.shift( );
+            j = k.shift();
             if (k.length)
             {
-                if (!HAS.call(o, j)) o[ j ] = numeric_re.test( k[0] ) ? [ ] : { };
-                o = o[ j ];
+                if (!HAS.call(o, j)) o[j] = numeric_re.test(k[0]) ? [] : {};
+                o = o[j];
             }
             else
             {
-                if (!HAS.call(o, j)) o[ j ] = '';
+                if (!HAS.call(o, j)) o[j] = '';
 
                 if ('radio' === input_type)
                 {
@@ -232,7 +232,7 @@ function serialize_fields(node, name_prefix)
                         checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
                         if (checkboxes.length > 1)
                         {
-                            each(checkboxes, function(c){
+                            each(checkboxes, function(c) {
                                if (el[CHECKED]) val = el[VAL];
                             });
                         }
@@ -241,21 +241,21 @@ function serialize_fields(node, name_prefix)
                             val = el[VAL];
                         }
                         checkboxes_done[name] = 1;
-                        o[ j ] = val;
+                        o[j] = val;
                     }
                 }
                 else if ('checkbox' === input_type)
                 {
                     if (!checkboxes_done[name])
                     {
-                        is_dynamic_array = empty_brackets_re.test( name );
+                        is_dynamic_array = empty_brackets_re.test(name);
                         checkboxes = $sel('input[type="radio"][name="'+name+'"]', node);
 
                         if (is_dynamic_array)
                         {
                             // multiple checkboxes [name="model[key][]"] dynamic array
                             // only checked items are in the list
-                            val = [ ];
+                            val = [];
                             each(checkboxes, function(c) {
                                 if (c[CHECKED]) val.push(c[VAL]);
                             });
@@ -264,7 +264,7 @@ function serialize_fields(node, name_prefix)
                         {
                             // multiple checkboxes [name="model[key]"] static array
                             // all items are in the list either with values or defaults
-                            val = [ ];
+                            val = [];
                             each(checkboxes, function(c) {
                                 if (c[CHECKED]) val.push(c[VAL]);
                                 else val.push(!!(alternative=c[ATTR]('data-else')) ? alternative : '');
@@ -282,13 +282,13 @@ function serialize_fields(node, name_prefix)
                             val = !!(alternative=el[ATTR]('data-else')) ? alternative : '';
                         }
                         checkboxes_done[name] = 1;
-                        o[ j ] = val;
+                        o[j] = val;
                     }
                 }
                 else
                 {
                     val = get_val(el);
-                    o[ j ] = val;
+                    o[j] = val;
                 }
             }
         }
@@ -367,8 +367,8 @@ function do_auto_bind_action(view, evt, elements, fromModel)
 
         // use already cached key/value
         ns_key = '_'+key;
-        if (HAS.call(cached, ns_key))  value = cached[ ns_key ][ 0 ];
-        else if (model.has(key)) cached[ ns_key ] = [ value=model.get( key ) ];
+        if (HAS.call(cached, ns_key))  value = cached[ns_key][0];
+        else if (model.has(key)) cached[ns_key] = [value=model.get(key)];
         else return;  // nothing to do here
 
         // call default action (ie: live update)
@@ -826,7 +826,7 @@ view.context( Object ctx );
         if (is_type(ctx, T_OBJ))
         {
             for (k in ctx)
-                if (HAS.call(ctx,k))
+                if (HAS.call(ctx, k))
                     view.$ctx[k] = ctx[k];
         }
         return view;
@@ -842,7 +842,7 @@ view.events( Object events );
         if (is_type(events, T_OBJ))
         {
             for (k in events)
-                if (HAS.call(events,k) && is_type(events[k], T_FUNC))
+                if (HAS.call(events, k) && is_type(events[k], T_FUNC))
                     view['on_' + k.split(':').join('_')] = events[k];
         }
         return view;
@@ -903,7 +903,7 @@ view.actions( Object actions );
         if (is_type(actions, T_OBJ))
         {
             for (k in actions)
-                if (HAS.call(actions,k) && is_type(actions[k], T_FUNC))
+                if (HAS.call(actions, k) && is_type(actions[k], T_FUNC))
                     view['do_' + k] = actions[k];
         }
         return view;
@@ -919,7 +919,7 @@ view.components( Object components );
         if (is_type(components, T_OBJ))
         {
             for (k in components)
-                if (HAS.call(components,k) && is_instance(components[k], View.Component))
+                if (HAS.call(components, k) && is_instance(components[k], View.Component))
                     view.$components['#'+k] = components[k];
         }
         return view;
@@ -999,7 +999,7 @@ view.router({
         opts.prefix = trim(opts.prefix || '');
         if (!HAS.call(opts, 'routes')) opts.routes = {};
         opts.routes = opts.routes || {};
-        fail = opts.fail || function(){return [];/*empty*/};
+        fail = opts.fail || function() {return [];/*empty*/};
         loc = (HASDOC ? window.location : view.option('router.location')) || {pathname:'/', hash:'#/'};
         route = normalisePath(('path' === opts.type ? loc.pathname : loc.hash) || '');
         if (opts.prefix && opts.prefix.length)
@@ -1090,7 +1090,7 @@ view.navigateTo(String url[, Boolean noHistory = false]);
             if (!noHistory && window.history && window.history.pushState)
             {
                 window.history.pushState({}, '', loc);
-                if ('undefined' !== typeof PopStateEvent)
+                if ('undefined' !== typeof window.PopStateEvent)
                 {
                     evt = new PopStateEvent('popstate', {state: {}});
                     evt.data = evt.data || {};
@@ -1444,7 +1444,7 @@ view.addNode( parentNode, nodeToAdd, atIndex );
         var view = this;
         if (el && node)
         {
-            if ((true!==isStatic) && ('text' === view.livebind()) && view.$map)
+            if ((true !== isStatic) && ('text' === view.livebind()) && view.$map)
                 updateMap(node, 'add', view.$map, view.$dom);
             add_nodes(el, [node], index, true===isStatic);
         }
@@ -1551,7 +1551,7 @@ view.sync_model();
             }
             key = el[MV].key;
 
-            if (key /*&& model.has( key )*/)
+            if (key /*&& model.has(key)*/)
             {
                 input_type = (el[TYPE]||'').toLowerCase();
 
@@ -1653,9 +1653,9 @@ view.sync_model();
         }
         else
         {
-            if ( 188 === code )         character = ","; //If the user presses , when the type is onkeydown
-            else if ( 190 === code )    character = "."; //If the user presses , when the type is onkeydown
-            else                        character = Str.fromCharCode(code).toLowerCase( );
+            if (188 === code)         character = ","; //If the user presses , when the type is onkeydown
+            else if (190 === code)    character = "."; //If the user presses , when the type is onkeydown
+            else                      character = Str.fromCharCode(code).toLowerCase();
             // stupid Shift key bug created by using lowercase
             if (!!evt.shiftKey && HAS.call(shift_nums,character)) character = shift_nums[character];
             key = character;

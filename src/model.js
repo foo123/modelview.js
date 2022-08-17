@@ -2,7 +2,7 @@
 // Model utils
 // http://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-with-string-key
 var index_to_prop_re = /\[([^\]]*)\]/g,
-    trailing_dots_re = /^\.+|\.+$/g;
+    trailing_dots_re = new Regex('^('+esc_re(SEPARATOR)+')+|('+esc_re(SEPARATOR)+')+$', 'g');///^\.+|\.+$/g;
 
 function get_next(a, k)
 {
@@ -228,16 +228,16 @@ function walk_and_get3(p, obj, aux1, aux2, aux3, C, all3, collections)
 function dotted(key)
 {
     //        convert indexes to properties     strip leading/trailing dots
-    return key.replace(index_to_prop_re, '.$1').replace(trailing_dots_re, '');
+    return key.replace(index_to_prop_re, SEPARATOR+'$1').replace(trailing_dots_re, '');
 }
 function bracketed(dottedKey)
 {
-    return '['+dottedKey.split('.').join('][')+']';
+    return '['+dottedKey.split(SEPARATOR).join('][')+']';
 }
 function removePrefix(prefix)
 {
     // strict mode (after prefix, a key follows)
-    var regex = new Regex( '^' + prefix + '([\\.|\\[])' );
+    var regex = new Regex('^' + prefix + '(\\[|'+esc_re(SEPARATOR)+')'/*'([\\.|\\[])'*/);
     return function(key, to_dotted) {
         var k = key.replace(regex, '$1');
         return to_dotted ? dotted(k) : k;
@@ -245,7 +245,7 @@ function removePrefix(prefix)
 }
 function keyLevelUp(dottedKey, level)
 {
-    return dottedKey && (0 > level) ? dottedKey.split('.').slice(0, level).join('.') : dottedKey;
+    return dottedKey && (0 > level) ? dottedKey.split(SEPARATOR).slice(0, level).join(SEPARATOR) : dottedKey;
 }
 function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesValidators)
 {
@@ -255,7 +255,7 @@ function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesVali
         // each wrapper
         typeOrValidator = typeOrValidator.f; //bindF(typeOrValidator.f, model);
         // bind the typeOrValidator handler to 'this model'
-        walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
+        walk_and_add(typeOrValidator, -1 < dottedKey.indexOf(SEPARATOR) ? dottedKey.split(SEPARATOR) : [dottedKey], modelTypesValidators, isCollectionEach);
     }
     else
     {
@@ -265,7 +265,7 @@ function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesVali
             // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
             //typeOrValidator = bindF( typeOrValidator, model );
             // bind the typeOrValidator handler to 'this model'
-            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelTypesValidators, isCollectionEach);
+            walk_and_add(typeOrValidator, -1 < dottedKey.indexOf(SEPARATOR) ? dottedKey.split(SEPARATOR) : [dottedKey], modelTypesValidators, isCollectionEach);
         }
         else if (T_ARRAY_OR_OBJ & t)
         {
@@ -273,7 +273,7 @@ function addModelTypeValidator(model, dottedKey, typeOrValidator, modelTypesVali
             for (k in typeOrValidator)
             {
                 if (HAS.call(typeOrValidator, k))
-                    addModelTypeValidator(model, dottedKey + '.' + k, typeOrValidator[k], modelTypesValidators);
+                    addModelTypeValidator(model, dottedKey + SEPARATOR + k, typeOrValidator[k], modelTypesValidators);
             }
         }
     }
@@ -286,7 +286,7 @@ function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSett
     {
         // http://jsperf.com/function-calls-direct-vs-apply-vs-call-vs-bind/48
         // bind the getterOrSetter handler to 'this model'
-        walk_and_add(getterOrSetter /*bindF(getterOrSetter, model)*/, -1 < dottedKey.indexOf('.') ? dottedKey.split('.') : [dottedKey], modelGettersSetters);
+        walk_and_add(getterOrSetter /*bindF(getterOrSetter, model)*/, -1 < dottedKey.indexOf(SEPARATOR) ? dottedKey.split(SEPARATOR) : [dottedKey], modelGettersSetters);
     }
     else if (T_ARRAY_OR_OBJ & t)
     {
@@ -294,7 +294,7 @@ function addModelGetterSetter(model, dottedKey, getterOrSetter, modelGettersSett
         for (k in getterOrSetter)
         {
             if (HAS.call(getterOrSetter, k))
-                addModelGetterSetter(model, dottedKey + '.' + k, getterOrSetter[k], modelGettersSetters);
+                addModelGetterSetter(model, dottedKey + SEPARATOR + k, getterOrSetter[k], modelGettersSetters);
         }
     }
 }
@@ -432,7 +432,7 @@ function serializeModel(model_instance, model_class, data, dataType)
 function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKey)
 {
     var o, key, val, typecaster, r, res, nestedKey, splitKey;
-    prefixKey = !!prefixKey ? (prefixKey + '.') : '';
+    prefixKey = !!prefixKey ? (prefixKey + SEPARATOR) : '';
     data = data || model.$data;
     if (is_instance(data, Collection)) data = data.items();
     typecasters = typecasters || [model.$types];
@@ -441,20 +441,20 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
     {
         if (!!dottedKey)
         {
-            if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, typecasters, modelClass)))
+            if ((r = walk_and_get_value2(splitKey=dottedKey.split(SEPARATOR), o=data, typecasters, modelClass)))
             {
                 o = r[1]; key = r[2];
 
                 if (modelClass === r[0])
                 {
-                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join(SEPARATOR);
                     // nested sub-model
-                    typecastModel(o, modelClass, key.length ? key.join('.') : null);
+                    typecastModel(o, modelClass, key.length ? key.join(SEPARATOR) : null);
                 }
                 else
                 {
                     if (is_instance(o, Collection)) o = o.items();
-                    nestedKey = splitKey.slice(0, -1).join('.');
+                    nestedKey = splitKey.slice(0, -1).join(SEPARATOR);
                     val = o[key]; typecaster = get_value(r[3], key);
                     if (typecaster)
                     {
@@ -465,7 +465,7 @@ function typecastModel(model, modelClass, dottedKey, data, typecasters, prefixKe
                     }
                     if ((T_ARRAY_OR_OBJ & get_type(val)) && (typecasters=get_next(r[3], key)) && typecasters.length)
                     {
-                        nestedKey += !!nestedKey ? ('.' + key) : key;
+                        nestedKey += !!nestedKey ? (SEPARATOR + key) : key;
                         nestedKey = prefixKey + nestedKey;
                         for (key in val)
                         {
@@ -505,18 +505,18 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
     {
         if (!!dottedKey)
         {
-            fixKey = function(k) {return !!nestedKey ? (nestedKey + '.' + k) : k;};
+            fixKey = function(k) {return !!nestedKey ? (nestedKey + SEPARATOR + k) : k;};
 
-            if ((r = walk_and_get_value2(splitKey=dottedKey.split('.'), o=data, validators, modelClass)))
+            if ((r = walk_and_get_value2(splitKey=dottedKey.split(SEPARATOR), o=data, validators, modelClass)))
             {
                 o = r[1]; key = r[2];
 
                 if (modelClass === r[0])
                 {
-                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join('.');
+                    nestedKey = splitKey.slice(0, splitKey.length-key.length).join(SEPARATOR);
 
                     // nested sub-model
-                    res = validateModel(o, modelClass, breakOnError, key.length ? key.join('.') : null);
+                    res = validateModel(o, modelClass, breakOnError, key.length ? key.join(SEPARATOR) : null);
                     if (!res.isValid)
                     {
                         result.errors.push.apply(result.errors, res.errors.map(fixKey));
@@ -527,7 +527,7 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
                 else
                 {
                     if (is_instance(o, Collection)) o = o.items();
-                    nestedKey = splitKey.slice(0, -1).join('.');
+                    nestedKey = splitKey.slice(0, -1).join(SEPARATOR);
 
                     val = o[key]; validator = get_value(r[3], key);
                     if (is_instance(val, Value)) val = val.val();
@@ -539,7 +539,7 @@ function validateModel(model, modelClass, breakOnError, dottedKey, data, validat
                     }
                     if ((T_ARRAY_OR_OBJ & get_type(val)) && (validators=get_next(r[3], key)) && validators.length)
                     {
-                        nestedKey += !!nestedKey ? ('.' + key) : key;
+                        nestedKey += !!nestedKey ? (SEPARATOR + key) : key;
 
                         for (key in val)
                         {
@@ -587,7 +587,7 @@ function syncHandler(evt, data)
     if (key)
     {
         // make this current key an atom, so as to avoid any circular-loop of updates on same keys
-        keyDot = key + '.';
+        keyDot = key + SEPARATOR;
         allKeys = Keys($syncTo); allKeyslen = allKeys.length;
         prev_atomic = model.atomic; prev_atom = model.$atom;
         model.atomic = true; model.$atom = key;
@@ -637,7 +637,7 @@ function getDirty(u, ks)
             each(Keys(u.k), function(k){
                 if (u.k[k].f) upds.push(k);
                 var rest = getDirty(u.k[k], ks);
-                if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+'.'+kk;}));
+                if (rest.length) upds.push.apply(upds, rest.map(function(kk){return k+SEPARATOR+kk;}));
                 //else upds.push(k);
             });
         }
@@ -646,7 +646,7 @@ function getDirty(u, ks)
 }
 function setDirty(model, key, many)
 {
-    if (many) each(key, function(k) {model.setDirty(k.split('.'));});
+    if (many) each(key, function(k) {model.setDirty(k.split(SEPARATOR));});
     else model.setDirty(key);
 }
 function isDirty(u, ks, i)
@@ -707,7 +707,7 @@ function sorter()
                 // default ASC
                 desc = false;
             }
-            field = field.length ? '["' + field.split('.').join('"]["') + '"]' : '';
+            field = field.length ? '["' + field.split(SEPARATOR).join('"]["') + '"]' : '';
             a = "a"+field; b = "b"+field;
             if (sorter_args[0])
             {
@@ -838,11 +838,11 @@ model.dispose( );
 
     ,key: null
 
-    ,option: function(key) {
+    ,option: function(key, val) {
         var model = this;
         if (1 < arguments.length)
         {
-            model.$opts[key] = arguments[1];
+            model.$opts[key] = val;
         }
         else if (key)
         {
@@ -870,7 +870,7 @@ model.data( [Object data] );
         var model = this, i, l, u;
         if (!model.$upds) model.$upds = {};
         u = model.$upds;
-        //if (!is_array(ks)) ks = Str(ks).split('.');
+        //if (!is_array(ks)) ks = Str(ks).split(SEPARATOR);
         for (i=0,l=ks.length; i<l; ++i)
         {
             if (!u.k) u.k = {};
@@ -887,7 +887,7 @@ model.data( [Object data] );
     ,isDirty: function(ks) {
         var model = this, u = model.$upds;
         if (!arguments.length) return !!(u && u.k);
-        if (!is_array(ks)) ks = Str(ks).split('.');
+        if (!is_array(ks)) ks = Str(ks).split(SEPARATOR);
         return isDirty(u, ks, 0);
     }
     ,resetDirty: function() {
@@ -915,13 +915,13 @@ model.dependencies( Object dependencies );
                     for (i=0; i<d.length; ++i)
                     {
                         // add hierarchical/dotted key, all levels
-                        kk = d[i].split('.');
+                        kk = d[i].split(SEPARATOR);
                         dk = kk[0];
                         if (!HAS.call(dependencies, dk)) dependencies[dk] = [];
                         if (0 > dependencies[dk].indexOf(k)) dependencies[dk].push(k);
                         for (j=1; j<kk.length; ++j)
                         {
-                            dk += '.' + kk[j];
+                            dk += SEPARATOR + kk[j];
                             if (!HAS.call(dependencies, dk)) dependencies[dk] = [];
                             if (0 > dependencies[dk].indexOf(k)) dependencies[dk].push(k);
                         }
@@ -1077,14 +1077,14 @@ model.has( String dottedKey [, Boolean RAW=false ] );
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.') && (HAS.call(data, dottedKey) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)))
+        if (0 > dottedKey.indexOf(SEPARATOR) && (HAS.call(data, dottedKey) || (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)))
         {
             // handle single key fast
             return true;
         }
-        else if ((r = walk_and_check(dottedKey.split('.'), data, RAW ? null : getters, Model)))
+        else if ((r = walk_and_check(dottedKey.split(SEPARATOR), data, RAW ? null : getters, Model)))
         {
-            return true === r ? true : r[1].has(r[2].join('.'));
+            return true === r ? true : r[1].has(r[2].join(SEPARATOR));
         }
         return false;
     }
@@ -1100,16 +1100,16 @@ model.get( String dottedKey [, Boolean RAW=false ] );
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v) return r.v.call(model, dottedKey);
             return data[dottedKey];
         }
-        else if ((r = walk_and_get2(dottedKey.split('.'), data, RAW ? null : getters, Model)))
+        else if ((r = walk_and_get2(dottedKey.split(SEPARATOR), data, RAW ? null : getters, Model)))
         {
             // nested sub-model
-            if (Model === r[0]) return r[1].get(r[2].join('.'), RAW);
+            if (Model === r[0]) return r[1].get(r[2].join(SEPARATOR), RAW);
             // custom getter
             else if (false === r[0]) return r[1].call(model, dottedKey);
             // model field
@@ -1127,7 +1127,7 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
         var model = this, data = model.$data, getters = model.$getters, r, ks, ret;
 
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             if (!RAW && (r=getters[dottedKey]||getters[WILDCARD]) && r.v)
@@ -1137,12 +1137,12 @@ model.getVal( String dottedKey [, Boolean RAW=false ] );
             }
             return is_instance(data[dottedKey], Value) ? data[dottedKey] : Value(data[dottedKey], dottedKey, true).changed(model.isDirty([dottedKey]));
         }
-        else if ((r = walk_and_get2(ks=dottedKey.split('.'), data, RAW ? null : getters, Model)))
+        else if ((r = walk_and_get2(ks=dottedKey.split(SEPARATOR), data, RAW ? null : getters, Model)))
         {
             // nested sub-model
             if (Model === r[0])
             {
-                return r[1].getVal(r[2].join('.'), RAW);
+                return r[1].getVal(r[2].join(SEPARATOR), RAW);
             }
             // custom getter
             else if (false === r[0])
@@ -1193,7 +1193,7 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                 o = to_get[0];
                 dottedKey = to_get[1];
                 g = to_get[2];
-                p = dottedKey.split('.');
+                p = dottedKey.split(SEPARATOR);
                 i = 0; l = p.length;
                 while (i < l)
                 {
@@ -1206,10 +1206,10 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                         {
                             if (WILDCARD === k)
                             {
-                                k = p.slice(i).join('.');
+                                k = p.slice(i).join(SEPARATOR);
                                 keys = Keys(o);
                                 for (kk=0; kk<keys.length; ++kk)
-                                    stack.push([o, keys[kk] + '.' + k, get_next(g, keys[kk])]);
+                                    stack.push([o, keys[kk] + SEPARATOR + k, get_next(g, keys[kk])]);
                                 break;
                             }
                             else if (HAS.call(o, k))
@@ -1222,9 +1222,9 @@ model.getAll( Array dottedKeys [, Boolean RAW=false ] );
                         {
                             if (WILDCARD === k)
                             {
-                                k = p.slice(i).join('.');
+                                k = p.slice(i).join(SEPARATOR);
                                 for (kk=0; kk<o.length; ++kk)
-                                    stack.push([o, '' + kk + '.' + k, get_next(g, ''+kk)]);
+                                    stack.push([o, '' + kk + SEPARATOR + k, get_next(g, ''+kk)]);
                                 break;
                             }
                             else if (HAS.call(o, k))
@@ -1331,7 +1331,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             k = dottedKey;
@@ -1348,7 +1348,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split(SEPARATOR), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[1]; k = r[2];
 
@@ -1357,7 +1357,7 @@ model.set( String dottedKey, * val [, Boolean publish=false] );
                 // nested sub-model
                 if (k.length)
                 {
-                    k = k.join('.');
+                    k = k.join(SEPARATOR);
                     prevval = o.get(k);
                     if (is_instance(prevval, Value)) prevval = prevval.val();
                     if (is_instance(val, Value)) val = val.val();
@@ -1551,7 +1551,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             k = dottedKey;
@@ -1568,7 +1568,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
             }
             canSet = true;
         }
-        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split(SEPARATOR), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[1]; k = r[2];
 
@@ -1577,7 +1577,7 @@ model.[add|append]( String dottedKey, * val [, Boolean prepend=False, Boolean pu
                 // nested sub-model
                 if (k.length)
                 {
-                    k = k.join('.');
+                    k = k.join(SEPARATOR);
                     o.add(k, val, prepend, pub, callData);
                     each(collections, function(collection) {
                         collection[0].upd(collection[1]);
@@ -1779,7 +1779,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             k = dottedKey;
@@ -1796,7 +1796,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                     collection_validator = get_value(get_next(get_next([validators[k] || validators[WILDCARD]], WILDCARD), WILDCARD), WILDCARD);
             }
         }
-        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split(SEPARATOR), o, types, autovalidate ? validators : null, setters, Model, true, collections)))
         {
             o = r[1]; k = r[2];
 
@@ -1805,7 +1805,7 @@ model.[ins|insert]( String dottedKey, * val, Number index [, Boolean publish=fal
                 // nested sub-model
                 if (k.length)
                 {
-                    k = k.join('.');
+                    k = k.join(SEPARATOR);
                     o.ins(k, val, index, pub, callData);
                     each(collections, function(collection) {
                         collection[0].upd(collection[1]);
@@ -1975,14 +1975,14 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
         // http://jsperf.com/regex-vs-indexof-with-and-without-char
         // http://jsperf.com/split-vs-test-and-split
         // test and split (if needed) is fastest
-        if (0 > dottedKey.indexOf('.'))
+        if (0 > dottedKey.indexOf(SEPARATOR))
         {
             // handle single key fast
             k = dottedKey;
             ks = [k];
             canDel = true;
         }
-        else if ((r = walk_and_get3(ks=dottedKey.split('.'), o, null, null, null, Model, false, collections)))
+        else if ((r = walk_and_get3(ks=dottedKey.split(SEPARATOR), o, null, null, null, Model, false, collections)))
         {
             o = r[1]; k = r[2];
             ks.length = ks.length-1; // not include removed key/index
@@ -1990,7 +1990,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
             if (Model === r[0] && k.length)
             {
                 // nested sub-model
-                k = k.join('.');
+                k = k.join(SEPARATOR);
                 val = o.get(k);
                 o.del(k, reArrangeIndexes, pub, callData);
                 each(collections, function(collection) {
@@ -2057,7 +2057,7 @@ model.[del|delete|remove]( String dottedKey [, Boolean publish=false, Boolean re
                     $callData: callData
                 });
 
-            k = ks.join('.');
+            k = ks.join(SEPARATOR);
             // notify any dependencies as well
             if (HAS.call(ideps, k))
             {
@@ -2093,7 +2093,7 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                 to_remove = stack.pop();
                 o = to_remove[0];
                 dottedKey = to_remove[1];
-                p = dottedKey.split('.');
+                p = dottedKey.split(SEPARATOR);
                 i = 0; l = p.length;
                 while (i < l)
                 {
@@ -2110,10 +2110,10 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                         {
                             if (WILDCARD === k)
                             {
-                                k = p.slice(i).join('.');
+                                k = p.slice(i).join(SEPARATOR);
                                 keys = Keys(o);
                                 for (kk=0; kk<keys.length; ++kk)
-                                    stack.push([o, keys[kk] + '.' + k]);
+                                    stack.push([o, keys[kk] + SEPARATOR + k]);
                                 break;
                             }
                             else if (HAS.call(o, k))
@@ -2125,9 +2125,9 @@ model.[delAll|deleteAll]( Array dottedKeys [, Boolean reArrangeIndexes=true] );
                         {
                             if (WILDCARD === k)
                             {
-                                k = p.slice(i).join('.');
+                                k = p.slice(i).join(SEPARATOR);
                                 for (kk=0; kk<o.length; ++kk)
-                                    stack.push([o, '' + kk + '.' + k]);
+                                    stack.push([o, '' + kk + SEPARATOR + k]);
                                 break;
                             }
                             else if (HAS.call(o, k))
@@ -2302,7 +2302,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                 // notify any dependencies as well
                 keys['_'+dottedKey] = 1;
                 if (HAS.call(ideps, dottedKey)) deps.push.apply(deps, ideps[dottedKey]);
-                model.setDirty(dottedKey.split('.'));
+                model.setDirty(dottedKey.split(SEPARATOR));
                 model.publish(evt, d);
             }
             else if (T_ARRAY === t)
@@ -2316,7 +2316,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     // notify any dependencies as well
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps, dk)) deps.push.apply(deps, ideps[dk]);
-                    model.setDirty(dk.split('.'));
+                    model.setDirty(dk.split(SEPARATOR));
                     model.publish(evt, d);
                 }
             }
@@ -2334,7 +2334,7 @@ model.notify( String | Array dottedKeys [, String event="change", Object calldat
                     keys['_'+dk] = 1;
                     if (HAS.call(ideps, dk)) deps2.push.apply(deps2, ideps[dk]);
                     d.key = dk;
-                    model.setDirty(dk.split('.'));
+                    model.setDirty(dk.split(SEPARATOR));
                     model.publish("change", d);
                 }
                 deps = deps2;
@@ -2390,7 +2390,7 @@ function Proxy(model, key, rel)
     if (!is_instance(self, Proxy)) return new Proxy(model, key, rel);
 
     key = null == key ? '' : key;
-    prefix = !key || !key.length ? '' : (key + '.');
+    prefix = !key || !key.length ? '' : (key + SEPARATOR);
     getKey = function(dottedKey) {
         var ret, i;
         if (rel && rel.length)
@@ -2404,11 +2404,11 @@ function Proxy(model, key, rel)
                 ret = new String(dottedKey);
                 ret.$mvIndex = i;
             }
-            /*else if (('.' === rel) && ('.' === dottedKey.charAt(0)))
+            /*else if ((SEPARATOR === rel) && (SEPARATOR === dottedKey.charAt(0)))
             {
                 ret = prefix + dottedKey.slice(1);
             }*/
-            else if (startsWith(dottedKey, rel+'.'))
+            else if (startsWith(dottedKey, rel+SEPARATOR))
             {
                 ret = prefix + dottedKey.slice(rel.length+1);
             }
@@ -2432,7 +2432,7 @@ function Proxy(model, key, rel)
         if (null != realKey.$mvIndex) return realKey.$mvIndex;
         if (NOOP === data) data = model.get(key);
         if ('' === realKey || key === realKey) return data;
-        realKey = realKey.split('.');
+        realKey = realKey.split(SEPARATOR);
         for (var i=0,l=realKey.length,o=data; i<l; ++i)
         {
             if (HAS.call(o, realKey[i])) o = o[realKey[i]];
@@ -2471,7 +2471,7 @@ function Proxy(model, key, rel)
         return new Proxy(self, dottedKey, rel);
     };
     self.getChanged = self.getDirty = function() {
-        var d = model.getDirty(key && key.length ? key.split('.') : null);
+        var d = model.getDirty(key && key.length ? key.split(SEPARATOR) : null);
         if (indexKey) d.push(indexKey);
         return d;
     };

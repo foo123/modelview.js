@@ -42,7 +42,7 @@ function VC(V)
             return V.call(self, v, k) || V2.call(self, v, k);
         });
     };
-    V.XOR = function(V2) {
+    /*V.XOR = function(V2) {
         return VC(function(v, k) {
             var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
             return (r1 && !r2) || (r2 && !r1);
@@ -69,7 +69,7 @@ function VC(V)
             var self = this, r1 = V.call(self, v, k), r2 = V2.call(self, v, k);
             return r1 != r2;
         });
-    };
+    };*/
     return V;
 }
 
@@ -85,7 +85,7 @@ var Type = {
 
     tpl_$0: tpl_$0_re,
 
-    TypeCaster: function(typecaster){return typecaster;}
+    TypeCaster: function(typecaster) {return typecaster;}
 
     // default type casters
     ,Cast: {
@@ -97,10 +97,10 @@ ModelView.Type.Cast.COMPOSITE( TypeCaster1, TypeCaster2 [, ...] );
         // composite type caster
         COMPOSITE: function() {
             var args = arguments;
-            if (is_type(args[ 0 ], T_ARRAY)) args = args[ 0 ];
+            if (is_type(args[0], T_ARRAY)) args = args[0];
             return function(v, k) {
                var l = args.length;
-               while ( l-- ) v = args[l].call(this, v, k);
+               while (l--) v = args[l].call(this, v, k);
                return v;
             };
         },
@@ -132,18 +132,18 @@ ModelView.Type.Cast.FIELDS({
                 var self = this, field, type, val;
                 for (field in typesPerField)
                 {
-                    if (HAS.call(typesPerField,field))
+                    if (HAS.call(typesPerField, field))
                     {
-                        type = typesPerField[ field ]; val = v[ field ];
+                        type = typesPerField[field]; val = v[field];
                         if (type.fEach && is_type(val, T_ARRAY))
                         {
-                           v[ field ] = iterate(function( i, val ) {
-                               val[ i ] = type.f.call( self, val[ i ] );
+                           v[field] = iterate(function(i, val) {
+                               val[i] = type.f.call(self, val[i]);
                            }, 0, val.length-1, val);
                         }
                         else
                         {
-                            v[ field ] = type.call( self, val );
+                            v[field] = type.call(self, val);
                         }
                     }
                 }
@@ -158,8 +158,7 @@ ModelView.Type.Cast.DEFAULT( defaultValue );
 [/DOC_MARKDOWN]**/
         DEFAULT: function(defaultValue) {
             return function(v) {
-                var T = get_type(v);
-                if ((T_UNDEF & T) || ((T_STR & T) && !trim(v).length)) v = defaultValue;
+                if ((null == v) || (is_type(v, T_STR) && !trim(v).length)) v = defaultValue;
                 return v;
             };
         },
@@ -172,7 +171,7 @@ ModelView.Type.Cast.BOOL;
             // handle string representation of booleans as well
             if (is_type(v, T_STR) && v.length)
             {
-                var vs = v.toLowerCase( );
+                var vs = v.toLowerCase();
                 return "true" === vs || "yes" === vs || "on" === vs || "1" === vs;
             }
             return !!v;
@@ -218,7 +217,7 @@ ModelView.Type.Cast.CLAMP( min, max );
 [/DOC_MARKDOWN]**/
         CLAMP: function(m, M) {
             // swap
-            if (m > M) { var tmp = M; M = m; m = tmp; }
+            if (m > M) {var tmp = M; M = m; m = tmp;}
             return function(v) {return v < m ? m : (v > M ? M : v);};
         },
 /**[DOC_MARKDOWN]
@@ -314,13 +313,13 @@ ModelView.Validation.Validate.FIELDS({
                 var self = this, field, validator, val, l, i;
                 for (field in validatorsPerField)
                 {
-                    if (HAS.call(validatorsPerField,field))
+                    if (HAS.call(validatorsPerField, field))
                     {
-                        validator = validatorsPerField[ field ]; val = v[ field ];
+                        validator = validatorsPerField[field]; val = v[field];
                         if (validator.fEach && is_type(val, T_ARRAY))
                         {
                            l = val.length;
-                           for (i=0; i<l; i++) if (!validator.f.call(self, val[ i ])) return false;
+                           for (i=0; i<l; i++) if (!validator.f.call(self, val[i])) return false;
                         }
                         else
                         {
@@ -378,7 +377,7 @@ ModelView.Validation.Validate.MATCH( regex );
 
 [/DOC_MARKDOWN]**/
         MATCH: function(regex_pattern) {
-            return VC(function(v) {return regex_pattern.test( v );});
+            return VC(function(v) {return regex_pattern.test(v);});
         },
 /**[DOC_MARKDOWN]
 // validate value not matches regex pattern
@@ -386,7 +385,7 @@ ModelView.Validation.Validate.NOT_MATCH( regex );
 
 [/DOC_MARKDOWN]**/
         NOT_MATCH: function(regex_pattern) {
-            return VC(function(v) {return !regex_pattern.test( v );});
+            return VC(function(v) {return !regex_pattern.test(v);});
         },
 /**[DOC_MARKDOWN]
 // validate equal to value (or model field)
@@ -477,7 +476,7 @@ ModelView.Validation.Validate.IN( value1, value2 [, ...] );
 [/DOC_MARKDOWN]**/
         IN: function(/* vals,.. */) {
             var vals = slice.call(arguments);
-            if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
+            if (is_type(vals[0], T_ARRAY)) vals = vals[0];
             return VC(function(v) {
                 return -1 < vals.indexOf(v);
             });
@@ -489,7 +488,7 @@ ModelView.Validation.Validate.NOT_IN( value1, value2 [, ...] );
 [/DOC_MARKDOWN]**/
         NOT_IN: function(/* vals,.. */) {
             var vals = slice.call(arguments);
-            if (is_type(vals[ 0 ], T_ARRAY)) vals = vals[ 0 ];
+            if (is_type(vals[0], T_ARRAY)) vals = vals[0];
             return VC(function(v) {
                 return 0 > vals.indexOf(v);
             });
@@ -502,7 +501,7 @@ ModelView.Validation.add( name, validator );
 [/DOC_MARKDOWN]**/
     ,add: function(type, handler) {
         if (is_type(type, T_STR) && is_type(handler, T_FUNC))
-            Validation.Validate[ type ] = is_type(handler.XOR, T_FUNC) ? handler : VC(handler);
+            Validation.Validate[type] = is_type(handler.XOR, T_FUNC) ? handler : VC(handler);
         return Validation;
     }
 
@@ -512,7 +511,7 @@ ModelView.Validation.del( name );
 
 [/DOC_MARKDOWN]**/
     ,del: function(type) {
-        if (is_type(type, T_STR) && HAS.call(Validation.Validate, type)) delete Validation.Validate[ type ];
+        if (is_type(type, T_STR) && HAS.call(Validation.Validate, type)) delete Validation.Validate[type];
         return Validation;
     }
 

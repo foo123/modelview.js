@@ -4,7 +4,7 @@
 // utilities
 //
 ///////////////////////////////////////////////////////////////////////////////////////
-var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', SEPARATOR = ".", WILDCARD = "*",
+var MV = '$MV', NAMESPACE = "modelview", mvDisplay = '--mvDisplay', SEPARATOR = '.', WILDCARD = '*',
     MV0 = function(att,mod,id,comp,key) {return {att:att||null,mod:mod||null,id:id||null,comp:comp||null,key:key||null};},
     DEFAULT_MV = MV0(),
     undef = undefined, bindF = function(f, scope) {return f.bind(scope);},
