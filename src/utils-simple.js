@@ -424,7 +424,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
         start = list.start, end = list.end,
         parentNode = start.parentNode, startIndex = get_index(start),
         m = list.tpl.childNodes.length, di, dc, d,
-        range, frag, n, count, i, j, k, l, x;
+        range, frag, n, count, index, i, j, k, l, x;
     list.map = list.map || [];
     for (di=0,dc=diff.length; di<dc; ++di)
     {

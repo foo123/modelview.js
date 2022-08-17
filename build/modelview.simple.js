@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 23:35:34
+*   @built on 2022-08-17 15:54:21
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 23:35:34
+*   @built on 2022-08-17 15:54:21
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -1150,7 +1150,7 @@ function morphCollectionSimple(view, list, key, collection, isDirty, model, only
         start = list.start, end = list.end,
         parentNode = start.parentNode, startIndex = get_index(start),
         m = list.tpl.childNodes.length, di, dc, d,
-        range, frag, n, count, i, j, k, l, x;
+        range, frag, n, count, index, i, j, k, l, x;
     list.map = list.map || [];
     for (di=0,dc=diff.length; di<dc; ++di)
     {
@@ -4950,8 +4950,15 @@ collection.splice(index, numRemoved, ..);
                 }
                 else
                 {
-                    self._upd('del', index, index+to_del-to_add-1);
-                    if (0 < to_add) self._upd('change', index, index+to_add-1);
+                    if (0 < to_add)
+                    {
+                        self._upd('change', index, index+to_add-1);
+                        self._upd('del', index+to_add, index+to_del-1);
+                    }
+                    else
+                    {
+                        self._upd('del', index, index+to_del-1);
+                    }
                 }
             }
         }

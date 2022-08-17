@@ -2,7 +2,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 23:35:36
+*   @built on 2022-08-17 15:54:24
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -11,7 +11,7 @@
 *
 *   ModelView.js
 *   @version: 5.1.0
-*   @built on 2022-08-16 23:35:36
+*   @built on 2022-08-17 15:54:24
 *
 *   A simple, light-weight, versatile and fast isomorphic MVVM JavaScript framework (Browser and Server)
 *   https://github.com/foo123/modelview.js
@@ -6794,8 +6794,15 @@ collection.splice(index, numRemoved, ..);
                 }
                 else
                 {
-                    self._upd('del', index, index+to_del-to_add-1);
-                    if (0 < to_add) self._upd('change', index, index+to_add-1);
+                    if (0 < to_add)
+                    {
+                        self._upd('change', index, index+to_add-1);
+                        self._upd('del', index+to_add, index+to_del-1);
+                    }
+                    else
+                    {
+                        self._upd('del', index, index+to_del-1);
+                    }
                 }
             }
         }

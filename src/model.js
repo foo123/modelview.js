@@ -2846,8 +2846,15 @@ collection.splice(index, numRemoved, ..);
                 }
                 else
                 {
-                    self._upd('del', index, index+to_del-to_add-1);
-                    if (0 < to_add) self._upd('change', index, index+to_add-1);
+                    if (0 < to_add)
+                    {
+                        self._upd('change', index, index+to_add-1);
+                        self._upd('del', index+to_add, index+to_del-1);
+                    }
+                    else
+                    {
+                        self._upd('del', index, index+to_del-1);
+                    }
                 }
             }
         }
